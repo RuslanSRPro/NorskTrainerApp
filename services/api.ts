@@ -25,7 +25,8 @@ const LEXEME_SELECT = `
   id, lemma, pos, display_form,
   translation_ua, translation_en, example, notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
-  verification, source, enrichment_status, enrichment_error,
+  verification, verification_tier, verification_status, source_verified,
+  verification_evidence, source, enrichment_status, enrichment_error,
   expression_data (
     expression_subtype
   ),
@@ -113,13 +114,18 @@ function mapLexemeRow(item: any) {
     example:  item.example        || '',
     notes:    item.notes          || '',
     cefr:     item.cefr           || '',
-    frequency_rank: item.frequency_rank ?? null,
-    frequency_level: item.frequency_level || '',
+    frequency_rank:   item.frequency_rank   ?? null,
+    frequency_level:  item.frequency_level  || '',
     frequency_source: item.frequency_source || '',
-    frequency_note: item.frequency_note || '',
+    frequency_note:   item.frequency_note   || '',
     status:   item.status         || 'New',
     source:   item.source         || '',
-    verification: item.verification || '',
+    // verification fields
+    verification:          item.verification          || '',
+    verification_tier:     item.verification_tier     || null,
+    verification_status:   item.verification_status   || null,
+    source_verified:       item.source_verified       || null,
+    verification_evidence: item.verification_evidence || null,
     srs:           item.srs || null,
     memoryStatus:  item.srs?.memory_status  || null,
     memoryScore:   item.srs?.memory_score   || 0,
@@ -135,6 +141,10 @@ function mapLexemeRow(item: any) {
     base_verb:          vf.base_verb          || '',
     particle:           vf.particle           || '',
     synonyms:           item.synonyms         || [],
+    // joined form objects for getFormLabels()
+    verb_forms:       item.verb_forms?.[0]      || null,
+    noun_forms:       item.noun_forms?.[0]      || null,
+    adjective_forms:  item.adjective_forms?.[0] || null,
   };
 }
 
@@ -1056,7 +1066,11 @@ export async function addExpressionCandidateToSupabase(params: {
     frequency_note:   candidate.frequency_note  || null,
     status:           'New',
     source:           candidate.source || 'AI analyzer',
-    verification:     candidate.verification === 'known_dictionary' ? 'verified_dictionary' : 'ai_candidate',
+    // verification fields
+    verification:        candidate.verification === 'known_dictionary' ? 'verified_dictionary' : 'ai_candidate',
+    verification_tier:   candidate.verification_tier   || 'ai_candidate',
+    verification_status: candidate.verification_status || 'ai_candidate',
+    source_verified:     candidate.source_verified     || null,
     enrichment_status: 'ai_candidate',
     enrichment_error:  null,
   };
