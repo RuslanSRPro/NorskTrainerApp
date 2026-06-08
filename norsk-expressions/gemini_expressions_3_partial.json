@@ -1,0 +1,1570 @@
+[
+  {
+    "lemma": "holde seg i form",
+    "meaning_en": "to stay in shape",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "spille på lag",
+    "meaning_en": "to play as a team",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "gi alt",
+    "meaning_en": "to give one's all",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "komme i form",
+    "meaning_en": "to get in shape",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "ta seg tid",
+    "meaning_en": "to take one's time",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "være med",
+    "meaning_en": "to participate",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "slå seg løs",
+    "meaning_en": "to let loose",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "få tid til",
+    "meaning_en": "to have time for",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "trene hardt",
+    "meaning_en": "to train hard",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "gå på tur",
+    "meaning_en": "to go for a walk/hike",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "se på TV",
+    "meaning_en": "to watch TV",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "lese en bok",
+    "meaning_en": "to read a book",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "høre på musikk",
+    "meaning_en": "to listen to music",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "spille et spill",
+    "meaning_en": "to play a game",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "dra på ferie",
+    "meaning_en": "to go on vacation",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "kose seg",
+    "meaning_en": "to enjoy oneself",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "være glad i",
+    "meaning_en": "to be fond of",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "drive med",
+    "meaning_en": "to be involved in/do",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "ta en pause",
+    "meaning_en": "to take a break",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "få seg en tur",
+    "meaning_en": "to go for a walk/trip",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "sports_leisure"
+  },
+  {
+    "lemma": "ha rett til",
+    "meaning_en": "to have the right to",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "søke om",
+    "meaning_en": "to apply for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "fylle ut skjema",
+    "meaning_en": "to fill out a form",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "ha krav på",
+    "meaning_en": "to be entitled to",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "få innvilget",
+    "meaning_en": "to have approved",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "klage på vedtak",
+    "meaning_en": "to appeal a decision",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "gi fullmakt til",
+    "meaning_en": "to grant power of attorney to",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "innhente tillatelse",
+    "meaning_en": "to obtain permission",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "sende inn søknad",
+    "meaning_en": "to submit an application",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "be om innsyn",
+    "meaning_en": "to request access (to information)",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "utstede et bevis",
+    "meaning_en": "to issue a certificate",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "oppfylle vilkår",
+    "meaning_en": "to meet conditions",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "avslå søknad",
+    "meaning_en": "to reject an application",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "fornye tillatelse",
+    "meaning_en": "to renew a permit",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "utarbeide kontrakt",
+    "meaning_en": "to draft a contract",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "få godkjent",
+    "meaning_en": "to get approved",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "legge frem dokumentasjon",
+    "meaning_en": "to present documentation",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "påklage et vedtak",
+    "meaning_en": "to appeal a decision",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "innlevere papirer",
+    "meaning_en": "to submit papers",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "ha gyldighet",
+    "meaning_en": "to be valid",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "legal_official"
+  },
+  {
+    "lemma": "en gang til",
+    "meaning_en": "one more time",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "for første gang",
+    "meaning_en": "for the first time",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "for siste gang",
+    "meaning_en": "for the last time",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "to ganger i uken",
+    "meaning_en": "twice a week",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "hvert år",
+    "meaning_en": "every year",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "en gang i blant",
+    "meaning_en": "once in a while",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "fra gang til gang",
+    "meaning_en": "from time to time",
+    "expression_subtype": "time_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "flere ganger",
+    "meaning_en": "several times",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "ingen gang",
+    "meaning_en": "never",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "en gang",
+    "meaning_en": "once",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "to ganger",
+    "meaning_en": "twice",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "tre ganger",
+    "meaning_en": "three times",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "mange ganger",
+    "meaning_en": "many times",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "hver gang",
+    "meaning_en": "every time",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "en gang om dagen",
+    "meaning_en": "once a day",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "to ganger om dagen",
+    "meaning_en": "twice a day",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "en gang i uken",
+    "meaning_en": "once a week",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "hver uke",
+    "meaning_en": "every week",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "hver måned",
+    "meaning_en": "every month",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "hver dag",
+    "meaning_en": "every day",
+    "expression_subtype": "time_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "numbers_time"
+  },
+  {
+    "lemma": "få hjelp fra NAV",
+    "meaning_en": "to receive help from NAV (Norwegian Labour and Welfare Administration)",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "gå på NAV",
+    "meaning_en": "to be on welfare/unemployment benefits",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "starte en dugnad",
+    "meaning_en": "to start a community work project",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "delta på dugnad",
+    "meaning_en": "to participate in community work",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "drive med friluftsliv",
+    "meaning_en": "to engage in outdoor activities",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "nyte friluftsliv",
+    "meaning_en": "to enjoy outdoor life",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "ha bunadsbryllup",
+    "meaning_en": "to have a wedding where guests wear bunads (traditional Norwegian folk costumes)",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "low",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "tilbringe tid på hytta",
+    "meaning_en": "to spend time at the cabin",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "ha hytte i fjellet",
+    "meaning_en": "to have a cabin in the mountains",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "bruke allemannsretten",
+    "meaning_en": "to use the right to roam",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "respektere allemannsretten",
+    "meaning_en": "to respect the right to roam",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "følge janteloven",
+    "meaning_en": "to follow the Law of Jante (a set of unwritten rules discouraging individual success and boasting)",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "bryte janteloven",
+    "meaning_en": "to break the Law of Jante",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "low",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "gå på ski",
+    "meaning_en": "to go skiing",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "gå på tur",
+    "meaning_en": "to go for a walk/hike",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "ta en kaffe",
+    "meaning_en": "to have a coffee",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "spise middag sammen",
+    "meaning_en": "to eat dinner together",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "feire nasjonaldagen",
+    "meaning_en": "to celebrate the national day (May 17th)",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "besøke familie",
+    "meaning_en": "to visit family",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "dra på ferie",
+    "meaning_en": "to go on holiday",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "norwegian_realities"
+  },
+  {
+    "lemma": "i henhold til",
+    "meaning_en": "in accordance with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "med bakgrunn i",
+    "meaning_en": "based on",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "på bakgrunn av",
+    "meaning_en": "against the background of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "i tråd med",
+    "meaning_en": "in line with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "med hensyn til",
+    "meaning_en": "with regard to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "ta utgangspunkt i",
+    "meaning_en": "to take as a starting point",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "legge til grunn",
+    "meaning_en": "to base on",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "stille krav til",
+    "meaning_en": "to set requirements for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "sette fokus på",
+    "meaning_en": "to focus on",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "rette seg etter",
+    "meaning_en": "to comply with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "i forbindelse med",
+    "meaning_en": "in connection with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "med tanke på",
+    "meaning_en": "with a view to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "føre til",
+    "meaning_en": "to lead to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "gå ut fra",
+    "meaning_en": "to assume",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "komme frem til",
+    "meaning_en": "to arrive at",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "ha betydning for",
+    "meaning_en": "to be of importance for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "gjøre rede for",
+    "meaning_en": "to account for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "ta hensyn til",
+    "meaning_en": "to take into consideration",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "være avhengig av",
+    "meaning_en": "to be dependent on",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "sette seg inn i",
+    "meaning_en": "to familiarize oneself with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "academic_formal"
+  },
+  {
+    "lemma": "ikke i det hele tatt",
+    "meaning_en": "not at all",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "slett ikke",
+    "meaning_en": "not at all",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "overhodet ikke",
+    "meaning_en": "not at all",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "jo da",
+    "meaning_en": "yes, indeed",
+    "expression_subtype": "discourse_marker",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "nei da",
+    "meaning_en": "no, of course not",
+    "expression_subtype": "discourse_marker",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "det er klart",
+    "meaning_en": "of course",
+    "expression_subtype": "discourse_marker",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "selvfølgelig ikke",
+    "meaning_en": "of course not",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "absolutt ikke",
+    "meaning_en": "absolutely not",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "på ingen måte",
+    "meaning_en": "by no means",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "langt fra",
+    "meaning_en": "far from",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "ikke en gang",
+    "meaning_en": "not even",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "ikke noe mer",
+    "meaning_en": "nothing more",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "ikke så verst",
+    "meaning_en": "not too bad",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "ikke bare... men også",
+    "meaning_en": "not only... but also",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "ikke minst",
+    "meaning_en": "not least",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "ikke sant",
+    "meaning_en": "right?",
+    "expression_subtype": "discourse_marker",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "helt klart",
+    "meaning_en": "very clearly",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "virkelig ikke",
+    "meaning_en": "really not",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "langt ifra",
+    "meaning_en": "far from",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "ikke for noe",
+    "meaning_en": "for no reason",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "low",
+    "batch_id": "negation_emphasis"
+  },
+  {
+    "lemma": "si seg enig",
+    "meaning_en": "to agree",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "være enig",
+    "meaning_en": "to agree",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "ha rett",
+    "meaning_en": "to be right",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "ta feil",
+    "meaning_en": "to be wrong",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "ha et poeng",
+    "meaning_en": "to have a point",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "mene noe om",
+    "meaning_en": "to have an opinion about something",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "synes at",
+    "meaning_en": "to think that",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "tro at",
+    "meaning_en": "to believe that",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "komme med en mening",
+    "meaning_en": "to give an opinion",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "være uenig",
+    "meaning_en": "to disagree",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "gi uttrykk for",
+    "meaning_en": "to express",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "dele mening",
+    "meaning_en": "to share an opinion",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "være enig med",
+    "meaning_en": "to agree with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "være uenig med",
+    "meaning_en": "to disagree with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "ha en mening om",
+    "meaning_en": "to have an opinion about",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "komme med innvendinger",
+    "meaning_en": "to raise objections",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "sette spørsmålstegn ved",
+    "meaning_en": "to question",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "stelle seg tvilende til",
+    "meaning_en": "to be skeptical of",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "stå fast på",
+    "meaning_en": "to insist on",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "gi imot",
+    "meaning_en": "to resist, to oppose",
+    "expression_subtype": "particle_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "agreement_disagreement"
+  },
+  {
+    "lemma": "på grunn av",
+    "meaning_en": "because of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "som følge av",
+    "meaning_en": "as a result of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "i forbindelse med",
+    "meaning_en": "in connection with",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "med tanke på",
+    "meaning_en": "with regard to",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "av den grunn",
+    "meaning_en": "for that reason",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "på den måten",
+    "meaning_en": "in that way",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "som et resultat av",
+    "meaning_en": "as a result of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "årsaken til",
+    "meaning_en": "the reason for",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "forårsaket av",
+    "meaning_en": "caused by",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "medføre at",
+    "meaning_en": "lead to that",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "resultere i",
+    "meaning_en": "result in",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "på grunnlag av",
+    "meaning_en": "on the basis of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "i lys av",
+    "meaning_en": "in light of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "som et uttrykk for",
+    "meaning_en": "as an expression of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "low",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "føre til",
+    "meaning_en": "lead to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "som en konsekvens av",
+    "meaning_en": "as a consequence of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "cause_result"
+  },
+  {
+    "lemma": "flytte inn",
+    "meaning_en": "move in",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "flytte ut",
+    "meaning_en": "move out",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "leie bolig",
+    "meaning_en": "rent a home",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "eie bolig",
+    "meaning_en": "own a home",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "betale husleie",
+    "meaning_en": "pay rent",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "bo i leilighet",
+    "meaning_en": "live in an apartment",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "ha fast adresse",
+    "meaning_en": "have a permanent address",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "melde adresse",
+    "meaning_en": "register address",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "gå på visning",
+    "meaning_en": "go to a viewing",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "skrive under kontrakt",
+    "meaning_en": "sign a contract",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "få boliglån",
+    "meaning_en": "get a mortgage",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "bo sentralt",
+    "meaning_en": "live centrally",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "bo i sentrum",
+    "meaning_en": "live in the city center",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "bo i bydel",
+    "meaning_en": "live in a borough/district",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "være nabo med",
+    "meaning_en": "be neighbors with",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "kjenne naboene",
+    "meaning_en": "know the neighbors",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "delta i dugnad",
+    "meaning_en": "participate in a communal work day",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "ha et hyggelig nabolag",
+    "meaning_en": "have a nice neighborhood",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "gå tur i parken",
+    "meaning_en": "go for a walk in the park",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "handle lokalt",
+    "meaning_en": "shop locally",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "housing_city"
+  },
+  {
+    "lemma": "folge med pa",
+    "meaning_en": "to follow",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "holde seg oppdatert",
+    "meaning_en": "to stay updated",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "dele pa sosiale medier",
+    "meaning_en": "to share on social media",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "ta opp et tema",
+    "meaning_en": "to bring up a topic",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "sette dagsorden",
+    "meaning_en": "to set the agenda",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "bruke tid pa",
+    "meaning_en": "to spend time on",
+    "expression_subtype": "time_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "fa med seg",
+    "meaning_en": "to catch",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "komme med nyheter",
+    "meaning_en": "to come with news",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "skrive om",
+    "meaning_en": "to write about",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "lese avisen",
+    "meaning_en": "to read the newspaper",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "se pa nyhetene",
+    "meaning_en": "to watch the news",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "lytte til radio",
+    "meaning_en": "to listen to the radio",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "surfe pa nettet",
+    "meaning_en": "to surf the internet",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "sende en melding",
+    "meaning_en": "to send a message",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "motta en e-post",
+    "meaning_en": "to receive an email",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "ringe opp",
+    "meaning_en": "to call up",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "ringe til",
+    "meaning_en": "to call someone",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "ha kontakt med",
+    "meaning_en": "to be in contact with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "faglig diskusjon",
+    "meaning_en": "professional discussion",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "media_communication"
+  },
+  {
+    "lemma": "offentlig debatt",
+    "meaning_en": "public debate",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "media_communication"
+  }
+]

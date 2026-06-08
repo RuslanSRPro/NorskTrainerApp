@@ -1,0 +1,26 @@
+{
+  "started_at": "2026-06-01T11:20:46.287Z",
+  "total_target": 2363,
+  "batch_size": 10,
+  "pos": "all",
+  "batches": [
+    {
+      "batch": 1,
+      "offset": 0,
+      "ok": false,
+      "error": "HTTP 401: {\"code\":\"UNAUTHORIZED_INVALID_JWT_FORMAT\",\"message\":\"Invalid JWT\"}"
+    },
+    {
+      "batch": 2,
+      "offset": 10,
+      "ok": false,
+      "error": "HTTP 401: {\"code\":\"UNAUTHORIZED_INVALID_JWT_FORMAT\",\"message\":\"Invalid JWT\"}"
+    }
+  ],
+  "summary": {
+    "byField": {},
+    "total_ok": 0,
+    "total_skipped": 0,
+    "total_errors": 20
+  }
+}

@@ -1,0 +1,1530 @@
+[
+  {
+    "lemma": "inngå en avtale",
+    "meaning_en": "to enter into an agreement",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "drive virksomhet",
+    "meaning_en": "to conduct business",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "ta stilling til",
+    "meaning_en": "to take a stance on / to consider",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "sette i verk",
+    "meaning_en": "to implement / to put into effect",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "følge opp",
+    "meaning_en": "to follow up",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "legge frem",
+    "meaning_en": "to present / to submit",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "ta opp til diskusjon",
+    "meaning_en": "to bring up for discussion",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "nå enighet",
+    "meaning_en": "to reach an agreement",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "sette i gang et prosjekt",
+    "meaning_en": "to start a project",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "ha ansvaret for",
+    "meaning_en": "to be responsible for",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "gjøre en innsats",
+    "meaning_en": "to make an effort",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "ta hensyn til",
+    "meaning_en": "to take into account / to consider",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "komme til enighet",
+    "meaning_en": "to come to an agreement",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "gi tilbakemelding",
+    "meaning_en": "to give feedback",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "ta kontakt med",
+    "meaning_en": "to contact",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "sette seg inn i",
+    "meaning_en": "to familiarize oneself with",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "holde seg oppdatert",
+    "meaning_en": "to stay updated",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "ta en beslutning",
+    "meaning_en": "to make a decision",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "arbeide sammen",
+    "meaning_en": "to work together",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "få en oversikt over",
+    "meaning_en": "to get an overview of",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "business_general"
+  },
+  {
+    "lemma": "holde motet oppe",
+    "meaning_en": "keep spirits up",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "kalle inn til møte",
+    "meaning_en": "call a meeting",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "sende innkalling",
+    "meaning_en": "send out an invitation (to a meeting)",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "ta referat",
+    "meaning_en": "take minutes",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "følge opp saker",
+    "meaning_en": "follow up on matters",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "sette på dagsorden",
+    "meaning_en": "put on the agenda",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "gi tilbakemelding",
+    "meaning_en": "give feedback",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "ta initiativ",
+    "meaning_en": "take initiative",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "koordinere med",
+    "meaning_en": "coordinate with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "rapportere til",
+    "meaning_en": "report to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "ta en beslutning",
+    "meaning_en": "make a decision",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "komme med forslag",
+    "meaning_en": "make suggestions",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "avtale et møte",
+    "meaning_en": "schedule a meeting",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "diskutere saken",
+    "meaning_en": "discuss the matter",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "be om mer informasjon",
+    "meaning_en": "ask for more information",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "sette i gang med",
+    "meaning_en": "start with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "holde seg oppdatert",
+    "meaning_en": "stay updated",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "ta ansvar for",
+    "meaning_en": "take responsibility for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "gå gjennom",
+    "meaning_en": "go through",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "sette seg inn i",
+    "meaning_en": "familiarize oneself with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "office_meetings"
+  },
+  {
+    "lemma": "søke stilling",
+    "meaning_en": "apply for a position",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "få ansettelse",
+    "meaning_en": "get hired",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "skrive arbeidskontrakt",
+    "meaning_en": "write employment contract",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "si opp jobben",
+    "meaning_en": "quit the job",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "bli sagt opp",
+    "meaning_en": "be laid off",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "ha permisjon",
+    "meaning_en": "be on leave",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "gå på kurs",
+    "meaning_en": "attend a course",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "få lønnsøkning",
+    "meaning_en": "get a pay raise",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "vurdere kandidater",
+    "meaning_en": "evaluate candidates",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "holde medarbeidersamtale",
+    "meaning_en": "hold employee appraisal meeting",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "innkalle til intervju",
+    "meaning_en": "summon for an interview",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "tilby stilling",
+    "meaning_en": "offer a position",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "utarbeide stillingsbeskrivelse",
+    "meaning_en": "draft job description",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "gjennomføre opplæring",
+    "meaning_en": "conduct training",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "ansette personell",
+    "meaning_en": "hire personnel",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "avslutte arbeidsforhold",
+    "meaning_en": "terminate employment relationship",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "forhandle lønn",
+    "meaning_en": "negotiate salary",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "utbetale lønn",
+    "meaning_en": "pay salary",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "hr_personnel"
+  },
+  {
+    "lemma": "inngå kontrakt",
+    "meaning_en": "enter into contract",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "gi tilbud",
+    "meaning_en": "give offer",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "følge opp kunde",
+    "meaning_en": "follow up customer",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "håndtere klage",
+    "meaning_en": "handle complaint",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "løse problem",
+    "meaning_en": "solve problem",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "bygge relasjon",
+    "meaning_en": "build relationship",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "vinne anbudet",
+    "meaning_en": "win the tender",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "tape kunden",
+    "meaning_en": "lose the customer",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "gi rabatt",
+    "meaning_en": "give discount",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "fornye avtale",
+    "meaning_en": "renew agreement",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "ta kontakt",
+    "meaning_en": "make contact",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "avslå tilbud",
+    "meaning_en": "reject offer",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "godta tilbud",
+    "meaning_en": "accept offer",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "tilby tjeneste",
+    "meaning_en": "offer service",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "få kunde",
+    "meaning_en": "get customer",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "beholde kunde",
+    "meaning_en": "retain customer",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "tilfredsstille kunde",
+    "meaning_en": "satisfy customer",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "gi tilbakemelding",
+    "meaning_en": "give feedback",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "bekrefte bestilling",
+    "meaning_en": "confirm order",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "avtale møte",
+    "meaning_en": "arrange meeting",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "sales_customers"
+  },
+  {
+    "lemma": "nå ut til",
+    "meaning_en": "reach out to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "bygge merkevare",
+    "meaning_en": "build brand",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "drive markedsføring",
+    "meaning_en": "drive marketing",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "lage kampanje",
+    "meaning_en": "create campaign",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "nå målgruppen",
+    "meaning_en": "reach target audience",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "skape oppmerksomhet",
+    "meaning_en": "create awareness",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "analysere markedet",
+    "meaning_en": "analyze the market",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "posisjonere seg",
+    "meaning_en": "position oneself",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "kommunisere verdier",
+    "meaning_en": "communicate values",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "målrettet reklame",
+    "meaning_en": "targeted advertising",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "øke salget",
+    "meaning_en": "increase sales",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "få kunder",
+    "meaning_en": "get customers",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "tilby produkter",
+    "meaning_en": "offer products",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "sterk merkevare",
+    "meaning_en": "strong brand",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "digital markedsføring",
+    "meaning_en": "digital marketing",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "sosiale medier",
+    "meaning_en": "social media",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "marketing_branding"
+  },
+  {
+    "lemma": "levere til tiden",
+    "meaning_en": "deliver on time",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "holde fristen",
+    "meaning_en": "meet the deadline",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "haandtere forsinkelse",
+    "meaning_en": "handle delay",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "spore forsendelse",
+    "meaning_en": "track shipment",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "motta varer",
+    "meaning_en": "receive goods",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "kontrollere kvalitet",
+    "meaning_en": "check quality",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "sende retur",
+    "meaning_en": "send return",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "bekrefte mottak",
+    "meaning_en": "confirm receipt",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "laste opp dokument",
+    "meaning_en": "upload document",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "innga samarbeid",
+    "meaning_en": "enter into cooperation",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "logistikk kjede",
+    "meaning_en": "logistics chain",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "forsyningskjede styring",
+    "meaning_en": "supply chain management",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "vareflyt optimalisering",
+    "meaning_en": "goods flow optimization",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "lagerstyring system",
+    "meaning_en": "warehouse management system",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "transport rute",
+    "meaning_en": "transport route",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "leverings adresse",
+    "meaning_en": "delivery address",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "tollklarering prosess",
+    "meaning_en": "customs clearance process",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "lagerbeholdning oversikt",
+    "meaning_en": "inventory overview",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "ordrebehandling tid",
+    "meaning_en": "order processing time",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "kostnadseffektiv løsning",
+    "meaning_en": "cost-effective solution",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "logistics_supply"
+  },
+  {
+    "lemma": "fa budsjett godkjent",
+    "meaning_en": "get budget approved",
+    "expression_subtype": "particle_verb",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "styre kostnadene",
+    "meaning_en": "control costs",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "ga i pluss",
+    "meaning_en": "made a profit",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "ga i minus",
+    "meaning_en": "made a loss",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "legge frem regnskap",
+    "meaning_en": "present accounts",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "betale faktura",
+    "meaning_en": "pay invoice",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "sende faktura",
+    "meaning_en": "send invoice",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "folge opp betaling",
+    "meaning_en": "follow up payment",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "ha likviditet",
+    "meaning_en": "have liquidity",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "rapportere til styret",
+    "meaning_en": "report to the board",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "sette opp budsjett",
+    "meaning_en": "set up budget",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "gjennomgå regnskap",
+    "meaning_en": "review accounts",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "dekke utgifter",
+    "meaning_en": "cover expenses",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "opprette faktura",
+    "meaning_en": "create invoice",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "innbetale skatt",
+    "meaning_en": "pay tax",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "foreta en investering",
+    "meaning_en": "make an investment",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "utforme strategi",
+    "meaning_en": "formulate strategy",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "ta opp lån",
+    "meaning_en": "take out a loan",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "avlegge årsregnskap",
+    "meaning_en": "submit annual accounts",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "fakturere kunde",
+    "meaning_en": "invoice customer",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "finance_accounting"
+  },
+  {
+    "lemma": "sette mal",
+    "meaning_en": "set goal",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "nå mal",
+    "meaning_en": "reach goal",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "holde tidsplan",
+    "meaning_en": "keep to schedule",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "overholde budsjettet",
+    "meaning_en": "adhere to budget",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "fordele oppgaver",
+    "meaning_en": "distribute tasks",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "prioritere arbeid",
+    "meaning_en": "prioritize work",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "evaluere resultater",
+    "meaning_en": "evaluate results",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "justere kursen",
+    "meaning_en": "adjust course",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "levere på tid",
+    "meaning_en": "deliver on time",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "rapportere fremdrift",
+    "meaning_en": "report progress",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "sette i gang",
+    "meaning_en": "start, initiate",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "ta ansvar",
+    "meaning_en": "take responsibility",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "følge opp",
+    "meaning_en": "follow up",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "komme i gang",
+    "meaning_en": "get started",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "gjøre rede for",
+    "meaning_en": "account for, explain",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "sette grenser",
+    "meaning_en": "set limits",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "ta hensyn til",
+    "meaning_en": "take into consideration",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "avklare forventninger",
+    "meaning_en": "clarify expectations",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "sette i gang prosjektet",
+    "meaning_en": "start the project",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "ha kontroll på",
+    "meaning_en": "have control over",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "project_management"
+  },
+  {
+    "lemma": "drive nettbutikk",
+    "meaning_en": "run an online store",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "bygge nettside",
+    "meaning_en": "build a website",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "optimalisere for søk",
+    "meaning_en": "optimize for search",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "nå kunder digitalt",
+    "meaning_en": "reach customers digitally",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "analysere data",
+    "meaning_en": "analyze data",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "bruke sosiale medier",
+    "meaning_en": "use social media",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "lage innhold",
+    "meaning_en": "create content",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "engasjere følgere",
+    "meaning_en": "engage followers",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "måle resultater",
+    "meaning_en": "measure results",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "skalere virksomhet",
+    "meaning_en": "scale business",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "tilby tjenester",
+    "meaning_en": "offer services",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "få trafikk",
+    "meaning_en": "get traffic",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "konvertere besøkende",
+    "meaning_en": "convert visitors",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "kundebehandling på nett",
+    "meaning_en": "online customer service",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "digital markedsføring",
+    "meaning_en": "digital marketing",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "nettbasert salg",
+    "meaning_en": "online sales",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "nettbasert handel",
+    "meaning_en": "e-commerce",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "digital_business"
+  },
+  {
+    "lemma": "knytte kontakter",
+    "meaning_en": "to make contacts",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "bygge nettverk",
+    "meaning_en": "to build a network",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "inngå partnerskap",
+    "meaning_en": "to enter into a partnership",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "presentere seg",
+    "meaning_en": "to introduce oneself",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "holde foredrag",
+    "meaning_en": "to give a lecture/presentation",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "delta på konferanse",
+    "meaning_en": "to attend a conference",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "følge opp bekjentskap",
+    "meaning_en": "to follow up on acquaintances",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "anbefale samarbeidspartner",
+    "meaning_en": "to recommend a business partner",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "dele kompetanse",
+    "meaning_en": "to share expertise",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "vise til resultater",
+    "meaning_en": "to show results",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "skape verdi",
+    "meaning_en": "to create value",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "utveksle ideer",
+    "meaning_en": "to exchange ideas",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "etablere relasjoner",
+    "meaning_en": "to establish relationships",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "tilby løsninger",
+    "meaning_en": "to offer solutions",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "få innsikt",
+    "meaning_en": "to gain insight",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "styrke bånd",
+    "meaning_en": "to strengthen ties",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "oppnå felles mål",
+    "meaning_en": "to achieve common goals",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "bidra til vekst",
+    "meaning_en": "to contribute to growth",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "få tilgang til",
+    "meaning_en": "to gain access to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  },
+  {
+    "lemma": "ta initiativ",
+    "meaning_en": "to take initiative",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "networking_professional"
+  }
+]

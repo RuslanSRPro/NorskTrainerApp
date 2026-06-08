@@ -1,0 +1,2 @@
+[functions.enrich-word]
+verify_jwt = false

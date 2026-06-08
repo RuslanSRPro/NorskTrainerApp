@@ -1,0 +1,1602 @@
+[
+  {
+    "lemma": "begynne på skolen",
+    "meaning_en": "start school",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "gå på skole",
+    "meaning_en": "go to school",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "ha lekser",
+    "meaning_en": "have homework",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "gjøre lekser",
+    "meaning_en": "do homework",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "lære seg",
+    "meaning_en": "learn (something)",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "lese en bok",
+    "meaning_en": "read a book",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "skrive et brev",
+    "meaning_en": "write a letter",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "ha en prøve",
+    "meaning_en": "have a test",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "ta en prøve",
+    "meaning_en": "take a test",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "bestå en prøve",
+    "meaning_en": "pass a test",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "stryk en prøve",
+    "meaning_en": "fail a test",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "studere et fag",
+    "meaning_en": "study a subject",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "ta et kurs",
+    "meaning_en": "take a course",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "fullføre studiet",
+    "meaning_en": "complete the studies",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "få en utdanning",
+    "meaning_en": "get an education",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "undervise i et fag",
+    "meaning_en": "teach a subject",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "ha forelesning",
+    "meaning_en": "have a lecture",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "skrive en oppgave",
+    "meaning_en": "write an assignment",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "lese til eksamen",
+    "meaning_en": "study for an exam",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "ta eksamen",
+    "meaning_en": "take an exam",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "school_education"
+  },
+  {
+    "lemma": "ha familie",
+    "meaning_en": "to have a family",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "bo hjemme",
+    "meaning_en": "to live at home",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "være gift",
+    "meaning_en": "to be married",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "være singel",
+    "meaning_en": "to be single",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "ha barn",
+    "meaning_en": "to have children",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "være kjæreste",
+    "meaning_en": "to be boyfriend/girlfriend",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "bli sammen",
+    "meaning_en": "to get together (as a couple)",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "gå fra hverandre",
+    "meaning_en": "to break up (as a couple)",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "flytte sammen",
+    "meaning_en": "to move in together",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "flytte fra hverandre",
+    "meaning_en": "to move out from each other",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "low",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "ta vare på",
+    "meaning_en": "to take care of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "hjemme hos",
+    "meaning_en": "at someone's home",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "på besøk",
+    "meaning_en": "visiting",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "ha det bra",
+    "meaning_en": "to be well, to be fine",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "føle seg hjemme",
+    "meaning_en": "to feel at home",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "stue opp",
+    "meaning_en": "to tidy up",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "sette i stand",
+    "meaning_en": "to renovate, to fix up",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "slå seg ned",
+    "meaning_en": "to settle down",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "å være glad i",
+    "meaning_en": "to be fond of, to love",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "å være gift med",
+    "meaning_en": "to be married to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "family_relations"
+  },
+  {
+    "lemma": "bli syk",
+    "meaning_en": "to get sick",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "være syk",
+    "meaning_en": "to be sick",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ha vondt",
+    "meaning_en": "to have pain",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ha feber",
+    "meaning_en": "to have a fever",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "gå til legen",
+    "meaning_en": "to go to the doctor",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "føle seg bra",
+    "meaning_en": "to feel good",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "føle seg dårlig",
+    "meaning_en": "to feel bad/unwell",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ta medisin",
+    "meaning_en": "to take medicine",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "bli frisk",
+    "meaning_en": "to get well",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "være frisk",
+    "meaning_en": "to be healthy",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "få vondt i",
+    "meaning_en": "to get pain in",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ha vondt i",
+    "meaning_en": "to have pain in",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ringe legen",
+    "meaning_en": "to call the doctor",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "få en forkjølelse",
+    "meaning_en": "to catch a cold",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ha vondt i hodet",
+    "meaning_en": "to have a headache",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ha vondt i magen",
+    "meaning_en": "to have a stomach ache",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "være i god form",
+    "meaning_en": "to be in good shape/health",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ta seg fri",
+    "meaning_en": "to take time off (often due to illness)",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "bli innlagt på sykehus",
+    "meaning_en": "to be admitted to hospital",
+    "expression_subtype": "particle_verb",
+    "cefr": "B2",
+    "frequency_level": "low",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "ha vondt i halsen",
+    "meaning_en": "to have a sore throat",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "health_medical"
+  },
+  {
+    "lemma": "være ute",
+    "meaning_en": "to be outside",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "gå ut",
+    "meaning_en": "to go out",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "se på",
+    "meaning_en": "to look at",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "ta med",
+    "meaning_en": "to bring",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "komme hjem",
+    "meaning_en": "to come home",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være hjemme",
+    "meaning_en": "to be at home",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "gå tur",
+    "meaning_en": "to go for a walk",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "ha det bra",
+    "meaning_en": "to be well, goodbye",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "slå av",
+    "meaning_en": "to turn off",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "slå på",
+    "meaning_en": "to turn on",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være glad i",
+    "meaning_en": "to be fond of, to love",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være lei av",
+    "meaning_en": "to be tired of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være redd for",
+    "meaning_en": "to be afraid of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være interessert i",
+    "meaning_en": "to be interested in",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være enig med",
+    "meaning_en": "to agree with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være uenig med",
+    "meaning_en": "to disagree with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være klar til",
+    "meaning_en": "to be ready for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være vant til",
+    "meaning_en": "to be used to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være i stand til",
+    "meaning_en": "to be able to",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "være opptatt av",
+    "meaning_en": "to be concerned with, to be busy with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "nature_weather"
+  },
+  {
+    "lemma": "å spise ute",
+    "meaning_en": "to eat out",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å lage mat",
+    "meaning_en": "to cook",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å ta en matbit",
+    "meaning_en": "to have a snack",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å sette til livs",
+    "meaning_en": "to consume, to eat up",
+    "expression_subtype": "idiom",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å være sulten",
+    "meaning_en": "to be hungry",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å være mett",
+    "meaning_en": "to be full",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å drikke kaffe",
+    "meaning_en": "to drink coffee",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å spise frokost",
+    "meaning_en": "to eat breakfast",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å spise lunsj",
+    "meaning_en": "to eat lunch",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å spise middag",
+    "meaning_en": "to eat dinner",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å ha lyst på",
+    "meaning_en": "to feel like having",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å gå på kafé",
+    "meaning_en": "to go to a cafe",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å ta seg et glass",
+    "meaning_en": "to have a drink",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å slå seg ned",
+    "meaning_en": "to sit down",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å servere mat",
+    "meaning_en": "to serve food",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å smake på",
+    "meaning_en": "to taste",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å være tørst",
+    "meaning_en": "to be thirsty",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å dele et måltid",
+    "meaning_en": "to share a meal",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "low",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å sette på komfyren",
+    "meaning_en": "to turn on the stove",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "å spise opp",
+    "meaning_en": "to eat up",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "food_eating"
+  },
+  {
+    "lemma": "reise bort",
+    "meaning_en": "to travel away",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise hjem",
+    "meaning_en": "to travel home",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise ut",
+    "meaning_en": "to travel out",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise inn",
+    "meaning_en": "to travel in",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise rundt",
+    "meaning_en": "to travel around",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "dra på ferie",
+    "meaning_en": "to go on holiday",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "dra på tur",
+    "meaning_en": "to go on a trip",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "ta toget",
+    "meaning_en": "to take the train",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "ta bussen",
+    "meaning_en": "to take the bus",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "ta flyet",
+    "meaning_en": "to take the plane",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "ta båten",
+    "meaning_en": "to take the boat",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise med bil",
+    "meaning_en": "to travel by car",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise med tog",
+    "meaning_en": "to travel by train",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise med fly",
+    "meaning_en": "to travel by plane",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise med buss",
+    "meaning_en": "to travel by bus",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise til utlandet",
+    "meaning_en": "to travel abroad",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise hjemmefra",
+    "meaning_en": "to travel from home",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise til",
+    "meaning_en": "to travel to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise fra",
+    "meaning_en": "to travel from",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "reise over",
+    "meaning_en": "to travel across",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "travel_transport"
+  },
+  {
+    "lemma": "ha råd til",
+    "meaning_en": "to afford",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "spare penger",
+    "meaning_en": "to save money",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "bruke penger",
+    "meaning_en": "to spend money",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "tjene penger",
+    "meaning_en": "to earn money",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "låne penger",
+    "meaning_en": "to borrow money",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "betale regninger",
+    "meaning_en": "to pay bills",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "gå i minus",
+    "meaning_en": "to be in the red, to lose money",
+    "expression_subtype": "idiom",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "gå i pluss",
+    "meaning_en": "to be in the black, to make a profit",
+    "expression_subtype": "idiom",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "ha mye penger",
+    "meaning_en": "to have a lot of money",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "ha lite penger",
+    "meaning_en": "to have little money",
+    "expression_subtype": "collocation",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "sette penger inn",
+    "meaning_en": "to deposit money",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "ta ut penger",
+    "meaning_en": "to withdraw money",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "en god slump",
+    "meaning_en": "a good sum (of money)",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "få betalt",
+    "meaning_en": "to get paid",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "holde budsjett",
+    "meaning_en": "to stick to a budget",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "over trekket",
+    "meaning_en": "overdrawn",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "en stor utgift",
+    "meaning_en": "a large expense",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "en liten utgift",
+    "meaning_en": "a small expense",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "ha kontroll på økonomien",
+    "meaning_en": "to have control over one's finances",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "leve på en inntekt",
+    "meaning_en": "to live on an income",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "money_economy"
+  },
+  {
+    "lemma": "ta stilling til",
+    "meaning_en": "to take a stance on, to address",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "gjøre opprør mot",
+    "meaning_en": "to rebel against",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "få konsekvenser for",
+    "meaning_en": "to have consequences for",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "sette en stopper for",
+    "meaning_en": "to put a stop to",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "ta ansvar for",
+    "meaning_en": "to take responsibility for",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "komme til enighet om",
+    "meaning_en": "to reach an agreement on",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "gå til valg",
+    "meaning_en": "to go to election, to contest an election",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "bli satt i gang",
+    "meaning_en": "to be initiated, to be launched",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "slå seg ned i",
+    "meaning_en": "to settle down in",
+    "expression_subtype": "lexical_reflexive",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "ta del i",
+    "meaning_en": "to participate in, to take part in",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "sette i gang",
+    "meaning_en": "to start, to initiate",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "få tilgang til",
+    "meaning_en": "to gain access to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "ta hensyn til",
+    "meaning_en": "to take into consideration, to consider",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "komme i stand",
+    "meaning_en": "to be established, to come about",
+    "expression_subtype": "particle_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "gjøre en innsats for",
+    "meaning_en": "to make an effort for",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "ta sikte på",
+    "meaning_en": "to aim at",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "sette grenser for",
+    "meaning_en": "to set limits for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "få betydning for",
+    "meaning_en": "to be of significance for",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "ta initiativ til",
+    "meaning_en": "to take the initiative for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "komme til makten",
+    "meaning_en": "to come to power",
+    "expression_subtype": "fixed_expression",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "politics_society"
+  },
+  {
+    "lemma": "å laste ned",
+    "meaning_en": "to download",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å laste opp",
+    "meaning_en": "to upload",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å slå på",
+    "meaning_en": "to turn on",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å slå av",
+    "meaning_en": "to turn off",
+    "expression_subtype": "particle_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å logge inn",
+    "meaning_en": "to log in",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å logge ut",
+    "meaning_en": "to log out",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å søke etter",
+    "meaning_en": "to search for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å surfe på nettet",
+    "meaning_en": "to surf the internet",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å sende e-post",
+    "meaning_en": "to send email",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å ha tilgang til",
+    "meaning_en": "to have access to",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å være pålogget",
+    "meaning_en": "to be logged in",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å være tilkoblet",
+    "meaning_en": "to be connected",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å koble til",
+    "meaning_en": "to connect to",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å koble fra",
+    "meaning_en": "to disconnect from",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å lagre fil",
+    "meaning_en": "to save file",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å slette fil",
+    "meaning_en": "to delete file",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å åpne dokument",
+    "meaning_en": "to open document",
+    "expression_subtype": "collocation",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å skrive ut",
+    "meaning_en": "to print out",
+    "expression_subtype": "particle_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å oppdatere programvare",
+    "meaning_en": "to update software",
+    "expression_subtype": "collocation",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "å dele skjerm",
+    "meaning_en": "to share screen",
+    "expression_subtype": "collocation",
+    "cefr": "B2",
+    "frequency_level": "medium",
+    "batch_id": "technology_digital"
+  },
+  {
+    "lemma": "ha det bra",
+    "meaning_en": "to be well, to be fine",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være lei seg",
+    "meaning_en": "to be sad",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være glad i",
+    "meaning_en": "to be fond of, to love",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være redd for",
+    "meaning_en": "to be afraid of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være sint på",
+    "meaning_en": "to be angry at",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være fornøyd med",
+    "meaning_en": "to be satisfied with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være bekymret for",
+    "meaning_en": "to be worried about",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være nervøs for",
+    "meaning_en": "to be nervous about",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være skuffet over",
+    "meaning_en": "to be disappointed with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være stolt av",
+    "meaning_en": "to be proud of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være forelsket i",
+    "meaning_en": "to be in love with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være lei av",
+    "meaning_en": "to be tired of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være glad for",
+    "meaning_en": "to be happy about",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A1",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være trist over",
+    "meaning_en": "to be sad about",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "A2",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være sjalu på",
+    "meaning_en": "to be jealous of",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være frustrert over",
+    "meaning_en": "to be frustrated with",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være lettet over",
+    "meaning_en": "to be relieved about",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B2",
+    "frequency_level": "low",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være motivert for",
+    "meaning_en": "to be motivated for",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være inspirert av",
+    "meaning_en": "to be inspired by",
+    "expression_subtype": "prepositional_verb",
+    "cefr": "B1",
+    "frequency_level": "medium",
+    "batch_id": "feelings_psychology"
+  },
+  {
+    "lemma": "være utslitt",
+    "meaning_en": "to be exhausted",
+    "expression_subtype": "fixed_expression",
+    "cefr": "A2",
+    "frequency_level": "high",
+    "batch_id": "feelings_psychology"
+  }
+]

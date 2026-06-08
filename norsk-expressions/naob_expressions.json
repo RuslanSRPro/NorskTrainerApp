@@ -1,0 +1,202 @@
+[
+  {
+    "lemma": "å ha det travelt",
+    "source_word": "ha",
+    "meaning_en": "to be busy"
+  },
+  {
+    "lemma": "å ha det bra",
+    "source_word": "ha",
+    "meaning_en": "to be doing well"
+  },
+  {
+    "lemma": "å ha råd til",
+    "source_word": "ha",
+    "meaning_en": "to afford"
+  },
+  {
+    "lemma": "å ha lyst til",
+    "source_word": "ha",
+    "meaning_en": "to feel like, to want to"
+  },
+  {
+    "lemma": "å ha rett",
+    "source_word": "ha",
+    "meaning_en": "to be right"
+  },
+  {
+    "lemma": "å ha noe på hjertet",
+    "source_word": "ha",
+    "meaning_en": "to have something on one's mind"
+  },
+  {
+    "lemma": "å ta vare på",
+    "source_word": "ta",
+    "meaning_en": "to take care of"
+  },
+  {
+    "lemma": "å ta seg av",
+    "source_word": "ta",
+    "meaning_en": "to look after"
+  },
+  {
+    "lemma": "å ta feil",
+    "source_word": "ta",
+    "meaning_en": "to be wrong"
+  },
+  {
+    "lemma": "å ta kontakt med",
+    "source_word": "ta",
+    "meaning_en": "to contact"
+  },
+  {
+    "lemma": "å ta ansvar for",
+    "source_word": "ta",
+    "meaning_en": "to take responsibility for"
+  },
+  {
+    "lemma": "å ta hensyn til",
+    "source_word": "ta",
+    "meaning_en": "to take into consideration"
+  },
+  {
+    "lemma": "å ta det med ro",
+    "source_word": "ta",
+    "meaning_en": "to take it easy"
+  },
+  {
+    "lemma": "å ta seg sammen",
+    "source_word": "ta",
+    "meaning_en": "to pull oneself together"
+  },
+  {
+    "lemma": "å gå glipp av",
+    "source_word": "gå",
+    "meaning_en": "to miss out on"
+  },
+  {
+    "lemma": "å gå ut fra",
+    "source_word": "gå",
+    "meaning_en": "to assume"
+  },
+  {
+    "lemma": "å gå i gang med",
+    "source_word": "gå",
+    "meaning_en": "to get started with"
+  },
+  {
+    "lemma": "å komme i gang",
+    "source_word": "komme",
+    "meaning_en": "to get going"
+  },
+  {
+    "lemma": "å komme over",
+    "source_word": "komme",
+    "meaning_en": "to get over"
+  },
+  {
+    "lemma": "å komme opp med",
+    "source_word": "komme",
+    "meaning_en": "to come up with"
+  },
+  {
+    "lemma": "å bli kjent med",
+    "source_word": "bli",
+    "meaning_en": "to get to know"
+  },
+  {
+    "lemma": "å bli enig om",
+    "source_word": "bli",
+    "meaning_en": "to agree on"
+  },
+  {
+    "lemma": "å bli ferdig med",
+    "source_word": "bli",
+    "meaning_en": "to finish"
+  },
+  {
+    "lemma": "å sette pris på",
+    "source_word": "sette",
+    "meaning_en": "to appreciate"
+  },
+  {
+    "lemma": "å sette i gang",
+    "source_word": "sette",
+    "meaning_en": "to start, set in motion"
+  },
+  {
+    "lemma": "å legge vekt på",
+    "source_word": "legge",
+    "meaning_en": "to emphasise"
+  },
+  {
+    "lemma": "å legge til rette for",
+    "source_word": "legge",
+    "meaning_en": "to facilitate"
+  },
+  {
+    "lemma": "å se etter",
+    "source_word": "se",
+    "meaning_en": "to look for"
+  },
+  {
+    "lemma": "å se opp til",
+    "source_word": "se",
+    "meaning_en": "to look up to"
+  },
+  {
+    "lemma": "å si fra",
+    "source_word": "si",
+    "meaning_en": "to speak up"
+  },
+  {
+    "lemma": "å gi uttrykk for",
+    "source_word": "gi",
+    "meaning_en": "to express"
+  },
+  {
+    "lemma": "å holde seg til",
+    "source_word": "holde",
+    "meaning_en": "to stick to"
+  },
+  {
+    "lemma": "å holde kontakten",
+    "source_word": "holde",
+    "meaning_en": "to stay in touch"
+  },
+  {
+    "lemma": "å finne ut av",
+    "source_word": "finne",
+    "meaning_en": "to figure out"
+  },
+  {
+    "lemma": "å finne sted",
+    "source_word": "finne",
+    "meaning_en": "to take place"
+  },
+  {
+    "lemma": "å klare seg",
+    "source_word": "klare",
+    "meaning_en": "to manage, get by"
+  },
+  {
+    "lemma": "å interessere seg for",
+    "source_word": "interessere",
+    "meaning_en": "to be interested in"
+  },
+  {
+    "lemma": "å bry seg om",
+    "source_word": "bry",
+    "meaning_en": "to care about"
+  },
+  {
+    "lemma": "å bekymre seg for",
+    "source_word": "bekymre",
+    "meaning_en": "to worry about"
+  },
+  {
+    "lemma": "å dra nytte av",
+    "source_word": "nytte",
+    "meaning_en": "to benefit from"
+  }
+]

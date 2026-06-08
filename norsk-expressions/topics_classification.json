@@ -1,0 +1,470 @@
+[
+  {
+    "lemma": "angre på",
+    "topic": "health_emotions"
+  },
+  {
+    "lemma": "annenhver",
+    "topic": "numbers_time"
+  },
+  {
+    "lemma": "avtalt tid",
+    "topic": "numbers_time"
+  },
+  {
+    "lemma": "bestemme seg for noe",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "blant annet / andre",
+    "topic": "discourse"
+  },
+  {
+    "lemma": "bli kjent med",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "bli vant til / å være vant til",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "det er ingen tvil om",
+    "topic": "discourse"
+  },
+  {
+    "lemma": "det lille ekstra",
+    "topic": "degree_quantity"
+  },
+  {
+    "lemma": "det ser du vel",
+    "topic": "discourse"
+  },
+  {
+    "lemma": "det stemmer",
+    "topic": "communication"
+  },
+  {
+    "lemma": "du har rett (i det)",
+    "topic": "communication"
+  },
+  {
+    "lemma": "engasjere seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "er ikke det.. (du)",
+    "topic": "discourse"
+  },
+  {
+    "lemma": "etter en stund",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "få (ha) barn med",
+    "topic": "family_home"
+  },
+  {
+    "lemma": "få lov til å",
+    "topic": "general"
+  },
+  {
+    "lemma": "felles verdier",
+    "topic": "politics_society"
+  },
+  {
+    "lemma": "finne ut",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "føle seg fri",
+    "topic": "health_emotions"
+  },
+  {
+    "lemma": "for dager- timer- måneder- år- siden",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "for lenge siden",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "for sent",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "for tidlig",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "forrige dag / uke / måned / år",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "forsinket",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "gå glipp av",
+    "topic": "general"
+  },
+  {
+    "lemma": "gå over",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "gi beskjed",
+    "topic": "communication"
+  },
+  {
+    "lemma": "gi fra seg",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "glede seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "glede seg til",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "grue seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "ha mye til felles",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "hit og dit",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "holde (en) tale",
+    "topic": "communication"
+  },
+  {
+    "lemma": "holde på",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "holde rent",
+    "topic": "family_home"
+  },
+  {
+    "lemma": "høres ut som",
+    "topic": "communication"
+  },
+  {
+    "lemma": "hva driver du med?",
+    "topic": "work_business"
+  },
+  {
+    "lemma": "hva med deg?",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "hva slags",
+    "topic": "general"
+  },
+  {
+    "lemma": "hvem som helst",
+    "topic": "general"
+  },
+  {
+    "lemma": "hvor som helst",
+    "topic": "general"
+  },
+  {
+    "lemma": "hvordan er det med deg?",
+    "topic": "health_emotions"
+  },
+  {
+    "lemma": "hvordan går det?",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "hvordan har du det?",
+    "topic": "health_emotions"
+  },
+  {
+    "lemma": "i år",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i begynnelsen var",
+    "topic": "discourse"
+  },
+  {
+    "lemma": "i dag",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i dagens samfunn",
+    "topic": "politics_society"
+  },
+  {
+    "lemma": "i det hele tatt",
+    "topic": "general"
+  },
+  {
+    "lemma": "i det siste, den siste uka, de siste årene",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i forfjor",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i forgårs",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i går",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i like stor grad",
+    "topic": "degree_quantity"
+  },
+  {
+    "lemma": "i løpet av dagen, en time, en dag, en måned, et år",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i morgen",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i nærheten av",
+    "topic": "degree_quantity"
+  },
+  {
+    "lemma": "i slutten av uka / måneden",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "i tillegg (til)",
+    "topic": "discourse"
+  },
+  {
+    "lemma": "jeg gleder meg",
+    "topic": "health_emotions"
+  },
+  {
+    "lemma": "kaldt / varmt / fuktig i lufta",
+    "topic": "nature_weather"
+  },
+  {
+    "lemma": "kaste kortene",
+    "topic": "idioms"
+  },
+  {
+    "lemma": "kjede seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "kjenne på",
+    "topic": "health_emotions"
+  },
+  {
+    "lemma": "klare seg selv",
+    "topic": "general"
+  },
+  {
+    "lemma": "kle av",
+    "topic": "general"
+  },
+  {
+    "lemma": "kle på",
+    "topic": "general"
+  },
+  {
+    "lemma": "kle på seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "komme nærmere / nærme seg land",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "komme på besøk",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "komme på døra",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "la noen være i fred",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "lære bort",
+    "topic": "education"
+  },
+  {
+    "lemma": "legge merke til",
+    "topic": "communication"
+  },
+  {
+    "lemma": "leve av",
+    "topic": "work_business"
+  },
+  {
+    "lemma": "like ofte som før",
+    "topic": "degree_quantity"
+  },
+  {
+    "lemma": "lønnet arbeid",
+    "topic": "work_business"
+  },
+  {
+    "lemma": "minst mulig",
+    "topic": "degree_quantity"
+  },
+  {
+    "lemma": "more seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "nærme seg",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "når det gjelder",
+    "topic": "discourse"
+  },
+  {
+    "lemma": "når som helst",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "neste dag / uke / måned / år",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "om 5 minutter, om en uke, om en måned, om et år",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "om dagen",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "om gangen",
+    "topic": "degree_quantity"
+  },
+  {
+    "lemma": "oppføre seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "overimorgen",
+    "topic": "numbers_time"
+  },
+  {
+    "lemma": "på bakken",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "på egen hånd",
+    "topic": "idioms"
+  },
+  {
+    "lemma": "på full tid",
+    "topic": "work_business"
+  },
+  {
+    "lemma": "på landet",
+    "topic": "family_home"
+  },
+  {
+    "lemma": "passe på",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "pleier å",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "re opp",
+    "topic": "family_home"
+  },
+  {
+    "lemma": "reise seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "så godt å høre",
+    "topic": "social_phrases"
+  },
+  {
+    "lemma": "se på",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "sette seg ned",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "si ifra",
+    "topic": "communication"
+  },
+  {
+    "lemma": "siden den gang",
+    "topic": "time_expressions"
+  },
+  {
+    "lemma": "skje med",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "skynde seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "slutte med",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "snakke med hverandre",
+    "topic": "communication"
+  },
+  {
+    "lemma": "stå opp",
+    "topic": "movement_travel"
+  },
+  {
+    "lemma": "ta det rolig",
+    "topic": "idioms"
+  },
+  {
+    "lemma": "ta opp igjen",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "tenke på",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "trives med",
+    "topic": "health_emotions"
+  },
+  {
+    "lemma": "tro på",
+    "topic": "core_verbs"
+  },
+  {
+    "lemma": "vaske seg",
+    "topic": "reflexive_verbs"
+  },
+  {
+    "lemma": "vente på svar",
+    "topic": "communication"
+  },
+  {
+    "lemma": "vise seg",
+    "topic": "reflexive_verbs"
+  }
+]

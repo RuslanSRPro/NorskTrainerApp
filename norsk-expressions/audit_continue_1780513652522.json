@@ -1,0 +1,18 @@
+{
+  "started_at": "2026-06-03T19:07:32.997Z",
+  "total_remaining": 866,
+  "batches": [
+    {
+      "batch": 1,
+      "ok": false,
+      "error": "HTTP 401: {\"code\":\"UNAUTHORIZED_INVALID_JWT_FORMAT\",\"message\":\"Invalid JWT\"}"
+    }
+  ],
+  "summary": {
+    "byVerificationStatus": {},
+    "byRegisteredEntry": {},
+    "bySource": {},
+    "total_ok": 0,
+    "total_errors": 25
+  }
+}
