@@ -1077,7 +1077,7 @@ export default function ReadingScreen() {
                   <Lexeme360
                     lexemeId={selectedWord.id}
                     lemma={selectedWord.lemma || selectedWord.word}
-                    isUa={isUa}
+                    lang={(app_language as any) || 'ua'}
                     onSelectWord={(id, lemma) => {
                       setSelectedWord({ id, word: lemma, lemma });
                     }}

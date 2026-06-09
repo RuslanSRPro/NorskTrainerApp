@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
-export type AppLanguage = 'ua' | 'en';
+export type AppLanguage = 'ua' | 'en' | 'no';
 export type TranslationMode = 'ua' | 'en' | 'ua_en';
 export type CategoryFilter = 'all' | 'verbs' | 'nouns' | 'adjectives' | 'adverbs' | 'expressions';
 export type StudySet = 'all' | 'new' | 'weak' | 'due';

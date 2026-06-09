@@ -8,6 +8,7 @@ import {
   StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
 import { supabase } from '@/services/supabase';
+import { t, AppLanguage } from '@/services/i18n';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type RelatedItem = {
@@ -113,24 +114,24 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
 }
 
 // ── Grammar forms helper ──────────────────────────────────────────────────────
-function getGrammarRows(pos: string, g: GrammarForms, isUa: boolean): { label: string; value: string }[] {
+function getGrammarRows(pos: string, g: GrammarForms, lang: AppLanguage): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];
   if (pos === 'verb') {
-    if (g.presens)    rows.push({ label: isUa ? 'тепер.' : 'presens',     value: g.presens });
-    if (g.preteritum) rows.push({ label: isUa ? 'минул.' : 'preteritum',  value: g.preteritum });
-    if (g.perfektum)  rows.push({ label: isUa ? 'перф.' : 'perfektum',    value: `har ${g.perfektum}` });
-    if (g.gruppe)     rows.push({ label: isUa ? 'група' : 'gruppe',       value: g.gruppe });
+    if (g.presens)    rows.push({ label: t('present', lang),     value: g.presens });
+    if (g.preteritum) rows.push({ label: t('past', lang),  value: g.preteritum });
+    if (g.perfektum)  rows.push({ label: t('perfect', lang),    value: `har ${g.perfektum}` });
+    if (g.gruppe)     rows.push({ label: t('group', lang),       value: g.gruppe });
   } else if (pos === 'noun') {
-    if (g.ubest_entall)   rows.push({ label: isUa ? 'неб. одн.' : 'ub. ent.',   value: g.ubest_entall });
-    if (g.best_entall)    rows.push({ label: isUa ? 'б. одн.'   : 'best. ent.', value: g.best_entall });
-    if (g.ubest_flertall) rows.push({ label: isUa ? 'неб. мн.'  : 'ub. flt.',  value: g.ubest_flertall });
-    if (g.best_flertall)  rows.push({ label: isUa ? 'б. мн.'    : 'best. flt.', value: g.best_flertall });
+    if (g.ubest_entall)   rows.push({ label: t('indef_sg', lang),   value: g.ubest_entall });
+    if (g.best_entall)    rows.push({ label: t('def_sg', lang), value: g.best_entall });
+    if (g.ubest_flertall) rows.push({ label: t('indef_pl', lang),  value: g.ubest_flertall });
+    if (g.best_flertall)  rows.push({ label: t('def_pl', lang), value: g.best_flertall });
   } else if (pos === 'adjective') {
-    if (g.positiv)    rows.push({ label: isUa ? 'позит.'  : 'positiv',    value: g.positiv });
-    if (g.intetkjonn) rows.push({ label: isUa ? 'серед.' : 'intetkjønn', value: g.intetkjonn });
-    if (g.flertall)   rows.push({ label: isUa ? 'множ.'  : 'flertall',   value: g.flertall });
-    if (g.komparativ) rows.push({ label: isUa ? 'порівн.' : 'komparativ', value: g.komparativ });
-    if (g.superlativ) rows.push({ label: isUa ? 'найв.'  : 'superlativ', value: g.superlativ });
+    if (g.positiv)    rows.push({ label: t('positive', lang),    value: g.positiv });
+    if (g.intetkjonn) rows.push({ label: t('neuter', lang), value: g.intetkjonn });
+    if (g.flertall)   rows.push({ label: t('plural', lang),   value: g.flertall });
+    if (g.komparativ) rows.push({ label: t('comparative', lang), value: g.komparativ });
+    if (g.superlativ) rows.push({ label: t('superlative', lang), value: g.superlativ });
   }
   return rows;
 }
@@ -168,11 +169,12 @@ type Props = {
   lexemeId: string;
   lemma: string;
   pos?: string;
-  isUa?: boolean;
+  lang?: AppLanguage;
   onSelectWord?: (id: string, lemma: string) => void;
 };
 
-export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: Props) {
+export function Lexeme360({ lexemeId, lemma, pos, lang = 'en', onSelectWord }: Props) {
+  const isUa = lang === 'ua';
   const [visible, setVisible]   = useState(false);
   const [data, setData]         = useState<Lexeme360Data | null>(null);
   const [loading, setLoading]   = useState(false);
@@ -197,7 +199,7 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
   const synonyms         = data?.relations.filter(r => r.relation_type === 'synonym') || [];
   const collocations     = data?.relations.filter(r => r.relation_type === 'collocation') || [];
 
-  const grammarRows = data ? getGrammarRows(data.pos, data.grammar, isUa) : [];
+  const grammarRows = data ? getGrammarRows(data.pos, data.grammar, lang) : [];
   const hasContent  = data && (
     particleVariants.length > 0 || baseVerbs.length > 0 ||
     expressions.length > 0 || idioms.length > 0 ||
@@ -257,14 +259,14 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="large" color="#0EA5E9" />
                 <Text style={styles.loadingText}>
-                  {isUa ? 'Завантаження...' : 'Loading...'}
+                  {t('loading', lang)}
                 </Text>
               </View>
             ) : !hasContent ? (
               <View style={styles.emptyBox}>
                 <Text style={styles.emptyIcon}>🔍</Text>
                 <Text style={styles.emptyText}>
-                  {isUa ? 'Зв\'язки не знайдено' : 'No connections found'}
+                  {t('no_connections', lang)}
                 </Text>
                 <Text style={styles.emptySubtext}>
                   {isUa
@@ -276,13 +278,15 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
               <ScrollView
                 style={styles.body}
                 contentContainerStyle={styles.bodyContent}
-                showsVerticalScrollIndicator={false}
-                bounces
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+                nestedScrollEnabled={true}
+                scrollEnabled={true}
               >
                 {/* Grammar forms */}
                 {grammarRows.length > 0 && (
                   <View style={styles.section}>
-                    <SectionHeader icon="📐" title={isUa ? 'Граматика' : 'Grammar'} />
+                    <SectionHeader icon="📐" title={t('grammar', lang)} />
                     <View style={styles.grammarGrid}>
                       {grammarRows.map(({ label, value }) => (
                         <View key={label} style={styles.grammarCell}>
@@ -297,7 +301,7 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
                 {/* Base verb */}
                 {baseVerbs.length > 0 && (
                   <View style={styles.section}>
-                    <SectionHeader icon="↑" title={isUa ? 'Базове дієслово' : 'Base verb'} count={baseVerbs.length} />
+                    <SectionHeader icon="↑" title={t('base_verb', lang)} count={baseVerbs.length} />
                     <View style={styles.pillRow}>
                       {baseVerbs.map(item => (
                         <RelationPill key={item.id} item={item} isUa={isUa} onPress={() => { setVisible(false); onSelectWord?.(item.id, item.lemma); }} />
@@ -309,7 +313,7 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
                 {/* Particle variants */}
                 {particleVariants.length > 0 && (
                   <View style={styles.section}>
-                    <SectionHeader icon="→" title={isUa ? 'Дієслова з часткою' : 'Particle verbs'} count={particleVariants.length} />
+                    <SectionHeader icon="→" title={t('particle_verbs', lang)} count={particleVariants.length} />
                     <View style={styles.pillRow}>
                       {particleVariants.map(item => (
                         <RelationPill key={item.id} item={item} isUa={isUa} onPress={() => { setVisible(false); onSelectWord?.(item.id, item.lemma); }} />
@@ -321,7 +325,7 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
                 {/* Expressions */}
                 {expressions.length > 0 && (
                   <View style={styles.section}>
-                    <SectionHeader icon="◉" title={isUa ? 'Вирази' : 'Expressions'} count={expressions.length} />
+                    <SectionHeader icon="◉" title={t('expressions', lang)} count={expressions.length} />
                     <View style={styles.pillRow}>
                       {expressions.map(item => (
                         <RelationPill key={item.id} item={item} isUa={isUa} onPress={() => { setVisible(false); onSelectWord?.(item.id, item.lemma); }} />
@@ -333,7 +337,7 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
                 {/* Idioms */}
                 {idioms.length > 0 && (
                   <View style={styles.section}>
-                    <SectionHeader icon="◈" title={isUa ? 'Ідіоми' : 'Idioms'} count={idioms.length} />
+                    <SectionHeader icon="◈" title={t('idioms', lang)} count={idioms.length} />
                     <View style={styles.pillRow}>
                       {idioms.map(item => (
                         <RelationPill key={item.id} item={item} isUa={isUa} onPress={() => { setVisible(false); onSelectWord?.(item.id, item.lemma); }} />
@@ -345,7 +349,7 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
                 {/* Synonyms */}
                 {synonyms.length > 0 && (
                   <View style={styles.section}>
-                    <SectionHeader icon="≈" title={isUa ? 'Синоніми' : 'Synonyms'} count={synonyms.length} />
+                    <SectionHeader icon="≈" title={t('synonyms', lang)} count={synonyms.length} />
                     <View style={styles.pillRow}>
                       {synonyms.map(item => (
                         <RelationPill key={item.id} item={item} isUa={isUa} onPress={() => { setVisible(false); onSelectWord?.(item.id, item.lemma); }} />
@@ -357,7 +361,7 @@ export function Lexeme360({ lexemeId, lemma, pos, isUa = true, onSelectWord }: P
                 {/* Collocations */}
                 {collocations.length > 0 && (
                   <View style={styles.section}>
-                    <SectionHeader icon="·" title={isUa ? 'Колокації' : 'Collocations'} count={collocations.length} />
+                    <SectionHeader icon="·" title={t('collocations', lang)} count={collocations.length} />
                     <View style={styles.pillRow}>
                       {collocations.map(item => (
                         <RelationPill key={item.id} item={item} isUa={isUa} onPress={() => { setVisible(false); onSelectWord?.(item.id, item.lemma); }} />

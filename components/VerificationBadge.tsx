@@ -4,6 +4,7 @@
 // On press: shows detailed evidence popup
 
 import React, { useState } from "react";
+import { t, AppLanguage } from '@/services/i18n';
 import {
   View,
   Text,
@@ -52,69 +53,59 @@ type Props = {
   evidence?: VerificationEvidence | null;
   lemma?: string;
   size?: "sm" | "md";
+  lang?: AppLanguage;
 };
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const TIER_CONFIG: Record<
-  string,
-  { stars: number; color: string; bg: string; label: string; description: string }
-> = {
-  dictionary_entry: {
-    stars: 5,
-    color: "#0F6E56",
-    bg: "#E1F5EE",
-    label: "Dictionary entry",
-    description: "Registered as a separate entry in an authoritative dictionary.",
-  },
-  dictionary_match: {
-    stars: 4,
-    color: "#185FA5",
-    bg: "#E6F1FB",
-    label: "Dictionary match",
-    description: "Found as a whole unit in authoritative sources, but no separate entry.",
-  },
-  normative_reference: {
-    stars: 4,
-    color: "#854F0B",
-    bg: "#FAEEDA",
-    label: "Normative reference",
-    description: "Confirmed by Språkrådet as a recognised Norwegian language construction.",
-  },
-  usage_evidence: {
-    stars: 3,
-    color: "#3B6D11",
-    bg: "#EAF3DE",
-    label: "Usage evidence",
-    description: "Confirmed through usage examples in authoritative sources.",
-  },
-  component_match: {
-    stars: 2,
-    color: "#888780",
-    bg: "#F1EFE8",
-    label: "Components verified",
-    description: "Individual words are registered, but the full expression is not.",
-  },
-  ai_candidate: {
-    stars: 1,
-    color: "#5F5E5A",
-    bg: "#F1EFE8",
-    label: "AI candidate",
-    description: "No authoritative confirmation found. Based on AI analysis only.",
-  },
+const TIER_COLORS: Record<string, { stars: number; color: string; bg: string }> = {
+  dictionary_entry:    { stars: 5, color: "#0F6E56", bg: "#E1F5EE" },
+  dictionary_match:    { stars: 4, color: "#185FA5", bg: "#E6F1FB" },
+  normative_reference: { stars: 4, color: "#854F0B", bg: "#FAEEDA" },
+  usage_evidence:      { stars: 3, color: "#3B6D11", bg: "#EAF3DE" },
+  component_match:     { stars: 2, color: "#888780", bg: "#F1EFE8" },
+  ai_candidate:        { stars: 1, color: "#5F5E5A", bg: "#F1EFE8" },
 };
 
-const QUALITY_CONFIG: Record<
-  string,
-  { icon: string; label: string; strong: boolean }
-> = {
-  registered_entry:      { icon: "📖", label: "Registered dictionary entry",    strong: true  },
-  learner_dictionary:    { icon: "📚", label: "Learner dictionary (Lexin)",      strong: true  },
-  normative_reference:   { icon: "🏛",  label: "Normative reference (Språkrådet)", strong: true  },
-  exact_expression_match:{ icon: "✓",  label: "Exact expression found",         strong: false },
-  search_page_match:     { icon: "🔍", label: "Found in search results",        strong: false },
-  usage_example_match:   { icon: "💬", label: "Found in usage examples",        strong: false },
-  component_match:       { icon: "🧩", label: "Components verified only",       strong: false },
-  ai_suggestion:         { icon: "🤖", label: "AI analysis",                    strong: false },
+function getTierConfig(tier: string, lang: AppLanguage) {
+  const colors = TIER_COLORS[tier] ?? TIER_COLORS.ai_candidate;
+  const labelKey = tier as any;
+  // Map tier to i18n desc key
+  const DESC_KEY_MAP: Record<string, string> = {
+    dictionary_entry:    'dict_entry_desc',
+    dictionary_match:    'dict_match_desc',
+    normative_reference: 'normative_ref_desc',
+    usage_evidence:      'usage_evidence_desc',
+    component_match:     'component_match_desc',
+    ai_candidate:        'ai_candidate_desc',
+  };
+  const descKey = (DESC_KEY_MAP[tier] || 'ai_candidate_desc') as any;
+  return {
+    ...colors,
+    label:       t(labelKey, lang),
+    description: t(descKey, lang),
+  };
+}
+
+const QUALITY_ICONS: Record<string, { icon: string; strong: boolean }> = {
+  registered_entry:       { icon: "📖", strong: true  },
+  learner_dictionary:     { icon: "📚", strong: true  },
+  normative_reference:    { icon: "🏛",  strong: true  },
+  exact_expression_match: { icon: "✓",  strong: false },
+  search_page_match:      { icon: "🔍", strong: false },
+  usage_example_match:    { icon: "💬", strong: false },
+  component_match:        { icon: "🧩", strong: false },
+  ai_suggestion:          { icon: "🤖", strong: false },
+};
+
+const QUALITY_LABEL_KEYS: Record<string, string> = {
+  registered_entry:       'registered_entry',
+  learner_dictionary:     'learner_dictionary',
+  normative_reference:    'normative_reference',
+  exact_expression_match: 'dictionary_match',
+  search_page_match:      'dictionary_match',
+  usage_example_match:    'usage_evidence',
+  component_match:        'component_match',
+  ai_suggestion:          'ai_candidate',
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -144,17 +135,15 @@ function Stars({ count, color }: { count: number; color: string }) {
 
 // ── Evidence row ──────────────────────────────────────────────────────────────
 function EvidenceRow({
-  source,
-  item,
+  source, item, lang = "en",
 }: {
   source: string;
   item: SourceEvidence;
+  lang?: AppLanguage;
 }) {
-  const qc = QUALITY_CONFIG[item.quality] ?? {
-    icon: "○",
-    label: item.quality,
-    strong: false,
-  };
+  const qi = QUALITY_ICONS[item.quality] ?? { icon: "○", strong: false };
+  const labelKey = QUALITY_LABEL_KEYS[item.quality] ?? item.quality;
+  const qc = { ...qi, label: t(labelKey as any, lang) };
   const sourceLabel = SOURCE_LABELS[source] ?? source;
 
   return (
@@ -189,11 +178,12 @@ export function VerificationBadge({
   evidence,
   lemma,
   size = "md",
+  lang = "en",
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
 
-  const t = tier ?? "ai_candidate";
-  const cfg = TIER_CONFIG[t] ?? TIER_CONFIG.ai_candidate;
+  const _tier = tier ?? "ai_candidate";
+  const cfg = getTierConfig(_tier, lang);
 
   // Filter evidence to only found sources
   const foundSources = evidence
@@ -256,7 +246,7 @@ export function VerificationBadge({
               {/* Sources */}
               {foundSources.length > 0 && (
                 <>
-                  <Text style={styles.sectionTitle}>Confirmed by</Text>
+                  <Text style={styles.sectionTitle}>{t("confirmed_by", lang)}</Text>
                   {foundSources.map(([source, item]) => (
                     <EvidenceRow key={source} source={source} item={item!} />
                   ))}
@@ -272,7 +262,7 @@ export function VerificationBadge({
               {/* Source verified summary */}
               {sourceVerified && (
                 <View style={styles.verifiedSummary}>
-                  <Text style={styles.verifiedLabel}>Registered in</Text>
+                  <Text style={styles.verifiedLabel}>{t("registered_in", lang)}</Text>
                   <Text style={styles.verifiedValue}>{sourceVerified}</Text>
                 </View>
               )}
@@ -283,7 +273,7 @@ export function VerificationBadge({
               style={styles.closeBtn}
               onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.closeBtnText}>Close</Text>
+              <Text style={styles.closeBtnText}>{t("close", lang)}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
