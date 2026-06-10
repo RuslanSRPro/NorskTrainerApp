@@ -21,6 +21,9 @@ import {
   speakNorwegianForms,
   stopSpeech,
 } from '@/services/speech';
+import { VerificationBadge } from '@/components/VerificationBadge';
+import { Lexeme360 } from '@/components/Lexeme360';
+import { AppLanguage } from '@/services/i18n';
 import { useSettingsStore } from '@/store/settingsStore';
 
 type TrainingTask = {
@@ -32,6 +35,110 @@ type TrainingTask = {
   options?: string[];
   formLabel?: string;
 };
+
+type UiKey =
+  | 'title'
+  | 'empty_tasks'
+  | 'save_error'
+  | 'correct'
+  | 'correct_answer'
+  | 'context'
+  | 'translation'
+  | 'forms'
+  | 'all_forms'
+  | 'tap_to_reveal'
+  | 'type_word'
+  | 'type_form'
+  | 'fill_gap'
+  | 'check'
+  | 'hint'
+  | 'next_task'
+  | 'saving'
+  | 'hard'
+  | 'ok'
+  | 'easy'
+  | 'open_360'
+  | 'verification';
+
+const UI_TEXT: Record<AppLanguage, Record<UiKey, string>> = {
+  ua: {
+    title: '🎯 Тренування',
+    empty_tasks: 'Завдань немає.',
+    save_error: 'Не вдалося зберегти відповідь.',
+    correct: '✅ Правильно',
+    correct_answer: '❌ Правильно:',
+    context: 'Контекст',
+    translation: 'Переклад',
+    forms: 'Форми',
+    all_forms: 'Усі форми',
+    tap_to_reveal: 'Натисни на картку, щоб показати відповідь',
+    type_word: 'Введи слово',
+    type_form: 'Введи форму',
+    fill_gap: 'Встав слово',
+    check: 'Перевірити',
+    hint: 'Підказка',
+    next_task: 'Наступне завдання',
+    saving: 'Збереження...',
+    hard: 'Складно',
+    ok: 'OK',
+    easy: 'Легко',
+    open_360: '360°',
+    verification: 'Джерела',
+  },
+  en: {
+    title: '🎯 Training',
+    empty_tasks: 'No tasks available.',
+    save_error: 'Failed to save review.',
+    correct: '✅ Correct',
+    correct_answer: '❌ Correct:',
+    context: 'Context',
+    translation: 'Translation',
+    forms: 'Forms',
+    all_forms: 'All forms',
+    tap_to_reveal: 'Tap card to reveal answer',
+    type_word: 'Type the word',
+    type_form: 'Type the form',
+    fill_gap: 'Fill the gap',
+    check: 'Check',
+    hint: 'Hint',
+    next_task: 'Next task',
+    saving: 'Saving...',
+    hard: 'Hard',
+    ok: 'OK',
+    easy: 'Easy',
+    open_360: '360°',
+    verification: 'Sources',
+  },
+  no: {
+    title: '🎯 Trening',
+    empty_tasks: 'Ingen oppgaver tilgjengelig.',
+    save_error: 'Kunne ikke lagre svaret.',
+    correct: '✅ Riktig',
+    correct_answer: '❌ Riktig svar:',
+    context: 'Kontekst',
+    translation: 'Oversettelse',
+    forms: 'Former',
+    all_forms: 'Alle former',
+    tap_to_reveal: 'Trykk på kortet for å vise svaret',
+    type_word: 'Skriv ordet',
+    type_form: 'Skriv formen',
+    fill_gap: 'Fyll inn ordet',
+    check: 'Sjekk',
+    hint: 'Hint',
+    next_task: 'Neste oppgave',
+    saving: 'Lagrer...',
+    hard: 'Vanskelig',
+    ok: 'OK',
+    easy: 'Lett',
+    open_360: '360°',
+    verification: 'Kilder',
+  },
+};
+
+function makeUi(lang: AppLanguage) {
+  return (key: UiKey) => UI_TEXT[lang]?.[key] ?? UI_TEXT.en[key] ?? key;
+}
+
 
 function shuffle<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
@@ -96,6 +203,77 @@ function getCategoryFamily(word: any) {
   if (category.includes('expression')) return 'expression';
 
   return category || 'unknown';
+}
+
+function isVerbLike(word: any) {
+  const category = String(word?.category || word?.type || word?.pos || '').toLowerCase();
+  return category.includes('verb');
+}
+
+function displayNorwegianLemma(value: string, word?: any) {
+  const raw = String(value || '').trim();
+  if (!raw) return raw;
+  if (/^å\s+/i.test(raw)) return raw;
+
+  if (isVerbLike(word)) {
+    return `å ${raw}`;
+  }
+
+  return raw;
+}
+
+function getRelationsCount(word: any) {
+  const direct = Number(
+    word?.relations_count ??
+      word?.relation_count ??
+      word?.relationsCount ??
+      word?.semantic_relations_count
+  );
+
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  if (Array.isArray(word?.relations)) return word.relations.length;
+
+  return 0;
+}
+
+function hasRelations(word: any) {
+  return Boolean(
+    getRelationsCount(word) > 0 ||
+      word?.has_relations ||
+      word?.hasRelations
+  );
+}
+
+function hasVerification(word: any) {
+  return Boolean(
+    word?.verification_tier ||
+      word?.verification_evidence ||
+      word?.source_verified
+  );
+}
+
+function getNestedFirst(value: any) {
+  if (Array.isArray(value)) return value[0] || {};
+  return value || {};
+}
+
+function getFormValue(word: any, keys: string[]) {
+  for (const key of keys) {
+    const value = word?.[key];
+    if (value) return value;
+  }
+
+  const verb = getNestedFirst(word?.verb_forms);
+  const noun = getNestedFirst(word?.noun_forms);
+  const adjective = getNestedFirst(word?.adjective_forms);
+
+  for (const key of keys) {
+    const value = verb?.[key] || noun?.[key] || adjective?.[key];
+    if (value) return value;
+  }
+
+  return '';
 }
 
 function getFrequencyValue(word: any) {
@@ -223,7 +401,8 @@ export default function TrainScreen() {
 
   const currentTask = tasks[taskIndex];
   const current = currentTask?.word;
-  const isUa = app_language === 'ua';
+  const lang = (app_language || 'ua') as AppLanguage;
+  const ui = makeUi(lang);
 
   useEffect(() => {
     loadSettings();
@@ -682,14 +861,17 @@ export default function TrainScreen() {
   }
 
   function getCleanWord(word: any) {
-    return String(word?.word || '')
+    return String(word?.word || word?.lemma || '')
       .replace(/^å\s+/i, '')
       .replace(/^(en|ei|et)\s+/i, '')
       .trim();
   }
 
   function getMainWord(word: any) {
-    return word?.word || word?.lemma || word?.text || 'Unknown';
+    return displayNorwegianLemma(
+      word?.word || word?.lemma || word?.text || 'Unknown',
+      word
+    );
   }
 
   function getTranslation(word: any) {
@@ -707,7 +889,7 @@ export default function TrainScreen() {
     const ua = word?.ua || '';
     const en = word?.en || '';
 
-    if (isUa) return ua || en || '';
+    if (lang === 'ua') return ua || en || '';
     return en || ua || '';
   }
 
@@ -723,27 +905,60 @@ export default function TrainScreen() {
   }
 
   function getFormTask(word: any) {
-    const type = String(word?.type || word?.category || '').toLowerCase();
+    const type = String(word?.type || word?.category || word?.pos || '').toLowerCase();
 
     const forms = type.includes('verb')
       ? [
-          { label: 'Presens', value: word.f1 },
-          { label: 'Preteritum', value: word.f2 },
-          { label: 'Perfektum', value: word.f3 },
+          {
+            label: 'Presens',
+            value: getFormValue(word, ['presens', 'present', 'f1']),
+          },
+          {
+            label: 'Preteritum',
+            value: getFormValue(word, ['preteritum', 'past', 'f2']),
+          },
+          {
+            label: 'Perfektum',
+            value: getFormValue(word, ['perfektum', 'perfect', 'f3']),
+          },
         ]
       : type.includes('noun')
       ? [
-          { label: 'Bestemt entall', value: word.f1 },
-          { label: 'Ubestemt flertall', value: word.f2 },
-          { label: 'Bestemt flertall', value: word.f3 },
+          {
+            label: 'Bestemt entall',
+            value: getFormValue(word, ['best_entall', 'def_sg', 'f1']),
+          },
+          {
+            label: 'Ubestemt flertall',
+            value: getFormValue(word, ['ubest_flertall', 'indef_pl', 'f2']),
+          },
+          {
+            label: 'Bestemt flertall',
+            value: getFormValue(word, ['best_flertall', 'def_pl', 'f3']),
+          },
         ]
       : type.includes('adjective')
       ? [
-          { label: 'Intetkjønn', value: word.f1 },
-          { label: 'Flertall', value: word.f2 },
-          { label: 'Komparativ', value: word.f3 },
-          { label: 'Superlativ', value: word.f4 },
-          { label: 'Bestemt superlativ', value: word.f5 },
+          {
+            label: 'Intetkjønn',
+            value: getFormValue(word, ['intetkjonn', 'neuter', 'f1']),
+          },
+          {
+            label: 'Flertall',
+            value: getFormValue(word, ['flertall', 'plural', 'f2']),
+          },
+          {
+            label: 'Komparativ',
+            value: getFormValue(word, ['komparativ', 'comparative', 'f3']),
+          },
+          {
+            label: 'Superlativ',
+            value: getFormValue(word, ['superlativ', 'superlative', 'f4']),
+          },
+          {
+            label: 'Bestemt superlativ',
+            value: getFormValue(word, ['best_superlativ', 'def_superlative', 'f5']),
+          },
         ]
       : [];
 
@@ -754,34 +969,83 @@ export default function TrainScreen() {
   }
 
   function getAllForms(word: any) {
-    const type = String(word?.type || word?.category || '').toLowerCase();
+    const type = String(word?.type || word?.category || word?.pos || '').toLowerCase();
 
     if (type.includes('verb')) {
+      const infinitive =
+        getFormValue(word, ['infinitiv', 'infinitive']) ||
+        word?.word ||
+        word?.lemma;
+
       return [
-        { label: 'Infinitiv', value: word.word },
-        { label: 'Presens', value: word.f1 },
-        { label: 'Preteritum', value: word.f2 },
-        { label: 'Perfektum', value: word.f3 },
+        {
+          label: 'Infinitiv',
+          value: displayNorwegianLemma(infinitive, word),
+        },
+        {
+          label: 'Presens',
+          value: getFormValue(word, ['presens', 'present', 'f1']),
+        },
+        {
+          label: 'Preteritum',
+          value: getFormValue(word, ['preteritum', 'past', 'f2']),
+        },
+        {
+          label: 'Perfektum',
+          value: getFormValue(word, ['perfektum', 'perfect', 'f3'])
+            ? `har ${getFormValue(word, ['perfektum', 'perfect', 'f3']).replace(/^har\s+/i, '')}`
+            : '',
+        },
       ].filter((item) => item.value);
     }
 
     if (type.includes('noun')) {
       return [
-        { label: 'Ubestemt entall', value: word.word },
-        { label: 'Bestemt entall', value: word.f1 },
-        { label: 'Ubestemt flertall', value: word.f2 },
-        { label: 'Bestemt flertall', value: word.f3 },
+        {
+          label: 'Ubestemt entall',
+          value: getFormValue(word, ['ubest_entall', 'indef_sg']) || word.word || word.lemma,
+        },
+        {
+          label: 'Bestemt entall',
+          value: getFormValue(word, ['best_entall', 'def_sg', 'f1']),
+        },
+        {
+          label: 'Ubestemt flertall',
+          value: getFormValue(word, ['ubest_flertall', 'indef_pl', 'f2']),
+        },
+        {
+          label: 'Bestemt flertall',
+          value: getFormValue(word, ['best_flertall', 'def_pl', 'f3']),
+        },
       ].filter((item) => item.value);
     }
 
     if (type.includes('adjective')) {
       return [
-        { label: 'Positiv', value: word.word },
-        { label: 'Intetkjønn', value: word.f1 },
-        { label: 'Flertall', value: word.f2 },
-        { label: 'Komparativ', value: word.f3 },
-        { label: 'Superlativ', value: word.f4 },
-        { label: 'Bestemt superlativ', value: word.f5 },
+        {
+          label: 'Positiv',
+          value: getFormValue(word, ['positiv', 'positive']) || word.word || word.lemma,
+        },
+        {
+          label: 'Intetkjønn',
+          value: getFormValue(word, ['intetkjonn', 'neuter', 'f1']),
+        },
+        {
+          label: 'Flertall',
+          value: getFormValue(word, ['flertall', 'plural', 'f2']),
+        },
+        {
+          label: 'Komparativ',
+          value: getFormValue(word, ['komparativ', 'comparative', 'f3']),
+        },
+        {
+          label: 'Superlativ',
+          value: getFormValue(word, ['superlativ', 'superlative', 'f4']),
+        },
+        {
+          label: 'Bestemt superlativ',
+          value: getFormValue(word, ['best_superlativ', 'def_superlative', 'f5']),
+        },
       ].filter((item) => item.value);
     }
 
@@ -789,49 +1053,65 @@ export default function TrainScreen() {
   }
 
   function getCategoryLabel(category: string) {
-    const uaLabels: Record<string, string> = {
-      verb: 'Дієслово',
-      noun_masculine: 'Іменник · чоловічий рід',
-      noun_feminine: 'Іменник · жіночий рід',
-      noun_neuter: 'Іменник · середній рід',
-      adjective: 'Прикметник',
-      adverb: 'Прислівник',
-      expression: 'Сталий вираз',
+    const labels: Record<AppLanguage, Record<string, string>> = {
+      ua: {
+        verb: 'Дієслово',
+        noun_masculine: 'Іменник · чоловічий рід',
+        noun_feminine: 'Іменник · жіночий рід',
+        noun_neuter: 'Іменник · середній рід',
+        adjective: 'Прикметник',
+        adverb: 'Прислівник',
+        expression: 'Сталий вираз',
+      },
+      en: {
+        verb: 'Verb',
+        noun_masculine: 'Noun · masculine',
+        noun_feminine: 'Noun · feminine',
+        noun_neuter: 'Noun · neuter',
+        adjective: 'Adjective',
+        adverb: 'Adverb',
+        expression: 'Expression',
+      },
+      no: {
+        verb: 'Verb',
+        noun_masculine: 'Substantiv · hankjønn',
+        noun_feminine: 'Substantiv · hunkjønn',
+        noun_neuter: 'Substantiv · intetkjønn',
+        adjective: 'Adjektiv',
+        adverb: 'Adverb',
+        expression: 'Fast uttrykk',
+      },
     };
 
-    const enLabels: Record<string, string> = {
-      verb: 'Verb',
-      noun_masculine: 'Noun · masculine',
-      noun_feminine: 'Noun · feminine',
-      noun_neuter: 'Noun · neuter',
-      adjective: 'Adjective',
-      adverb: 'Adverb',
-      expression: 'Expression',
-    };
-
-    return isUa
-      ? uaLabels[category] || category
-      : enLabels[category] || category;
+    return labels[lang]?.[category] || labels.en[category] || category;
   }
 
   function getModeLabel(mode: TrainingMode) {
-    const uaLabels: Record<TrainingMode, string> = {
-      flashcards: 'Картка',
-      choice: 'Вибір',
-      typing: 'Введення',
-      cloze: 'Пропуск',
-      forms: 'Форми',
+    const labels: Record<AppLanguage, Record<TrainingMode, string>> = {
+      ua: {
+        flashcards: 'Картка',
+        choice: 'Вибір',
+        typing: 'Введення',
+        cloze: 'Пропуск',
+        forms: 'Форми',
+      },
+      en: {
+        flashcards: 'Card',
+        choice: 'Choice',
+        typing: 'Typing',
+        cloze: 'Cloze',
+        forms: 'Forms',
+      },
+      no: {
+        flashcards: 'Kort',
+        choice: 'Valg',
+        typing: 'Skriving',
+        cloze: 'Luke',
+        forms: 'Former',
+      },
     };
 
-    const enLabels: Record<TrainingMode, string> = {
-      flashcards: 'Card',
-      choice: 'Choice',
-      typing: 'Typing',
-      cloze: 'Cloze',
-      forms: 'Forms',
-    };
-
-    return isUa ? uaLabels[mode] : enLabels[mode];
+    return labels[lang]?.[mode] || labels.en[mode];
   }
 
   function getSafeSpeechRate() {
@@ -933,9 +1213,7 @@ export default function TrainScreen() {
     } catch (error) {
       console.log('Save review error:', error);
 
-      setError(
-        isUa ? 'Не вдалося зберегти відповідь.' : 'Failed to save review.'
-      );
+      setError(ui('save_error'));
     } finally {
       setSavingReview(false);
     }
@@ -953,13 +1231,7 @@ export default function TrainScreen() {
     setAnswerVisible(true);
 
     setFeedback(
-      ok
-        ? isUa
-          ? '✅ Правильно'
-          : '✅ Correct'
-        : isUa
-        ? `❌ Правильно: ${currentTask.expected}`
-        : `❌ Correct: ${currentTask.expected}`
+      ok ? ui('correct') : `${ui('correct_answer')} ${currentTask.expected}`
     );
 
     if (pronounce_after_answer) {
@@ -977,13 +1249,7 @@ export default function TrainScreen() {
     setAnswerVisible(true);
 
     setFeedback(
-      ok
-        ? isUa
-          ? '✅ Правильно'
-          : '✅ Correct'
-        : isUa
-        ? `❌ Правильно: ${currentTask.expected}`
-        : `❌ Correct: ${currentTask.expected}`
+      ok ? ui('correct') : `${ui('correct_answer')} ${currentTask.expected}`
     );
 
     if (pronounce_after_answer) {
@@ -1002,7 +1268,7 @@ export default function TrainScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>
-          {isUa ? '🎯 Тренування' : '🎯 Training'}
+          {ui('title')}
         </Text>
 
         {loading ? <ActivityIndicator size="large" color="#0EA5E9" /> : null}
@@ -1011,7 +1277,7 @@ export default function TrainScreen() {
 
         {!loading && !error && !currentTask ? (
           <Text style={styles.emptyText}>
-            {isUa ? 'Завдань немає.' : 'No tasks available.'}
+            {ui('empty_tasks')}
           </Text>
         ) : null}
 
@@ -1030,11 +1296,41 @@ export default function TrainScreen() {
               }
             >
               <View style={styles.metaRow}>
-                <Text style={styles.meta}>
-                  {getCategoryLabel(current.category || current.type || '')}
-                </Text>
+                <View style={styles.metaLeft}>
+                  <Text style={styles.meta}>
+                    {getCategoryLabel(current.category || current.type || '')}
+                  </Text>
+                  <Text style={styles.modeMeta}>{taskTitle}</Text>
+                </View>
 
-                <Text style={styles.modeMeta}>{taskTitle}</Text>
+                <View style={styles.cardTools}>
+                  {hasVerification(current) ? (
+                    <View
+                      style={styles.toolButton}
+                      accessibilityLabel={ui('verification')}
+                    >
+                      <VerificationBadge
+                        tier={current.verification_tier}
+                        sourceVerified={current.source_verified}
+                        evidence={current.verification_evidence}
+                        lemma={current.lemma || current.word}
+                        size="sm"
+                        lang={(app_language as any) || 'ua'}
+                      />
+                    </View>
+                  ) : null}
+
+                  {hasRelations(current) ? (
+                    <View style={styles.lexemeTool}>
+                      <Lexeme360
+                        lexemeId={current.id}
+                        lemma={getMainWord(current)}
+                        pos={current.pos || current.category || current.type}
+                        lang={(app_language as any) || 'ua'}
+                      />
+                    </View>
+                  ) : null}
+                </View>
               </View>
 
               {getImageUrl(current) ? (
@@ -1047,7 +1343,7 @@ export default function TrainScreen() {
 
               {shouldShowSentenceFirstContext(currentTask, current) ? (
                 <SentenceContext
-                  label={isUa ? 'Контекст' : 'Context'}
+                  label={ui('context')}
                   sentence={current.example}
                 />
               ) : null}
@@ -1066,20 +1362,18 @@ export default function TrainScreen() {
                     {answerVisible ? (
                       <>
                         <AnswerBox
-                          label={isUa ? 'Переклад' : 'Translation'}
+                          label={ui('translation')}
                           value={getTranslation(current)}
                         />
 
                         <FormsList
-                          title={isUa ? 'Форми' : 'Forms'}
+                          title={ui('forms')}
                           forms={getAllForms(current)}
                         />
                       </>
                     ) : (
                       <Text style={styles.tapHint}>
-                        {isUa
-                          ? 'Натисни на картку, щоб показати відповідь'
-                          : 'Tap card to reveal answer'}
+                        {ui('tap_to_reveal')}
                       </Text>
                     )}
                   </View>
@@ -1107,6 +1401,7 @@ export default function TrainScreen() {
                       </Pressable>
                     ))}
                   </View>
+
                 </>
               ) : null}
 
@@ -1118,7 +1413,7 @@ export default function TrainScreen() {
                     style={styles.input}
                     value={typedAnswer}
                     onChangeText={setTypedAnswer}
-                    placeholder={isUa ? 'Введи слово' : 'Type the word'}
+                    placeholder={ui('type_word')}
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!reviewSaved && !savingReview}
@@ -1133,7 +1428,7 @@ export default function TrainScreen() {
                     disabled={savingReview || reviewSaved}
                   >
                     <Text style={styles.checkButtonText}>
-                      {isUa ? 'Перевірити' : 'Check'}
+                      {ui('check')}
                     </Text>
                   </Pressable>
                 </>
@@ -1146,7 +1441,7 @@ export default function TrainScreen() {
                   {getClozeHint(current) ? (
                     <View style={styles.clozeHintBox}>
                       <Text style={styles.clozeHintLabel}>
-                        {isUa ? 'Підказка' : 'Hint'}
+                        {ui('hint')}
                       </Text>
                       <Text style={styles.clozeHintText}>{getClozeHint(current)}</Text>
                     </View>
@@ -1156,7 +1451,7 @@ export default function TrainScreen() {
                     style={styles.input}
                     value={typedAnswer}
                     onChangeText={setTypedAnswer}
-                    placeholder={isUa ? 'Встав слово' : 'Fill the gap'}
+                    placeholder={ui('fill_gap')}
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!reviewSaved && !savingReview}
@@ -1171,7 +1466,7 @@ export default function TrainScreen() {
                     disabled={savingReview || reviewSaved}
                   >
                     <Text style={styles.checkButtonText}>
-                      {isUa ? 'Перевірити' : 'Check'}
+                      {ui('check')}
                     </Text>
                   </Pressable>
                 </>
@@ -1189,7 +1484,7 @@ export default function TrainScreen() {
                     style={styles.input}
                     value={typedAnswer}
                     onChangeText={setTypedAnswer}
-                    placeholder={isUa ? 'Введи форму' : 'Type the form'}
+                    placeholder={ui('type_form')}
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!reviewSaved && !savingReview}
@@ -1204,17 +1499,24 @@ export default function TrainScreen() {
                     disabled={savingReview || reviewSaved}
                   >
                     <Text style={styles.checkButtonText}>
-                      {isUa ? 'Перевірити' : 'Check'}
+                      {ui('check')}
                     </Text>
                   </Pressable>
 
                   {answerVisible ? (
                     <FormsList
-                      title={isUa ? 'Усі форми' : 'All forms'}
+                      title={ui('all_forms')}
                       forms={getAllForms(current)}
                     />
                   ) : null}
                 </>
+              ) : null}
+
+              {answerVisible && currentTask.mode !== 'flashcards' && currentTask.mode !== 'forms' ? (
+                <FormsList
+                  title={ui('forms')}
+                  forms={getAllForms(current)}
+                />
               ) : null}
 
               {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
@@ -1222,28 +1524,28 @@ export default function TrainScreen() {
 
             {savingReview ? (
               <Text style={styles.savingText}>
-                {isUa ? 'Збереження...' : 'Saving...'}
+                {ui('saving')}
               </Text>
             ) : null}
 
             {currentTask.mode === 'flashcards' ? (
               <View style={styles.gradeRow}>
                 <GradeButton
-                  label="Hard"
+                  label={ui('hard')}
                   style={styles.hardButton}
                   disabled={savingReview}
                   onPress={() => saveGrade('Hard', undefined, true)}
                 />
 
                 <GradeButton
-                  label="OK"
+                  label={ui('ok')}
                   style={styles.okButton}
                   disabled={savingReview}
                   onPress={() => saveGrade('OK', undefined, true)}
                 />
 
                 <GradeButton
-                  label="Easy"
+                  label={ui('easy')}
                   style={styles.easyButton}
                   disabled={savingReview}
                   onPress={() => saveGrade('Easy', undefined, true)}
@@ -1257,7 +1559,7 @@ export default function TrainScreen() {
               onPress={nextTask}
             >
               <Text style={styles.nextButtonText}>
-                {isUa ? 'Наступне завдання' : 'Next task'}
+                {ui('next_task')}
               </Text>
             </Pressable>
           </>
@@ -1378,9 +1680,40 @@ const styles = StyleSheet.create({
 
   metaRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
     marginBottom: 14,
+  },
+
+  metaLeft: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+
+  cardTools: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  toolButton: {
+    minWidth: 34,
+    minHeight: 34,
+    borderRadius: 17,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  lexemeTool: {
+    minHeight: 34,
+    justifyContent: 'center',
   },
 
   meta: {

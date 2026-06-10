@@ -1,10 +1,8 @@
 // components/VerificationBadge.tsx
-// Norsk Trainer App — verification badge with evidence popup
-// Shows verification tier as colored dot/badge
-// On press: shows detailed evidence popup
+// Norsk Trainer App — verification badge with localized evidence popup
+// Uses services/verification.ts as the single source of truth.
 
-import React, { useState } from "react";
-import { t, AppLanguage } from '@/services/i18n';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,118 +11,160 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
-} from "react-native";
+} from 'react-native';
 
-// ── Types ────────────────────────────────────────────────────────────────────
-export type VerificationTier =
-  | "dictionary_entry"
-  | "dictionary_match"
-  | "normative_reference"
-  | "usage_evidence"
-  | "component_match"
-  | "ai_candidate"
-  | null;
+import type {
+  EvidenceQuality,
+  SourceEvidence,
+  VerificationEvidence,
+  VerificationTier,
+} from '@/services/verification';
 
-export type EvidenceQuality =
-  | "registered_entry"
-  | "learner_dictionary"
-  | "normative_reference"
-  | "exact_expression_match"
-  | "search_page_match"
-  | "usage_example_match"
-  | "component_match"
-  | "ai_suggestion"
-  | "not_found"
-  | "not_checked";
+import {
+  getQualityLabel,
+  resolveVerification,
+} from '@/services/verification';
 
-export type SourceEvidence = {
-  quality: EvidenceQuality;
-  found: boolean;
-  registered_entry: boolean;
-  whole_unit_match: boolean;
-  evidence_label?: string;
-};
-
-export type VerificationEvidence = Partial<Record<string, SourceEvidence>>;
+import type { AppLanguage } from '@/services/i18n';
 
 type Props = {
-  tier: VerificationTier;
-  sourceVerified?: string | null;
+  tier?: VerificationTier | string | null;
+  sourceVerified?: string | string[] | null;
   evidence?: VerificationEvidence | null;
   lemma?: string;
-  size?: "sm" | "md";
-  lang?: AppLanguage;
+  size?: 'sm' | 'md';
+  lang?: AppLanguage | string | null;
 };
 
-// ── Config ───────────────────────────────────────────────────────────────────
-const TIER_COLORS: Record<string, { stars: number; color: string; bg: string }> = {
-  dictionary_entry:    { stars: 5, color: "#0F6E56", bg: "#E1F5EE" },
-  dictionary_match:    { stars: 4, color: "#185FA5", bg: "#E6F1FB" },
-  normative_reference: { stars: 4, color: "#854F0B", bg: "#FAEEDA" },
-  usage_evidence:      { stars: 3, color: "#3B6D11", bg: "#EAF3DE" },
-  component_match:     { stars: 2, color: "#888780", bg: "#F1EFE8" },
-  ai_candidate:        { stars: 1, color: "#5F5E5A", bg: "#F1EFE8" },
-};
+// ── Local UI strings not owned by verification resolver ───────────────────────
+const UI = {
+  ua: {
+    accessibilityPrefix: 'Верифікація',
+    accessibilitySuffix: 'Натисни, щоб переглянути деталі.',
+    confirmed_by: 'ПІДТВЕРДЖЕНО ДЖЕРЕЛАМИ',
+    registered_in: 'Зареєстровано в',
+    registered: 'зареєстровано',
+    close: 'Закрити',
+    no_evidence: 'Авторитетні джерела поки не підтвердили цей вираз.',
+    ai_analysis: 'AI-аналіз',
+  },
+  en: {
+    accessibilityPrefix: 'Verification',
+    accessibilitySuffix: 'Tap for details.',
+    confirmed_by: 'CONFIRMED BY',
+    registered_in: 'Registered in',
+    registered: 'registered',
+    close: 'Close',
+    no_evidence: 'No authoritative sources confirmed this expression yet.',
+    ai_analysis: 'AI analysis',
+  },
+  no: {
+    accessibilityPrefix: 'Verifisering',
+    accessibilitySuffix: 'Trykk for detaljer.',
+    confirmed_by: 'BEKREFTET AV',
+    registered_in: 'Registrert i',
+    registered: 'registrert',
+    close: 'Lukk',
+    no_evidence: 'Ingen autoritative kilder har bekreftet dette uttrykket ennå.',
+    ai_analysis: 'AI-analyse',
+  },
+} as const;
 
-function getTierConfig(tier: string, lang: AppLanguage) {
-  const colors = TIER_COLORS[tier] ?? TIER_COLORS.ai_candidate;
-  const labelKey = tier as any;
-  // Map tier to i18n desc key
-  const DESC_KEY_MAP: Record<string, string> = {
-    dictionary_entry:    'dict_entry_desc',
-    dictionary_match:    'dict_match_desc',
-    normative_reference: 'normative_ref_desc',
-    usage_evidence:      'usage_evidence_desc',
-    component_match:     'component_match_desc',
-    ai_candidate:        'ai_candidate_desc',
-  };
-  const descKey = (DESC_KEY_MAP[tier] || 'ai_candidate_desc') as any;
-  return {
-    ...colors,
-    label:       t(labelKey, lang),
-    description: t(descKey, lang),
-  };
+type SafeLanguage = keyof typeof UI;
+type UiKey = keyof typeof UI.en;
+
+function normalizeLang(lang?: AppLanguage | string | null): SafeLanguage {
+  return lang === 'ua' || lang === 'no' || lang === 'en' ? lang : 'ua';
+}
+
+function tr(key: UiKey, lang?: AppLanguage | string | null): string {
+  const safeLang = normalizeLang(lang);
+  return UI[safeLang][key] || UI.en[key] || key;
 }
 
 const QUALITY_ICONS: Record<string, { icon: string; strong: boolean }> = {
-  registered_entry:       { icon: "📖", strong: true  },
-  learner_dictionary:     { icon: "📚", strong: true  },
-  normative_reference:    { icon: "🏛",  strong: true  },
-  exact_expression_match: { icon: "✓",  strong: false },
-  search_page_match:      { icon: "🔍", strong: false },
-  usage_example_match:    { icon: "💬", strong: false },
-  component_match:        { icon: "🧩", strong: false },
-  ai_suggestion:          { icon: "🤖", strong: false },
+  registered_entry: { icon: '📖', strong: true },
+  structured_entry_match: { icon: '📖', strong: true },
+  learner_dictionary: { icon: '📚', strong: true },
+  normative_reference: { icon: '🏛', strong: true },
+  exact_expression_match: { icon: '✓', strong: false },
+  search_page_match: { icon: '🔍', strong: false },
+  usage_example_match: { icon: '💬', strong: false },
+  component_match: { icon: '🧩', strong: false },
+  ai_suggestion: { icon: '🤖', strong: false },
 };
 
-const QUALITY_LABEL_KEYS: Record<string, string> = {
-  registered_entry:       'registered_entry',
-  learner_dictionary:     'learner_dictionary',
-  normative_reference:    'normative_reference',
-  exact_expression_match: 'dictionary_match',
-  search_page_match:      'dictionary_match',
-  usage_example_match:    'usage_evidence',
-  component_match:        'component_match',
-  ai_suggestion:          'ai_candidate',
+const SOURCE_LABELS: Record<SafeLanguage, Record<string, string>> = {
+  ua: {
+    NAOB: 'NAOB — Det Norske Akademis ordbok',
+    Ordbokene: 'Ordbøkene (UiB + Språkrådet)',
+    Lexin: 'Lexin — OsloMet',
+    Språkrådet: 'Språkrådet',
+    Wiktionary: 'Wiktionary',
+    Gemini: UI.ua.ai_analysis,
+    Manual: 'Manual',
+  },
+  en: {
+    NAOB: 'NAOB — Det Norske Akademis ordbok',
+    Ordbokene: 'Ordbøkene (UiB + Språkrådet)',
+    Lexin: 'Lexin — OsloMet',
+    Språkrådet: 'Språkrådet',
+    Wiktionary: 'Wiktionary',
+    Gemini: UI.en.ai_analysis,
+    Manual: 'Manual',
+  },
+  no: {
+    NAOB: 'NAOB — Det Norske Akademis ordbok',
+    Ordbokene: 'Ordbøkene (UiB + Språkrådet)',
+    Lexin: 'Lexin — OsloMet',
+    Språkrådet: 'Språkrådet',
+    Wiktionary: 'Wiktionary',
+    Gemini: UI.no.ai_analysis,
+    Manual: 'Manual',
+  },
 };
 
-const SOURCE_LABELS: Record<string, string> = {
-  NAOB:        "NAOB — Det Norske Akademis ordbok",
-  Ordbokene:   "Ordbøkene (UiB + Språkrådet)",
-  Lexin:       "Lexin — OsloMet",
-  Språkrådet:  "Språkrådet",
-  Wiktionary:  "Wiktionary",
-  Gemini:      "AI analysis",
-};
+function getSourceLabel(source: string, lang: SafeLanguage) {
+  return SOURCE_LABELS[lang][source] || source;
+}
 
-// ── Stars ─────────────────────────────────────────────────────────────────────
+function sanitizeEvidenceLabel(label?: string | null): string {
+  if (!label) return '';
+
+  const value = String(label).trim();
+
+  if (!value) return '';
+
+  const debugMarkers = [
+    'HTTP',
+    'crosscheck',
+    'HTML primary',
+    'api/',
+    'Errors:',
+    'search:',
+    'lemma:',
+    'limit=',
+    'v2.',
+  ];
+
+  if (debugMarkers.some((marker) => value.includes(marker))) {
+    return '';
+  }
+
+  if (value.length > 120) {
+    return '';
+  }
+
+  return value;
+}
+
 function Stars({ count, color }: { count: number; color: string }) {
   return (
     <View style={styles.stars}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Text
           key={i}
-          style={[styles.star, { color: i <= count ? color : "#D3D1C7" }]}
+          style={[styles.star, { color: i <= count ? color : '#D3D1C7' }]}
         >
           ★
         </Text>
@@ -133,147 +173,176 @@ function Stars({ count, color }: { count: number; color: string }) {
   );
 }
 
-// ── Evidence row ──────────────────────────────────────────────────────────────
 function EvidenceRow({
-  source, item, lang = "en",
+  source,
+  item,
+  lang,
 }: {
   source: string;
   item: SourceEvidence;
-  lang?: AppLanguage;
+  lang: SafeLanguage;
 }) {
-  const qi = QUALITY_ICONS[item.quality] ?? { icon: "○", strong: false };
-  const labelKey = QUALITY_LABEL_KEYS[item.quality] ?? item.quality;
-  const qc = { ...qi, label: t(labelKey as any, lang) };
-  const sourceLabel = SOURCE_LABELS[source] ?? source;
+  const quality = (item.quality || 'not_checked') as EvidenceQuality;
+  const qi = QUALITY_ICONS[String(quality)] ?? { icon: '○', strong: false };
+  const sourceLabel = getSourceLabel(source, lang);
+  const safeEvidenceLabel = sanitizeEvidenceLabel(item.evidence_label);
 
   return (
     <View style={styles.evidenceRow}>
       <View style={styles.evidenceLeft}>
-        <Text style={styles.evidenceIcon}>{qc.icon}</Text>
+        <Text style={styles.evidenceIcon}>{qi.icon}</Text>
+
         <View style={styles.evidenceText}>
           <Text style={styles.evidenceSource}>{sourceLabel}</Text>
+
           <Text
             style={[
               styles.evidenceQuality,
-              qc.strong && styles.evidenceQualityStrong,
+              qi.strong && styles.evidenceQualityStrong,
             ]}
           >
-            {qc.label}
+            {getQualityLabel(quality, lang)}
           </Text>
+
+          {safeEvidenceLabel ? (
+            <Text style={styles.evidenceLabel}>{safeEvidenceLabel}</Text>
+          ) : null}
         </View>
       </View>
-      {item.registered_entry && (
+
+      {item.registered_entry ? (
         <View style={styles.registeredBadge}>
-          <Text style={styles.registeredText}>registered</Text>
+          <Text style={styles.registeredText}>{tr('registered', lang)}</Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
 export function VerificationBadge({
   tier,
   sourceVerified,
   evidence,
   lemma,
-  size = "md",
-  lang = "en",
+  size = 'md',
+  lang = 'ua',
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
+  const safeLang = normalizeLang(lang);
 
-  const _tier = tier ?? "ai_candidate";
-  const cfg = getTierConfig(_tier, lang);
+  const verification = resolveVerification(
+    {
+      tier,
+      sourceVerified,
+      evidence,
+      verification_tier: tier,
+      source_verified: sourceVerified,
+      verification_evidence: evidence,
+    },
+    safeLang
+  );
 
-  // Filter evidence to only found sources
-  const foundSources = evidence
-    ? Object.entries(evidence).filter(
-        ([, v]) => v?.found && v.quality !== "not_checked" && v.quality !== "ai_suggestion"
-      )
-    : [];
-
-  const dotSize = size === "sm" ? 8 : 10;
+  const dotSize = size === 'sm' ? 10 : 13;
 
   return (
     <>
-      {/* Badge / dot */}
       <TouchableOpacity
         onPress={() => setModalVisible(true)}
-        style={[styles.badge, size === "sm" && styles.badgeSm]}
-        accessibilityLabel={`Verification: ${cfg.label}. Tap for details.`}
+        style={[styles.badge, size === 'sm' && styles.badgeSm]}
+        accessibilityLabel={`${tr('accessibilityPrefix', safeLang)}: ${verification.label}. ${tr('accessibilitySuffix', safeLang)}`}
         activeOpacity={0.7}
       >
         <View
           style={[
             styles.dot,
-            { width: dotSize, height: dotSize, backgroundColor: cfg.color },
+            {
+              width: dotSize,
+              height: dotSize,
+              backgroundColor: verification.dot,
+              shadowColor: verification.dot,
+              shadowOpacity: 0.5,
+              shadowRadius: 3,
+              shadowOffset: { width: 0, height: 1 },
+              elevation: 2,
+            },
           ]}
         />
-        {size === "md" && (
-          <Text style={[styles.badgeLabel, { color: cfg.color }]}>
-            {cfg.label}
+
+        {size === 'md' ? (
+          <Text style={[styles.badgeLabel, { color: verification.color }]}>
+            {verification.label}
           </Text>
-        )}
+        ) : null}
       </TouchableOpacity>
 
-      {/* Popup modal */}
       <Modal
         visible={modalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable
-          style={styles.overlay}
-          onPress={() => setModalVisible(false)}
-        >
-          <Pressable style={styles.popup} onPress={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <View style={[styles.popupHeader, { backgroundColor: cfg.bg }]}>
-              <Stars count={cfg.stars} color={cfg.color} />
-              <Text style={[styles.popupTier, { color: cfg.color }]}>
-                {cfg.label}
+        <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
+          <Pressable style={styles.popup} onPress={(event) => event.stopPropagation()}>
+            <View style={[styles.popupHeader, { backgroundColor: verification.bg }]}>
+              <Stars count={verification.stars} color={verification.color} />
+
+              <Text style={[styles.popupTier, { color: verification.color }]}>
+                {verification.label}
               </Text>
-              {lemma && (
-                <Text style={styles.popupLemma}>«{lemma}»</Text>
-              )}
+
+              {lemma ? <Text style={styles.popupLemma}>«{lemma}»</Text> : null}
             </View>
 
-            <ScrollView style={styles.popupBody} showsVerticalScrollIndicator={false}>
-              {/* Description */}
-              <Text style={styles.popupDescription}>{cfg.description}</Text>
+            <ScrollView
+              style={styles.popupBody}
+              contentContainerStyle={styles.popupBodyContent}
+              showsVerticalScrollIndicator
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.popupDescription}>
+                {verification.description}
+              </Text>
 
-              {/* Sources */}
-              {foundSources.length > 0 && (
+              {verification.foundSources.length > 0 ? (
                 <>
-                  <Text style={styles.sectionTitle}>{t("confirmed_by", lang)}</Text>
-                  {foundSources.map(([source, item]) => (
-                    <EvidenceRow key={source} source={source} item={item!} />
+                  <Text style={styles.sectionTitle}>
+                    {tr('confirmed_by', safeLang)}
+                  </Text>
+
+                  {verification.foundSources.map(([source, item]) => (
+                    <EvidenceRow
+                      key={source}
+                      source={source}
+                      item={item}
+                      lang={safeLang}
+                    />
                   ))}
                 </>
-              )}
-
-              {foundSources.length === 0 && (
+              ) : (
                 <Text style={styles.noEvidence}>
-                  No authoritative sources confirmed this expression.
+                  {tr('no_evidence', safeLang)}
                 </Text>
               )}
 
-              {/* Source verified summary */}
-              {sourceVerified && (
+              {verification.sourceVerified ? (
                 <View style={styles.verifiedSummary}>
-                  <Text style={styles.verifiedLabel}>{t("registered_in", lang)}</Text>
-                  <Text style={styles.verifiedValue}>{sourceVerified}</Text>
+                  <Text style={styles.verifiedLabel}>
+                    {tr('registered_in', safeLang)}
+                  </Text>
+
+                  <Text style={styles.verifiedValue}>
+                    {verification.sourceVerified}
+                  </Text>
                 </View>
-              )}
+              ) : null}
             </ScrollView>
 
-            {/* Close */}
             <TouchableOpacity
               style={styles.closeBtn}
               onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.closeBtnText}>{t("close", lang)}</Text>
+              <Text style={styles.closeBtnText}>{tr('close', safeLang)}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -282,11 +351,10 @@ export function VerificationBadge({
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   badge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 5,
     paddingVertical: 2,
     paddingHorizontal: 1,
@@ -296,14 +364,16 @@ const styles = StyleSheet.create({
   },
   dot: {
     borderRadius: 99,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   badgeLabel: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '600',
     letterSpacing: 0.1,
   },
   stars: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 2,
     marginBottom: 6,
   },
@@ -312,19 +382,20 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 32,
   },
   popup: {
-    width: "100%",
+    width: '100%',
     maxWidth: 400,
-    backgroundColor: "#fff",
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    overflow: "hidden",
-    maxHeight: "80%",
+    overflow: 'hidden',
+    maxHeight: '82%',
+    flexShrink: 1,
   },
   popupHeader: {
     padding: 20,
@@ -332,71 +403,81 @@ const styles = StyleSheet.create({
   },
   popupTier: {
     fontSize: 17,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 2,
   },
   popupLemma: {
     fontSize: 13,
-    color: "#888780",
-    fontStyle: "italic",
+    color: '#888780',
+    fontStyle: 'italic',
     marginTop: 2,
   },
   popupBody: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  popupBodyContent: {
     padding: 16,
-    maxHeight: 320,
+    paddingBottom: 24,
   },
   popupDescription: {
     fontSize: 14,
-    color: "#444441",
+    color: '#444441',
     lineHeight: 20,
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 11,
-    fontWeight: "600",
-    color: "#888780",
+    fontWeight: '600',
+    color: '#888780',
     letterSpacing: 0.5,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
     marginBottom: 10,
   },
   evidenceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#D3D1C7",
+    borderBottomColor: '#D3D1C7',
   },
   evidenceLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
     flex: 1,
   },
   evidenceIcon: {
     fontSize: 16,
     width: 22,
-    textAlign: "center",
+    textAlign: 'center',
   },
   evidenceText: {
     flex: 1,
   },
   evidenceSource: {
     fontSize: 13,
-    fontWeight: "500",
-    color: "#2C2C2A",
+    fontWeight: '500',
+    color: '#2C2C2A',
   },
   evidenceQuality: {
     fontSize: 12,
-    color: "#888780",
+    color: '#888780',
     marginTop: 1,
   },
   evidenceQualityStrong: {
-    color: "#0F6E56",
-    fontWeight: "500",
+    color: '#0F6E56',
+    fontWeight: '500',
+  },
+  evidenceLabel: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2,
+    lineHeight: 15,
   },
   registeredBadge: {
-    backgroundColor: "#E1F5EE",
+    backgroundColor: '#E1F5EE',
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 3,
@@ -404,46 +485,46 @@ const styles = StyleSheet.create({
   },
   registeredText: {
     fontSize: 10,
-    fontWeight: "600",
-    color: "#0F6E56",
+    fontWeight: '600',
+    color: '#0F6E56',
     letterSpacing: 0.3,
   },
   noEvidence: {
     fontSize: 13,
-    color: "#888780",
-    fontStyle: "italic",
-    textAlign: "center",
+    color: '#888780',
+    fontStyle: 'italic',
+    textAlign: 'center',
     paddingVertical: 16,
   },
   verifiedSummary: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 0.5,
-    borderTopColor: "#D3D1C7",
+    borderTopColor: '#D3D1C7',
   },
   verifiedLabel: {
     fontSize: 12,
-    color: "#888780",
+    color: '#888780',
   },
   verifiedValue: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#185FA5",
+    fontWeight: '600',
+    color: '#185FA5',
   },
   closeBtn: {
     margin: 12,
     marginTop: 4,
     padding: 14,
-    backgroundColor: "#F1EFE8",
+    backgroundColor: '#F1EFE8',
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
   },
   closeBtnText: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#444441",
+    fontWeight: '600',
+    color: '#444441',
   },
 });

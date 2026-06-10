@@ -1,12 +1,16 @@
 // supabase/functions/verify-lexeme-audit/index.ts
-// Norsk Trainer App — verify-lexeme-audit v2.8.2
+// Norsk Trainer App — verify-lexeme-audit v2.9.0
 //
-// Changes from v2.7.5:
-// 1. FIX: canonicalVerifiedSourceSummary() now includes whole_unit_match sources
-//    → source_verified no longer null for candidate_authoritative
-// 2. FIX: suggestExpressionSubtype() recognizes discourse_marker patterns
-// 3. NAOB: parallel HTML + JSON API, take higher confidence result
-// 4. Wiktionary: check both no.wiktionary.org AND en.wiktionary.org
+// Changes from v2.8.2:
+// 1. NEW: Support for noun/verb/adjective/adverb lexeme auditing
+//    → fetchLexemeRows(), auditLexeme(), buildLexemeSourceExpertise()
+//    → buildLexemeAuditRecord(), mapStatusToTier()
+// 2. NEW: entity="lexemes" routing + direct source_verified update in lexemes table
+// 3. NEW: pos parameter in RequestBody
+// 4. FIX: canonicalVerifiedSourceSummary() includes whole_unit_match sources
+// 5. FIX: suggestExpressionSubtype() recognizes discourse_marker patterns
+// 6. NAOB: parallel HTML + JSON API, take higher confidence result
+// 7. Wiktionary: check both no.wiktionary.org AND en.wiktionary.org
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
@@ -47,8 +51,8 @@ type EvidenceQuality =
   | "registered_entry"
   | "structured_entry_match"
   | "exact_expression_match"
-  | "normative_reference"    // Språkrådet: authoritative normative ruling
-  | "learner_dictionary"     // Lexin: exact match in learner dictionary
+  | "normative_reference"
+  | "learner_dictionary"
   | "search_page_match"
   | "usage_example_match"
   | "component_match"
@@ -61,6 +65,7 @@ type EvidenceQuality =
 type RequestBody = {
   mode?: AuditMode;
   entity?: EntityTable;
+  pos?: string | null;
   limit?: number;
   offset?: number;
   where?: WhereMode;
@@ -68,10 +73,9 @@ type RequestBody = {
   ids?: string[];
   live_lookup?: boolean;
   sources?: SourceName[];
-  // Queue mode
   queue_mode?: "enqueue" | "process" | "status";
-  queue_batch_size?: number;  // how many jobs to process at once
-  job_id?: string;            // specific job to process
+  queue_batch_size?: number;
+  job_id?: string;
 };
 
 type ExpressionRow = {
@@ -104,6 +108,23 @@ type ExpressionRow = {
   linguistic_evidence?: string | null;
   confidence?: string | null;
   topic?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type LexemeRow = {
+  id: string;
+  lemma: string | null;
+  display_form: string | null;
+  pos: string | null;
+  translation_ua?: string | null;
+  translation_en?: string | null;
+  example?: string | null;
+  cefr?: string | null;
+  frequency_level?: string | null;
+  source_verified?: string | null;
+  verification_tier?: string | null;
+  verification_evidence?: unknown;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -189,7 +210,6 @@ const NORWEGIAN_PARTICLES    = new Set(["opp","ut","inn","ned","av","på","med",
 const NORWEGIAN_PREPOSITIONS = new Set(["av","i","på","til","for","fra","med","om","over","under","mellom","gjennom","hos","mot","etter","før","uten","innen","blant","rundt"]);
 const LEGACY_SUBTYPE_MAP: Record<string,string> = { lexical_reflexive: "reflexive_verb" };
 
-// ── v2.8 FIX: known discourse markers ──────────────────────────────────────
 const DISCOURSE_MARKERS = new Set([
   "når det gjelder","det vil si","med andre ord","på den ene siden",
   "på den andre siden","dessuten","derimot","imidlertid","likevel",
@@ -214,7 +234,6 @@ const REACTION_PHRASES = new Set([
   "det var koselig","så synd","det er trist","stakkars","å nei",
   "å ja","å herregud","oi da","jøss","for all del"
 ]);
-// ───────────────────────────────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return corsResponse("ok");
@@ -232,7 +251,7 @@ serve(async (req) => {
 
     // ── QUEUE MODE ──────────────────────────────────────────────────────────
     if (body.queue_mode === "enqueue") {
-      return await handleQueueEnqueue(entity, body.queue_batch_size ?? 10);
+      return await handleQueueEnqueue(entity, body.queue_batch_size ?? 10, body.pos ?? null);
     }
     if (body.queue_mode === "process") {
       return await handleQueueProcess({ dryRun, liveLookup, requestedSources, jobId: body.job_id });
@@ -242,34 +261,57 @@ serve(async (req) => {
     }
     // ────────────────────────────────────────────────────────────────────────
 
-    if (mode   !== "quality_audit")       return jsonResponse({ ok: false, error: `Unsupported mode: ${mode}` }, 400);
-    if (entity !== "expression_catalog")  return jsonResponse({ ok: false, error: "v2.8 currently supports expression_catalog only." }, 400);
+    if (mode !== "quality_audit") return jsonResponse({ ok: false, error: `Unsupported mode: ${mode}` }, 400);
 
-    const rows = await fetchExpressionRows({ limit, offset, where, ids });
+    // Route to correct handler based on entity
+    const isLexemeEntity = entity === "lexemes";
+
+    const rows = isLexemeEntity
+      ? await fetchLexemeRows({ limit, offset, where, ids, pos: body.pos ?? null })
+      : await fetchExpressionRows({ limit, offset, where, ids });
+
     const results: Array<{ id: string; lemma: string | null; ok: boolean; error?: string }> = [];
     const summary = createSummary();
 
     for (const row of rows) {
       try {
-        const decision = await auditExpression(row, { liveLookup, requestedSources });
-        incrementSummary(summary, "byEntity", "expression_catalog");
+        const decision = isLexemeEntity
+          ? await auditLexeme(row as LexemeRow, { liveLookup, requestedSources })
+          : await auditExpression(row as ExpressionRow, { liveLookup, requestedSources });
+
+        incrementSummary(summary, "byEntity", isLexemeEntity ? "lexemes" : "expression_catalog");
         incrementSummary(summary, "byVerificationStatus", decision.proposed_verification_status);
-        // For source summary: use whole_unit_sources to show where expression was found
-        // (source_verified alone would miss all candidate_authoritative entries)
         incrementSummary(summary, "bySource", decision.proposed_whole_unit_sources ?? decision.proposed_source_verified ?? "null");
         incrementSummary(summary, "byRegisteredEntry", decision.proposed_source_verified ?? "null");
         incrementSummary(summary, "byFormStatus", decision.family_verification_status);
 
         if (!dryRun) {
-          const auditRecord = buildAuditRecord(row, decision);
+          const auditRecord = isLexemeEntity
+            ? buildLexemeAuditRecord(row as LexemeRow, decision)
+            : buildAuditRecord(row as ExpressionRow, decision);
           const { error } = await supabase.from("lexical_quality_audit").insert(auditRecord);
           if (error) throw error;
+
+          // For lexemes: also update source_verified + verification_tier directly
+          if (isLexemeEntity) {
+            const updateData: Record<string, unknown> = {
+              updated_at: new Date().toISOString(),
+            };
+            if (decision.proposed_source_verified) {
+              updateData.source_verified = decision.proposed_source_verified;
+            }
+            const tier = mapStatusToTier(decision.proposed_verification_status);
+            if (tier) updateData.verification_tier = tier;
+
+            await supabase.from("lexemes").update(updateData).eq("id", (row as LexemeRow).id);
+          }
         }
+
         results.push({
           id: row.id, lemma: row.lemma, ok: true,
-          // Include source_expertise in dry_run for debugging
           ...(dryRun ? {
             verification_status: decision.proposed_verification_status,
+            source_verified: decision.proposed_source_verified,
             source_expertise: Object.fromEntries(
               Object.entries(decision.source_expertise).map(([src, item]) => [src, {
                 found: item?.found,
@@ -285,13 +327,13 @@ serve(async (req) => {
       } catch (error) {
         summary.errors += 1;
         results.push({ id: row.id, lemma: row.lemma, ok: false, error: error instanceof Error ? error.message : String(error) });
-        if (!dryRun) await insertErrorAudit(row, error);
+        if (!dryRun && !isLexemeEntity) await insertErrorAudit(row as ExpressionRow, error);
       }
     }
 
     return jsonResponse({
       ok: true,
-      version: "2.8.11-queue",
+      version: "2.9.0",
       mode, entity, dry_run: dryRun, live_lookup: liveLookup,
       requested_sources: requestedSources, where, limit, offset,
       count: rows.length, error_count: summary.errors, summary, results,
@@ -312,6 +354,231 @@ async function fetchExpressionRows(args: { limit: number; offset: number; where:
   return (data ?? []) as ExpressionRow[];
 }
 
+// ── LEXEME AUDIT (nouns, verbs, adjectives, adverbs) v2.9 ────────────────────
+
+async function fetchLexemeRows(args: {
+  limit: number; offset: number; where: WhereMode; ids: string[]; pos: string | null;
+}): Promise<LexemeRow[]> {
+  let query = supabase
+    .from("lexemes")
+    .select("id, lemma, display_form, pos, translation_ua, translation_en, example, cefr, frequency_level, source_verified, verification_tier, verification_evidence, created_at, updated_at")
+    .order("created_at", { ascending: true })
+    .range(args.offset, args.offset + args.limit - 1);
+
+  if (args.ids.length > 0) {
+    query = query.in("id", args.ids);
+  } else {
+    if (args.pos) query = query.eq("pos", args.pos);
+    else query = query.not("pos", "eq", "expression");
+
+    if (args.where === "missing_verification") {
+      query = query.is("source_verified", null);
+    } else if (args.where === "needs_review") {
+      query = query.or("source_verified.is.null,verification_tier.is.null");
+    }
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as LexemeRow[];
+}
+
+async function auditLexeme(
+  row: LexemeRow,
+  options: { liveLookup: boolean; requestedSources: SourceName[] }
+): Promise<AuditDecision> {
+  const lemma = (row.lemma ?? row.display_form ?? "").trim();
+
+  const sourceExpertise = await buildLexemeSourceExpertise(lemma, options);
+  const allSourcesFound = getSourcesFound(sourceExpertise, false);
+  const allAuthoritativeSourcesFound = getSourcesFound(sourceExpertise, true);
+  const registeredEntrySources = getRegisteredEntrySources(sourceExpertise);
+  const registeredEntryFound = registeredEntrySources.length > 0;
+  const sourceEvidenceScope = getSourceEvidenceScope(sourceExpertise);
+  const liveLookupErrors = getLiveLookupErrors(sourceExpertise);
+
+  const decisionCore = decideVerificationStatus({
+    lemma,
+    linguisticEvidence: row.pos ?? "word",
+    sourceExpertise,
+    registeredEntrySources,
+    allAuthoritativeSourcesFound,
+  });
+
+  const proposedSourceVerified = canonicalVerifiedSourceSummary(sourceExpertise);
+  const wholeUnitSources = canonicalWholeUnitSourceSummary(sourceExpertise);
+  const familyVerificationStatus = decideFamilyVerificationStatus({
+    status: decisionCore.status,
+    registeredEntryFound,
+    sourceExpertise,
+  });
+
+  const proposedData = {
+    lemma: row.lemma, pos: row.pos,
+    verification_status: decisionCore.status,
+    source_verified: proposedSourceVerified,
+    whole_unit_sources: wholeUnitSources,
+    linguistic_evidence: row.pos ?? "word",
+    confidence: decisionCore.confidence,
+    family_verification_status: familyVerificationStatus,
+    source_expertise: sourceExpertise,
+    all_sources_found: allSourcesFound,
+    all_authoritative_sources_found: allAuthoritativeSourcesFound,
+    registered_entry_found: registeredEntryFound,
+    registered_entry_sources: registeredEntrySources,
+    verification_basis: decisionCore.verificationBasis,
+    source_evidence_scope: sourceEvidenceScope,
+    live_lookup_errors: liveLookupErrors,
+  };
+
+  return {
+    proposed_verification_status: decisionCore.status,
+    proposed_source_verified: proposedSourceVerified,
+    proposed_whole_unit_sources: wholeUnitSources,
+    proposed_linguistic_evidence: row.pos ?? "word",
+    confidence: decisionCore.confidence,
+    family_verification_status: familyVerificationStatus,
+    source_expertise: sourceExpertise,
+    all_sources_found: allSourcesFound,
+    all_authoritative_sources_found: allAuthoritativeSourcesFound,
+    registered_entry_found: registeredEntryFound,
+    registered_entry_sources: registeredEntrySources,
+    verification_basis: decisionCore.verificationBasis,
+    source_evidence_scope: sourceEvidenceScope,
+    unregistered_reason: registeredEntryFound ? null : `No registered entry found for ${row.pos} "${lemma}"`,
+    old_source_hints: {
+      source_naob: false, source_ordbokene: false, source_wiktionary: false,
+      source_gemini: false, source_manual: false,
+      source_verified: row.source_verified ?? null,
+      source_urls: null, raw_sources_present: false,
+    },
+    live_lookup_errors: liveLookupErrors,
+    subtype_suggestion: null,
+    subtype_conflict: false,
+    component_source_type: null,
+    collocation_type: null,
+    audit_notes: `v2.9 lexeme audit for "${lemma}" (${row.pos}). Status: ${decisionCore.status}. Sources: ${allAuthoritativeSourcesFound.join("+") || "none"}.`,
+    checks: [{ check: "lexeme_audit", ok: true, pos: row.pos }],
+    sources_found: buildSourcesFoundList(sourceExpertise),
+    proposed_data: proposedData,
+    changed_fields: ["source_verified", "verification_tier", "source_expertise"],
+  };
+}
+
+async function buildLexemeSourceExpertise(
+  lemma: string,
+  options: { liveLookup: boolean; requestedSources: SourceName[] }
+): Promise<SourceExpertise> {
+  const expertise: SourceExpertise = {};
+
+  if (options.requestedSources.includes("Ordbokene")) {
+    expertise.Ordbokene = await sourceItemFromLookup(
+      "Ordbokene", false,
+      options.liveLookup && ENABLE_LIVE_ORDBOKENE,
+      () => checkOrdbokeneLive(lemma, lemma)
+    );
+    await delay(SOURCE_DELAY_MS);
+  }
+
+  if (options.requestedSources.includes("NAOB")) {
+    expertise.NAOB = await sourceItemFromLookup(
+      "NAOB", false,
+      options.liveLookup && ENABLE_LIVE_NAOB,
+      () => checkNAOBLive(lemma, lemma)
+    );
+    await delay(SOURCE_DELAY_MS);
+  }
+
+  if (options.requestedSources.includes("Wiktionary")) {
+    expertise.Wiktionary = await sourceItemFromLookup(
+      "Wiktionary", false,
+      options.liveLookup && ENABLE_LIVE_WIKTIONARY,
+      () => checkWiktionaryLive(lemma, lemma)
+    );
+    await delay(SOURCE_DELAY_MS);
+  }
+
+  if (options.requestedSources.includes("Språkrådet")) {
+    expertise.Språkrådet = await sourceItemFromLookup(
+      "Språkrådet", false, options.liveLookup,
+      () => checkSpraakradetLive(lemma, lemma)
+    );
+    await delay(SOURCE_DELAY_MS);
+  }
+
+  if (options.requestedSources.includes("Lexin")) {
+    expertise.Lexin = await sourceItemFromLookup(
+      "Lexin", false, options.liveLookup,
+      () => checkLexinLive(lemma, lemma)
+    );
+    await delay(SOURCE_DELAY_MS);
+  }
+
+  expertise.Manual = sourceNotChecked("Manual", false, "Manual not checked for lexeme audit.");
+  expertise.Gemini = sourceNotChecked("Gemini", false, "Gemini not used for lexeme audit.");
+
+  return expertise;
+}
+
+function buildLexemeAuditRecord(row: LexemeRow, decision: AuditDecision): Record<string, unknown> {
+  return {
+    entity_table: "lexemes", entity_id: row.id,
+    lemma: row.lemma, display_form: row.display_form,
+    pos: row.pos ?? "noun", subtype: null,
+    old_data: row, proposed_data: decision.proposed_data,
+    old_verification: null, proposed_verification: null,
+    old_verification_status: null,
+    proposed_verification_status: decision.proposed_verification_status,
+    old_source_verified: row.source_verified ?? null,
+    proposed_source_verified: decision.proposed_source_verified,
+    proposed_whole_unit_sources: decision.proposed_whole_unit_sources ?? null,
+    old_linguistic_evidence: null,
+    proposed_linguistic_evidence: decision.proposed_linguistic_evidence,
+    old_cefr: row.cefr ?? null, proposed_cefr: row.cefr ?? null,
+    old_frequency_level: row.frequency_level ?? null,
+    proposed_frequency_level: row.frequency_level ?? null,
+    changed_fields: decision.changed_fields,
+    checks: decision.checks, sources_found: decision.sources_found,
+    audit_status: "pending", audit_error: null,
+    old_forms: null, proposed_forms: null, form_checks: null,
+    form_verification_status: null, comparison_status: null,
+    inflection_notes: null, confidence: decision.confidence,
+    frequency_status: null, audit_notes: decision.audit_notes,
+    relation_checks: null, semantic_relation_status: null,
+    interchangeability_status: null,
+    subtype_conflict: false, subtype_suggestion: null,
+    component_source_type: null, collocation_type: null,
+    family_verification_status: decision.family_verification_status,
+    expression_synonym_status: null, expression_synonym_count: 0,
+    source_expertise: decision.source_expertise,
+    all_sources_found: decision.all_sources_found,
+    all_authoritative_sources_found: decision.all_authoritative_sources_found,
+    registered_entry_found: decision.registered_entry_found,
+    registered_entry_sources: decision.registered_entry_sources,
+    verification_basis: decision.verification_basis,
+    source_evidence_scope: decision.source_evidence_scope,
+    unregistered_reason: decision.unregistered_reason,
+    old_source_hints: decision.old_source_hints,
+    live_lookup_errors: decision.live_lookup_errors,
+  };
+}
+
+function mapStatusToTier(status: VerificationStatus): string {
+  switch (status) {
+    case "multi_source":             return "dictionary_entry";
+    case "authoritative":            return "dictionary_entry";
+    case "dictionary":               return "dictionary_entry";
+    case "candidate_authoritative":  return "dictionary_match";
+    case "component_verified":       return "component_match";
+    case "usage_verified":           return "usage_evidence";
+    case "unregistered_usage_candidate": return "ai_candidate";
+    case "ai_supported":             return "ai_candidate";
+    case "ai_candidate":             return "ai_candidate";
+    default:                         return "ai_candidate";
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function auditExpression(row: ExpressionRow, options: { liveLookup: boolean; requestedSources: SourceName[] }): Promise<AuditDecision> {
   const lemma       = cleanLemma(row.lemma ?? row.display_form ?? "");
   const displayForm = cleanLemma(row.display_form ?? row.lemma ?? "");
@@ -331,24 +598,20 @@ async function auditExpression(row: ExpressionRow, options: { liveLookup: boolea
   const liveLookupErrors             = getLiveLookupErrors(sourceExpertise);
 
   const decisionCore            = decideVerificationStatus({ lemma, linguisticEvidence, sourceExpertise, registeredEntrySources, allAuthoritativeSourcesFound });
-  const proposedSourceVerified  = canonicalVerifiedSourceSummary(sourceExpertise); // v2.8 fixed
+  const proposedSourceVerified  = canonicalVerifiedSourceSummary(sourceExpertise);
   const familyVerificationStatus = decideFamilyVerificationStatus({ status: decisionCore.status, registeredEntryFound, sourceExpertise });
   const componentSourceType     = decideComponentSourceType(sourceExpertise);
   const unregisteredReason      = decideUnregisteredReason({ status: decisionCore.status, lemma, linguisticEvidence, subtype: subtypeSuggestion ?? oldSubtype, sourceExpertise });
 
   const checks      = buildChecks({ oldSubtype, subtypeSuggestion, subtypeConflict, sourceExpertise, registeredEntryFound, linguisticEvidence, oldSourceHints });
   const sourcesFound = buildSourcesFoundList(sourceExpertise);
-
-  // Two separate source fields:
-  // source_verified      = only registered_entry sources (словниковий запис)
-  // whole_unit_sources   = registered_entry + whole_unit_match (знайдено як цілий вираз)
   const wholeUnitSources = canonicalWholeUnitSourceSummary(sourceExpertise);
 
   const proposedData = {
     lemma: row.lemma, display_form: row.display_form, normalized_key: row.normalized_key,
     verification_status: decisionCore.status,
-    source_verified: proposedSourceVerified,       // strict: registered_entry only
-    whole_unit_sources: wholeUnitSources,           // broader: registered + whole_unit
+    source_verified: proposedSourceVerified,
+    whole_unit_sources: wholeUnitSources,
     linguistic_evidence: linguisticEvidence, confidence: decisionCore.confidence,
     expression_subtype: subtypeSuggestion ?? oldSubtype,
     family_verification_status: familyVerificationStatus,
@@ -409,7 +672,6 @@ async function buildLiveSourceExpertise(row: ExpressionRow, lemma: string, displ
     }
   }
 
-  // Språkrådet + Lexin lookups
   if (options.requestedSources.includes("Språkrådet") || options.requestedSources.includes("NAOB")) {
     expertise.Språkrådet = await sourceItemFromLookup(
       "Språkrådet", oldHintFromSource(row, "Språkrådet"), options.liveLookup,
@@ -420,7 +682,6 @@ async function buildLiveSourceExpertise(row: ExpressionRow, lemma: string, displ
     expertise.Språkrådet = sourceNotChecked("Språkrådet", oldHintFromSource(row, "Språkrådet"), "Språkrådet not in requested sources.");
   }
 
-  // Lexin (Udir) — official Norwegian learning dictionary with UA translations
   if (options.requestedSources.includes("Lexin") || options.requestedSources.includes("NAOB")) {
     expertise.Lexin = await sourceItemFromLookup(
       "Lexin", false, options.liveLookup,
@@ -460,13 +721,11 @@ function sourceNotChecked(source: SourceName, storedHint: boolean, note: string)
   };
 }
 
-// ── v2.8 NAOB: parallel HTML scraping + JSON API, take higher result ────────
 async function checkNAOBLive(lemma: string, displayForm: string): Promise<SourceLookupResult> {
   const query = cleanLemma(lemma || displayForm);
   const queryNoAa = query.replace(/^å\s+/i, "").trim();
   const variants = Array.from(new Set([query, queryNoAa].filter(Boolean)));
 
-  // Run HTML scraping and JSON API in parallel
   const [htmlResult, apiResult] = await Promise.allSettled([
     checkNAOBHtml(query, variants),
     checkNAOBApi(query, variants),
@@ -475,13 +734,12 @@ async function checkNAOBLive(lemma: string, displayForm: string): Promise<Source
   const html = htmlResult.status === "fulfilled" ? htmlResult.value : null;
   const api  = apiResult.status  === "fulfilled" ? apiResult.value  : null;
 
-  // Merge: take the higher quality result
   const qualityRank: Record<EvidenceQuality, number> = {
     registered_entry: 5, structured_entry_match: 4,
-    learner_dictionary: 4,      // Lexin official = same as structured_entry
+    learner_dictionary: 4,
     exact_expression_match: 3,
-    normative_reference: 2,     // Språkrådet: authoritative but not dictionary
-    search_page_match: 1,       // reduced — web search hit only
+    normative_reference: 2,
+    search_page_match: 1,
     usage_example_match: 2, component_match: 1,
     ai_suggestion: 0, manual_reference: 0,
     not_found: -1, not_checked: -2, error: -3,
@@ -490,12 +748,10 @@ async function checkNAOBLive(lemma: string, displayForm: string): Promise<Source
   const htmlRank = html ? (qualityRank[html.quality] ?? -2) : -2;
   const apiRank  = api  ? (qualityRank[api.quality]  ?? -2) : -2;
 
-  // API wins on tie (more reliable)
   const winner = apiRank >= htmlRank ? api : html;
   const loser  = apiRank >= htmlRank ? html : api;
 
   if (!winner || winner.quality === "not_found" || winner.quality === "not_checked") {
-    // Both failed or not found
     return {
       source: "NAOB", checked: true, found: false, quality: "not_found",
       registered_entry: false, whole_unit_match: false, component_match: false, usage_match: false,
@@ -562,15 +818,10 @@ async function checkNAOBHtml(query: string, variants: string[]): Promise<SourceL
 
   for (const { url, text } of responses) {
     if (containsExactPhrase(text, query)) {
-      // Check for "0 treff" — NAOB explicitly saying the phrase doesn't exist
       const zeroTreff = text.includes("0 treff i artikler") ||
                         text.includes("finnes ikke som oppslagsord") ||
                         text.includes("0 treff");
-      if (zeroTreff) {
-        // Skip this — NAOB confirmed not found
-        continue;
-      }
-      // Check hit count for confidence
+      if (zeroTreff) continue;
       const treffMatch = text.match(/(\d+)\s+treff/);
       const treffCount = treffMatch ? parseInt(treffMatch[1]) : 999;
       const label = `NAOB HTML: exact phrase on search/entry page (${treffCount} treff)`;
@@ -595,25 +846,19 @@ async function checkNAOBHtml(query: string, variants: string[]): Promise<SourceL
 }
 
 async function checkNAOBApi(query: string, variants: string[]): Promise<SourceLookupResult> {
-  // NAOB JSON API endpoints
   const urls: string[] = [];
   const errors: string[] = [];
 
   for (const variant of variants) {
     const encoded = encodeURIComponent(variant);
-
-    // Try direct lemma API
     const lemmaUrl   = `https://naob.no/api/lemma/${encoded}`;
     const searchUrl  = `https://naob.no/api/search?q=${encoded}&limit=10`;
-    const suggestUrl = `https://naob.no/api/suggest?q=${encoded}`;
     urls.push(lemmaUrl, searchUrl);
 
-    // Try lemma API first
     try {
       const data = await fetchJson(lemmaUrl);
       if (data && typeof data === "object") {
         const obj = data as Record<string, unknown>;
-        // Check if it returned a real article
         if (obj.id || obj.lemma || obj.article_id || obj.forms) {
           const lemmaMatch = containsExactPhrase(JSON.stringify(data), variant);
           if (lemmaMatch) {
@@ -628,7 +873,6 @@ async function checkNAOBApi(query: string, variants: string[]): Promise<SourceLo
 
     await delay(100);
 
-    // Try search API
     try {
       const data = await fetchJson(searchUrl);
       if (data && typeof data === "object") {
@@ -638,7 +882,6 @@ async function checkNAOBApi(query: string, variants: string[]): Promise<SourceLo
           return makeLookup("NAOB", true, "search_page_match", false, true, false, false,
             [searchUrl], "NAOB API: search endpoint exact match", JSON.stringify(data).slice(0, 500));
         }
-        // Check for component hits
         const tokens = getTokens(variant);
         const hits = countTokenHits(text, tokens);
         if (tokens.length > 1 && hits > 0) {
@@ -656,24 +899,17 @@ async function checkNAOBApi(query: string, variants: string[]): Promise<SourceLo
   return makeLookup("NAOB", false, "not_found", false, false, false, false,
     urls, `NAOB API: no match. Errors: ${errors.slice(0,3).join(", ")}`, "");
 }
-// ────────────────────────────────────────────────────────────────────────────
 
-// Norwegian lemmatization: strip inflection suffixes to find base form
 function norwegianLemmaVariants(word: string): string[] {
   const variants = new Set<string>([word]);
   const w = word.toLowerCase().trim();
-  // Definite article suffixes (noun forms)
-  if (w.endsWith("et"))  variants.add(w.slice(0, -2));  // huset → hus
-  if (w.endsWith("en"))  variants.add(w.slice(0, -2));  // bilen → bil
-  if (w.endsWith("a"))   variants.add(w.slice(0, -1));  // jenta → jente
-  // Plural suffixes
-  if (w.endsWith("ene")) variants.add(w.slice(0, -3));  // husene → hus
-  if (w.endsWith("ene")) variants.add(w.slice(0, -2));  // husene → huse
-  if (w.endsWith("er"))  variants.add(w.slice(0, -2));  // biler → bil
+  if (w.endsWith("et"))  variants.add(w.slice(0, -2));
+  if (w.endsWith("en"))  variants.add(w.slice(0, -2));
+  if (w.endsWith("a"))   variants.add(w.slice(0, -1));
   if (w.endsWith("ene")) variants.add(w.slice(0, -3));
-  // landet/utlandet special case
-  if (w.endsWith("landet")) variants.add(w.slice(0, -3)); // utlandet → utland
-  // Keep original capitalization variant
+  if (w.endsWith("ene")) variants.add(w.slice(0, -2));
+  if (w.endsWith("er"))  variants.add(w.slice(0, -2));
+  if (w.endsWith("landet")) variants.add(w.slice(0, -3));
   variants.add(word.charAt(0).toUpperCase() + word.slice(1));
   return [...variants].filter(v => v.length >= 2);
 }
@@ -682,10 +918,7 @@ async function checkOrdbokeneLive(lemma: string, displayForm: string): Promise<S
   const query = lemma || displayForm;
   const tokens = getTokens(query);
 
-  // For single words: also try lemma variants (handles inflected forms)
-  const searchTerms = tokens.length === 1
-    ? norwegianLemmaVariants(query)
-    : [query];
+  const searchTerms = tokens.length === 1 ? norwegianLemmaVariants(query) : [query];
 
   const exactArticlesUrl = `https://ord.uib.no/api/articles?w=${encodeURIComponent(query)}&dict=bm,nn&scope=e`;
   const exactSuggestUrl  = `https://ord.uib.no/api/suggest?q=${encodeURIComponent(query)}&dict=bm,nn&include=eif&n=20`;
@@ -695,7 +928,6 @@ async function checkOrdbokeneLive(lemma: string, displayForm: string): Promise<S
 
   let articleIds = extractOrdbokeneArticleIds(articlePayload);
 
-  // If not found by exact form, try lemma variants
   if (articleIds.length === 0 && tokens.length === 1) {
     for (const variant of norwegianLemmaVariants(query)) {
       if (variant === query) continue;
@@ -711,7 +943,6 @@ async function checkOrdbokeneLive(lemma: string, displayForm: string): Promise<S
     }
   }
 
-  // articleIds now contains results from exact or lemma variant lookup
   const exactSuggestTerms  = extractOrdbokeneSuggestExactTerms(suggestPayload);
   const exactSuggest       = exactSuggestTerms.some(t => normalizeForMatch(t) === normalizeForMatch(query));
   const extendedExact      = exactSuggestTerms.filter(t => {
@@ -782,7 +1013,6 @@ async function checkOrdbokeneLive(lemma: string, displayForm: string): Promise<S
   };
 }
 
-// ── v2.8 Wiktionary: check both no. and en. domains ─────────────────────────
 async function checkWiktionaryLive(lemma: string, displayForm: string): Promise<SourceLookupResult> {
   const query    = lemma || displayForm;
   const slug     = encodeURIComponent(query.replace(/\s+/g, "_"));
@@ -797,7 +1027,6 @@ async function checkWiktionaryLive(lemma: string, displayForm: string): Promise<
   const no = noResult.status === "fulfilled" ? noResult.value : null;
   const en = enResult.status === "fulfilled" ? enResult.value : null;
 
-  // Hierarchy: registered_entry > exact_expression_match > component_match > not_found
   const qualityRank: Partial<Record<EvidenceQuality, number>> = {
     registered_entry: 4, exact_expression_match: 3, component_match: 1, not_found: -1, not_checked: -2,
   };
@@ -805,7 +1034,6 @@ async function checkWiktionaryLive(lemma: string, displayForm: string): Promise<
   const noRank = no ? (qualityRank[no.quality] ?? -2) : -2;
   const enRank = en ? (qualityRank[en.quality] ?? -2) : -2;
 
-  // no.wiktionary wins on tie (more authoritative for Norwegian)
   const winner = noRank >= enRank ? no : en;
   const loser  = noRank >= enRank ? en : no;
 
@@ -839,9 +1067,8 @@ async function checkWiktionaryDomain(query: string, url: string, norwegianMarker
   const tokens           = getTokens(query);
   const tokenHits        = countTokenHits(text, tokens);
 
-  // For en.wiktionary: require actual "Norwegian Bokmål" section header, not just mention
   const hasNorwegianSection = isNoDomain
-    ? norwegianScoped  // no.wiktionary is Norwegian by default
+    ? norwegianScoped
     : /==\s*Norwegian\s+Bokmål\s*==/i.test(html) ||
       /==\s*Norwegian\s+Nynorsk\s*==/i.test(html) ||
       /Norwegian Bokmål.*?subsection/i.test(html);
@@ -857,7 +1084,6 @@ async function checkWiktionaryDomain(query: string, url: string, norwegianMarker
 
   return makeLookup("Wiktionary", false, "not_found", false, false, false, false, [url], `Wiktionary ${isNoDomain ? "no." : "en."}: no Norwegian match`, text);
 }
-// ────────────────────────────────────────────────────────────────────────────
 
 function makeLookup(source: SourceName, found: boolean, quality: EvidenceQuality, registered: boolean, whole: boolean, component: boolean, usage: boolean, urls: string[], label: string, raw: string): SourceLookupResult {
   return { source, checked: true, found, quality, registered_entry: registered, whole_unit_match: whole, component_match: component, usage_match: usage, urls, evidence_label: label, raw_preview: preview(raw) };
@@ -914,20 +1140,168 @@ async function callGeminiForExpression(lemma: string, linguisticEvidence: string
   return parseFirstJsonObject(json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}");
 }
 
+async function checkSpraakradetLive(lemma: string, displayForm: string): Promise<SourceLookupResult> {
+  const query   = lemma || displayForm;
+  const encoded = encodeURIComponent(query);
+  const svarUrl = `https://sprakradet.no/?s=${encoded}`;
+  const urls    = [svarUrl];
+
+  try {
+    const res = await fetchWithTimeout(svarUrl);
+    if (!res.ok) {
+      return {
+        source: "Språkrådet", checked: true, found: null, quality: "error",
+        registered_entry: false, whole_unit_match: false, component_match: false, usage_match: false,
+        urls, evidence_label: `Språkrådet HTTP ${res.status}`, error: `HTTP ${res.status}`,
+      };
+    }
+
+    const html = await res.text();
+    const text = normalizeHtmlText(html);
+    const exact     = containsExactPhrase(text, query);
+    const tokens    = getTokens(query);
+    const tokenHits = countTokenHits(text, tokens);
+    const noResults = /ingen\s+treff\s+på/i.test(text) ||
+                      /ingen\s+resultater\s+for/i.test(text) ||
+                      /0\s+treff/i.test(text) ||
+                      text.includes("Søket gav ingen treff") ||
+                      text.includes("Fant ingen treff");
+    const emptyPage = text.length < 500;
+
+    const isMatch = (exact || (tokens.length >= 2 && tokenHits >= 2)) && !noResults && !emptyPage;
+    if (isMatch) {
+      const label = exact
+        ? "Språkrådet: exact normative reference found"
+        : `Språkrådet: token match (${tokenHits}/${tokens.length} tokens) — normative reference`;
+      return {
+        source: "Språkrådet", checked: true, found: true,
+        quality: "normative_reference",
+        registered_entry: false, whole_unit_match: false,
+        component_match: false, usage_match: false,
+        urls, evidence_label: label, raw_preview: preview(text.slice(0, 500)),
+      };
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      source: "Språkrådet", checked: true, found: null, quality: "error",
+      registered_entry: false, whole_unit_match: false, component_match: false, usage_match: false,
+      urls, evidence_label: "Språkrådet lookup failed", error: msg,
+    };
+  }
+
+  return makeLookup("Språkrådet", false, "not_found", false, false, false, false,
+    urls, "Språkrådet svardatabasen: no normative reference found", "");
+}
+
+async function checkLexinLive(lemma: string, displayForm: string): Promise<SourceLookupResult> {
+  const query   = lemma || displayForm;
+  const encoded = encodeURIComponent(query);
+
+  const uaUrl = `https://editorportal.oslomet.no/api/v1/findwords?searchWord=${encoded}&lang=bokm%C3%A5l-ukrainsk&page=1&selectLang=bokm%C3%A5l-ukrainsk&includeEngLang=0`;
+  const noUrl = `https://editorportal.oslomet.no/api/v1/findwords?searchWord=${encoded}&lang=bokm%C3%A5l-bokm%C3%A5l&page=1&selectLang=bokm%C3%A5l-bokm%C3%A5l&includeEngLang=0`;
+  const urls  = [uaUrl, noUrl];
+
+  const errors: string[] = [];
+
+  for (const [url, label] of [[uaUrl, "nob-ukr"], [noUrl, "nob-nob"]] as [string, string][]) {
+    try {
+      const text = await fetchLexinText(url);
+      if (!text || text.length < 5 || text === "[]" || text === "{}") continue;
+
+      let hasEntry = false;
+      let translationUa: string | null = null;
+      try {
+        const data = JSON.parse(text);
+        const result = data?.result ?? data?.results ?? data?.data ?? data?.words ?? data;
+        const items = Array.isArray(result) ? result : [];
+
+        if (items.length > 0) {
+          const normalizedQuery = normalizeForMatch(query);
+          let exactMatch = false;
+
+          for (const group of items) {
+            if (!Array.isArray(group)) continue;
+            for (const entry of group) {
+              if (!entry || typeof entry !== "object") continue;
+              if (entry.type === "E-lem") {
+                const lemmaText = normalizeForMatch(entry.text ?? "");
+                const lemmaClean = lemmaText.replace(/^å\s+/, "").trim();
+                const queryClean = normalizedQuery.replace(/^å\s+/, "").trim();
+                if (lemmaText === normalizedQuery || lemmaClean === queryClean) {
+                  exactMatch = true;
+                }
+              }
+              if (exactMatch && (entry.type === "E-ukr" || entry.type === "ukr")) {
+                translationUa = entry.text ?? entry.value ?? null;
+              }
+            }
+            if (exactMatch) break;
+          }
+          hasEntry = exactMatch;
+        }
+      } catch { hasEntry = containsExactPhrase(normalizeForMatch(text), query); }
+
+      if (hasEntry) {
+        const uaNote = translationUa ? ` | UA: ${String(translationUa).slice(0, 50)}` : "";
+        return {
+          source: "Lexin" as SourceName, checked: true, found: true,
+          quality: "learner_dictionary" as EvidenceQuality,
+          registered_entry: true,
+          whole_unit_match: true,
+          component_match: false, usage_match: false,
+          urls: [url],
+          evidence_label: `Lexin OsloMet (${label}): registered entry found${uaNote}`,
+          raw_preview: preview(text.slice(0, 500)),
+        };
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`${label}: ${msg}`);
+    }
+  }
+
+  if (errors.length > 0 && errors.every(e => e.includes("HTTP") || e.includes("abort") || e.includes("timeout"))) {
+    return {
+      source: "Lexin" as SourceName, checked: true, found: null, quality: "error",
+      registered_entry: false, whole_unit_match: false, component_match: false, usage_match: false,
+      urls, evidence_label: "Lexin unavailable",
+      error: errors.slice(0, 3).join(" | "),
+    };
+  }
+
+  return makeLookup("Lexin" as SourceName, false, "not_found", false, false, false, false,
+    urls, "Lexin: no match found", "");
+}
+
+async function fetchLexinText(url: string): Promise<string> {
+  const res = await fetchWithTimeout(url, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
+      "Origin": "https://lexin.oslomet.no",
+      "Referer": "https://lexin.oslomet.no/",
+      "Cache-Control": "no-cache",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+    }
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Lexin HTTP ${res.status}: ${body.slice(0, 200)}`);
+  }
+  return await res.text();
+}
+
 function decideVerificationStatus(args: { lemma: string; linguisticEvidence: string; sourceExpertise: SourceExpertise; registeredEntrySources: string[]; allAuthoritativeSourcesFound: string[] }): { status: VerificationStatus; confidence: "high" | "medium" | "low"; verificationBasis: Record<string, unknown> } {
   const { lemma, linguisticEvidence, sourceExpertise, registeredEntrySources, allAuthoritativeSourcesFound } = args;
   const authoritativeWholeUnit = Object.entries(sourceExpertise).filter(([, i]) => i?.authoritative && i.found === true && i.whole_unit_match).map(([s]) => s).sort();
   const authoritativeCandidate = Object.entries(sourceExpertise).filter(([, i]) => i?.authoritative && i.found === true && ["search_page_match","exact_expression_match","manual_reference","normative_reference"].includes(i.quality)).map(([s]) => s).sort();
-  // Normative references (Språkrådet) — confirmed existence but not dictionary entry
-  const normativeOnly = authoritativeCandidate.length > 0 &&
-    authoritativeCandidate.every(s => sourceExpertise[s as SourceName]?.quality === "normative_reference") &&
-    registeredEntrySources.length === 0;
   const componentSources       = Object.entries(sourceExpertise).filter(([, i]) => i?.authoritative && i.found === true && i.component_match).map(([s]) => s).sort();
   const authoritativeUsage     = Object.entries(sourceExpertise).filter(([, i]) => i?.authoritative && i.found === true && i.usage_match).map(([s]) => s).sort();
   const aiSupported            = sourceExpertise.Gemini?.found === true;
   const liveChecked            = Object.values(sourceExpertise).filter(i => i?.authoritative && i.live_lookup && i.checked).length;
 
-  // Priority: NAOB > Ordbokene > Lexin > Språkrådet > Wiktionary (community)
   const primarySources = registeredEntrySources.filter(s => ["NAOB","Ordbokene","Lexin","Språkrådet"].includes(s));
   const wiktionaryOnly = registeredEntrySources.length > 0 && registeredEntrySources.every(s => s === "Wiktionary");
 
@@ -982,19 +1356,16 @@ function normalizeSubtype(value: string | null): string | null {
   return LEGACY_SUBTYPE_MAP[clean] ?? clean;
 }
 
-// ── v2.8 FIX: discourse_marker, confirmation_phrase, reaction_phrase detection
 function suggestExpressionSubtype(lemma: string, oldSubtype: string | null): string | null {
   const normalized = normalizeForMatch(lemma);
   const tokens = getTokens(lemma);
 
-  // Check known sets first — highest priority
   if (DISCOURSE_MARKERS.has(normalized))    return "discourse_marker";
   if (CONFIRMATION_PHRASES.has(normalized)) return "confirmation_phrase";
   if (REACTION_PHRASES.has(normalized))     return "reaction_phrase";
 
   if (tokens.length === 0) return oldSubtype;
 
-  // Structural detection
   if (tokens.includes("seg"))   return "reflexive_verb";
   if (tokens.length === 2) {
     if (NORWEGIAN_PARTICLES.has(tokens[1]))    return "particle_verb";
@@ -1002,7 +1373,6 @@ function suggestExpressionSubtype(lemma: string, oldSubtype: string | null): str
   }
   if (tokens.length >= 3 && NORWEGIAN_PREPOSITIONS.has(tokens[tokens.length - 1])) return "prepositional_verb";
 
-  // Preserve stable subtypes
   if (oldSubtype === "idiom")            return "idiom";
   if (oldSubtype === "discourse_marker") return "discourse_marker";
   if (oldSubtype === "time_expression")  return "time_expression";
@@ -1032,236 +1402,42 @@ function inferCollocationType(lemma: string, evidence: string): string | null {
   return "verb_noun_or_productive_phrase";
 }
 
-
-// ── Språkrådet: normative reference via svardatabasen ────────────────────────
-// Note: Ordbøkene (ord.uib.no) is the actual dictionary API jointly owned by
-// Språkrådet + UiB. We already use it as "Ordbokene".
-// Språkrådet here = normative_reference via svardatabasen Q&A database only.
-async function checkSpraakradetLive(lemma: string, displayForm: string): Promise<SourceLookupResult> {
-  const query   = lemma || displayForm;
-  const encoded = encodeURIComponent(query);
-
-  // svardatabasen — authoritative Q&A database with normative rulings on expressions
-  // Correct URL confirmed via DevTools: sprakradet.no (no www) with ?s= parameter
-  const svarUrl = `https://sprakradet.no/?s=${encoded}`;
-  const urls    = [svarUrl];
-
-  try {
-    const res = await fetchWithTimeout(svarUrl);
-    console.log(`Språkrådet svardatabasen: HTTP ${res.status}`);
-
-    if (!res.ok) {
-      return {
-        source: "Språkrådet", checked: true, found: null, quality: "error",
-        registered_entry: false, whole_unit_match: false, component_match: false, usage_match: false,
-        urls, evidence_label: `Språkrådet HTTP ${res.status}`,
-        error: `HTTP ${res.status}`,
-      };
-    }
-
-    const html = await res.text();
-    const text = normalizeHtmlText(html);
-    const exact     = containsExactPhrase(text, query);
-    const tokens    = getTokens(query);
-    const tokenHits = countTokenHits(text, tokens);
-    // noResults must be explicit — check for specific "no results" patterns
-    // but NOT just any occurrence of "ingen" on the page
-    const noResults = /ingen\s+treff\s+på/i.test(text) ||
-                      /ingen\s+resultater\s+for/i.test(text) ||
-                      /0\s+treff/i.test(text) ||
-                      text.includes("Søket gav ingen treff") ||
-                      text.includes("Fant ingen treff");
-
-    // Page length < 500 chars likely means empty results page
-    const emptyPage = text.length < 500;
-
-    console.log(`Språkrådet: exact=${exact}, tokenHits=${tokenHits}/${tokens.length}, noResults=${noResults}, emptyPage=${emptyPage}, len=${text.length}`);
-
-    // Match if: exact phrase OR at least 2 tokens found (for multi-word expressions)
-    const isMatch = (exact || (tokens.length >= 2 && tokenHits >= 2)) && !noResults && !emptyPage;
-    if (isMatch) {
-      const label = exact
-        ? "Språkrådet: exact normative reference found"
-        : `Språkrådet: token match (${tokenHits}/${tokens.length} tokens) — normative reference`;
-      // normative_reference: authoritative ruling but NOT a dictionary registered_entry
-      // whole_unit_match = false — Språkrådet is normative, not lexicographic
-      return {
-        source: "Språkrådet", checked: true, found: true,
-        quality: "normative_reference",
-        registered_entry: false,
-        whole_unit_match: false,  // normative reference ≠ dictionary whole-unit match
-        component_match: false, usage_match: false,
-        urls, evidence_label: label, raw_preview: preview(text.slice(0, 500)),
-      };
-    }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.log(`Språkrådet error: ${msg}`);
-    return {
-      source: "Språkrådet", checked: true, found: null, quality: "error",
-      registered_entry: false, whole_unit_match: false, component_match: false, usage_match: false,
-      urls, evidence_label: "Språkrådet lookup failed", error: msg,
-    };
-  }
-
-  return makeLookup("Språkrådet", false, "not_found", false, false, false, false,
-    urls, "Språkrådet svardatabasen: no normative reference found", "");
-}
-// ────────────────────────────────────────────────────────────────────────────
-
-// ── Lexin (Udir): official Norwegian learning dictionary ─────────────────────
-// Lexin = Leksikon for innvandrere. Official Utdanningsdirektoratet resource.
-// Contains Norwegian expressions with Ukrainian translations (unique!)
-// API: https://lexin.udir.no/lexin/lookup?lang=nob-nob&word={lemma}
-async function checkLexinLive(lemma: string, displayForm: string): Promise<SourceLookupResult> {
-  const query   = lemma || displayForm;
-  const encoded = encodeURIComponent(query);
-
-  // Lexin API documented endpoints (Utdanningsdirektoratet)
-  // editorportal.oslomet.no API requires CORS headers (Origin/Referer from lexin.oslomet.no)
-  // Use fetchLexinText() which adds correct headers
-  const uaUrl = `https://editorportal.oslomet.no/api/v1/findwords?searchWord=${encoded}&lang=bokm%C3%A5l-ukrainsk&page=1&selectLang=bokm%C3%A5l-ukrainsk&includeEngLang=0`;
-  const noUrl = `https://editorportal.oslomet.no/api/v1/findwords?searchWord=${encoded}&lang=bokm%C3%A5l-bokm%C3%A5l&page=1&selectLang=bokm%C3%A5l-bokm%C3%A5l&includeEngLang=0`;
-  const urls  = [uaUrl, noUrl];
-
-  const errors: string[] = [];
-
-  // Use real editorportal API with correct CORS headers
-  for (const [url, label] of [[uaUrl, "nob-ukr"], [noUrl, "nob-nob"]] as [string, string][]) {
-    try {
-      const text = await fetchLexinText(url);
-      console.log(`Lexin ${label} response: ${text.slice(0, 150)}`);
-
-      if (!text || text.length < 5 || text === "[]" || text === "{}") continue;
-
-      let hasEntry = false;
-      let translationUa: string | null = null;
-      try {
-        const data = JSON.parse(text);
-        // Lexin API structure: {"result": [[{id, type, text}, ...], ...]}
-        // type "E-lem" = lemma, type "E-ukr" = Ukrainian translation
-        const result = data?.result ?? data?.results ?? data?.data ?? data?.words ?? data;
-        const items = Array.isArray(result) ? result : [];
-
-        if (items.length > 0) {
-          // Lexin searches by similarity — must verify exact lemma match
-          // E-lem type contains the Norwegian lemma
-          const normalizedQuery = normalizeForMatch(query);
-          let exactMatch = false;
-
-          for (const group of items) {
-            if (!Array.isArray(group)) continue;
-            for (const entry of group) {
-              if (!entry || typeof entry !== "object") continue;
-              // Check lemma exact match
-              if (entry.type === "E-lem") {
-                const lemmaText = normalizeForMatch(entry.text ?? "");
-                // Strip leading "å " for comparison
-                const lemmaClean = lemmaText.replace(/^å\s+/, "").trim();
-                const queryClean = normalizedQuery.replace(/^å\s+/, "").trim();
-                if (lemmaText === normalizedQuery || lemmaClean === queryClean) {
-                  exactMatch = true;
-                }
-              }
-              // type "E-ukr" = Ukrainian translation
-              if (exactMatch && (entry.type === "E-ukr" || entry.type === "ukr")) {
-                translationUa = entry.text ?? entry.value ?? null;
-              }
-            }
-            if (exactMatch) break;
-          }
-          hasEntry = exactMatch;
-        }
-      } catch { hasEntry = containsExactPhrase(normalizeForMatch(text), query); }
-
-      if (hasEntry) {
-        const uaNote = translationUa ? ` | UA: ${String(translationUa).slice(0, 50)}` : "";
-        return {
-          source: "Lexin" as SourceName, checked: true, found: true,
-          quality: "learner_dictionary" as EvidenceQuality,
-          registered_entry: true,  // Lexin is official — counts as registered
-          whole_unit_match: true,
-          component_match: false, usage_match: false,
-          urls: [url],
-          evidence_label: `Lexin OsloMet (${label}): registered entry found${uaNote}`,
-          raw_preview: preview(text.slice(0, 500)),
-        };
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`${label}: ${msg}`);
-      console.log(`Lexin ${label} error: ${msg}`);
-    }
-  }
-
-  if (errors.length > 0 && errors.every(e => e.includes("HTTP") || e.includes("abort") || e.includes("timeout"))) {
-    return {
-      source: "Lexin" as SourceName, checked: true, found: null, quality: "error",
-      registered_entry: false, whole_unit_match: false, component_match: false, usage_match: false,
-      urls, evidence_label: "Lexin unavailable",
-      error: errors.slice(0, 3).join(" | "),
-    };
-  }
-
-  return makeLookup("Lexin" as SourceName, false, "not_found", false, false, false, false,
-    urls, "Lexin: no match found", "");
-}
-// ────────────────────────────────────────────────────────────────────────────
-
-// canonicalVerifiedSourceSummary — STRICT: only registered_entry
-// = "джерело реально має словниковий запис"
-// Відрізняється від whole_unit_sources де вираз знайдено але не як окремий запис
-
-// ── Lexin: fetch with required CORS headers ───────────────────────────────────
-async function fetchLexinText(url: string): Promise<string> {
-  const res = await fetchWithTimeout(url, {
-    method: "GET",
-    headers: {
-      "Accept": "application/json, text/plain, */*",
-      "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
-      "Origin": "https://lexin.oslomet.no",
-      "Referer": "https://lexin.oslomet.no/",
-      "Cache-Control": "no-cache",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
-    }
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Lexin HTTP ${res.status}: ${body.slice(0, 200)}`);
-  }
-  return await res.text();
-}
-// ────────────────────────────────────────────────────────────────────────────
-
-
 // ── QUEUE SYSTEM ─────────────────────────────────────────────────────────────
 
-async function handleQueueEnqueue(entity: EntityTable, batchSize: number): Promise<Response> {
-  // Get all unaudited expression IDs
-  const { data: allIds } = await supabase
-    .from("expression_catalog")
-    .select("id")
-    .order("created_at", { ascending: true });
+async function handleQueueEnqueue(entity: EntityTable, batchSize: number, pos?: string | null): Promise<Response> {
+  let pending: string[] = [];
 
-  const { data: auditedIds } = await supabase
-    .from("lexical_quality_audit")
-    .select("entity_id")
-    .eq("entity_table", "expression_catalog");
+  if (entity === "lexemes") {
+    let q = supabase.from("lexemes").select("id").order("created_at", { ascending: true });
+    if (pos) q = q.eq("pos", pos);
+    else q = q.not("pos", "eq", "expression");
+    const { data: allIds } = await q;
 
-  const audited = new Set((auditedIds ?? []).map((r: any) => r.entity_id));
-  const pending = (allIds ?? []).map((r: any) => r.id).filter((id: string) => !audited.has(id));
+    const { data: auditedIds } = await supabase
+      .from("lexical_quality_audit").select("entity_id").eq("entity_table", "lexemes");
 
-  if (pending.length === 0) {
-    return jsonResponse({ ok: true, message: "All expressions already audited", pending: 0 });
+    const audited = new Set((auditedIds ?? []).map((r: any) => r.entity_id));
+    pending = (allIds ?? []).map((r: any) => r.id).filter((id: string) => !audited.has(id));
+  } else {
+    const { data: allIds } = await supabase
+      .from("expression_catalog").select("id").order("created_at", { ascending: true });
+
+    const { data: auditedIds } = await supabase
+      .from("lexical_quality_audit").select("entity_id").eq("entity_table", "expression_catalog");
+
+    const audited = new Set((auditedIds ?? []).map((r: any) => r.entity_id));
+    pending = (allIds ?? []).map((r: any) => r.id).filter((id: string) => !audited.has(id));
   }
 
-  // Split into batches
+  if (pending.length === 0) {
+    return jsonResponse({ ok: true, message: "All items already audited", pending: 0, entity, pos: pos ?? "all" });
+  }
+
   const batches: string[][] = [];
   for (let i = 0; i < pending.length; i += batchSize) {
     batches.push(pending.slice(i, i + batchSize));
   }
 
-  // Insert jobs into queue
   const jobs = batches.map(ids => ({
     entity_ids: ids,
     entity_table: entity,
@@ -1270,12 +1446,9 @@ async function handleQueueEnqueue(entity: EntityTable, batchSize: number): Promi
   }));
 
   const { data: inserted, error } = await supabase
-    .from("audit_queue")
-    .insert(jobs)
-    .select("id");
+    .from("audit_queue").insert(jobs).select("id");
 
   if (error) {
-    // Table might not exist — create it
     if (error.message.includes("does not exist")) {
       return jsonResponse({
         ok: false,
@@ -1286,10 +1459,8 @@ async function handleQueueEnqueue(entity: EntityTable, batchSize: number): Promi
   }
 
   return jsonResponse({
-    ok: true,
-    enqueued: jobs.length,
-    total_pending: pending.length,
-    batch_size: batchSize,
+    ok: true, enqueued: jobs.length, total_pending: pending.length,
+    batch_size: batchSize, entity, pos: pos ?? "all",
     job_ids: (inserted ?? []).map((r: any) => r.id),
   });
 }
@@ -1300,7 +1471,6 @@ async function handleQueueProcess(options: {
   requestedSources: SourceName[];
   jobId?: string;
 }): Promise<Response> {
-  // Pick next pending job (or specific job)
   let query = supabase
     .from("audit_queue")
     .select("*")
@@ -1316,18 +1486,15 @@ async function handleQueueProcess(options: {
 
   const job = jobs[0];
 
-  // Mark as processing
   await supabase.from("audit_queue")
     .update({ status: "processing", started_at: new Date().toISOString() })
     .eq("id", job.id);
 
   try {
-    const rows = await fetchExpressionRows({
-      limit: job.entity_ids.length,
-      offset: 0,
-      where: "all",
-      ids: job.entity_ids,
-    });
+    const isLexemeJob = job.entity_table === "lexemes";
+    const rows = isLexemeJob
+      ? await fetchLexemeRows({ limit: job.entity_ids.length, offset: 0, where: "all", ids: job.entity_ids, pos: null })
+      : await fetchExpressionRows({ limit: job.entity_ids.length, offset: 0, where: "all", ids: job.entity_ids });
 
     const results: any[] = [];
     const summary = createSummary();
@@ -1335,17 +1502,26 @@ async function handleQueueProcess(options: {
 
     for (const row of rows) {
       try {
-        const decision = await auditExpression(row, {
-          liveLookup: options.liveLookup,
-          requestedSources: options.requestedSources,
-        });
+        const decision = isLexemeJob
+          ? await auditLexeme(row as LexemeRow, { liveLookup: options.liveLookup, requestedSources: options.requestedSources })
+          : await auditExpression(row as ExpressionRow, { liveLookup: options.liveLookup, requestedSources: options.requestedSources });
+
         incrementSummary(summary, "byVerificationStatus", decision.proposed_verification_status);
         incrementSummary(summary, "bySource", decision.proposed_whole_unit_sources ?? "null");
         incrementSummary(summary, "byRegisteredEntry", decision.proposed_source_verified ?? "null");
 
         if (!options.dryRun) {
-          const auditRecord = buildAuditRecord(row, decision);
+          const auditRecord = isLexemeJob
+            ? buildLexemeAuditRecord(row as LexemeRow, decision)
+            : buildAuditRecord(row as ExpressionRow, decision);
           await supabase.from("lexical_quality_audit").insert(auditRecord);
+
+          if (isLexemeJob) {
+            const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+            if (decision.proposed_source_verified) updateData.source_verified = decision.proposed_source_verified;
+            updateData.verification_tier = mapStatusToTier(decision.proposed_verification_status);
+            await supabase.from("lexemes").update(updateData).eq("id", (row as LexemeRow).id);
+          }
         }
         results.push({ id: row.id, lemma: row.lemma, ok: true, status: decision.proposed_verification_status });
       } catch (e) {
@@ -1356,7 +1532,6 @@ async function handleQueueProcess(options: {
 
     const jobResult = { processed: rows.length, errors, summary, results };
 
-    // Mark as done
     await supabase.from("audit_queue")
       .update({
         status: errors === rows.length ? "failed" : "done",
@@ -1365,12 +1540,7 @@ async function handleQueueProcess(options: {
       })
       .eq("id", job.id);
 
-    return jsonResponse({
-      ok: true,
-      job_id: job.id,
-      dry_run: options.dryRun,
-      ...jobResult,
-    });
+    return jsonResponse({ ok: true, job_id: job.id, dry_run: options.dryRun, ...jobResult });
   } catch (e) {
     await supabase.from("audit_queue")
       .update({ status: "failed", error: e instanceof Error ? e.message : String(e) })
@@ -1400,10 +1570,10 @@ async function handleQueueStatus(): Promise<Response> {
     ok: true,
     queue: counts,
     audited_total: (audited as any)?.count ?? 0,
-    remaining: 866 - ((audited as any)?.count ?? 0),
   });
 }
-// ────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function canonicalVerifiedSourceSummary(sourceExpertise: SourceExpertise): string | null {
   const verifiedSources = Object.entries(sourceExpertise)
@@ -1414,7 +1584,6 @@ function canonicalVerifiedSourceSummary(sourceExpertise: SourceExpertise): strin
         item.registered_entry === true ||
         item.quality === "registered_entry" ||
         item.quality === "structured_entry_match"
-        // NOTE: whole_unit_match intentionally excluded — use whole_unit_sources instead
       )
     )
     .map(([source]) => source)
@@ -1422,8 +1591,6 @@ function canonicalVerifiedSourceSummary(sourceExpertise: SourceExpertise): strin
   return verifiedSources.length ? canonicalJoin(verifiedSources) : null;
 }
 
-// canonicalWholeUnitSourceSummary — includes whole_unit candidates
-// = "джерело знайшло вираз як ціле (але не обов'язково як словниковий запис)"
 function canonicalWholeUnitSourceSummary(sourceExpertise: SourceExpertise): string | null {
   const sources = Object.entries(sourceExpertise)
     .filter(([, item]) =>
@@ -1632,7 +1799,6 @@ function containsExactPhrase(text: string, phrase: string): boolean { const a = 
 function countTokenHits(text: string, tokens: string[]): number { const n = normalizeForMatch(text); return tokens.filter(t => n.includes(normalizeForMatch(t))).length; }
 function includesAny(text: string, needles: string[]): boolean { const l = text.toLowerCase(); return needles.some(n => l.includes(n.toLowerCase())); }
 function preview(text: string, max = 500): string { return text.slice(0, max); }
-function previewJson(value: unknown, max = 1200): unknown { const t = JSON.stringify(value); if (!t) return null; return t.length <= max ? value : `${t.slice(0, max)}…`; }
 function shouldCheckOrdbokeneComponent(token: string): boolean {
   const c = normalizeForMatch(token);
   if (c.length < 2) return false;
@@ -1684,12 +1850,12 @@ function visitJson(value: unknown, visitor: (key: string, value: unknown) => voi
   }
 }
 async function fetchText(url: string): Promise<string> {
-  const r = await fetchWithTimeout(url, { method: "GET", headers: { "User-Agent": "NorskTrainerAuditBot/2.8.0", "Accept": "text/html,application/json;q=0.8,*/*;q=0.7", "Accept-Language": "nb,no,en;q=0.8" } });
+  const r = await fetchWithTimeout(url, { method: "GET", headers: { "User-Agent": "NorskTrainerAuditBot/2.9.0", "Accept": "text/html,application/json;q=0.8,*/*;q=0.7", "Accept-Language": "nb,no,en;q=0.8" } });
   if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
   return await r.text();
 }
 async function fetchJson(url: string): Promise<unknown> {
-  const r = await fetchWithTimeout(url, { method: "GET", headers: { "User-Agent": "NorskTrainerAuditBot/2.8.0", "Accept": "application/json,text/plain;q=0.9,*/*;q=0.7", "Accept-Language": "nb,no,en;q=0.8" } });
+  const r = await fetchWithTimeout(url, { method: "GET", headers: { "User-Agent": "NorskTrainerAuditBot/2.9.0", "Accept": "application/json,text/plain;q=0.9,*/*;q=0.7", "Accept-Language": "nb,no,en;q=0.8" } });
   if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
   const text = await r.text();
   if (!text.trim()) return null;
@@ -1746,8 +1912,8 @@ function createSummary() {
   return {
     byEntity: {} as Record<string,number>,
     byVerificationStatus: {} as Record<string,number>,
-    bySource: {} as Record<string,number>,          // whole_unit_sources
-    byRegisteredEntry: {} as Record<string,number>, // strict registered_entry only
+    bySource: {} as Record<string,number>,
+    byRegisteredEntry: {} as Record<string,number>,
     byFormStatus: {} as Record<string,number>,
     errors: 0,
   };
