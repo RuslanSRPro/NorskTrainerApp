@@ -1,0 +1,4 @@
+text_analysis_results
+build_text_analysis_result
+reset_stuck_source_checks
+recalculate_job_progress
