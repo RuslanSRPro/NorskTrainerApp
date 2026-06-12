@@ -1,0 +1,9 @@
+linguistic_pipeline_runs
+create_full_pipeline_run
+get_pipeline_progress
+complete_pipeline_run
+verification_audit_runs
+verification_audit_history
+reset_verification_audit_for_rerun
+should_protect_verification_downgrade
+promote_verification_results
