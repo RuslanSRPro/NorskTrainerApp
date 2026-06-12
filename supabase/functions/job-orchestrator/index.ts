@@ -9,86 +9,136 @@ const supabase = createClient(
   SUPABASE_SERVICE_ROLE_KEY,
 );
 
-serve(async (_req) => {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
+};
+
+async function runLexicalWorker(jobId: string) {
+  const batches = [];
+
+  for (let i = 0; i < 5; i++) {
+    const workerResponse = await fetch(
+      `${SUPABASE_URL}/functions/v1/lexical-worker`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          limit: 20,
+          job_id: jobId,
+        }),
+      },
+    );
+
+    const workerJson = await workerResponse.json();
+
+    batches.push(workerJson);
+
+    if (!workerJson.claimed || workerJson.claimed === 0) {
+      break;
+    }
+  }
+
+  return batches;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: corsHeaders,
+    });
+  }
+
   try {
-    const { data: jobs, error: jobsError } = await supabase
+    const body = await req.json().catch(() => ({}));
+    const requestedJobId = body.job_id ? String(body.job_id) : null;
+
+    let jobsQuery = supabase
       .from('lexeme_processing_jobs')
       .select('*')
-      .in('status', ['pending', 'processing'])
-      .order('created_at', { ascending: true })
-      .limit(10);
+      .in('status', ['pending', 'processing', 'ready'])
+      .order('created_at', { ascending: true });
+
+    if (requestedJobId) {
+      jobsQuery = jobsQuery.eq('id', requestedJobId).limit(1);
+    } else {
+      jobsQuery = jobsQuery.limit(10);
+    }
+
+    const { data: jobs, error: jobsError } = await jobsQuery;
 
     if (jobsError) {
       throw jobsError;
     }
 
-    const processedJobs: unknown[] = [];
+    const processedJobs = [];
 
     for (const job of jobs ?? []) {
       const jobId = job.id;
 
-      // reset stuck source checks
+      await supabase
+        .from('lexeme_processing_jobs')
+        .update({
+          status: 'processing',
+          started_at: job.started_at ?? new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
+
       await supabase.rpc('reset_stuck_source_checks', {
         p_job_id: jobId,
       });
 
-      // run batches
-      for (let i = 0; i < 5; i++) {
-        const workerResponse = await fetch(
-          `${SUPABASE_URL}/functions/v1/lexical-worker`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              limit: 20,
-              job_id: jobId,
-            }),
-          },
-        );
+      const lexicalBatches = await runLexicalWorker(jobId);
 
-        const workerJson = await workerResponse.json();
-
-        if (!workerJson.claimed || workerJson.claimed === 0) {
-          break;
-        }
-      }
-
-      // rebuild UI result
       await supabase.rpc('build_text_analysis_result', {
         p_job_id: jobId,
       });
 
-      // refresh job counters
-      const { data: counters } = await supabase.rpc(
+      const { data: counters, error: countersError } = await supabase.rpc(
         'recalculate_job_progress',
         {
           p_job_id: jobId,
         },
       );
 
+      if (countersError) {
+        throw countersError;
+      }
+
       processedJobs.push({
         job_id: jobId,
+        lexical_batches: lexicalBatches,
         counters,
       });
     }
 
-    return Response.json({
-      ok: true,
-      processed_jobs: processedJobs,
-    });
+    return Response.json(
+      {
+        ok: true,
+        requested_job_id: requestedJobId,
+        processed_jobs: processedJobs,
+      },
+      {
+        headers: corsHeaders,
+      },
+    );
   } catch (error) {
     return Response.json(
       {
         ok: false,
-        error: error instanceof Error
-          ? error.message
-          : String(error),
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
       },
       {
         status: 500,
+        headers: corsHeaders,
       },
     );
   }

@@ -10,7 +10,9 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', {
+      headers: corsHeaders,
+    });
   }
 
   try {
@@ -24,24 +26,39 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json().catch(() => ({}));
-    const limit = body.limit ?? 5;
+
+    const limit =
+      typeof body.limit === 'number' && body.limit > 0
+        ? body.limit
+        : 5;
+
+    const jobId =
+      typeof body.job_id === 'string' && body.job_id.trim().length > 0
+        ? body.job_id.trim()
+        : null;
 
     const { data: checks, error } = await supabase.rpc(
       'claim_next_source_checks',
       {
         p_limit: limit,
+        p_job_id: jobId,
       },
     );
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     const results = [];
 
-    for (const check of checks as SourceCheck[]) {
+    for (const check of (checks ?? []) as SourceCheck[]) {
       try {
         await processSourceCheck(supabase, check);
+
         results.push({
           id: check.id,
+          job_id: check.job_id,
+          item_id: check.item_id,
           source: check.source,
           query: check.query,
           ok: true,
@@ -49,6 +66,8 @@ Deno.serve(async (req) => {
       } catch (err) {
         results.push({
           id: check.id,
+          job_id: check.job_id,
+          item_id: check.item_id,
           source: check.source,
           query: check.query,
           ok: false,
@@ -60,6 +79,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true,
+        job_id: jobId,
         claimed: checks?.length ?? 0,
         results,
       }),
