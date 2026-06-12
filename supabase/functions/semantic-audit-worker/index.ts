@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { minConfidence } from '../../../services/confidence.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -42,10 +43,17 @@ function safeStringify(value: unknown): string {
 
 function splitSources(value: string | null): string[] {
   if (!value) return [];
+
   return value
     .split('+')
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function confidenceFromSourceCount(sourceCount: number): 'high' | 'medium' | 'low' {
+  if (sourceCount >= 3) return 'high';
+  if (sourceCount >= 2) return 'medium';
+  return 'low';
 }
 
 function auditSemantic(row: AuditRow) {
@@ -54,6 +62,7 @@ function auditSemantic(row: AuditRow) {
 
   const lemma = row.lemma?.trim() ?? '';
   const pos = row.pos?.trim() ?? '';
+
   const hasUa = hasValue(row.translation_ua);
   const hasEn = hasValue(row.translation_en);
   const hasCefr = hasValue(row.cefr);
@@ -61,35 +70,19 @@ function auditSemantic(row: AuditRow) {
 
   const sources = splitSources(row.source_verified);
   const sourceCount = sources.length;
+
   const verificationTier = row.verification_tier ?? '';
   const isExpression = row.entity_type === 'expression' || pos === 'expression';
 
   if (!lemma) conflicts.push('missing_lemma');
   if (!pos) conflicts.push('missing_pos');
 
-  if (!hasUa && !hasEn) {
-    conflicts.push('missing_translation');
-  }
-
-  if (!hasCefr) {
-    notes.push('missing_cefr');
-  }
-
-  if (!hasFrequency) {
-    notes.push('missing_frequency');
-  }
-
-  if (!row.source_verified) {
-    notes.push('missing_source_verified');
-  }
-
-  if (sourceCount <= 1) {
-    notes.push('low_source_count');
-  }
-
-  if (lemma.includes(' ')) {
-    notes.push('multiword_lemma');
-  }
+  if (!hasUa && !hasEn) conflicts.push('missing_translation');
+  if (!hasCefr) notes.push('missing_cefr');
+  if (!hasFrequency) notes.push('missing_frequency');
+  if (!row.source_verified) notes.push('missing_source_verified');
+  if (sourceCount <= 1) notes.push('low_source_count');
+  if (lemma.includes(' ')) notes.push('multiword_lemma');
 
   if (verificationTier.includes('dictionary_match')) {
     notes.push('legacy_dictionary_match_needs_recheck');
@@ -161,19 +154,43 @@ function auditSemantic(row: AuditRow) {
     reviewStatus = 'weak';
   }
 
-  let semanticConfidence: 'high' | 'medium' | 'low';
+  const sourceConfidence = confidenceFromSourceCount(sourceCount);
 
-  if (reviewStatus === 'trusted' && hasEn && hasCefr) {
-    semanticConfidence = 'high';
-  } else if (reviewStatus === 'trusted' || reviewStatus === 'candidate') {
-    semanticConfidence = 'medium';
-  } else {
-    semanticConfidence = 'low';
-  }
+  const verificationConfidence =
+    reviewStatus === 'trusted'
+      ? 'high'
+      : reviewStatus === 'candidate'
+        ? 'medium'
+        : 'low';
+
+  const formConfidence =
+    hasCefr && hasFrequency
+      ? 'high'
+      : hasCefr || hasFrequency
+        ? 'medium'
+        : 'low';
+
+  const semanticConfidence =
+    conflicts.length === 0 && hasUa && hasEn
+      ? 'high'
+      : conflicts.length === 0
+        ? 'medium'
+        : 'low';
+
+  const learningConfidence = minConfidence(
+    semanticConfidence,
+    verificationConfidence,
+    sourceConfidence,
+    formConfidence,
+  );
 
   return {
-    quality: 'semantic_audit_v2',
+    quality: 'semantic_audit_v3',
     semantic_confidence: semanticConfidence,
+    verification_confidence: verificationConfidence,
+    source_confidence: sourceConfidence,
+    form_confidence: formConfidence,
+    learning_confidence: learningConfidence,
     review_status: reviewStatus,
     conflicts,
     audit_notes: notes,
@@ -191,6 +208,13 @@ function auditSemantic(row: AuditRow) {
       has_translation_en: hasEn,
       has_cefr: hasCefr,
       has_frequency: hasFrequency,
+      confidence_model: {
+        semantic_confidence: semanticConfidence,
+        verification_confidence: verificationConfidence,
+        source_confidence: sourceConfidence,
+        form_confidence: formConfidence,
+        learning_confidence: learningConfidence,
+      },
     },
   };
 }
@@ -242,19 +266,29 @@ async function claimExpressions(limit: number): Promise<AuditRow[]> {
   }));
 }
 
-async function updateAudit(row: AuditRow, audit: ReturnType<typeof auditSemantic>) {
+async function updateAudit(
+  row: AuditRow,
+  audit: ReturnType<typeof auditSemantic>,
+) {
   if (row.entity_type === 'expression') {
-    const { error } = await supabase.rpc('update_expression_semantic_audit_status', {
-      p_id: row.id,
-      p_status: 'done',
-      p_quality: audit.quality,
-      p_semantic_confidence: audit.semantic_confidence,
-      p_review_status: audit.review_status,
-      p_conflicts: audit.conflicts,
-      p_audit_notes: audit.audit_notes,
-      p_source: 'semantic_audit_worker',
-      p_evidence: audit.evidence,
-    });
+    const { error } = await supabase.rpc(
+      'update_expression_semantic_audit_status',
+      {
+        p_id: row.id,
+        p_status: 'done',
+        p_quality: audit.quality,
+        p_semantic_confidence: audit.semantic_confidence,
+        p_review_status: audit.review_status,
+        p_conflicts: audit.conflicts,
+        p_audit_notes: audit.audit_notes,
+        p_source: 'semantic_audit_worker',
+        p_evidence: audit.evidence,
+        p_verification_confidence: audit.verification_confidence,
+        p_source_confidence: audit.source_confidence,
+        p_form_confidence: audit.form_confidence,
+        p_learning_confidence: audit.learning_confidence,
+      },
+    );
 
     if (error) {
       throw new Error(
@@ -275,6 +309,10 @@ async function updateAudit(row: AuditRow, audit: ReturnType<typeof auditSemantic
     p_audit_notes: audit.audit_notes,
     p_source: 'semantic_audit_worker',
     p_evidence: audit.evidence,
+    p_verification_confidence: audit.verification_confidence,
+    p_source_confidence: audit.source_confidence,
+    p_form_confidence: audit.form_confidence,
+    p_learning_confidence: audit.learning_confidence,
   });
 
   if (error) {
@@ -304,7 +342,11 @@ serve(async (_req) => {
           entity_id: row.entity_id,
           lemma: row.lemma,
           review_status: audit.review_status,
-          confidence: audit.semantic_confidence,
+          semantic_confidence: audit.semantic_confidence,
+          verification_confidence: audit.verification_confidence,
+          source_confidence: audit.source_confidence,
+          form_confidence: audit.form_confidence,
+          learning_confidence: audit.learning_confidence,
           conflicts: audit.conflicts,
           notes: audit.audit_notes,
           ok: true,
