@@ -41,7 +41,7 @@ const UI = {
   ua: {
     accessibilityPrefix: 'Верифікація',
     accessibilitySuffix: 'Натисни, щоб переглянути деталі.',
-    confirmed_by: 'ПІДТВЕРДЖЕНО ДЖЕРЕЛАМИ',
+    confirmed_by: 'ДЖЕРЕЛА ТА РІВЕНЬ ПІДТВЕРДЖЕННЯ',
     registered_in: 'Зареєстровано в',
     registered: 'зареєстровано',
     close: 'Закрити',
@@ -51,7 +51,7 @@ const UI = {
   en: {
     accessibilityPrefix: 'Verification',
     accessibilitySuffix: 'Tap for details.',
-    confirmed_by: 'CONFIRMED BY',
+    confirmed_by: 'SOURCES AND VERIFICATION LEVEL',
     registered_in: 'Registered in',
     registered: 'registered',
     close: 'Close',
@@ -61,7 +61,7 @@ const UI = {
   no: {
     accessibilityPrefix: 'Verifisering',
     accessibilitySuffix: 'Trykk for detaljer.',
-    confirmed_by: 'BEKREFTET AV',
+    confirmed_by: 'KILDER OG BEKREFTELSESNIVÅ',
     registered_in: 'Registrert i',
     registered: 'registrert',
     close: 'Lukk',
@@ -158,6 +158,93 @@ function sanitizeEvidenceLabel(label?: string | null): string {
   return value;
 }
 
+
+function getQualityExplanation(
+  item: SourceEvidence,
+  quality: EvidenceQuality,
+  lang: SafeLanguage
+) {
+  const isRegistered = item.registered_entry === true;
+  const isWhole = item.whole_unit_match === true;
+  const isComponent = item.component_match === true;
+  const isUsage = item.usage_match === true;
+
+  if (lang === 'ua') {
+    if (isRegistered || quality === 'registered_entry' || quality === 'structured_entry_match') return 'Окремий словниковий запис';
+    if (quality === 'learner_dictionary') return 'Запис у навчальному словнику';
+    if (quality === 'normative_reference') return 'Нормативне підтвердження';
+    if (isWhole || quality === 'exact_expression_match') return 'Знайдено як цілісну одиницю';
+    if (isUsage || quality === 'usage_example_match') return 'Знайдено у прикладах уживання';
+    if (isComponent || quality === 'component_match') return 'Компоненти підтверджені';
+    if (quality === 'search_page_match') return 'Знайдено через пошук у джерелі';
+    if (quality === 'not_found') return 'Джерело перевірено, збігу не знайдено';
+    if (quality === 'error') return 'Джерело не відповіло або сталася помилка';
+    if (quality === 'not_checked') return 'Джерело ще не перевірено';
+    if (quality === 'ai_suggestion') return 'AI-підказка, не авторитетне джерело';
+    return 'Дані джерела отримані';
+  }
+
+  if (lang === 'no') {
+    if (isRegistered || quality === 'registered_entry' || quality === 'structured_entry_match') return 'Egen ordbokartikkel';
+    if (quality === 'learner_dictionary') return 'Oppslag i læringsordbok';
+    if (quality === 'normative_reference') return 'Normativ bekreftelse';
+    if (isWhole || quality === 'exact_expression_match') return 'Funnet som hel enhet';
+    if (isUsage || quality === 'usage_example_match') return 'Funnet i brukseksempler';
+    if (isComponent || quality === 'component_match') return 'Komponenter bekreftet';
+    if (quality === 'search_page_match') return 'Funnet via søk i kilden';
+    if (quality === 'not_found') return 'Kilden er sjekket, men ingen treff ble funnet';
+    if (quality === 'error') return 'Kilden svarte ikke eller ga feil';
+    if (quality === 'not_checked') return 'Kilden er ikke sjekket ennå';
+    if (quality === 'ai_suggestion') return 'AI-forslag, ikke autoritativ kilde';
+    return 'Kildedata funnet';
+  }
+
+  if (isRegistered || quality === 'registered_entry' || quality === 'structured_entry_match') return 'Separate dictionary entry';
+  if (quality === 'learner_dictionary') return 'Learner dictionary entry';
+  if (quality === 'normative_reference') return 'Normative confirmation';
+  if (isWhole || quality === 'exact_expression_match') return 'Found as a whole unit';
+  if (isUsage || quality === 'usage_example_match') return 'Found in usage examples';
+  if (isComponent || quality === 'component_match') return 'Components verified';
+  if (quality === 'search_page_match') return 'Found through source search';
+  if (quality === 'not_found') return 'Source checked, no match found';
+  if (quality === 'error') return 'Source unavailable or returned an error';
+  if (quality === 'not_checked') return 'Source not checked yet';
+  if (quality === 'ai_suggestion') return 'AI suggestion, not authoritative';
+  return 'Source data found';
+}
+
+function getQualityStatusStyle(quality: EvidenceQuality, item: SourceEvidence) {
+  if (
+    item.registered_entry ||
+    quality === 'registered_entry' ||
+    quality === 'structured_entry_match' ||
+    quality === 'learner_dictionary' ||
+    quality === 'normative_reference'
+  ) {
+    return 'strong';
+  }
+
+  if (
+    item.whole_unit_match ||
+    item.usage_match ||
+    quality === 'exact_expression_match' ||
+    quality === 'usage_example_match' ||
+    quality === 'search_page_match'
+  ) {
+    return 'medium';
+  }
+
+  if (item.component_match || quality === 'component_match') {
+    return 'component';
+  }
+
+  if (quality === 'error' || quality === 'not_found') {
+    return 'weak';
+  }
+
+  return 'neutral';
+}
+
 function Stars({ count, color }: { count: number; color: string }) {
   return (
     <View style={styles.stars}>
@@ -173,6 +260,126 @@ function Stars({ count, color }: { count: number; color: string }) {
   );
 }
 
+
+function getShortQualityBadgeLabel(quality: EvidenceQuality, lang: SafeLanguage) {
+  if (lang === 'ua') {
+    switch (quality) {
+      case 'registered_entry':
+      case 'structured_entry_match':
+        return 'запис';
+      case 'learner_dictionary':
+        return 'навч. словник';
+      case 'normative_reference':
+        return 'норма';
+      case 'exact_expression_match':
+        return 'ціла одиниця';
+      case 'search_page_match':
+        return 'пошук';
+      case 'usage_example_match':
+        return 'приклад';
+      case 'component_match':
+        return 'компоненти';
+      case 'ai_suggestion':
+        return 'AI';
+      case 'not_found':
+        return 'не знайдено';
+      case 'not_checked':
+        return 'не перевірено';
+      case 'error':
+        return 'помилка';
+      default:
+        return 'джерело';
+    }
+  }
+
+  if (lang === 'no') {
+    switch (quality) {
+      case 'registered_entry':
+      case 'structured_entry_match':
+        return 'oppslag';
+      case 'learner_dictionary':
+        return 'læringsordbok';
+      case 'normative_reference':
+        return 'norm';
+      case 'exact_expression_match':
+        return 'hel enhet';
+      case 'search_page_match':
+        return 'søk';
+      case 'usage_example_match':
+        return 'eksempel';
+      case 'component_match':
+        return 'komponenter';
+      case 'ai_suggestion':
+        return 'AI';
+      case 'not_found':
+        return 'ikke funnet';
+      case 'not_checked':
+        return 'ikke sjekket';
+      case 'error':
+        return 'feil';
+      default:
+        return 'kilde';
+    }
+  }
+
+  switch (quality) {
+    case 'registered_entry':
+    case 'structured_entry_match':
+      return 'entry';
+    case 'learner_dictionary':
+      return 'learner dict';
+    case 'normative_reference':
+      return 'normative';
+    case 'exact_expression_match':
+      return 'whole unit';
+    case 'search_page_match':
+      return 'search';
+    case 'usage_example_match':
+      return 'example';
+    case 'component_match':
+      return 'components';
+    case 'ai_suggestion':
+      return 'AI';
+    case 'not_found':
+      return 'not found';
+    case 'not_checked':
+      return 'not checked';
+    case 'error':
+      return 'error';
+    default:
+      return 'source';
+  }
+}
+
+function shouldShowEvidenceLabel(label?: string | null) {
+  if (!label) return false;
+
+  const value = String(label).trim();
+  if (!value) return false;
+
+  const technicalMarkers = [
+    'registered entry found',
+    'component evidence',
+    'components:',
+    'exact normative reference found',
+    'search endpoint',
+    'direct lemma endpoint',
+    'registered entry:',
+    'HTML:',
+    'API:',
+    'v2.',
+    'HTTP',
+    'crosscheck',
+    'limit=',
+    'errors:',
+    'error:',
+  ];
+
+  return !technicalMarkers.some((marker) =>
+    value.toLowerCase().includes(marker.toLowerCase())
+  );
+}
+
 function EvidenceRow({
   source,
   item,
@@ -185,7 +392,11 @@ function EvidenceRow({
   const quality = (item.quality || 'not_checked') as EvidenceQuality;
   const qi = QUALITY_ICONS[String(quality)] ?? { icon: '○', strong: false };
   const sourceLabel = getSourceLabel(source, lang);
-  const safeEvidenceLabel = sanitizeEvidenceLabel(item.evidence_label);
+  const safeEvidenceLabel = shouldShowEvidenceLabel(item.evidence_label)
+    ? sanitizeEvidenceLabel(item.evidence_label)
+    : '';
+  const explanation = getQualityExplanation(item, quality, lang);
+  const statusStyle = getQualityStatusStyle(quality, item);
 
   return (
     <View style={styles.evidenceRow}>
@@ -193,7 +404,31 @@ function EvidenceRow({
         <Text style={styles.evidenceIcon}>{qi.icon}</Text>
 
         <View style={styles.evidenceText}>
-          <Text style={styles.evidenceSource}>{sourceLabel}</Text>
+          <View style={styles.evidenceTopLine}>
+            <Text style={styles.evidenceSource}>{sourceLabel}</Text>
+
+            <View
+              style={[
+                styles.qualityBadge,
+                statusStyle === 'strong' && styles.qualityBadgeStrong,
+                statusStyle === 'medium' && styles.qualityBadgeMedium,
+                statusStyle === 'component' && styles.qualityBadgeComponent,
+                statusStyle === 'weak' && styles.qualityBadgeWeak,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.qualityBadgeText,
+                  statusStyle === 'strong' && styles.qualityBadgeTextStrong,
+                  statusStyle === 'medium' && styles.qualityBadgeTextMedium,
+                  statusStyle === 'component' && styles.qualityBadgeTextComponent,
+                  statusStyle === 'weak' && styles.qualityBadgeTextWeak,
+                ]}
+              >
+                {getShortQualityBadgeLabel(quality, lang)}
+              </Text>
+            </View>
+          </View>
 
           <Text
             style={[
@@ -204,17 +439,19 @@ function EvidenceRow({
             {getQualityLabel(quality, lang)}
           </Text>
 
+          <Text style={styles.evidenceExplanation}>{explanation}</Text>
+
           {safeEvidenceLabel ? (
             <Text style={styles.evidenceLabel}>{safeEvidenceLabel}</Text>
           ) : null}
+
+          {item.error ? (
+            <Text style={styles.evidenceError} numberOfLines={2}>
+              {String(item.error)}
+            </Text>
+          ) : null}
         </View>
       </View>
-
-      {item.registered_entry ? (
-        <View style={styles.registeredBadge}>
-          <Text style={styles.registeredText}>{tr('registered', lang)}</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -390,11 +627,11 @@ const styles = StyleSheet.create({
   },
   popup: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 430,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     overflow: 'hidden',
-    maxHeight: '82%',
+    maxHeight: '86%',
     flexShrink: 1,
   },
   popupHeader: {
@@ -435,40 +672,92 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   evidenceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 0.5,
     borderBottomColor: '#D3D1C7',
   },
   evidenceLeft: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
-    flex: 1,
   },
   evidenceIcon: {
-    fontSize: 16,
+    fontSize: 17,
     width: 22,
     textAlign: 'center',
+    marginTop: 1,
   },
   evidenceText: {
     flex: 1,
+    minWidth: 0,
+  },
+  evidenceTopLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   evidenceSource: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 13,
-    fontWeight: '500',
+    lineHeight: 18,
+    fontWeight: '700',
     color: '#2C2C2A',
+  },
+  qualityBadge: {
+    maxWidth: 118,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  qualityBadgeStrong: {
+    backgroundColor: '#E1F5EE',
+  },
+  qualityBadgeMedium: {
+    backgroundColor: '#E0F2FE',
+  },
+  qualityBadgeComponent: {
+    backgroundColor: '#F1EFE8',
+  },
+  qualityBadgeWeak: {
+    backgroundColor: '#FEE2E2',
+  },
+  qualityBadgeText: {
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: '800',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  qualityBadgeTextStrong: {
+    color: '#0F6E56',
+  },
+  qualityBadgeTextMedium: {
+    color: '#185FA5',
+  },
+  qualityBadgeTextComponent: {
+    color: '#888780',
+  },
+  qualityBadgeTextWeak: {
+    color: '#991B1B',
   },
   evidenceQuality: {
     fontSize: 12,
+    lineHeight: 17,
     color: '#888780',
-    marginTop: 1,
+    marginTop: 2,
   },
   evidenceQualityStrong: {
     color: '#0F6E56',
-    fontWeight: '500',
+    fontWeight: '700',
+  },
+  evidenceExplanation: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#6B7280',
+    marginTop: 2,
   },
   evidenceLabel: {
     fontSize: 11,
@@ -476,18 +765,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 15,
   },
-  registeredBadge: {
-    backgroundColor: '#E1F5EE',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    marginLeft: 8,
-  },
-  registeredText: {
+  evidenceError: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#0F6E56',
-    letterSpacing: 0.3,
+    color: '#991B1B',
+    marginTop: 3,
+    lineHeight: 14,
   },
   noEvidence: {
     fontSize: 13,
@@ -497,9 +779,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   verifiedSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 0.5,
@@ -511,8 +790,12 @@ const styles = StyleSheet.create({
   },
   verifiedValue: {
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: '600',
     color: '#185FA5',
+    flexShrink: 1,
+    flexWrap: 'wrap',
+    marginTop: 4,
   },
   closeBtn: {
     margin: 12,

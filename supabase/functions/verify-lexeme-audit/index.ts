@@ -296,6 +296,7 @@ serve(async (req) => {
           if (isLexemeEntity) {
             const updateData: Record<string, unknown> = {
               updated_at: new Date().toISOString(),
+              verification_evidence: decision.source_expertise,
             };
             if (decision.proposed_source_verified) {
               updateData.source_verified = decision.proposed_source_verified;
@@ -1517,7 +1518,10 @@ async function handleQueueProcess(options: {
           await supabase.from("lexical_quality_audit").insert(auditRecord);
 
           if (isLexemeJob) {
-            const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+            const updateData: Record<string, unknown> = {
+              updated_at: new Date().toISOString(),
+              verification_evidence: decision.source_expertise,
+            };
             if (decision.proposed_source_verified) updateData.source_verified = decision.proposed_source_verified;
             updateData.verification_tier = mapStatusToTier(decision.proposed_verification_status);
             await supabase.from("lexemes").update(updateData).eq("id", (row as LexemeRow).id);
