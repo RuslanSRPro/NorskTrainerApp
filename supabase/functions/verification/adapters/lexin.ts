@@ -31,7 +31,9 @@ export async function checkLexinLive(
     try {
       const text = await fetchLexinText(url);
 
-      if (!text || text.length < 5 || text === '[]' || text === '{}') continue;
+      if (!text || text.length < 5 || text === '[]' || text === '{}') {
+        continue;
+      }
 
       let hasExactLemmaEntry = false;
       let hasExactTextMatch = false;
@@ -39,9 +41,14 @@ export async function checkLexinLive(
 
       try {
         const data = JSON.parse(text);
-        const result = data?.result ?? data?.results ?? data?.data ?? data?.words ?? data;
-        const items = Array.isArray(result) ? result : [];
+        const result =
+          data?.result ??
+          data?.results ??
+          data?.data ??
+          data?.words ??
+          data;
 
+        const items = Array.isArray(result) ? result : [];
         const normalizedQuery = normalizeForMatch(query);
 
         for (const group of items) {
@@ -76,11 +83,16 @@ export async function checkLexinLive(
           }
         }
       } catch {
-        hasExactTextMatch = containsExactPhrase(normalizeForMatch(text), query);
+        hasExactTextMatch = containsExactPhrase(
+          normalizeForMatch(text),
+          query,
+        );
       }
 
       if (hasExactLemmaEntry) {
-        const uaNote = translationUa ? ` | UA: ${translationUa.slice(0, 50)}` : '';
+        const uaNote = translationUa
+          ? ` | UA: ${translationUa.slice(0, 50)}`
+          : '';
 
         return {
           source: 'Lexin',
@@ -88,13 +100,13 @@ export async function checkLexinLive(
           found: true,
           quality: 'learner_dictionary',
           registered_entry: isSingleToken,
-          whole_unit_match: true,
+          whole_unit_match: isSingleToken,
           component_match: false,
-          usage_match: false,
+          usage_match: !isSingleToken,
           urls: [url],
           evidence_label: isSingleToken
             ? `Lexin OsloMet (${label}): exact lemma entry found${uaNote}`
-            : `Lexin OsloMet (${label}): exact multiword entry signal found${uaNote}`,
+            : `Lexin OsloMet (${label}): exact multiword learner signal found${uaNote}`,
           raw_preview: preview(text.slice(0, 500)),
         };
       }
@@ -106,11 +118,11 @@ export async function checkLexinLive(
           found: true,
           quality: 'learner_dictionary',
           registered_entry: false,
-          whole_unit_match: true,
+          whole_unit_match: false,
           component_match: false,
           usage_match: true,
           urls: [url],
-          evidence_label: `Lexin OsloMet (${label}): exact text match found`,
+          evidence_label: `Lexin OsloMet (${label}): exact text learner/usage signal found`,
           raw_preview: preview(text.slice(0, 500)),
         };
       }
@@ -119,7 +131,10 @@ export async function checkLexinLive(
     }
   }
 
-  if (errors.length > 0 && errors.every((e) => e.includes('HTTP') || e.includes('abort'))) {
+  if (
+    errors.length > 0 &&
+    errors.every((e) => e.includes('HTTP') || e.includes('abort'))
+  ) {
     return {
       source: 'Lexin',
       checked: true,

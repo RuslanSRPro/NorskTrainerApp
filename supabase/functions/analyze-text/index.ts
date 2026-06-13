@@ -15,25 +15,16 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const SOURCES = ['NAOB', 'Ordbokene', 'Lexin', 'Språkrådet', 'Wiktionary'];
 
+const INGESTION_VERSION =
+  'ts_expression_aware_ingestion_v7_strict_verified_expressions';
+
+const MAX_PHRASE_TOKENS = 8;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
 };
-
-const INGESTION_VERSION =
-  'ts_expression_aware_ingestion_v4_safe_auxiliary_consumption';
-
-const BAD_EXPRESSION_STARTS = [
-  'jeg',
-  'du',
-  'han',
-  'hun',
-  'vi',
-  'dere',
-  'de',
-  'det',
-];
 
 type ExpressionRow = {
   id: string;
@@ -43,6 +34,7 @@ type ExpressionRow = {
   pos: string;
   expression_subtype: string | null;
   token_len: number;
+  verification_evidence: Record<string, unknown> | null;
 };
 
 type VerbMaps = {
@@ -74,15 +66,7 @@ type PlannedItem = {
   resolved?: SurfaceResolution | null;
   match_strategy?: 'exact_expression' | 'compound_normalized' | 'token';
   compound_normalized?: string | null;
-  auxiliary_consumed?: string[] | null;
 };
-
-function isCovered(covered: Set<number>, start: number, end: number): boolean {
-  for (let i = start; i <= end; i++) {
-    if (covered.has(i)) return true;
-  }
-  return false;
-}
 
 function markCovered(covered: Set<number>, start: number, end: number) {
   for (let i = start; i <= end; i++) {
@@ -90,7 +74,51 @@ function markCovered(covered: Set<number>, start: number, end: number) {
   }
 }
 
-async function loadExpressions(): Promise<ExpressionRow[]> {
+function hasStrongWholeUnitEvidence(row: any): boolean {
+  const evidence = row.verification_evidence ?? {};
+
+  return Object.entries(evidence).some(([sourceKey, raw]: [string, any]) => {
+    const value = raw as any;
+    const inner = value?.evidence ?? value;
+
+    const sourceName =
+      inner?.source ??
+      value?.source ??
+      sourceKey ??
+      null;
+
+    const authoritative =
+      sourceName === 'NAOB' ||
+      sourceName === 'Ordbokene';
+
+    const wholeUnit =
+      inner?.whole_unit_match === true ||
+      value?.whole_unit_match === true;
+
+    const registered =
+      inner?.registered_entry === true ||
+      value?.registered_entry === true;
+
+    const quality =
+      inner?.original_quality ??
+      value?.original_quality ??
+      inner?.quality ??
+      value?.quality ??
+      null;
+
+    return (
+      authoritative &&
+      wholeUnit === true &&
+      (
+        registered === true ||
+        quality === 'registered_entry' ||
+        quality === 'structured_entry_match'
+      )
+    );
+  });
+}
+
+async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
   const { data, error } = await supabase
     .from('expression_catalog')
     .select(`
@@ -99,46 +127,54 @@ async function loadExpressions(): Promise<ExpressionRow[]> {
       display_form,
       normalized_key,
       pos,
-      expression_subtype
+      expression_subtype,
+      verification_evidence
     `)
     .not('normalized_key', 'is', null);
 
   if (error) throw error;
 
-  return (data ?? [])
-    .map((row: any) => {
-      const key = normalizeExpression(row.normalized_key);
+  const dict = new Map<string, ExpressionRow>();
 
-      return {
-        id: row.id,
-        lemma: row.lemma,
-        display_form: row.display_form,
-        normalized_key: key,
-        pos: row.pos ?? 'expression',
-        expression_subtype: row.expression_subtype ?? null,
-        token_len: tokenize(key).length,
-      };
-    })
-    .filter((row) => {
-      if (!row.normalized_key) return false;
-      if (row.normalized_key.includes('/')) return false;
-      if (/[гґ]/i.test(row.normalized_key)) return false;
+  for (const row of data ?? []) {
+    const key = normalizeExpression(row.normalized_key);
 
-      const firstToken = tokenize(row.normalized_key)[0];
+    if (!key) continue;
+    if (key.includes('/')) continue;
+    if (/[гґ]/i.test(key)) continue;
 
-      if (BAD_EXPRESSION_STARTS.includes(firstToken)) {
-        return false;
+    if (!hasStrongWholeUnitEvidence(row)) {
+      continue;
+    }
+
+    const item: ExpressionRow = {
+      id: row.id,
+      lemma: row.lemma,
+      display_form: row.display_form,
+      normalized_key: key,
+      pos: row.pos ?? 'expression',
+      expression_subtype: row.expression_subtype ?? null,
+      token_len: tokenize(key).length,
+      verification_evidence: row.verification_evidence ?? null,
+    };
+
+    if (item.token_len < 2) continue;
+
+    if (!dict.has(key)) {
+      dict.set(key, item);
+    }
+
+    if (key.includes('seg')) {
+      for (const pron of ['meg', 'deg', 'oss', 'dere']) {
+        const variant = key.replace(/\bseg\b/g, pron);
+        if (variant !== key && !dict.has(variant)) {
+          dict.set(variant, item);
+        }
       }
+    }
+  }
 
-      return row.token_len >= 2;
-    })
-    .sort((a, b) => {
-      if (b.token_len !== a.token_len) {
-        return b.token_len - a.token_len;
-      }
-
-      return b.normalized_key.length - a.normalized_key.length;
-    });
+  return dict;
 }
 
 async function loadVerbMaps(): Promise<VerbMaps> {
@@ -197,116 +233,132 @@ async function resolveSurfaceForm(
   };
 }
 
-async function planItems(
-  text: string,
-  expressions: ExpressionRow[],
+function findKnownExpression(
+  tokensRaw: string[],
+  tokensNorm: string[],
+  start: number,
+  expressionDict: Map<string, ExpressionRow>,
   verbMaps: VerbMaps,
-): Promise<PlannedItem[]> {
-  const tokens = tokenize(text).map((t) => normalizeExpression(t));
-  const covered = new Set<number>();
-  const items: PlannedItem[] = [];
+): {
+  expr: ExpressionRow;
+  rawSurface: string;
+  normalizedKey: string;
+  end: number;
+  matchStrategy: 'exact_expression' | 'compound_normalized';
+  compoundNormalized: string | null;
+} | null {
+  const maxLen = Math.min(
+    MAX_PHRASE_TOKENS,
+    tokensNorm.length - start,
+  );
 
-  for (const expr of expressions) {
-    const exprTokens = tokenize(expr.normalized_key).map((t) =>
-      normalizeExpression(t)
-    );
+  for (let len = maxLen; len >= 2; len--) {
+    const rawSlice = tokensRaw.slice(start, start + len);
+    const normSlice = tokensNorm.slice(start, start + len);
 
-    if (!exprTokens.length || exprTokens.length > tokens.length) {
-      continue;
+    const rawSurface = rawSlice.join(' ');
+    const normKey = normSlice.join(' ');
+
+    const exact = expressionDict.get(normKey);
+
+    if (exact) {
+      return {
+        expr: exact,
+        rawSurface,
+        normalizedKey: exact.normalized_key,
+        end: start + len - 1,
+        matchStrategy: 'exact_expression',
+        compoundNormalized: null,
+      };
     }
 
-    for (
-      let start = 0;
-      start <= tokens.length - exprTokens.length;
-      start++
-    ) {
-      const end = start + exprTokens.length - 1;
+    const normalizedTokens = normalizeCompoundTokens(
+      normSlice,
+      verbMaps.presensToInfinitiv,
+      verbMaps.perfektumToInfinitiv,
+    );
 
-      if (isCovered(covered, start, end)) continue;
+    const compoundKey = normalizedTokens.join(' ');
 
-      const slice = tokens.slice(start, end + 1);
+    if (compoundKey !== normKey) {
+      const compound = expressionDict.get(compoundKey);
 
-      const exactMatch = slice.join(' ') === exprTokens.join(' ');
-
-      const compoundNormalizedSlice = normalizeCompoundTokens(
-        slice,
-        verbMaps.presensToInfinitiv,
-        verbMaps.perfektumToInfinitiv,
-      );
-
-      const compoundNormalizedKey = compoundNormalizedSlice.join(' ');
-
-      const compoundMatch =
-        compoundNormalizedKey === exprTokens.join(' ');
-
-      if (!exactMatch && !compoundMatch) {
-        continue;
-      }
-
-      const rawSurface = slice.join(' ');
-
-      const plannedItem: PlannedItem = {
-        raw_input: rawSurface,
-        normalized_input: expr.normalized_key,
-        normalized_lemma: expr.normalized_key,
-        surface_form: rawSurface,
-        pos: 'expression',
-        match_type: 'expression',
-        expression_id: expr.id,
-        token_start: start,
-        token_end: end,
-        expression_subtype: expr.expression_subtype,
-        resolved: null,
-        match_strategy: compoundMatch
-          ? 'compound_normalized'
-          : 'exact_expression',
-        compound_normalized: compoundMatch
-          ? compoundNormalizedKey
-          : null,
-        auxiliary_consumed: null,
-      };
-
-      items.push(plannedItem);
-
-      markCovered(covered, start, end);
-
-      const helperStart = start - 3;
-
-      if (
-        compoundMatch &&
-        helperStart >= 0 &&
-        (tokens[helperStart] === 'kommer' ||
-          tokens[helperStart] === 'kom') &&
-        tokens[helperStart + 1] === 'til' &&
-        tokens[helperStart + 2] === 'å'
-      ) {
-        markCovered(covered, helperStart, start - 1);
-
-        plannedItem.auxiliary_consumed = tokens.slice(
-          helperStart,
-          start,
-        );
+      if (compound) {
+        return {
+          expr: compound,
+          rawSurface,
+          normalizedKey: compound.normalized_key,
+          end: start + len - 1,
+          matchStrategy: 'compound_normalized',
+          compoundNormalized: compoundKey,
+        };
       }
     }
   }
 
-  for (let index = 0; index < tokens.length; index++) {
+  return null;
+}
+
+async function planItems(
+  text: string,
+  expressionDict: Map<string, ExpressionRow>,
+  verbMaps: VerbMaps,
+): Promise<PlannedItem[]> {
+  const tokensRaw = tokenize(text);
+  const tokensNorm = tokensRaw.map((t) => normalizeExpression(t));
+
+  const covered = new Set<number>();
+  const items: PlannedItem[] = [];
+
+  for (let index = 0; index < tokensNorm.length; index++) {
     if (covered.has(index)) continue;
 
-    const surface = tokens[index];
-    const normalized = normalize(surface);
+    const expressionMatch = findKnownExpression(
+      tokensRaw,
+      tokensNorm,
+      index,
+      expressionDict,
+      verbMaps,
+    );
 
-    if (!normalized || normalized.length < 2) {
+    if (expressionMatch) {
+      const expr = expressionMatch.expr;
+
+      items.push({
+        raw_input: expressionMatch.rawSurface,
+        normalized_input: expressionMatch.normalizedKey,
+        normalized_lemma: expressionMatch.normalizedKey,
+        surface_form: expressionMatch.rawSurface,
+        pos: 'expression',
+        match_type: 'expression',
+        expression_id: expr.id,
+        token_start: index,
+        token_end: expressionMatch.end,
+        expression_subtype: expr.expression_subtype,
+        resolved: null,
+        match_strategy: expressionMatch.matchStrategy,
+        compound_normalized: expressionMatch.compoundNormalized,
+      });
+
+      markCovered(covered, index, expressionMatch.end);
       continue;
     }
 
-    const resolved = await resolveSurfaceForm(surface);
+    const rawSurface = tokensRaw[index];
+    const normalized = normalize(rawSurface);
+
+    if (!normalized || normalized.length < 2) {
+      covered.add(index);
+      continue;
+    }
+
+    const resolved = await resolveSurfaceForm(rawSurface);
 
     items.push({
-      raw_input: surface,
+      raw_input: rawSurface,
       normalized_input: normalized,
       normalized_lemma: resolved?.lemma ?? normalized,
-      surface_form: surface,
+      surface_form: rawSurface,
       pos: resolved?.pos ?? null,
       match_type: 'token',
       expression_id: null,
@@ -315,44 +367,60 @@ async function planItems(
       resolved,
       match_strategy: 'token',
       compound_normalized: null,
-      auxiliary_consumed: null,
     });
+
+    covered.add(index);
   }
 
   return items.sort((a, b) => a.token_start - b.token_start);
 }
 
-async function insertSourceChecks(
+async function insertSourceChecksBatch(
   jobId: string,
-  itemId: string,
-  lexemeId: string | null,
-  query: string,
-  queryType: 'expression' | 'token',
+  rows: Array<{
+    itemId: string;
+    lexemeId: string | null;
+    query: string;
+    queryType: 'expression' | 'token';
+  }>,
 ) {
-  for (const source of SOURCES) {
-    const { error } = await supabase.from('lexeme_source_checks').insert({
+  const sourceRows = rows.flatMap((row) =>
+    SOURCES.map((source) => ({
       job_id: jobId,
-      item_id: itemId,
-      lexeme_id: lexemeId,
+      item_id: row.itemId,
+      lexeme_id: row.lexemeId,
       source,
       stage: 'lemma',
-      query,
-      query_type: queryType,
+      query: row.query,
+      query_type: row.queryType,
       status: 'pending',
       attempt_count: 0,
       max_attempts: 3,
       evidence: {},
       urls: [],
       verification_version: 1,
-    });
+    }))
+  );
 
-    if (error) throw error;
-  }
+  if (!sourceRows.length) return;
+
+  const { error } = await supabase
+    .from('lexeme_source_checks')
+    .insert(sourceRows);
+
+  if (error) throw error;
 }
 
 async function insertItems(jobId: string, items: PlannedItem[]) {
   let expressionItems = 0;
   let tokenItems = 0;
+
+  const sourceCheckRows: Array<{
+    itemId: string;
+    lexemeId: string | null;
+    query: string;
+    queryType: 'expression' | 'token';
+  }> = [];
 
   for (const item of items) {
     const { data, error } = await supabase
@@ -378,7 +446,6 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
           expression_subtype: item.expression_subtype ?? null,
           match_strategy: item.match_strategy ?? null,
           compound_normalized: item.compound_normalized ?? null,
-          auxiliary_consumed: item.auxiliary_consumed ?? null,
           resolved_lexeme_id: item.resolved?.lexeme_id ?? null,
           resolved_lemma: item.resolved?.lemma ?? null,
           resolved_pos: item.resolved?.pos ?? null,
@@ -400,14 +467,15 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
       tokenItems++;
     }
 
-    await insertSourceChecks(
-      jobId,
-      data.id,
-      item.resolved?.lexeme_id ?? null,
-      item.normalized_input,
-      item.match_type,
-    );
+    sourceCheckRows.push({
+      itemId: data.id,
+      lexemeId: item.resolved?.lexeme_id ?? null,
+      query: item.normalized_input,
+      queryType: item.match_type,
+    });
   }
+
+  await insertSourceChecksBatch(jobId, sourceCheckRows);
 
   return {
     expressionItems,
@@ -472,10 +540,14 @@ serve(async (req) => {
 
     if (jobError) throw jobError;
 
-    const expressions = await loadExpressions();
+    const expressionDict = await loadExpressions();
     const verbMaps = await loadVerbMaps();
 
-    const plannedItems = await planItems(text, expressions, verbMaps);
+    const plannedItems = await planItems(
+      text,
+      expressionDict,
+      verbMaps,
+    );
 
     const { expressionItems, tokenItems } = await insertItems(
       jobId,
@@ -494,8 +566,10 @@ serve(async (req) => {
           source_checks_per_item: SOURCES.length,
           surface_resolver: true,
           compound_normalization: true,
-          safe_auxiliary_consumption: true,
-          bad_expression_starts_filter: true,
+          legacy_aligned_expression_parser: true,
+          strict_verified_expression_catalog: true,
+          raw_token_preservation: true,
+          batched_source_checks: true,
         },
         updated_at: new Date().toISOString(),
       })

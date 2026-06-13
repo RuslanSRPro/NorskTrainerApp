@@ -49,7 +49,11 @@ export async function checkWiktionaryLive(
   const winner = noRank >= enRank ? no : en;
   const loser = noRank >= enRank ? en : no;
 
-  if (!winner || winner.quality === 'not_found' || winner.quality === 'not_checked') {
+  if (
+    !winner ||
+    winner.quality === 'not_found' ||
+    winner.quality === 'not_checked'
+  ) {
     return makeLookup(
       'Wiktionary',
       false,
@@ -190,11 +194,11 @@ async function checkWiktionaryDomain(
       true,
       'exact_expression_match',
       false,
+      false,
+      false,
       true,
-      false,
-      false,
       [url],
-      `Wiktionary ${isNoDomain ? 'no.' : 'en.'}: Norwegian multiword exact signal`,
+      `Wiktionary ${isNoDomain ? 'no.' : 'en.'}: Norwegian multiword exact supporting signal`,
       text,
     );
   }
@@ -205,11 +209,11 @@ async function checkWiktionaryDomain(
       true,
       'exact_expression_match',
       false,
+      false,
+      false,
       true,
-      false,
-      false,
       [url],
-      `Wiktionary ${isNoDomain ? 'no.' : 'en.'}: Norwegian scoped exact signal`,
+      `Wiktionary ${isNoDomain ? 'no.' : 'en.'}: Norwegian scoped exact supporting signal`,
       text,
     );
   }

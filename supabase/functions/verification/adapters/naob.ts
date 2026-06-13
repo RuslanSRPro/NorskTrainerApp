@@ -48,7 +48,11 @@ export async function checkNAOBLive(
   const winner = apiRank >= htmlRank ? api : html;
   const loser = apiRank >= htmlRank ? html : api;
 
-  if (!winner || winner.quality === 'not_found' || winner.quality === 'not_checked') {
+  if (
+    !winner ||
+    winner.quality === 'not_found' ||
+    winner.quality === 'not_checked'
+  ) {
     return {
       source: 'NAOB',
       checked: true,
@@ -103,7 +107,10 @@ async function checkNAOBHtml(
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         errors.push(`${url}: ${msg}`);
-        if (msg.includes('HTTP 429') || msg.includes('HTTP 503')) await delay(500);
+
+        if (msg.includes('HTTP 429') || msg.includes('HTTP 503')) {
+          await delay(500);
+        }
       }
 
       await delay(100);
@@ -166,6 +173,8 @@ async function checkNAOBHtml(
 
     if (zeroTreff) continue;
 
+    const isEntryUrl = url.includes('/ordbok/');
+
     const strongEntryIndicators = includesAny(text, [
       'substantiv',
       'verb',
@@ -184,7 +193,7 @@ async function checkNAOBHtml(
       'full bokmålsnorm',
     ]);
 
-    if (strongEntryIndicators) {
+    if (isEntryUrl && strongEntryIndicators) {
       return makeLookup(
         'NAOB',
         true,
@@ -204,11 +213,11 @@ async function checkNAOBHtml(
       true,
       'search_page_match',
       false,
-      true,
+      false,
       false,
       false,
       [url],
-      'NAOB HTML: exact phrase on search/entry page',
+      'NAOB HTML: exact phrase on search page; not registered entry',
       text,
     );
   }
@@ -270,16 +279,20 @@ async function checkNAOBApi(
       const json = JSON.stringify(data);
 
       if (containsExactPhrase(json, variant)) {
+        const isMultiword = getTokens(variant).length > 1;
+
         return makeLookup(
           'NAOB',
           true,
-          'registered_entry',
-          true,
+          isMultiword ? 'exact_expression_match' : 'registered_entry',
+          !isMultiword,
           true,
           false,
           false,
           [lemmaUrl],
-          'NAOB API: direct lemma endpoint match',
+          isMultiword
+            ? 'NAOB API: lemma endpoint exact multiword signal; not registered entry'
+            : 'NAOB API: direct lemma endpoint registered entry',
           json.slice(0, 700),
         );
       }
@@ -299,11 +312,11 @@ async function checkNAOBApi(
           true,
           'search_page_match',
           false,
-          true,
+          false,
           false,
           false,
           [searchUrl],
-          'NAOB API: search endpoint exact match',
+          'NAOB API: search endpoint exact match; not registered entry',
           json.slice(0, 700),
         );
       }

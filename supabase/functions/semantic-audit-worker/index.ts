@@ -33,6 +33,25 @@ type AuditRow = {
   verification_evidence: Record<string, unknown> | null;
 };
 
+type AggregateVerificationTier =
+  | 'dictionary_entry'
+  | 'dictionary_match'
+  | 'normative_reference'
+  | 'usage_evidence'
+  | 'component_match'
+  | 'ai_candidate';
+
+type SourceEvidence = {
+  source: string;
+  quality: string | null;
+  registered_entry: boolean;
+  whole_unit_match: boolean;
+  component_match: boolean;
+  usage_match: boolean;
+};
+
+const AUTHORITATIVE_DICTIONARIES = new Set(['NAOB', 'Ordbokene']);
+
 function hasValue(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -64,6 +83,111 @@ function confidenceFromSourceCount(
   return 'low';
 }
 
+function extractSourceEvidence(
+  verificationEvidence: Record<string, unknown> | null,
+): SourceEvidence[] {
+  if (!verificationEvidence || typeof verificationEvidence !== 'object') {
+    return [];
+  }
+
+  return Object.entries(verificationEvidence).map(([source, raw]) => {
+    const value = raw as any;
+    const inner = value?.evidence ?? value;
+
+    return {
+      source,
+      quality:
+        inner?.original_quality ??
+        value?.original_quality ??
+        inner?.quality ??
+        value?.quality ??
+        null,
+      registered_entry:
+        inner?.registered_entry === true ||
+        value?.registered_entry === true,
+      whole_unit_match:
+        inner?.whole_unit_match === true ||
+        value?.whole_unit_match === true,
+      component_match:
+        inner?.component_match === true ||
+        value?.component_match === true,
+      usage_match:
+        inner?.usage_match === true ||
+        value?.usage_match === true,
+    };
+  });
+}
+
+function aggregateVerificationTier(
+  evidence: SourceEvidence[],
+): AggregateVerificationTier {
+  const hasAuthoritativeRegistered = evidence.some(
+    (e) =>
+      AUTHORITATIVE_DICTIONARIES.has(e.source) &&
+      e.registered_entry === true,
+  );
+
+  if (hasAuthoritativeRegistered) return 'dictionary_entry';
+
+  const hasAuthoritativeStructuredWholeUnit = evidence.some(
+    (e) =>
+      AUTHORITATIVE_DICTIONARIES.has(e.source) &&
+      e.whole_unit_match === true &&
+      e.quality === 'structured_entry_match',
+  );
+
+  if (hasAuthoritativeStructuredWholeUnit) return 'dictionary_match';
+
+  const hasNormativeReference = evidence.some(
+    (e) =>
+      e.source === 'Språkrådet' &&
+      e.quality === 'normative_reference',
+  );
+
+  if (hasNormativeReference) return 'normative_reference';
+
+  const hasUsageEvidence = evidence.some(
+    (e) =>
+      e.usage_match === true ||
+      [
+        'usage_example_match',
+        'learner_dictionary',
+        'exact_expression_match',
+      ].includes(e.quality ?? ''),
+  );
+
+  if (hasUsageEvidence) return 'usage_evidence';
+
+  const hasComponentEvidence = evidence.some(
+    (e) =>
+      e.component_match === true ||
+      e.quality === 'component_match' ||
+      e.quality === 'search_page_match',
+  );
+
+  if (hasComponentEvidence) return 'component_match';
+
+  return 'ai_candidate';
+}
+
+function reviewStatusFromTier(
+  tier: AggregateVerificationTier,
+): 'trusted' | 'candidate' | 'weak' {
+  if (
+    tier === 'dictionary_entry' ||
+    tier === 'dictionary_match' ||
+    tier === 'normative_reference'
+  ) {
+    return 'trusted';
+  }
+
+  if (tier === 'usage_evidence') {
+    return 'candidate';
+  }
+
+  return 'weak';
+}
+
 function auditSemantic(row: AuditRow) {
   const conflicts: string[] = [];
   const notes: string[] = [];
@@ -84,6 +208,18 @@ function auditSemantic(row: AuditRow) {
     row.entity_type === 'expression' ||
     pos === 'expression';
 
+  const sourceEvidence = extractSourceEvidence(row.verification_evidence);
+  const aggregateTier = aggregateVerificationTier(sourceEvidence);
+
+  const evidenceSourceCount = sourceEvidence.filter(
+    (e) =>
+      e.registered_entry ||
+      e.whole_unit_match ||
+      e.component_match ||
+      e.usage_match ||
+      e.quality,
+  ).length;
+
   if (!lemma) conflicts.push('missing_lemma');
   if (!pos || pos === 'unknown') notes.push('missing_or_unknown_pos');
 
@@ -102,7 +238,7 @@ function auditSemantic(row: AuditRow) {
     notes.push('component_based_verification');
   }
 
-  if (isExpression && verificationTier.includes('component')) {
+  if (isExpression && aggregateTier === 'component_match') {
     conflicts.push('expression_component_only');
   }
 
@@ -145,26 +281,13 @@ function auditSemantic(row: AuditRow) {
 
   if (conflicts.length > 0) {
     reviewStatus = 'conflicted';
-  } else if (isExpression) {
-    if (
-      sources.includes('NAOB') ||
-      (sources.includes('Ordbokene') && sourceCount >= 2)
-    ) {
-      reviewStatus = 'trusted';
-    } else if (sourceCount >= 1) {
-      reviewStatus = 'candidate';
-    } else {
-      reviewStatus = 'weak';
-    }
-  } else if (sourceCount >= 2 && !verificationTier.includes('component')) {
-    reviewStatus = 'trusted';
-  } else if (sourceCount >= 1) {
-    reviewStatus = 'candidate';
   } else {
-    reviewStatus = 'weak';
+    reviewStatus = reviewStatusFromTier(aggregateTier);
   }
 
-  const sourceConfidence = confidenceFromSourceCount(sourceCount);
+  const sourceConfidence = confidenceFromSourceCount(
+    evidenceSourceCount || sourceCount,
+  );
 
   const verificationConfidence =
     reviewStatus === 'trusted'
@@ -195,7 +318,7 @@ function auditSemantic(row: AuditRow) {
   );
 
   return {
-    quality: 'semantic_audit_v4',
+    quality: 'semantic_audit_v5_evidence_aware',
     semantic_confidence: semanticConfidence,
     verification_confidence: verificationConfidence,
     source_confidence: sourceConfidence,
@@ -210,10 +333,13 @@ function auditSemantic(row: AuditRow) {
       lemma,
       pos,
       source_count: sourceCount,
+      evidence_source_count: evidenceSourceCount,
       sources,
       source_verified: row.source_verified,
       verification_tier: row.verification_tier,
       verification_status: row.verification_status,
+      aggregate_verification_tier: aggregateTier,
+      source_evidence: sourceEvidence,
       has_translation_ua: hasUa,
       has_translation_en: hasEn,
       has_cefr: hasCefr,
@@ -391,6 +517,8 @@ serve(async (req) => {
           entity_id: row.entity_id,
           lemma: row.lemma,
           review_status: audit.review_status,
+          aggregate_verification_tier:
+            audit.evidence.aggregate_verification_tier,
           semantic_confidence: audit.semantic_confidence,
           verification_confidence: audit.verification_confidence,
           source_confidence: audit.source_confidence,
