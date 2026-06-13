@@ -35,7 +35,6 @@ async function runLexicalWorker(jobId: string) {
     );
 
     const workerJson = await workerResponse.json();
-
     batches.push(workerJson);
 
     if (!workerJson.claimed || workerJson.claimed === 0) {
@@ -46,11 +45,43 @@ async function runLexicalWorker(jobId: string) {
   return batches;
 }
 
+async function runSemanticAuditWorker(jobId: string) {
+  const batches = [];
+
+  for (let i = 0; i < 5; i++) {
+    const workerResponse = await fetch(
+      `${SUPABASE_URL}/functions/v1/semantic-audit-worker`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          limit: 20,
+          job_id: jobId,
+        }),
+      },
+    );
+
+    const workerJson = await workerResponse.json();
+    batches.push(workerJson);
+
+    const claimed =
+      (workerJson.lexeme_claimed ?? 0) +
+      (workerJson.expression_claimed ?? 0);
+
+    if (!claimed) {
+      break;
+    }
+  }
+
+  return batches;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders,
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -95,6 +126,17 @@ serve(async (req) => {
 
       const lexicalBatches = await runLexicalWorker(jobId);
 
+      const { data: promotedCount, error: promotionError } =
+        await supabase.rpc('promote_verification_results_for_job', {
+          p_job_id: jobId,
+        });
+
+      if (promotionError) {
+        throw promotionError;
+      }
+
+      const semanticAuditBatches = await runSemanticAuditWorker(jobId);
+
       await supabase.rpc('build_text_analysis_result', {
         p_job_id: jobId,
       });
@@ -113,6 +155,8 @@ serve(async (req) => {
       processedJobs.push({
         job_id: jobId,
         lexical_batches: lexicalBatches,
+        promoted_count: promotedCount,
+        semantic_audit_batches: semanticAuditBatches,
         counters,
       });
     }
@@ -131,10 +175,7 @@ serve(async (req) => {
     return Response.json(
       {
         ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : String(error),
+        error: error instanceof Error ? error.message : String(error),
       },
       {
         status: 500,
