@@ -45,6 +45,25 @@ async function runLexicalWorker(jobId: string) {
   return batches;
 }
 
+async function runFormEnrichment(jobId: string) {
+  const response = await fetch(
+    `${SUPABASE_URL}/functions/v1/form-enrichment-worker`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        limit: 50,
+        job_id: jobId,
+      }),
+    },
+  );
+
+  return await response.json();
+}
+
 async function runSemanticAuditWorker(jobId: string) {
   const batches = [];
 
@@ -135,6 +154,17 @@ serve(async (req) => {
         throw promotionError;
       }
 
+      const { data: formEnqueued, error: formEnqueueError } =
+        await supabase.rpc('enqueue_form_enrichment_for_job', {
+          p_job_id: jobId,
+        });
+
+      if (formEnqueueError) {
+        throw formEnqueueError;
+      }
+
+      const formEnrichment = await runFormEnrichment(jobId);
+
       const semanticAuditBatches = await runSemanticAuditWorker(jobId);
 
       await supabase.rpc('build_text_analysis_result', {
@@ -156,6 +186,8 @@ serve(async (req) => {
         job_id: jobId,
         lexical_batches: lexicalBatches,
         promoted_count: promotedCount,
+        form_enqueued: formEnqueued,
+        form_enrichment: formEnrichment,
         semantic_audit_batches: semanticAuditBatches,
         counters,
       });
