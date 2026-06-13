@@ -14,6 +14,8 @@ import {
   UserSettings,
 } from '@/services/settings';
 
+import type { FontSizeName, ThemeName } from '@/services/theme';
+
 import { getCurrentUserId } from '@/store/authStore';
 
 const TRAINING_LAYOUT_KEY = 'norsk_trainer_training_layout';
@@ -42,7 +44,21 @@ const DEFAULT_SETTINGS: UserSettings = {
   pronounce_forms:        false,
   pronounce_after_answer: false,
   speech_rate:            0.85,
+  theme:                  'light',
+  font_size:              'medium',
 };
+
+function normalizeTheme(value: unknown): ThemeName {
+  if (value === 'dark' || value === 'reading' || value === 'turquoise' || value === 'light') {
+    return value;
+  }
+  return DEFAULT_SETTINGS.theme;
+}
+
+function normalizeFontSize(value: unknown): FontSizeName {
+  if (value === 'small' || value === 'medium' || value === 'large') return value;
+  return DEFAULT_SETTINGS.font_size;
+}
 
 function normalizeSettings(
   settings?: Partial<UserSettings> | null,
@@ -80,6 +96,8 @@ function normalizeSettings(
       typeof settings?.speech_rate === 'number'
         ? settings.speech_rate
         : DEFAULT_SETTINGS.speech_rate,
+    theme:     normalizeTheme(settings?.theme),
+    font_size: normalizeFontSize(settings?.font_size),
   };
 }
 
@@ -150,6 +168,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         pronounce_forms:        state.pronounce_forms,
         pronounce_after_answer: state.pronounce_after_answer,
         speech_rate:            state.speech_rate,
+        theme:                  state.theme                   as ThemeName,
+        font_size:              state.font_size               as FontSizeName,
       });
 
       await AsyncStorage.setItem(TRAINING_LAYOUT_KEY, state.training_layout);

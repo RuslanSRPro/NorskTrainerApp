@@ -1,31 +1,21 @@
-import { normalize } from './normalize.ts';
-
-export const REFLEXIVE_PRONOUNS = new Set([
-  'meg',
-  'deg',
-  'seg',
-  'oss',
-  'dere',
+const REFLEXIVE_MAP = new Map<string, string>([
+  ['meg', 'seg'],
+  ['deg', 'seg'],
+  ['seg', 'seg'],
+  ['oss', 'seg'],
+  ['dere', 'seg'],
+  ['ham', 'seg'],
+  ['henne', 'seg'],
+  ['dem', 'seg'],
 ]);
 
-export const AUXILIARY_VERBS = new Set([
+const AUXILIARY_VERBS = new Set([
   'har',
   'hadde',
-  'er',
-  'var',
-  'blir',
-  'ble',
-  'blitt',
   'skal',
-  'skulle',
   'vil',
-  'ville',
-  'kan',
-  'kunne',
-  'må',
-  'måtte',
-  'bør',
-  'burde',
+  'kommer',
+  'kom',
 ]);
 
 export function normalizeCompoundTokens(
@@ -33,38 +23,57 @@ export function normalizeCompoundTokens(
   presensToInfinitiv: Map<string, string>,
   perfektumToInfinitiv: Map<string, string>,
 ): string[] {
-  const result: string[] = [];
-  let i = 0;
+  const normalized: string[] = [];
 
-  while (i < tokens.length) {
-    const tok = normalize(tokens[i]);
+  for (let i = 0; i < tokens.length; i++) {
+    let token = tokens[i];
 
-    if (AUXILIARY_VERBS.has(tok) && i + 1 < tokens.length) {
-      const next = normalize(tokens[i + 1]);
-      const inf = perfektumToInfinitiv.get(next);
-
-      if (inf) {
-        result.push(inf);
-        i += 2;
-        continue;
-      }
-    }
-
-    if (REFLEXIVE_PRONOUNS.has(tok)) {
-      result.push('seg');
-      i++;
+    // strip infinitive marker
+    if (token === 'å') {
       continue;
     }
 
-    if (result.length === 0 && presensToInfinitiv.has(tok)) {
-      result.push(presensToInfinitiv.get(tok)!);
-      i++;
+    // strip auxiliaries
+    if (AUXILIARY_VERBS.has(token)) {
       continue;
     }
 
-    result.push(tok);
-    i++;
+    // special handling:
+    // kommer til å
+    if (
+      token === 'til' &&
+      i > 0 &&
+      tokens[i - 1] === 'kommer'
+    ) {
+      continue;
+    }
+
+    // reflexive normalization
+    if (REFLEXIVE_MAP.has(token)) {
+      normalized.push(
+        REFLEXIVE_MAP.get(token)!,
+      );
+      continue;
+    }
+
+    // present → infinitive
+    if (presensToInfinitiv.has(token)) {
+      normalized.push(
+        presensToInfinitiv.get(token)!,
+      );
+      continue;
+    }
+
+    // perfect → infinitive
+    if (perfektumToInfinitiv.has(token)) {
+      normalized.push(
+        perfektumToInfinitiv.get(token)!,
+      );
+      continue;
+    }
+
+    normalized.push(token);
   }
 
-  return result;
+  return normalized;
 }

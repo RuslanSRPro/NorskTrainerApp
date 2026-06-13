@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import type { ThemeName, FontSizeName } from './theme';
 
 export type AppLanguage = 'ua' | 'en' | 'no';
 export type TranslationMode = 'ua' | 'en' | 'ua_en';
@@ -25,6 +26,8 @@ export type UserSettings = {
   pronounce_forms:        boolean;
   pronounce_after_answer: boolean;
   speech_rate:            number;
+  theme:                  ThemeName;
+  font_size:              FontSizeName;
 };
 
 export type ProfileRecord = {
@@ -58,6 +61,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   pronounce_forms:        false,
   pronounce_after_answer: false,
   speech_rate:            0.85,
+  theme:                  'light',
+  font_size:              'medium',
 };
 
 const STORAGE_USER_ID_KEY  = 'norsk_trainer_user_id';
@@ -280,6 +285,18 @@ function normalizeTrainingLayout(value: unknown): TrainingLayout {
   return 'standard';
 }
 
+function normalizeTheme(value: unknown): ThemeName {
+  if (value === 'dark' || value === 'reading' || value === 'turquoise' || value === 'light') {
+    return value;
+  }
+  return DEFAULT_SETTINGS.theme;
+}
+
+function normalizeFontSize(value: unknown): FontSizeName {
+  if (value === 'small' || value === 'medium' || value === 'large') return value;
+  return DEFAULT_SETTINGS.font_size;
+}
+
 function normalizeSettings(
   data: Partial<UserSettings> | null | undefined,
   preferredUser: string,
@@ -318,6 +335,8 @@ function normalizeSettings(
       typeof data?.speech_rate === 'number'
         ? data.speech_rate
         : DEFAULT_SETTINGS.speech_rate,
+    theme:     normalizeTheme(data?.theme),
+    font_size: normalizeFontSize(data?.font_size),
   };
 }
 
@@ -357,6 +376,8 @@ export async function saveUserSettings(settings: UserSettings): Promise<{ ok: bo
     pronounce_forms:        settings.pronounce_forms,
     pronounce_after_answer: settings.pronounce_after_answer,
     speech_rate:            settings.speech_rate,
+    theme:                  settings.theme,
+    font_size:              settings.font_size,
     updated_at:             new Date().toISOString(),
   };
 

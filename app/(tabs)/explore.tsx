@@ -1267,9 +1267,14 @@ export default function TrainScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>
-          {ui('title')}
-        </Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>{ui('title')}</Text>
+          {currentTask ? (
+            <Text style={styles.counterInline}>
+              {taskIndex + 1}/{tasks.length}
+            </Text>
+          ) : null}
+        </View>
 
         {loading ? <ActivityIndicator size="large" color="#0EA5E9" /> : null}
 
@@ -1283,10 +1288,6 @@ export default function TrainScreen() {
 
         {currentTask && current ? (
           <>
-            <Text style={styles.counter}>
-              {taskIndex + 1} / {tasks.length}
-            </Text>
-
             <Pressable
               style={styles.card}
               onPress={() =>
@@ -1652,18 +1653,23 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
   title: {
-    fontSize: 34,
-    fontWeight: '800',
-    marginBottom: 6,
+    fontSize: 20,
+    fontWeight: '900',
     color: '#111827',
   },
 
-  counter: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 10,
+  counterInline: {
+    fontSize: 15,
     fontWeight: '800',
+    color: '#9CA3AF',
   },
 
   card: {
