@@ -27,7 +27,24 @@ type FormEnrichment = {
   evidence: Record<string, unknown>;
 };
 
-function inferPos(surface: string): string {
+function safeStringify(value: unknown): string {
+  try {
+    if (value instanceof Error) return value.message;
+    if (typeof value === 'string') return value;
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function normalizeForm(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function inferPos(surface: string, lemma: string): string {
   const s = surface.toLowerCase();
 
   const pronouns = [
@@ -59,16 +76,28 @@ function inferPos(surface: string): string {
 
   if (pronouns.includes(s)) return 'pronoun';
   if (prepositions.includes(s)) return 'preposition';
-  if (surface.includes(' ')) return 'expression';
+
+  if (surface.includes(' ') || lemma.includes(' ')) {
+    return 'expression';
+  }
 
   if (
     s.endsWith('ing') ||
     s.endsWith('het') ||
     s.endsWith('else') ||
     s.endsWith('en') ||
+    s.endsWith('et') ||
     s.endsWith('ene')
   ) {
     return 'noun';
+  }
+
+  if (
+    s.endsWith('er') ||
+    s.endsWith('te') ||
+    s.endsWith('et')
+  ) {
+    return 'verb';
   }
 
   if (
@@ -79,35 +108,101 @@ function inferPos(surface: string): string {
     return 'adjective';
   }
 
-  if (
-    s.endsWith('er') ||
-    s.endsWith('te') ||
-    s.endsWith('et') ||
-    s.endsWith('t')
-  ) {
-    return 'verb';
-  }
-
   return 'unknown';
 }
 
+async function lookupLexemeFormVariant(
+  row: any,
+): Promise<FormEnrichment | null> {
+  const lexemeId = row.lexeme_id;
+  const surface = String(row.surface_form ?? '').trim();
+
+  if (!lexemeId || !surface) {
+    return null;
+  }
+
+  const normalizedSurface = normalizeForm(surface);
+
+  const { data, error } = await supabase
+    .from('lexeme_form_variants')
+    .select(`
+      lexeme_id,
+      value,
+      normalized_value,
+      pos,
+      form_type,
+      variant_type,
+      is_primary,
+      is_accepted,
+      source_verified,
+      evidence
+    `)
+    .eq('lexeme_id', lexemeId)
+    .eq('normalized_value', normalizedSurface)
+    .order('is_primary', { ascending: false })
+    .order('is_accepted', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  const variant = data?.[0];
+
+  if (!variant) {
+    return null;
+  }
+
+  const features: Record<string, unknown> = {
+    pos: variant.pos ?? row.pos ?? 'unknown',
+    source_priority: 'lexeme_form_variants',
+    variant_type: variant.variant_type ?? null,
+    is_primary: variant.is_primary ?? null,
+    is_accepted: variant.is_accepted ?? null,
+  };
+
+  return {
+    canonical_form:
+      row.normalized_lemma ??
+      variant.normalized_value ??
+      variant.value ??
+      normalizedSurface,
+    form_type:
+      variant.form_type ??
+      variant.variant_type ??
+      'base',
+    grammatical_features: features,
+    accepted_variants: [variant.value],
+    quality: 'resolver_verified_form_v1',
+    source: 'lexeme_form_variants',
+    evidence: {
+      table: 'lexeme_form_variants',
+      matched_value: variant.value,
+      normalized_value: variant.normalized_value,
+      lexeme_id: variant.lexeme_id,
+      source_verified: variant.source_verified ?? null,
+      variant_evidence: variant.evidence ?? {},
+      version: 'form-enrichment-worker-v4',
+    },
+  };
+}
+
 function enrichFormWithRules(row: any): FormEnrichment {
-  const surface = String(row.surface_form ?? '').toLowerCase();
-  const lemma = String(row.normalized_lemma ?? '').toLowerCase();
+  const surface = normalizeForm(row.surface_form ?? '');
+  const lemma = normalizeForm(row.normalized_lemma ?? surface);
 
   const inferredPos =
     row.pos && row.pos !== 'unknown'
       ? row.pos
-      : inferPos(surface);
+      : inferPos(surface, lemma);
 
   const features: Record<string, unknown> = {
     pos: inferredPos,
     inferred_pos: inferredPos,
-    source_priority: 'fallback_rules',
+    source_priority: 'internal_rules',
   };
 
-  const acceptedVariants = lemma ? [lemma] : [];
-
+  const acceptedVariants: string[] = [];
   let formType = 'base';
 
   if (inferredPos === 'noun') {
@@ -115,7 +210,15 @@ function enrichFormWithRules(row: any): FormEnrichment {
       formType = 'plural_definite';
       features.number = 'plural';
       features.definiteness = 'definite';
-    } else if (surface.endsWith('en') || surface.endsWith('et')) {
+    } else if (surface.endsWith('a')) {
+      formType = 'plural_definite';
+      features.number = 'plural';
+      features.definiteness = 'definite';
+    } else if (surface.endsWith('en')) {
+      formType = 'singular_definite';
+      features.number = 'singular';
+      features.definiteness = 'definite';
+    } else if (surface.endsWith('et')) {
       formType = 'singular_definite';
       features.number = 'singular';
       features.definiteness = 'definite';
@@ -123,10 +226,6 @@ function enrichFormWithRules(row: any): FormEnrichment {
       formType = 'plural_indefinite';
       features.number = 'plural';
       features.definiteness = 'indefinite';
-    } else if (surface.endsWith('a')) {
-      formType = 'singular_definite_or_plural_definite';
-      features.definiteness = 'definite';
-      features.warning = 'ambiguous_a_ending';
     }
   }
 
@@ -134,10 +233,12 @@ function enrichFormWithRules(row: any): FormEnrichment {
     if (surface.endsWith('er')) {
       formType = 'present';
       features.tense = 'present';
-    } else if (surface.endsWith('te') || surface.endsWith('et')) {
-      formType = 'past_or_participle';
-      features.tense = 'past_or_participle';
-      features.warning = 'ambiguous_verb_ending';
+    } else if (
+      surface.endsWith('te') ||
+      surface.endsWith('et')
+    ) {
+      formType = 'past';
+      features.tense = 'past';
     } else if (surface.endsWith('t')) {
       formType = 'past_participle';
       features.tense = 'participle';
@@ -157,98 +258,34 @@ function enrichFormWithRules(row: any): FormEnrichment {
     }
   }
 
+  if (lemma) {
+    acceptedVariants.push(lemma);
+  }
+
+  if (surface && surface !== lemma) {
+    acceptedVariants.push(surface);
+  }
+
   return {
     canonical_form: lemma,
     form_type: formType,
     grammatical_features: features,
-    accepted_variants: acceptedVariants,
-    quality: 'rule_based_fallback_v3',
-    source: 'internal_rules_fallback_v3',
+    accepted_variants: [...new Set(acceptedVariants)],
+    quality: 'rule_based_v2',
+    source: 'internal_rules_v2',
     evidence: {
       rule_engine: true,
+      version: 'form-enrichment-worker-v4',
       fallback: true,
-      version: 'form-enrichment-worker-v3',
-    },
-  };
-}
-
-async function lookupLexemeFormVariant(row: any): Promise<FormEnrichment | null> {
-  const lexemeId = row.lexeme_id;
-  const surface = String(row.surface_form ?? '').trim();
-
-  if (!lexemeId || !surface) {
-    return null;
-  }
-
-  const { data, error } = await supabase
-    .from('lexeme_form_variants')
-    .select(
-      `
-        lexeme_id,
-        surface_form,
-        lemma,
-        pos,
-        form_type,
-        grammatical_features,
-        variant_type,
-        is_primary,
-        is_accepted,
-        source
-      `,
-    )
-    .eq('lexeme_id', lexemeId)
-    .ilike('surface_form', surface)
-    .order('is_primary', { ascending: false })
-    .order('is_accepted', { ascending: false })
-    .limit(1);
-
-  if (error) {
-    throw error;
-  }
-
-  const variant = data?.[0];
-
-  if (!variant) {
-    return null;
-  }
-
-  const features = {
-    ...(variant.grammatical_features ?? {}),
-    pos: variant.pos ?? row.pos ?? 'unknown',
-    source_priority: 'lexeme_form_variants',
-    variant_type: variant.variant_type ?? null,
-    is_primary: variant.is_primary ?? null,
-    is_accepted: variant.is_accepted ?? null,
-  };
-
-  return {
-    canonical_form:
-      variant.lemma ??
-      row.normalized_lemma ??
-      surface.toLowerCase(),
-    form_type:
-      variant.form_type ??
-      variant.variant_type ??
-      'base',
-    grammatical_features: features,
-    accepted_variants: [variant.surface_form],
-    quality: 'resolver_verified_form_v1',
-    source: 'lexeme_form_variants',
-    evidence: {
-      table: 'lexeme_form_variants',
-      matched_surface_form: variant.surface_form,
-      lexeme_id: variant.lexeme_id,
-      source: variant.source ?? null,
-      version: 'form-enrichment-worker-v3',
     },
   };
 }
 
 async function enrichForm(row: any): Promise<FormEnrichment> {
-  const fromVariant = await lookupLexemeFormVariant(row);
+  const verifiedVariant = await lookupLexemeFormVariant(row);
 
-  if (fromVariant) {
-    return fromVariant;
+  if (verifiedVariant) {
+    return verifiedVariant;
   }
 
   return enrichFormWithRules(row);
@@ -270,7 +307,8 @@ serve(async (req) => {
         : 20;
 
     const jobId =
-      typeof body.job_id === 'string' && body.job_id.trim().length > 0
+      typeof body.job_id === 'string' &&
+      body.job_id.trim().length > 0
         ? body.job_id.trim()
         : null;
 
@@ -323,11 +361,13 @@ serve(async (req) => {
           inferred_pos:
             enriched.grammatical_features.pos,
           form_type: enriched.form_type,
-          source: enriched.source,
           quality: enriched.quality,
+          source: enriched.source,
           ok: true,
         });
       } catch (e) {
+        const message = safeStringify(e);
+
         await supabase.rpc(
           'update_form_enrichment_status',
           {
@@ -340,10 +380,7 @@ serve(async (req) => {
             p_accepted_variants: [],
             p_source: null,
             p_evidence: {},
-            p_error_message:
-              e instanceof Error
-                ? e.message
-                : String(e),
+            p_error_message: message,
           },
         );
 
@@ -351,10 +388,7 @@ serve(async (req) => {
           id: row.id,
           surface_form: row.surface_form,
           ok: false,
-          error:
-            e instanceof Error
-              ? e.message
-              : String(e),
+          error: message,
         });
       }
     }
@@ -374,10 +408,7 @@ serve(async (req) => {
     return Response.json(
       {
         ok: false,
-        error:
-          e instanceof Error
-            ? e.message
-            : String(e),
+        error: safeStringify(e),
       },
       {
         status: 500,

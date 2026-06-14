@@ -19,17 +19,24 @@ const corsHeaders = {
 
 function safeStringify(value: unknown): string {
   try {
-    if (value instanceof Error) {
-      return value.message;
-    }
-
-    if (typeof value === 'string') {
-      return value;
-    }
-
+    if (value instanceof Error) return value.message;
+    if (typeof value === 'string') return value;
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
+  }
+}
+
+async function safeJson(response: Response) {
+  try {
+    return await response.json();
+  } catch (e) {
+    return {
+      ok: false,
+      error: safeStringify(e),
+      http_status: response.status,
+      http_status_text: response.statusText,
+    };
   }
 }
 
@@ -52,8 +59,7 @@ async function runLexicalWorker(jobId: string) {
       },
     );
 
-    const workerJson = await workerResponse.json();
-
+    const workerJson = await safeJson(workerResponse);
     batches.push(workerJson);
 
     if (!workerJson.claimed || workerJson.claimed === 0) {
@@ -80,7 +86,7 @@ async function runFormEnrichment(jobId: string) {
     },
   );
 
-  return await response.json();
+  return await safeJson(response);
 }
 
 async function runSemanticAuditWorker(jobId: string) {
@@ -102,8 +108,7 @@ async function runSemanticAuditWorker(jobId: string) {
       },
     );
 
-    const workerJson = await workerResponse.json();
-
+    const workerJson = await safeJson(workerResponse);
     batches.push(workerJson);
 
     const claimed =
@@ -134,7 +139,26 @@ async function runSemanticNormalizationWorker(jobId: string) {
     },
   );
 
-  return await response.json();
+  return await safeJson(response);
+}
+
+async function rpcOrThrow<T = unknown>(
+  name: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  const result = await supabase.rpc(name, args);
+
+  if (!result) {
+    throw new Error(`RPC ${name} returned undefined`);
+  }
+
+  if (result.error) {
+    throw new Error(
+      `RPC ${name} failed: ${safeStringify(result.error)}`,
+    );
+  }
+
+  return result.data as T;
 }
 
 serve(async (req) => {
@@ -148,8 +172,9 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
 
     const requestedJobId =
-      typeof body.job_id === 'string'
-        ? body.job_id
+      typeof body.job_id === 'string' &&
+      body.job_id.trim().length > 0
+        ? body.job_id.trim()
         : null;
 
     let jobsQuery = supabase
@@ -192,7 +217,7 @@ serve(async (req) => {
         })
         .eq('id', jobId);
 
-      await supabase.rpc(
+      await rpcOrThrow<number>(
         'reset_stuck_source_checks',
         {
           p_job_id: jobId,
@@ -202,33 +227,21 @@ serve(async (req) => {
       const lexicalBatches =
         await runLexicalWorker(jobId);
 
-      const {
-        data: promotedCount,
-        error: promotionError,
-      } = await supabase.rpc(
-        'promote_verification_results_for_job',
-        {
-          p_job_id: jobId,
-        },
-      );
+      const promotedCount =
+        await rpcOrThrow<number>(
+          'promote_verification_results_for_job',
+          {
+            p_job_id: jobId,
+          },
+        );
 
-      if (promotionError) {
-        throw promotionError;
-      }
-
-      const {
-        data: formEnqueued,
-        error: formEnqueueError,
-      } = await supabase.rpc(
-        'enqueue_form_enrichment_for_job',
-        {
-          p_job_id: jobId,
-        },
-      );
-
-      if (formEnqueueError) {
-        throw formEnqueueError;
-      }
+      const formEnqueued =
+        await rpcOrThrow<number>(
+          'enqueue_form_enrichment_for_job',
+          {
+            p_job_id: jobId,
+          },
+        );
 
       const formEnrichment =
         await runFormEnrichment(jobId);
@@ -237,37 +250,23 @@ serve(async (req) => {
         await runSemanticAuditWorker(jobId);
 
       const semanticNormalization =
-        await runSemanticNormalizationWorker(
-          jobId,
+        await runSemanticNormalizationWorker(jobId);
+
+      const buildResult =
+        await rpcOrThrow<string>(
+          'build_text_analysis_result',
+          {
+            p_job_id: jobId,
+          },
         );
 
-      const {
-        data: buildResult,
-        error: buildError,
-      } = await supabase.rpc(
-        'build_text_analysis_result',
-        {
-          p_job_id: jobId,
-        },
-      );
-
-      if (buildError) {
-        throw buildError;
-      }
-
-      const {
-        data: counters,
-        error: countersError,
-      } = await supabase.rpc(
-        'recalculate_job_progress',
-        {
-          p_job_id: jobId,
-        },
-      );
-
-      if (countersError) {
-        throw countersError;
-      }
+      const counters =
+        await rpcOrThrow<Record<string, unknown>>(
+          'recalculate_job_progress',
+          {
+            p_job_id: jobId,
+          },
+        );
 
       processedJobs.push({
         job_id: jobId,
@@ -275,10 +274,8 @@ serve(async (req) => {
         promoted_count: promotedCount,
         form_enqueued: formEnqueued,
         form_enrichment: formEnrichment,
-        semantic_audit_batches:
-          semanticAuditBatches,
-        semantic_normalization:
-          semanticNormalization,
+        semantic_audit_batches: semanticAuditBatches,
+        semantic_normalization: semanticNormalization,
         build_result: buildResult,
         counters,
       });
@@ -287,8 +284,7 @@ serve(async (req) => {
     return Response.json(
       {
         ok: true,
-        requested_job_id:
-          requestedJobId,
+        requested_job_id: requestedJobId,
         processed_jobs: processedJobs,
       },
       {
@@ -299,10 +295,7 @@ serve(async (req) => {
     return Response.json(
       {
         ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : safeStringify(error),
+        error: safeStringify(error),
       },
       {
         status: 500,
