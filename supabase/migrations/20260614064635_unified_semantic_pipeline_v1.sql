@@ -1,6 +1,18 @@
 -- unified_semantic_pipeline_v1
 -- Finalized verification → promotion → semantic audit → form enrichment pipeline
+drop function if exists public.claim_next_expression_semantic_audit(integer);
 
+drop function if exists public.update_expression_semantic_audit_status(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  jsonb,
+  jsonb,
+  text,
+  jsonb
+);
 create table if not exists public.expression_semantic_enrichment (
   id uuid primary key default gen_random_uuid(),
 
