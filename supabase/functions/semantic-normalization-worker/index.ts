@@ -9,6 +9,12 @@ const supabase = createClient(
   SUPABASE_SERVICE_ROLE_KEY,
 );
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
+};
+
 type EntityType = 'lexeme' | 'expression';
 
 type Row = {
@@ -142,6 +148,7 @@ async function ensureSemanticUnit(row: Row): Promise<string> {
     .from('canonical_semantic_units')
     .select('id')
     .eq('normalized_form', normalizedForm)
+    .eq('semantic_type', unitType)
     .maybeSingle();
 
   if (existingError) {
@@ -183,7 +190,7 @@ async function attachVariant(
 ): Promise<void> {
   const canonicalForm = row.lemma.trim();
 
-  const insertPayload =
+  const payload =
     row.entity_type === 'expression'
       ? {
           semantic_unit_id: semanticUnitId,
@@ -191,6 +198,7 @@ async function attachVariant(
           variant_form: canonicalForm,
           variant_type: 'trusted_expression',
           confidence: row.semantic_confidence,
+          updated_at: new Date().toISOString(),
         }
       : {
           semantic_unit_id: semanticUnitId,
@@ -198,27 +206,42 @@ async function attachVariant(
           variant_form: canonicalForm,
           variant_type: 'trusted_lexeme',
           confidence: row.semantic_confidence,
+          updated_at: new Date().toISOString(),
         };
 
   const { error } = await supabase
     .from('semantic_unit_variants')
-    .insert(insertPayload);
+    .upsert(payload, {
+      onConflict: 'semantic_unit_id,variant_form,variant_type',
+    });
 
   if (error) {
-    const msg = safeStringify(error);
-    if (!msg.includes('duplicate')) {
-      throw error;
-    }
+    throw error;
   }
 }
 
-serve(async (_req) => {
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: corsHeaders,
+    });
+  }
+
   try {
-    const lexemeRows = await claimLexemes(50);
-    const remaining = Math.max(0, 50 - lexemeRows.length);
-    const expressionRows = remaining > 0
-      ? await claimExpressions(remaining)
-      : [];
+    const body = await req.json().catch(() => ({}));
+
+    const limit =
+      typeof body.limit === 'number' && body.limit > 0
+        ? body.limit
+        : 50;
+
+    const lexemeRows = await claimLexemes(limit);
+    const remaining = Math.max(0, limit - lexemeRows.length);
+
+    const expressionRows =
+      remaining > 0
+        ? await claimExpressions(remaining)
+        : [];
 
     const rows = [...lexemeRows, ...expressionRows];
     const results = [];
@@ -233,6 +256,7 @@ serve(async (_req) => {
           entity_type: row.entity_type,
           lemma: row.lemma,
           normalized_form: normalizeSemanticForm(row.lemma),
+          semantic_type: semanticType(row),
           semantic_unit_id: semanticUnitId,
           ok: true,
         });
@@ -246,20 +270,28 @@ serve(async (_req) => {
       }
     }
 
-    return Response.json({
-      ok: true,
-      claimed: rows.length,
-      lexemes_claimed: lexemeRows.length,
-      expressions_claimed: expressionRows.length,
-      results,
-    });
+    return Response.json(
+      {
+        ok: true,
+        claimed: rows.length,
+        lexemes_claimed: lexemeRows.length,
+        expressions_claimed: expressionRows.length,
+        results,
+      },
+      {
+        headers: corsHeaders,
+      },
+    );
   } catch (e) {
     return Response.json(
       {
         ok: false,
         error: safeStringify(e),
       },
-      { status: 500 },
+      {
+        status: 500,
+        headers: corsHeaders,
+      },
     );
   }
 });
