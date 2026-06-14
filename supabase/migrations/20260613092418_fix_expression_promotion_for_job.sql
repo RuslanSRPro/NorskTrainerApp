@@ -106,22 +106,25 @@ begin
   ),
 
   inserted_expression_enrichment as (
-    insert into expression_semantic_enrichment (
-      expression_id,
-      status,
-      created_at,
-      updated_at
-    )
-    select distinct
-      ei.expression_id,
-      'pending',
-      now(),
-      now()
-    from expression_items ei
-    where ei.expression_id is not null
-    on conflict (expression_id) do nothing
-    returning id
-  ),
+  insert into expression_semantic_enrichment (
+    expression_id,
+    status,
+    created_at,
+    updated_at
+  )
+  select distinct
+    ei.expression_id,
+    'pending',
+    now(),
+    now()
+  from expression_items ei
+  where ei.expression_id is not null
+  on conflict (expression_id) do update
+  set
+    status = 'pending',
+    updated_at = now()
+  returning id
+),
 
   token_candidates as (
     select *

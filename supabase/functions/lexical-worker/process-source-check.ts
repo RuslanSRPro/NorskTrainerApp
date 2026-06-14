@@ -2,6 +2,17 @@ import type { SourceCheck, LookupResult } from './types.ts';
 import { getCachedLookup, saveLookupCache } from './cache.ts';
 import { lookupSource } from './adapters.ts';
 
+function sanitizeEvidence(raw: Record<string, unknown> | null | undefined) {
+  const evidence = { ...(raw ?? {}) } as Record<string, unknown>;
+
+  delete evidence.registered_entry;
+  delete evidence.whole_unit_match;
+  delete evidence.component_match;
+  delete evidence.usage_match;
+
+  return evidence;
+}
+
 export async function processSourceCheck(
   supabase: any,
   check: SourceCheck,
@@ -14,7 +25,8 @@ export async function processSourceCheck(
   }
 
   const evidence = {
-    ...(result.evidence ?? {}),
+    ...sanitizeEvidence(result.evidence),
+    original_quality: result.quality,
     registered_entry: result.registered_entry ?? false,
     whole_unit_match: result.whole_unit_match ?? false,
     component_match: result.component_match ?? false,

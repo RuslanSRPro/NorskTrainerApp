@@ -17,12 +17,18 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type',
 };
 
-function inferPos(
-  surface: string,
-  lemma: string,
-): string {
+type FormEnrichment = {
+  canonical_form: string;
+  form_type: string;
+  grammatical_features: Record<string, unknown>;
+  accepted_variants: string[];
+  quality: string;
+  source: string;
+  evidence: Record<string, unknown>;
+};
+
+function inferPos(surface: string): string {
   const s = surface.toLowerCase();
-  const l = lemma.toLowerCase();
 
   const pronouns = [
     'jeg',
@@ -51,34 +57,18 @@ function inferPos(
     'om',
   ];
 
-  if (pronouns.includes(s)) {
-    return 'pronoun';
-  }
-
-  if (prepositions.includes(s)) {
-    return 'preposition';
-  }
+  if (pronouns.includes(s)) return 'pronoun';
+  if (prepositions.includes(s)) return 'preposition';
+  if (surface.includes(' ')) return 'expression';
 
   if (
     s.endsWith('ing') ||
     s.endsWith('het') ||
-    s.endsWith('else')
+    s.endsWith('else') ||
+    s.endsWith('en') ||
+    s.endsWith('ene')
   ) {
     return 'noun';
-  }
-if (
-  s.endsWith('en') ||
-  s.endsWith('et') ||
-  s.endsWith('ene')
-) {
-  return 'noun';
-}
-  if (
-    s.endsWith('er') ||
-    s.endsWith('te') ||
-    s.endsWith('et')
-  ) {
-    return 'verb';
   }
 
   if (
@@ -89,28 +79,34 @@ if (
     return 'adjective';
   }
 
-  if (surface.includes(' ')) {
-    return 'expression';
+  if (
+    s.endsWith('er') ||
+    s.endsWith('te') ||
+    s.endsWith('et') ||
+    s.endsWith('t')
+  ) {
+    return 'verb';
   }
 
   return 'unknown';
 }
 
-function enrichForm(row: any) {
-  const surface = row.surface_form?.toLowerCase() ?? '';
-  const lemma = row.normalized_lemma?.toLowerCase() ?? '';
+function enrichFormWithRules(row: any): FormEnrichment {
+  const surface = String(row.surface_form ?? '').toLowerCase();
+  const lemma = String(row.normalized_lemma ?? '').toLowerCase();
 
   const inferredPos =
     row.pos && row.pos !== 'unknown'
       ? row.pos
-      : inferPos(surface, lemma);
+      : inferPos(surface);
 
   const features: Record<string, unknown> = {
     pos: inferredPos,
     inferred_pos: inferredPos,
+    source_priority: 'fallback_rules',
   };
 
-  const acceptedVariants: string[] = [];
+  const acceptedVariants = lemma ? [lemma] : [];
 
   let formType = 'base';
 
@@ -119,15 +115,7 @@ function enrichForm(row: any) {
       formType = 'plural_definite';
       features.number = 'plural';
       features.definiteness = 'definite';
-    } else if (surface.endsWith('a')) {
-      formType = 'plural_definite';
-      features.number = 'plural';
-      features.definiteness = 'definite';
-    } else if (surface.endsWith('en')) {
-      formType = 'singular_definite';
-      features.number = 'singular';
-      features.definiteness = 'definite';
-    } else if (surface.endsWith('et')) {
+    } else if (surface.endsWith('en') || surface.endsWith('et')) {
       formType = 'singular_definite';
       features.number = 'singular';
       features.definiteness = 'definite';
@@ -135,6 +123,10 @@ function enrichForm(row: any) {
       formType = 'plural_indefinite';
       features.number = 'plural';
       features.definiteness = 'indefinite';
+    } else if (surface.endsWith('a')) {
+      formType = 'singular_definite_or_plural_definite';
+      features.definiteness = 'definite';
+      features.warning = 'ambiguous_a_ending';
     }
   }
 
@@ -142,12 +134,10 @@ function enrichForm(row: any) {
     if (surface.endsWith('er')) {
       formType = 'present';
       features.tense = 'present';
-    } else if (
-      surface.endsWith('te') ||
-      surface.endsWith('et')
-    ) {
-      formType = 'past';
-      features.tense = 'past';
+    } else if (surface.endsWith('te') || surface.endsWith('et')) {
+      formType = 'past_or_participle';
+      features.tense = 'past_or_participle';
+      features.warning = 'ambiguous_verb_ending';
     } else if (surface.endsWith('t')) {
       formType = 'past_participle';
       features.tense = 'participle';
@@ -167,14 +157,101 @@ function enrichForm(row: any) {
     }
   }
 
-  acceptedVariants.push(lemma);
-
   return {
     canonical_form: lemma,
     form_type: formType,
     grammatical_features: features,
     accepted_variants: acceptedVariants,
+    quality: 'rule_based_fallback_v3',
+    source: 'internal_rules_fallback_v3',
+    evidence: {
+      rule_engine: true,
+      fallback: true,
+      version: 'form-enrichment-worker-v3',
+    },
   };
+}
+
+async function lookupLexemeFormVariant(row: any): Promise<FormEnrichment | null> {
+  const lexemeId = row.lexeme_id;
+  const surface = String(row.surface_form ?? '').trim();
+
+  if (!lexemeId || !surface) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('lexeme_form_variants')
+    .select(
+      `
+        lexeme_id,
+        surface_form,
+        lemma,
+        pos,
+        form_type,
+        grammatical_features,
+        variant_type,
+        is_primary,
+        is_accepted,
+        source
+      `,
+    )
+    .eq('lexeme_id', lexemeId)
+    .ilike('surface_form', surface)
+    .order('is_primary', { ascending: false })
+    .order('is_accepted', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  const variant = data?.[0];
+
+  if (!variant) {
+    return null;
+  }
+
+  const features = {
+    ...(variant.grammatical_features ?? {}),
+    pos: variant.pos ?? row.pos ?? 'unknown',
+    source_priority: 'lexeme_form_variants',
+    variant_type: variant.variant_type ?? null,
+    is_primary: variant.is_primary ?? null,
+    is_accepted: variant.is_accepted ?? null,
+  };
+
+  return {
+    canonical_form:
+      variant.lemma ??
+      row.normalized_lemma ??
+      surface.toLowerCase(),
+    form_type:
+      variant.form_type ??
+      variant.variant_type ??
+      'base',
+    grammatical_features: features,
+    accepted_variants: [variant.surface_form],
+    quality: 'resolver_verified_form_v1',
+    source: 'lexeme_form_variants',
+    evidence: {
+      table: 'lexeme_form_variants',
+      matched_surface_form: variant.surface_form,
+      lexeme_id: variant.lexeme_id,
+      source: variant.source ?? null,
+      version: 'form-enrichment-worker-v3',
+    },
+  };
+}
+
+async function enrichForm(row: any): Promise<FormEnrichment> {
+  const fromVariant = await lookupLexemeFormVariant(row);
+
+  if (fromVariant) {
+    return fromVariant;
+  }
+
+  return enrichFormWithRules(row);
 }
 
 serve(async (req) => {
@@ -187,11 +264,14 @@ serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
 
-    const limit = body.limit ?? 20;
+    const limit =
+      typeof body.limit === 'number' && body.limit > 0
+        ? body.limit
+        : 20;
 
     const jobId =
-      typeof body.job_id === 'string'
-        ? body.job_id
+      typeof body.job_id === 'string' && body.job_id.trim().length > 0
+        ? body.job_id.trim()
         : null;
 
     const { data: rows, error } = await supabase.rpc(
@@ -210,7 +290,7 @@ serve(async (req) => {
 
     for (const row of rows ?? []) {
       try {
-        const enriched = enrichForm(row);
+        const enriched = await enrichForm(row);
 
         const { error: updateError } =
           await supabase.rpc(
@@ -218,7 +298,7 @@ serve(async (req) => {
             {
               p_id: row.id,
               p_status: 'done',
-              p_quality: 'rule_based_v2',
+              p_quality: enriched.quality,
               p_canonical_form:
                 enriched.canonical_form,
               p_form_type:
@@ -227,12 +307,8 @@ serve(async (req) => {
                 enriched.grammatical_features,
               p_accepted_variants:
                 enriched.accepted_variants,
-              p_source: 'internal_rules_v2',
-              p_evidence: {
-                rule_engine: true,
-                version:
-                  'form-enrichment-worker-v2',
-              },
+              p_source: enriched.source,
+              p_evidence: enriched.evidence,
               p_error_message: null,
             },
           );
@@ -247,6 +323,8 @@ serve(async (req) => {
           inferred_pos:
             enriched.grammatical_features.pos,
           form_type: enriched.form_type,
+          source: enriched.source,
+          quality: enriched.quality,
           ok: true,
         });
       } catch (e) {

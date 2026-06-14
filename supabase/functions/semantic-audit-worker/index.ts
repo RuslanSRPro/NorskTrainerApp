@@ -92,28 +92,25 @@ function extractSourceEvidence(
 
   return Object.entries(verificationEvidence).map(([source, raw]) => {
     const value = raw as any;
-    const inner = value?.evidence ?? value;
+    const inner = value?.evidence ?? {};
 
     return {
       source,
+
       quality:
-        inner?.original_quality ??
         value?.original_quality ??
-        inner?.quality ??
         value?.quality ??
+        inner?.original_quality ??
+        inner?.quality ??
         null,
-      registered_entry:
-        inner?.registered_entry === true ||
-        value?.registered_entry === true,
-      whole_unit_match:
-        inner?.whole_unit_match === true ||
-        value?.whole_unit_match === true,
-      component_match:
-        inner?.component_match === true ||
-        value?.component_match === true,
+
+      registered_entry: value?.registered_entry === true,
+      whole_unit_match: value?.whole_unit_match === true,
+      component_match: value?.component_match === true,
+
       usage_match:
-        inner?.usage_match === true ||
-        value?.usage_match === true,
+        value?.usage_match === true ||
+        inner?.usage_match === true,
     };
   });
 }
