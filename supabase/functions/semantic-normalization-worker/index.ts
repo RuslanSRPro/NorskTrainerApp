@@ -56,10 +56,16 @@ function safeStringify(value: unknown): string {
   }
 }
 
-async function claimLexemes(limit: number): Promise<Row[]> {
+async function claimLexemes(
+  limit: number,
+  jobId: string | null,
+): Promise<Row[]> {
   const { data, error } = await supabase.rpc(
     'claim_next_semantic_normalization',
-    { p_limit: limit },
+    {
+      p_limit: limit,
+      p_job_id: jobId,
+    },
   );
 
   if (error) {
@@ -79,10 +85,16 @@ async function claimLexemes(limit: number): Promise<Row[]> {
   }));
 }
 
-async function claimExpressions(limit: number): Promise<Row[]> {
+async function claimExpressions(
+  limit: number,
+  jobId: string | null,
+): Promise<Row[]> {
   const { data, error } = await supabase.rpc(
     'claim_next_expression_semantic_normalization',
-    { p_limit: limit },
+    {
+      p_limit: limit,
+      p_job_id: jobId,
+    },
   );
 
   if (error) {
@@ -168,11 +180,12 @@ async function ensureSemanticUnit(row: Row): Promise<string> {
       pos: row.pos,
       trusted: true,
       confidence: row.semantic_confidence,
+      semantic_confidence: row.semantic_confidence,
       source_count: 1,
       primary_source:
         row.entity_type === 'expression'
-          ? 'trusted_expressions_v1'
-          : 'trusted_lexemes_v1',
+          ? 'semantic_normalization_expression_v1'
+          : 'semantic_normalization_lexeme_v1',
     })
     .select('id')
     .single();
@@ -235,12 +248,17 @@ serve(async (req) => {
         ? body.limit
         : 50;
 
-    const lexemeRows = await claimLexemes(limit);
+    const jobId =
+      typeof body.job_id === 'string' && body.job_id.trim().length > 0
+        ? body.job_id.trim()
+        : null;
+
+    const lexemeRows = await claimLexemes(limit, jobId);
     const remaining = Math.max(0, limit - lexemeRows.length);
 
     const expressionRows =
       remaining > 0
-        ? await claimExpressions(remaining)
+        ? await claimExpressions(remaining, jobId)
         : [];
 
     const rows = [...lexemeRows, ...expressionRows];
@@ -254,6 +272,7 @@ serve(async (req) => {
 
         results.push({
           entity_type: row.entity_type,
+          entity_id: row.entity_id,
           lemma: row.lemma,
           normalized_form: normalizeSemanticForm(row.lemma),
           semantic_type: semanticType(row),
@@ -263,6 +282,7 @@ serve(async (req) => {
       } catch (e) {
         results.push({
           entity_type: row.entity_type,
+          entity_id: row.entity_id,
           lemma: row.lemma,
           ok: false,
           error: safeStringify(e),
@@ -273,6 +293,7 @@ serve(async (req) => {
     return Response.json(
       {
         ok: true,
+        requested_job_id: jobId,
         claimed: rows.length,
         lexemes_claimed: lexemeRows.length,
         expressions_claimed: expressionRows.length,

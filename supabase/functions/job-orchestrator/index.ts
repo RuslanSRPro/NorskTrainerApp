@@ -2,7 +2,9 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get(
+  'SUPABASE_SERVICE_ROLE_KEY',
+)!;
 
 const supabase = createClient(
   SUPABASE_URL,
@@ -14,6 +16,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
 };
+
+function safeStringify(value: unknown): string {
+  try {
+    if (value instanceof Error) {
+      return value.message;
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
 
 async function runLexicalWorker(jobId: string) {
   const batches = [];
@@ -35,6 +53,7 @@ async function runLexicalWorker(jobId: string) {
     );
 
     const workerJson = await workerResponse.json();
+
     batches.push(workerJson);
 
     if (!workerJson.claimed || workerJson.claimed === 0) {
@@ -84,6 +103,7 @@ async function runSemanticAuditWorker(jobId: string) {
     );
 
     const workerJson = await workerResponse.json();
+
     batches.push(workerJson);
 
     const claimed =
@@ -98,28 +118,58 @@ async function runSemanticAuditWorker(jobId: string) {
   return batches;
 }
 
+async function runSemanticNormalizationWorker(jobId: string) {
+  const response = await fetch(
+    `${SUPABASE_URL}/functions/v1/semantic-normalization-worker`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        limit: 50,
+        job_id: jobId,
+      }),
+    },
+  );
+
+  return await response.json();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', {
+      headers: corsHeaders,
+    });
   }
 
   try {
     const body = await req.json().catch(() => ({}));
-    const requestedJobId = body.job_id ? String(body.job_id) : null;
+
+    const requestedJobId =
+      typeof body.job_id === 'string'
+        ? body.job_id
+        : null;
 
     let jobsQuery = supabase
       .from('lexeme_processing_jobs')
       .select('*')
       .in('status', ['pending', 'processing', 'ready'])
-      .order('created_at', { ascending: true });
+      .order('created_at', {
+        ascending: true,
+      });
 
     if (requestedJobId) {
-      jobsQuery = jobsQuery.eq('id', requestedJobId).limit(1);
+      jobsQuery = jobsQuery
+        .eq('id', requestedJobId)
+        .limit(1);
     } else {
       jobsQuery = jobsQuery.limit(10);
     }
 
-    const { data: jobs, error: jobsError } = await jobsQuery;
+    const { data: jobs, error: jobsError } =
+      await jobsQuery;
 
     if (jobsError) {
       throw jobsError;
@@ -134,44 +184,81 @@ serve(async (req) => {
         .from('lexeme_processing_jobs')
         .update({
           status: 'processing',
-          started_at: job.started_at ?? new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          started_at:
+            job.started_at ??
+            new Date().toISOString(),
+          updated_at:
+            new Date().toISOString(),
         })
         .eq('id', jobId);
 
-      await supabase.rpc('reset_stuck_source_checks', {
-        p_job_id: jobId,
-      });
-
-      const lexicalBatches = await runLexicalWorker(jobId);
-
-      const { data: promotedCount, error: promotionError } =
-        await supabase.rpc('promote_verification_results_for_job', {
+      await supabase.rpc(
+        'reset_stuck_source_checks',
+        {
           p_job_id: jobId,
-        });
+        },
+      );
+
+      const lexicalBatches =
+        await runLexicalWorker(jobId);
+
+      const {
+        data: promotedCount,
+        error: promotionError,
+      } = await supabase.rpc(
+        'promote_verification_results_for_job',
+        {
+          p_job_id: jobId,
+        },
+      );
 
       if (promotionError) {
         throw promotionError;
       }
 
-      const { data: formEnqueued, error: formEnqueueError } =
-        await supabase.rpc('enqueue_form_enrichment_for_job', {
+      const {
+        data: formEnqueued,
+        error: formEnqueueError,
+      } = await supabase.rpc(
+        'enqueue_form_enrichment_for_job',
+        {
           p_job_id: jobId,
-        });
+        },
+      );
 
       if (formEnqueueError) {
         throw formEnqueueError;
       }
 
-      const formEnrichment = await runFormEnrichment(jobId);
+      const formEnrichment =
+        await runFormEnrichment(jobId);
 
-      const semanticAuditBatches = await runSemanticAuditWorker(jobId);
+      const semanticAuditBatches =
+        await runSemanticAuditWorker(jobId);
 
-      await supabase.rpc('build_text_analysis_result', {
-        p_job_id: jobId,
-      });
+      const semanticNormalization =
+        await runSemanticNormalizationWorker(
+          jobId,
+        );
 
-      const { data: counters, error: countersError } = await supabase.rpc(
+      const {
+        data: buildResult,
+        error: buildError,
+      } = await supabase.rpc(
+        'build_text_analysis_result',
+        {
+          p_job_id: jobId,
+        },
+      );
+
+      if (buildError) {
+        throw buildError;
+      }
+
+      const {
+        data: counters,
+        error: countersError,
+      } = await supabase.rpc(
         'recalculate_job_progress',
         {
           p_job_id: jobId,
@@ -188,7 +275,11 @@ serve(async (req) => {
         promoted_count: promotedCount,
         form_enqueued: formEnqueued,
         form_enrichment: formEnrichment,
-        semantic_audit_batches: semanticAuditBatches,
+        semantic_audit_batches:
+          semanticAuditBatches,
+        semantic_normalization:
+          semanticNormalization,
+        build_result: buildResult,
         counters,
       });
     }
@@ -196,7 +287,8 @@ serve(async (req) => {
     return Response.json(
       {
         ok: true,
-        requested_job_id: requestedJobId,
+        requested_job_id:
+          requestedJobId,
         processed_jobs: processedJobs,
       },
       {
@@ -207,7 +299,10 @@ serve(async (req) => {
     return Response.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : String(error),
+        error:
+          error instanceof Error
+            ? error.message
+            : safeStringify(error),
       },
       {
         status: 500,
