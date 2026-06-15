@@ -43,7 +43,15 @@ export async function checkOrdbokeneLive(
 
   let articlePayload = await fetchJson(exactArticlesUrl);
   const suggestPayload = await fetchJson(exactSuggestUrl);
+console.log(
+  'ORDBOKENE ARTICLES DEBUG',
+  JSON.stringify(articlePayload).slice(0, 8000),
+);
 
+console.log(
+  'ORDBOKENE SUGGEST DEBUG',
+  JSON.stringify(suggestPayload).slice(0, 8000),
+);
   let articleIds = extractOrdbokeneArticleIds(articlePayload);
 
   if (articleIds.length === 0 && tokens.length === 1) {
