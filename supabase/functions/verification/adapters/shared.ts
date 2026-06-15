@@ -18,20 +18,43 @@ export type EvidenceQuality =
   | 'not_checked'
   | 'error';
 
+export type AuthoritativeRelationCandidate = {
+  relation_type:
+    | 'synonym_candidate'
+    | 'related_candidate'
+    | 'derived_candidate'
+    | 'compound_component_candidate';
+
+  target_text: string;
+
+  source: SourceName;
+
+  confidence: 'high' | 'medium' | 'low';
+
+  evidence_label?: string;
+  url?: string;
+};
+
 export type SourceLookupResult = {
   source: SourceName;
   checked: boolean;
   found: boolean | null;
   quality: EvidenceQuality;
+
   registered_entry: boolean;
   whole_unit_match: boolean;
   component_match: boolean;
   usage_match: boolean;
+
   urls: string[];
+
   evidence_label?: string;
   note?: string;
   error?: string;
+
   raw_preview?: unknown;
+
+  authoritative_relations?: AuthoritativeRelationCandidate[];
 };
 
 const LIVE_LOOKUP_TIMEOUT_MS = 9000;
@@ -65,15 +88,25 @@ export async function fetchWithTimeout(
 
 export async function fetchText(url: string): Promise<string> {
   const res = await fetchWithTimeout(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
   return await res.text();
 }
 
 export async function fetchJson(url: string): Promise<unknown> {
   const res = await fetchWithTimeout(url, {
-    headers: { Accept: 'application/json, text/plain, */*' },
+    headers: {
+      Accept: 'application/json, text/plain, */*',
+    },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
   return await res.json();
 }
 
@@ -114,27 +147,55 @@ export function getTokens(value: string): string[] {
     .filter((t) => t.length >= 2);
 }
 
-export function containsExactPhrase(text: string, phrase: string): boolean {
+export function containsExactPhrase(
+  text: string,
+  phrase: string,
+): boolean {
   const normalizedText = normalizeForMatch(text);
   const normalizedPhrase = normalizeForMatch(phrase);
-  if (!normalizedPhrase) return false;
 
-  const escaped = normalizedPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|\\s)${escaped}(\\s|$)`, 'i').test(normalizedText);
+  if (!normalizedPhrase) {
+    return false;
+  }
+
+  const escaped = normalizedPhrase.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    '\\$&',
+  );
+
+  return new RegExp(
+    `(^|\\s)${escaped}(\\s|$)`,
+    'i',
+  ).test(normalizedText);
 }
 
-export function includesAny(text: string, needles: string[]): boolean {
+export function includesAny(
+  text: string,
+  needles: string[],
+): boolean {
   const normalized = normalizeForMatch(text);
-  return needles.some((n) => normalized.includes(normalizeForMatch(n)));
+
+  return needles.some((n) =>
+    normalized.includes(normalizeForMatch(n)),
+  );
 }
 
-export function countTokenHits(text: string, tokens: string[]): number {
+export function countTokenHits(
+  text: string,
+  tokens: string[],
+): number {
   const normalized = normalizeForMatch(text);
-  return tokens.filter((token) => normalized.includes(normalizeForMatch(token))).length;
+
+  return tokens.filter((token) =>
+    normalized.includes(normalizeForMatch(token)),
+  ).length;
 }
 
 export function preview(raw: unknown): unknown {
-  if (typeof raw !== 'string') return raw;
+  if (typeof raw !== 'string') {
+    return raw;
+  }
+
   return raw.slice(0, 700);
 }
 
@@ -149,50 +210,78 @@ export function makeLookup(
   urls: string[],
   label: string,
   raw: unknown,
+  authoritativeRelations: AuthoritativeRelationCandidate[] = [],
 ): SourceLookupResult {
   return {
     source,
     checked: true,
     found,
     quality,
+
     registered_entry: registered,
     whole_unit_match: whole,
     component_match: component,
     usage_match: usage,
+
     urls,
+
     evidence_label: label,
+
     raw_preview: preview(raw),
+
+    authoritative_relations: authoritativeRelations,
   };
 }
 
-export function extractOrdbokeneArticleIds(payload: unknown): string[] {
+export function extractOrdbokeneArticleIds(
+  payload: unknown,
+): string[] {
   const ids = new Set<string>();
 
   function walk(value: unknown): void {
     if (!value) return;
 
     if (Array.isArray(value)) {
-      for (const item of value) walk(item);
+      for (const item of value) {
+        walk(item);
+      }
+
       return;
     }
 
     if (typeof value === 'object') {
       const obj = value as Record<string, unknown>;
 
-      for (const key of ['article_id', 'articleId', 'id', 'art_id']) {
+      for (const key of [
+        'article_id',
+        'articleId',
+        'id',
+        'art_id',
+      ]) {
         const v = obj[key];
-        if (typeof v === 'string' || typeof v === 'number') ids.add(String(v));
+
+        if (
+          typeof v === 'string' ||
+          typeof v === 'number'
+        ) {
+          ids.add(String(v));
+        }
       }
 
-      for (const v of Object.values(obj)) walk(v);
+      for (const v of Object.values(obj)) {
+        walk(v);
+      }
     }
   }
 
   walk(payload);
+
   return [...ids];
 }
 
-export function extractOrdbokeneSuggestExactTerms(payload: unknown): string[] {
+export function extractOrdbokeneSuggestExactTerms(
+  payload: unknown,
+): string[] {
   const terms = new Set<string>();
 
   function walk(value: unknown): void {
@@ -204,32 +293,58 @@ export function extractOrdbokeneSuggestExactTerms(payload: unknown): string[] {
     }
 
     if (Array.isArray(value)) {
-      for (const item of value) walk(item);
+      for (const item of value) {
+        walk(item);
+      }
+
       return;
     }
 
     if (typeof value === 'object') {
       const obj = value as Record<string, unknown>;
 
-      for (const key of ['word', 'lemma', 'text', 'label', 'title']) {
+      for (const key of [
+        'word',
+        'lemma',
+        'text',
+        'label',
+        'title',
+      ]) {
         const v = obj[key];
-        if (typeof v === 'string') terms.add(v);
+
+        if (typeof v === 'string') {
+          terms.add(v);
+        }
       }
 
-      for (const v of Object.values(obj)) walk(v);
+      for (const v of Object.values(obj)) {
+        walk(v);
+      }
     }
   }
 
   walk(payload);
+
   return [...terms].filter((t) => t.length > 0);
 }
 
-export function ordbokenePayloadHasExactMatch(payload: unknown, query: string): boolean {
-  const terms = extractOrdbokeneSuggestExactTerms(payload);
-  return terms.some((t) => normalizeForMatch(t) === normalizeForMatch(query));
+export function ordbokenePayloadHasExactMatch(
+  payload: unknown,
+  query: string,
+): boolean {
+  const terms =
+    extractOrdbokeneSuggestExactTerms(payload);
+
+  return terms.some(
+    (t) =>
+      normalizeForMatch(t) ===
+      normalizeForMatch(query),
+  );
 }
 
-export function shouldCheckOrdbokeneComponent(token: string): boolean {
+export function shouldCheckOrdbokeneComponent(
+  token: string,
+): boolean {
   const stop = new Set([
     'og',
     'i',
@@ -248,5 +363,9 @@ export function shouldCheckOrdbokeneComponent(token: string): boolean {
   ]);
 
   const normalized = normalizeForMatch(token);
-  return normalized.length >= 3 && !stop.has(normalized);
+
+  return (
+    normalized.length >= 3 &&
+    !stop.has(normalized)
+  );
 }

@@ -8,9 +8,105 @@ import {
   includesAny,
   makeLookup,
   normalizeHtmlText,
+  normalizeForMatch,
+  type AuthoritativeRelationCandidate,
   type EvidenceQuality,
   type SourceLookupResult,
 } from './shared.ts';
+
+function extractNAOBRelationCandidates(
+  text: string,
+  query: string,
+  url: string,
+): AuthoritativeRelationCandidate[] {
+  const candidates: AuthoritativeRelationCandidate[] = [];
+  const normalizedQuery = normalizeForMatch(query);
+
+  const patterns: Array<{
+    pattern: RegExp;
+    relation_type: AuthoritativeRelationCandidate['relation_type'];
+    label: string;
+  }> = [
+    {
+      pattern:
+        /(?:se også|jf\.|jamfør)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
+      relation_type: 'related_candidate',
+      label: 'NAOB related reference',
+    },
+    {
+      pattern:
+        /(?:beslektet med|beslektet)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
+      relation_type: 'derived_candidate',
+      label: 'NAOB related/derived reference',
+    },
+    {
+      pattern:
+        /(?:avledet av)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
+      relation_type: 'derived_candidate',
+      label: 'NAOB derived reference',
+    },
+    {
+      pattern:
+        /(?:sammensetning av)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
+      relation_type: 'compound_component_candidate',
+      label: 'NAOB compound component reference',
+    },
+  ];
+
+  for (const { pattern, relation_type, label } of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const rawTarget = match[1] ?? '';
+
+      const target = normalizeForMatch(rawTarget)
+        .replace(/\b(?:og|eller|med|til|i|på|for|av)\s*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!target) continue;
+      if (target === normalizedQuery) continue;
+      if (target.length < 3) continue;
+      if (target.length > 80) continue;
+      if (target.split(' ').length > 8) continue;
+
+      candidates.push({
+        relation_type,
+        target_text: target,
+        source: 'NAOB',
+        confidence: 'medium',
+        evidence_label: label,
+        url,
+      });
+    }
+  }
+
+  const seen = new Set<string>();
+
+  return candidates.filter((candidate) => {
+    const key = `${candidate.relation_type}:${candidate.target_text}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function mergeRelations(
+  ...groups: Array<AuthoritativeRelationCandidate[] | undefined>
+): AuthoritativeRelationCandidate[] {
+  const merged: AuthoritativeRelationCandidate[] = [];
+  const seen = new Set<string>();
+
+  for (const group of groups) {
+    for (const candidate of group ?? []) {
+      const key = `${candidate.source}:${candidate.relation_type}:${candidate.target_text}`;
+      if (seen.has(key)) continue;
+
+      seen.add(key);
+      merged.push(candidate);
+    }
+  }
+
+  return merged;
+}
 
 export async function checkNAOBLive(
   lemma: string,
@@ -63,11 +159,16 @@ export async function checkNAOBLive(
       component_match: false,
       usage_match: false,
       urls: [...(html?.urls ?? []), ...(api?.urls ?? [])],
-      evidence_label: 'NAOB: both HTML and API lookup completed; no match found',
+      evidence_label:
+        'NAOB: both HTML and API lookup completed; no match found',
       raw_preview: {
         html_result: html?.evidence_label,
         api_result: api?.evidence_label,
       },
+      authoritative_relations: mergeRelations(
+        html?.authoritative_relations,
+        api?.authoritative_relations,
+      ),
     };
   }
 
@@ -77,6 +178,10 @@ export async function checkNAOBLive(
       winner.evidence_label
     }${loser ? ` | crosscheck: ${loser.evidence_label}` : ''}`,
     urls: [...new Set([...(winner.urls ?? []), ...(loser?.urls ?? [])])],
+    authoritative_relations: mergeRelations(
+      winner.authoritative_relations,
+      loser?.authoritative_relations,
+    ),
   };
 }
 
@@ -130,10 +235,12 @@ async function checkNAOBHtml(
       urls,
       evidence_label: 'NAOB HTML unavailable',
       error: errors.slice(0, 4).join(' | '),
+      authoritative_relations: [],
     };
   }
 
   const tokens = getTokens(query);
+  const isMultiword = tokens.length > 1;
 
   for (const { url, text } of responses) {
     const exact = containsExactPhrase(text, query);
@@ -147,18 +254,23 @@ async function checkNAOBHtml(
       'ordbok',
     ]);
 
+    const relations = extractNAOBRelationCandidates(text, query, url);
+
     if (url.includes('/ordbok/') && exact && entryMarkers) {
       return makeLookup(
         'NAOB',
         true,
-        'registered_entry',
-        true,
+        isMultiword ? 'exact_expression_match' : 'registered_entry',
+        !isMultiword,
         true,
         false,
         includesAny(text, ['eksempel', 'sitat', 'sitater']),
         [url],
-        'NAOB HTML: registered entry page exact match',
+        isMultiword
+          ? 'NAOB HTML: exact multiword signal on dictionary page; not registered entry'
+          : 'NAOB HTML: registered entry page exact match',
         text,
+        relations,
       );
     }
   }
@@ -193,18 +305,23 @@ async function checkNAOBHtml(
       'full bokmålsnorm',
     ]);
 
+    const relations = extractNAOBRelationCandidates(text, query, url);
+
     if (isEntryUrl && strongEntryIndicators) {
       return makeLookup(
         'NAOB',
         true,
-        'registered_entry',
-        true,
+        isMultiword ? 'exact_expression_match' : 'registered_entry',
+        !isMultiword,
         true,
         false,
         includesAny(text, ['eksempel', 'sitat', 'sitater']),
         [url],
-        'NAOB HTML: inferred registered entry from dictionary structure',
+        isMultiword
+          ? 'NAOB HTML: inferred multiword dictionary-page signal; not registered entry'
+          : 'NAOB HTML: inferred registered entry from dictionary structure',
         text,
+        relations,
       );
     }
 
@@ -219,6 +336,7 @@ async function checkNAOBHtml(
       [url],
       'NAOB HTML: exact phrase on search page; not registered entry',
       text,
+      relations,
     );
   }
 
@@ -226,12 +344,19 @@ async function checkNAOBHtml(
 
   for (const { url, text } of responses) {
     const hits = countTokenHits(text, tokens);
+
     if (!bestComponent || hits > bestComponent.hits) {
       bestComponent = { url, text, hits };
     }
   }
 
   if (tokens.length > 1 && bestComponent && bestComponent.hits > 0) {
+    const relations = extractNAOBRelationCandidates(
+      bestComponent.text,
+      query,
+      bestComponent.url,
+    );
+
     return makeLookup(
       'NAOB',
       true,
@@ -243,6 +368,7 @@ async function checkNAOBHtml(
       [bestComponent.url],
       `NAOB HTML: component evidence ${bestComponent.hits}/${tokens.length}`,
       bestComponent.text,
+      relations,
     );
   }
 
@@ -257,6 +383,7 @@ async function checkNAOBHtml(
     urls,
     'NAOB HTML: no match found',
     '',
+    [],
   );
 }
 
@@ -294,6 +421,7 @@ async function checkNAOBApi(
             ? 'NAOB API: lemma endpoint exact multiword signal; not registered entry'
             : 'NAOB API: direct lemma endpoint registered entry',
           json.slice(0, 700),
+          [],
         );
       }
     } catch (e) {
@@ -318,6 +446,7 @@ async function checkNAOBApi(
           [searchUrl],
           'NAOB API: search endpoint exact match; not registered entry',
           json.slice(0, 700),
+          [],
         );
       }
 
@@ -336,6 +465,7 @@ async function checkNAOBApi(
           [searchUrl],
           `NAOB API: component evidence ${hits}/${tokens.length}`,
           json.slice(0, 700),
+          [],
         );
       }
     } catch (e) {
@@ -356,5 +486,6 @@ async function checkNAOBApi(
     urls,
     `NAOB API: no match. Errors: ${errors.slice(0, 3).join(', ')}`,
     '',
+    [],
   );
 }
