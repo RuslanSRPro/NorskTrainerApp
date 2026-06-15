@@ -29,12 +29,6 @@ function extractNAOBRelationCandidates(
   }> = [
     {
       pattern:
-        /(?:se også|jf\.|jamfør)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
-      relation_type: 'related_candidate',
-      label: 'NAOB related reference',
-    },
-    {
-      pattern:
         /(?:beslektet med|beslektet)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
       relation_type: 'derived_candidate',
       label: 'NAOB related/derived reference',
@@ -74,6 +68,37 @@ function extractNAOBRelationCandidates(
         source: 'NAOB',
         confidence: 'medium',
         evidence_label: label,
+        url,
+      });
+    }
+  }
+
+  const queryTokens = getTokens(query);
+
+  if (queryTokens.length > 1) {
+    const parentheticalPattern =
+      /([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})\s+\(([^)]+)\)/gi;
+
+    for (const match of text.matchAll(parentheticalPattern)) {
+      const base = normalizeForMatch(match[1] ?? '');
+      const particle = normalizeForMatch(match[2] ?? '');
+
+      if (!base || !particle) continue;
+
+      const combined = normalizeForMatch(`${base} ${particle}`);
+
+      if (combined !== normalizedQuery) continue;
+      if (base === normalizedQuery) continue;
+      if (base.length < 3) continue;
+      if (base.length > 80) continue;
+      if (base.split(' ').length > 6) continue;
+
+      candidates.push({
+        relation_type: 'related_candidate',
+        target_text: base,
+        source: 'NAOB',
+        confidence: 'medium',
+        evidence_label: 'NAOB expression parenthetical variant',
         url,
       });
     }

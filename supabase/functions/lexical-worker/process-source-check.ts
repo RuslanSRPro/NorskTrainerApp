@@ -149,8 +149,7 @@ export async function processSourceCheck(
   const evidence = {
     ...sanitizeEvidence(result.evidence),
 
-    original_quality: result.quality,
-
+    
     registered_entry:
       result.registered_entry ?? false,
 
