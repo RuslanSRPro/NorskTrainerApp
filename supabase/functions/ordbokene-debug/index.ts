@@ -26,6 +26,16 @@ async function fetchJson(url: string): Promise<unknown> {
   return await res.json();
 }
 
+function getArticleIds(payload: any): {
+  bm: number[];
+  nn: number[];
+} {
+  return {
+    bm: payload?.articles?.bm ?? [],
+    nn: payload?.articles?.nn ?? [],
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -56,16 +66,49 @@ serve(async (req) => {
     const articlesInflected = await fetchJson(articlesInflectedUrl);
     const suggest = await fetchJson(suggestUrl);
 
+    const exactIds = getArticleIds(articlesExact);
+    const inflectedIds = getArticleIds(articlesInflected);
+
+    const bmArticleId =
+      exactIds.bm[0] ??
+      inflectedIds.bm[0] ??
+      null;
+
+    const nnArticleId =
+      exactIds.nn[0] ??
+      inflectedIds.nn[0] ??
+      null;
+
+    const bmArticleUrl = bmArticleId
+      ? `https://ord.uib.no/bm/article/${bmArticleId}.json`
+      : null;
+
+    const nnArticleUrl = nnArticleId
+      ? `https://ord.uib.no/nn/article/${nnArticleId}.json`
+      : null;
+
+    const bmArticle = bmArticleUrl
+      ? await fetchJson(bmArticleUrl)
+      : null;
+
+    const nnArticle = nnArticleUrl
+      ? await fetchJson(nnArticleUrl)
+      : null;
+
     results.push({
       query,
       urls: {
         articlesExactUrl,
         articlesInflectedUrl,
         suggestUrl,
+        bmArticleUrl,
+        nnArticleUrl,
       },
       articlesExact,
       articlesInflected,
       suggest,
+      bmArticle,
+      nnArticle,
     });
   }
 
