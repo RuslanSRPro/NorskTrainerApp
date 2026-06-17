@@ -195,7 +195,7 @@ serve(async (req) => {
           expression_subtype: 'ordbokene_sub_article',
 
           example: firstExample(candidate.examples),
-          notes_ua: candidate.definition_preview,
+          notes_ua: null,
 
           source_ordbokene: true,
           source_manual: false,
@@ -228,6 +228,7 @@ serve(async (req) => {
             article_id: candidate.candidate_article_id,
             dictionary_code: candidate.candidate_dictionary_code,
             source_url: sourceUrl,
+            definition_preview: candidate.definition_preview,
             token_count: tokens,
             review_priority: reviewPriority,
             review_reason: reviewReason,
