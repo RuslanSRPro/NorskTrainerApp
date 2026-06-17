@@ -153,7 +153,7 @@ serve(async (req) => {
           target_text: targetText,
           target_expression_id: candidate.promoted_expression_id,
           action: 'would_upsert_relation',
-          relation_type: 'has_sub_article_candidate',
+          relation_type: relationPayload.relation_type,
         });
         continue;
       }
@@ -187,7 +187,7 @@ serve(async (req) => {
         target_expression_id: candidate.promoted_expression_id,
         relation_id: insertedRelation.id,
         action: 'upserted_relation',
-        relation_type: 'has_sub_article_candidate',
+        relation_type: relationPayload.relation_type,
       });
     }
 
