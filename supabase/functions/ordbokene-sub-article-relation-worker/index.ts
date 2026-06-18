@@ -25,7 +25,20 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const parentLemma = normalizeKey(String(body.parent_lemma ?? 'gå'));
+
+    const parentArticleId =
+      body.parent_article_id == null ? null : Number(body.parent_article_id);
+
+    const parentDictionaryCode = String(
+      body.parent_dictionary_code ?? body.dictionary_code ?? 'bm',
+    ).trim();
+
+    const parentLexemeId =
+      body.parent_lexeme_id == null ? null : String(body.parent_lexeme_id);
+
+    const parentLemmaInput =
+      body.parent_lemma == null ? null : normalizeKey(String(body.parent_lemma));
+
     const limit = Math.min(Number(body.limit ?? 100), 500);
     const dryRun = Boolean(body.dry_run ?? true);
 
@@ -39,20 +52,78 @@ serve(async (req) => {
       );
     }
 
+    if (!parentArticleId && !parentLemmaInput && !parentLexemeId) {
+      return jsonResponse(
+        {
+          ok: false,
+          error:
+            'Provide parent_article_id, parent_lemma, or parent_lexeme_id. Do not rely on default lemma.',
+        },
+        400,
+      );
+    }
+
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: parentLexeme, error: parentError } = await supabase
+    let parentLexemeQuery = supabase
       .from('lexemes')
       .select('id, lemma, pos')
-      .eq('lemma', parentLemma)
-      .maybeSingle();
+      .limit(1);
+
+    if (parentLexemeId) {
+      parentLexemeQuery = parentLexemeQuery.eq('id', parentLexemeId);
+    } else if (parentLemmaInput) {
+      parentLexemeQuery = parentLexemeQuery.eq('lemma', parentLemmaInput);
+    } else if (parentArticleId) {
+      const { data: cacheRow, error: cacheError } = await supabase
+        .from('ordbokene_article_cache')
+        .select('lemma')
+        .eq('article_id', parentArticleId)
+        .eq('dictionary_code', parentDictionaryCode)
+        .maybeSingle();
+
+      if (cacheError) {
+        return jsonResponse(
+          {
+            ok: false,
+            stage: 'load_article_cache',
+            parent_article_id: parentArticleId,
+            parent_dictionary_code: parentDictionaryCode,
+            error: cacheError.message,
+            details: cacheError,
+          },
+          500,
+        );
+      }
+
+      if (!cacheRow?.lemma) {
+        return jsonResponse(
+          {
+            ok: false,
+            stage: 'load_article_cache',
+            error:
+              'Could not infer parent lemma from ordbokene_article_cache. Provide parent_lemma or parent_lexeme_id.',
+            parent_article_id: parentArticleId,
+            parent_dictionary_code: parentDictionaryCode,
+          },
+          404,
+        );
+      }
+
+      parentLexemeQuery = parentLexemeQuery.eq(
+        'lemma',
+        normalizeKey(String(cacheRow.lemma)),
+      );
+    }
+
+    const { data: parentLexemes, error: parentError } =
+      await parentLexemeQuery;
 
     if (parentError) {
       return jsonResponse(
         {
           ok: false,
           stage: 'load_parent_lexeme',
-          parent_lemma: parentLemma,
           error: parentError.message,
           details: parentError,
         },
@@ -60,19 +131,24 @@ serve(async (req) => {
       );
     }
 
+    const parentLexeme = parentLexemes?.[0] ?? null;
+
     if (!parentLexeme) {
       return jsonResponse(
         {
           ok: false,
           stage: 'load_parent_lexeme',
           error: 'Parent lexeme not found',
-          parent_lemma: parentLemma,
+          parent_article_id: parentArticleId,
+          parent_dictionary_code: parentDictionaryCode,
+          parent_lemma: parentLemmaInput,
+          parent_lexeme_id: parentLexemeId,
         },
         404,
       );
     }
 
-    const { data: candidates, error: candidateError } = await supabase
+    let candidateQuery = supabase
       .from('ordbokene_expression_candidates')
       .select(
         [
@@ -89,20 +165,42 @@ serve(async (req) => {
           'candidate_kind',
           'review_priority',
           'review_reason',
+          'created_at',
         ].join(', '),
       )
-      .eq('parent_lemma', parentLemma)
       .in('status', ['promoted', 'duplicate'])
       .not('promoted_expression_id', 'is', null)
       .order('created_at', { ascending: true })
       .limit(limit);
+
+    if (parentArticleId) {
+      candidateQuery = candidateQuery.eq('parent_article_id', parentArticleId);
+    }
+
+    if (parentDictionaryCode) {
+      candidateQuery = candidateQuery.eq(
+        'parent_dictionary_code',
+        parentDictionaryCode,
+      );
+    }
+
+    if (!parentArticleId && parentLexeme.lemma) {
+      candidateQuery = candidateQuery.eq(
+        'parent_lemma',
+        normalizeKey(String(parentLexeme.lemma)),
+      );
+    }
+
+    const { data: candidates, error: candidateError } = await candidateQuery;
 
     if (candidateError) {
       return jsonResponse(
         {
           ok: false,
           stage: 'load_candidates',
-          parent_lemma: parentLemma,
+          parent_article_id: parentArticleId,
+          parent_dictionary_code: parentDictionaryCode,
+          parent_lemma: parentLexeme.lemma,
           error: candidateError.message,
           details: candidateError,
         },
@@ -194,7 +292,9 @@ serve(async (req) => {
     return jsonResponse({
       ok: true,
       dry_run: dryRun,
-      parent_lemma: parentLemma,
+      parent_article_id: parentArticleId,
+      parent_dictionary_code: parentDictionaryCode,
+      parent_lemma: parentLexeme.lemma,
       parent_lexeme_id: parentLexeme.id,
       processed: candidates?.length ?? 0,
       would_upsert: results.filter(
