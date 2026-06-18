@@ -17,6 +17,21 @@ function normalizeKey(value: string): string {
   return value.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
+async function getSupabaseClient() {
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+}
+
 async function invokeFunction(
   functionName: string,
   payload: Record<string, unknown>,
@@ -132,6 +147,192 @@ function compactFunctionResult(result: any) {
   };
 }
 
+async function getArticleCacheRow(articleId: number, dictionaryCode: string) {
+  const supabase = await getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('ordbokene_article_cache')
+    .select('article_id, dictionary_code, lemma, word_class, payload')
+    .eq('article_id', articleId)
+    .eq('dictionary_code', dictionaryCode)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getParentLexemeIdByLemma(lemma: string | null) {
+  if (!lemma) return null;
+
+  const supabase = await getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('lexemes')
+    .select('id, lemma, pos')
+    .eq('lemma', normalizeKey(lemma))
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.id ?? null;
+}
+
+function classifyExpressionSubtype(lemma: string): string {
+  const normalized = normalizeKey(lemma);
+  const parts = normalized.split(' ');
+
+  if (parts.length === 1) return 'fixed_expression';
+
+  if (/\bseg\b/.test(normalized)) {
+    return 'reflexive_particle_verb';
+  }
+
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+
+  const particles = new Set([
+    'av',
+    'på',
+    'opp',
+    'ut',
+    'inn',
+    'over',
+    'under',
+    'til',
+    'fra',
+    'med',
+    'imot',
+    'igjen',
+    'fram',
+    'frem',
+    'ned',
+    'bort',
+  ]);
+
+  const prepositions = new Set([
+    'av',
+    'på',
+    'i',
+    'til',
+    'for',
+    'fra',
+    'med',
+    'mot',
+    'om',
+    'over',
+    'under',
+    'etter',
+    'gjennom',
+  ]);
+
+  const commonVerbs = new Set([
+    'ta',
+    'gå',
+    'komme',
+    'få',
+    'bli',
+    'sette',
+    'stå',
+    'ha',
+    'gi',
+    'holde',
+    'legge',
+    'slå',
+    'trekke',
+    'se',
+    'si',
+    'gjøre',
+  ]);
+
+  if (
+    parts.length >= 3 &&
+    commonVerbs.has(first) &&
+    (particles.has(last) || prepositions.has(last))
+  ) {
+    return 'support_verb_construction';
+  }
+
+  if (parts.length === 2 && commonVerbs.has(first) && particles.has(last)) {
+    return 'particle_verb';
+  }
+
+  if (parts.length === 2 && commonVerbs.has(first) && prepositions.has(last)) {
+    return 'prepositional_verb';
+  }
+
+  return 'fixed_expression';
+}
+
+async function promoteStandaloneExpression(args: {
+  articleId: number;
+  dictionaryCode: string;
+  lemma: string;
+  dryRun: boolean;
+}) {
+  const supabase = await getSupabaseClient();
+
+  const normalized = normalizeKey(args.lemma);
+  const sourceUrl =
+    `https://ord.uib.no/${args.dictionaryCode}/article/${args.articleId}.json`;
+
+  const payload = {
+    lemma: normalized,
+    display_form: args.lemma,
+    normalized_key: normalized,
+    language: args.dictionaryCode === 'nn' ? 'nn' : 'nb',
+    pos: 'expression',
+    expression_subtype: classifyExpressionSubtype(normalized),
+    source_ordbokene: true,
+    source_urls: [sourceUrl],
+    raw_sources: {
+      Ordbokene: {
+        article_id: args.articleId,
+        dictionary_code: args.dictionaryCode,
+        url: sourceUrl,
+        ingestion_mode: 'standalone_expression',
+      },
+    },
+    verification: 'source_verified',
+    confidence: 'high',
+    source_verified: 'Ordbokene',
+    verification_status: 'source_verified',
+    linguistic_evidence: 'Ordbokene standalone expression article',
+    verification_tier: 'authoritative',
+    verification_evidence: {
+      source: 'Ordbokene',
+      article_id: args.articleId,
+      dictionary_code: args.dictionaryCode,
+      evidence_type: 'standalone_expression_article',
+    },
+    updated_at: new Date().toISOString(),
+  };
+
+  if (args.dryRun) {
+    return {
+      ok: true,
+      dry_run: true,
+      would_upsert: 1,
+      expression: payload,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('expression_catalog')
+    .upsert(payload, {
+      onConflict: 'normalized_key',
+    })
+    .select('id, lemma, normalized_key, expression_subtype')
+    .single();
+
+  if (error) throw error;
+
+  return {
+    ok: true,
+    dry_run: false,
+    upserted: 1,
+    expression: data,
+  };
+}
+
 serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') {
@@ -153,7 +354,6 @@ serve(async (req) => {
 
     const dryRun = Boolean(body.dry_run ?? true);
     const compact = Boolean(body.compact ?? true);
-
     const runResolver = Boolean(body.run_resolver ?? true);
 
     const maxPromotionBatches = Math.min(
@@ -171,19 +371,6 @@ serve(async (req) => {
         {
           ok: false,
           error: 'Provide either lemma or article_id',
-          examples: [
-            {
-              lemma: 'komme',
-              dictionary_code: 'bm',
-              dry_run: true,
-            },
-            {
-              article_id: 59502,
-              dictionary_code: 'bm',
-              parent_lexeme_id: 'a0d747f1-8f1d-490c-acc7-4917a0fc73ea',
-              dry_run: true,
-            },
-          ],
         },
         400,
       );
@@ -246,6 +433,86 @@ serve(async (req) => {
         dictionary_code: dictionaryCode,
         dry_run: dryRun,
         steps,
+      });
+    }
+
+    const articleCacheRow = await getArticleCacheRow(articleId, dictionaryCode);
+
+    const cacheLemma =
+      typeof articleCacheRow?.lemma === 'string'
+        ? normalizeKey(articleCacheRow.lemma)
+        : inputLemma;
+
+    const parentLexemeIdFromCache = await getParentLexemeIdByLemma(cacheLemma);
+
+    const entityMode =
+      body.entity_mode != null
+        ? String(body.entity_mode)
+        : parentLexemeIdFromCache
+          ? 'lexeme'
+          : 'expression';
+
+    steps.entity_detection = {
+      ok: true,
+      entity_mode: entityMode,
+      cache_lemma: cacheLemma,
+      parent_lexeme_id: parentLexemeIdFromCache,
+      word_class: articleCacheRow?.word_class ?? null,
+    };
+
+    if (entityMode === 'expression') {
+      const standaloneExpression = await promoteStandaloneExpression({
+        articleId,
+        dictionaryCode,
+        lemma: cacheLemma ?? inputLemma ?? '',
+        dryRun,
+      });
+
+      steps.standalone_expression_promotion = standaloneExpression;
+
+      steps.expression_extraction = {
+        ok: true,
+        skipped: true,
+        reason: 'Standalone expression article does not act as parent lexeme.',
+      };
+
+      steps.expression_promotion = {
+        ok: true,
+        skipped: true,
+        reason: 'Standalone expression was promoted directly.',
+      };
+
+      steps.has_expression_relations = {
+        ok: true,
+        skipped: true,
+        reason: 'Standalone expression has no parent lexeme has_expression relation.',
+      };
+
+      steps.article_ref_relations = {
+        ok: true,
+        skipped: true,
+        reason:
+          'Article ref worker currently requires parent lexeme. Expression-level article refs will be handled by expression pipeline v2.',
+      };
+
+      steps.relation_resolver = {
+        ok: true,
+        skipped: true,
+        reason: 'No lexeme-scoped relations created for standalone expression.',
+      };
+
+      return jsonResponse({
+        ok: true,
+        pipeline: 'ordbokene_lexeme_pipeline_v4',
+        lemma: inputLemma,
+        article_id: articleId,
+        dictionary_code: dictionaryCode,
+        entity_mode: entityMode,
+        dry_run: dryRun,
+        compact,
+        steps,
+        note:
+          'v4 supports standalone expression articles by promoting them directly to expression_catalog.',
       });
     }
 
@@ -319,8 +586,6 @@ serve(async (req) => {
 
         const data = run.data as {
           processed?: number;
-          promoted?: number;
-          duplicates?: number;
         };
 
         if (!run.ok) break;
@@ -353,8 +618,9 @@ serve(async (req) => {
       dry_run: dryRun,
     };
 
-    if (parentLexemeId) {
-      subArticlePayload.parent_lexeme_id = parentLexemeId;
+    if (parentLexemeId || parentLexemeIdFromCache) {
+      subArticlePayload.parent_lexeme_id =
+        parentLexemeId ?? parentLexemeIdFromCache;
     }
 
     if (inputLemma) {
@@ -414,26 +680,32 @@ serve(async (req) => {
         ok: true,
         skipped: true,
         reason:
-          'relation-resolver is skipped in dry_run because it currently mutates database state and has no dry_run mode.',
+          'relation-resolver is skipped in dry_run because it currently mutates database state.',
       };
     } else if (runResolver) {
       for (let i = 0; i < maxResolverRuns; i += 1) {
         const resolverPayload: Record<string, unknown> = {
-  dry_run: false,
-  limit: 20,
-};
+          dry_run: false,
+          limit: 20,
+        };
 
-if (inputLemma) {
-  resolverPayload.source_lemma = inputLemma;
-}
+        if (inputLemma) {
+          resolverPayload.source_lemma = inputLemma;
+        }
 
-if (parentLexemeId) {
-  resolverPayload.source_entity_id = parentLexemeId;
-}
+        if (parentLexemeId || parentLexemeIdFromCache) {
+          resolverPayload.source_entity_id =
+            parentLexemeId ?? parentLexemeIdFromCache;
+        }
 
-const resolverRun = await invokeFunction('relation-resolver', resolverPayload);
+        const resolverRun = await invokeFunction(
+          'relation-resolver',
+          resolverPayload,
+        );
 
-        resolverRuns.push(compact ? compactFunctionResult(resolverRun) : resolverRun);
+        resolverRuns.push(
+          compact ? compactFunctionResult(resolverRun) : resolverRun,
+        );
 
         const data = resolverRun.data as {
           processed?: number;
@@ -469,17 +741,18 @@ const resolverRun = await invokeFunction('relation-resolver', resolverPayload);
 
     return jsonResponse({
       ok: true,
-      pipeline: 'ordbokene_lexeme_pipeline_v3',
+      pipeline: 'ordbokene_lexeme_pipeline_v4',
       lemma: inputLemma,
       article_id: articleId,
       dictionary_code: dictionaryCode,
-      parent_lexeme_id: parentLexemeId,
+      entity_mode: entityMode,
+      parent_lexeme_id: parentLexemeId ?? parentLexemeIdFromCache,
       dry_run: dryRun,
       compact,
       run_resolver: runResolver,
       steps,
       note:
-        'v3 accepts lemma, resolves Ordbokene article_id automatically, runs Ordbokene enrichment, and runs relation-resolver on real runs. Lexical verification is still not included.',
+        'v4 supports lexeme mode and standalone expression mode. Lexical verification is still not included.',
     });
   } catch (err) {
     return jsonResponse(
