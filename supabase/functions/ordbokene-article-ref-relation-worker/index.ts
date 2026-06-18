@@ -32,12 +32,27 @@ const STATUS = 'candidate';
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers':
+        'authorization, x-client-info, apikey, content-type',
+    },
   });
 }
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function safeStringify(value: unknown): string {
+  try {
+    if (value instanceof Error) return value.message;
+    if (typeof value === 'string') return value;
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 function normalizeKey(value: string): string {
@@ -56,8 +71,11 @@ function firstLemmaFromArticleRef(articleRef: JsonRecord): string | null {
 
   for (const lemmaNode of lemmas) {
     if (!isRecord(lemmaNode)) continue;
+
     const lemma = lemmaNode.lemma;
-    if (typeof lemma === 'string' && lemma.trim()) return lemma.trim();
+    if (typeof lemma === 'string' && lemma.trim()) {
+      return normalizeKey(lemma);
+    }
   }
 
   return null;
@@ -65,15 +83,21 @@ function firstLemmaFromArticleRef(articleRef: JsonRecord): string | null {
 
 function extractArticleId(articleRef: JsonRecord): number | null {
   const raw = articleRef.article_id;
+
   if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+
   if (typeof raw === 'string' && raw.trim()) {
     const parsed = Number(raw);
     if (Number.isFinite(parsed)) return parsed;
   }
+
   return null;
 }
 
-function collectArticleRefs(value: unknown, result: JsonRecord[] = []): JsonRecord[] {
+function collectArticleRefs(
+  value: unknown,
+  result: JsonRecord[] = [],
+): JsonRecord[] {
   if (Array.isArray(value)) {
     for (const item of value) collectArticleRefs(item, result);
     return result;
@@ -107,16 +131,21 @@ function distinctArticleRefs(args: {
   for (const ref of refs) {
     const targetArticleId = extractArticleId(ref);
     const targetLemma = firstLemmaFromArticleRef(ref);
+
     if (!targetLemma) continue;
 
     const definitionId = (ref.definition_id ?? null) as string | number | null;
-    const definitionOrder = (ref.definition_order ?? null) as string | number | null;
+    const definitionOrder = (ref.definition_order ?? null) as
+      | string
+      | number
+      | null;
 
+    // Important:
+    // authoritative_semantic_relations conflict key uses target_text,
+    // so we deduplicate by target lemma, not by definition id.
     const key = JSON.stringify({
-      targetArticleId,
       targetLemma: normalizeKey(targetLemma),
-      definitionId,
-      definitionOrder,
+      targetArticleId,
     });
 
     if (seen.has(key)) continue;
@@ -127,7 +156,7 @@ function distinctArticleRefs(args: {
       source_dictionary_code: args.source_dictionary_code,
       source_lemma: args.source_lemma,
       target_article_id: targetArticleId,
-      target_lemma: targetLemma,
+      target_lemma: normalizeKey(targetLemma),
       definition_id: definitionId,
       definition_order: definitionOrder,
       raw_article_ref: ref,
@@ -137,35 +166,53 @@ function distinctArticleRefs(args: {
   return candidates;
 }
 
-function ordbokeneArticleUrl(dictionaryCode: string, articleId: number | null): string | null {
+function ordbokeneArticleUrl(
+  dictionaryCode: string,
+  articleId: number | null,
+): string | null {
   if (!articleId) return null;
   return `https://ord.uib.no/${dictionaryCode}/article/${articleId}.json`;
 }
 
-async function resolveParentLexeme(supabase: ReturnType<typeof createClient>, lemma: string | null) {
-  if (!lemma) return { data: null, error: new Error('Article cache row has no lemma') };
+async function resolveParentLexeme(
+  supabase: ReturnType<typeof createClient>,
+  lemma: string | null,
+) {
+  if (!lemma) {
+    return {
+      data: null,
+      error: new Error('Article cache row has no lemma'),
+    };
+  }
 
   return await supabase
     .from('lexemes')
     .select('id, lemma, pos')
-    .eq('lemma', lemma)
+    .eq('lemma', normalizeKey(lemma))
     .limit(1)
     .maybeSingle();
 }
 
-async function resolveTarget(supabase: ReturnType<typeof createClient>, targetLemma: string): Promise<ResolvedTarget> {
+async function resolveTarget(
+  supabase: ReturnType<typeof createClient>,
+  targetLemma: string,
+): Promise<ResolvedTarget> {
   const normalized = normalizeKey(targetLemma);
 
   const lexemeResult = await supabase
     .from('lexemes')
     .select('id')
-    .eq('lemma', targetLemma)
+    .eq('lemma', normalized)
     .limit(1)
     .maybeSingle();
 
   if (lexemeResult.error) throw lexemeResult.error;
+
   if (lexemeResult.data?.id) {
-    return { target_entity_type: 'lexeme', target_entity_id: lexemeResult.data.id };
+    return {
+      target_entity_type: 'lexeme',
+      target_entity_id: lexemeResult.data.id,
+    };
   }
 
   const expressionByKeyResult = await supabase
@@ -176,32 +223,48 @@ async function resolveTarget(supabase: ReturnType<typeof createClient>, targetLe
     .maybeSingle();
 
   if (expressionByKeyResult.error) throw expressionByKeyResult.error;
+
   if (expressionByKeyResult.data?.id) {
-    return { target_entity_type: 'expression', target_entity_id: expressionByKeyResult.data.id };
+    return {
+      target_entity_type: 'expression',
+      target_entity_id: expressionByKeyResult.data.id,
+    };
   }
 
   const expressionByLemmaResult = await supabase
     .from('expression_catalog')
     .select('id')
-    .eq('lemma', targetLemma)
+    .eq('lemma', normalized)
     .limit(1)
     .maybeSingle();
 
   if (expressionByLemmaResult.error) throw expressionByLemmaResult.error;
+
   if (expressionByLemmaResult.data?.id) {
-    return { target_entity_type: 'expression', target_entity_id: expressionByLemmaResult.data.id };
+    return {
+      target_entity_type: 'expression',
+      target_entity_id: expressionByLemmaResult.data.id,
+    };
   }
 
-  return { target_entity_type: null, target_entity_id: null };
+  return {
+    target_entity_type: null,
+    target_entity_id: null,
+  };
 }
 
 Deno.serve(async (req: Request) => {
   try {
+    if (req.method === 'OPTIONS') {
+      return jsonResponse({ ok: true });
+    }
+
     if (req.method !== 'POST') {
       return jsonResponse({ ok: false, error: 'Use POST' }, 405);
     }
 
     const input = (await req.json().catch(() => ({}))) as WorkerInput;
+
     const articleId = Number(input.article_id);
     const dictionaryCode = String(input.dictionary_code ?? '').trim();
     const dryRun = input.dry_run !== false;
@@ -211,14 +274,23 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!dictionaryCode) {
-      return jsonResponse({ ok: false, error: 'dictionary_code is required' }, 400);
+      return jsonResponse(
+        { ok: false, error: 'dictionary_code is required' },
+        400,
+      );
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-      return jsonResponse({ ok: false, error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }, 500);
+      return jsonResponse(
+        {
+          ok: false,
+          error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY',
+        },
+        500,
+      );
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -232,34 +304,58 @@ Deno.serve(async (req: Request) => {
       .eq('dictionary_code', dictionaryCode)
       .maybeSingle();
 
-    if (articleError) throw articleError;
-    if (!article) {
-      return jsonResponse({
-        ok: false,
-        error: 'Article not found in ordbokene_article_cache',
-        article_id: articleId,
-        dictionary_code: dictionaryCode,
-      }, 404);
+    if (articleError) {
+      return jsonResponse(
+        {
+          ok: false,
+          stage: 'load_article_cache',
+          error: safeStringify(articleError),
+          details: articleError,
+        },
+        500,
+      );
     }
 
-    const sourceLemma = typeof article.lemma === 'string' ? article.lemma : null;
+    if (!article) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: 'Article not found in ordbokene_article_cache',
+          article_id: articleId,
+          dictionary_code: dictionaryCode,
+        },
+        404,
+      );
+    }
+
+    const sourceLemma =
+      typeof article.lemma === 'string' ? normalizeKey(article.lemma) : null;
+
     const parentResult = await resolveParentLexeme(supabase, sourceLemma);
 
     if (parentResult.error) {
-      return jsonResponse({
-        ok: false,
-        error: 'Could not resolve parent lexeme from article cache lemma',
-        lemma: sourceLemma,
-        details: parentResult.error.message,
-      }, 400);
+      return jsonResponse(
+        {
+          ok: false,
+          stage: 'resolve_parent_lexeme',
+          error: 'Could not resolve parent lexeme from article cache lemma',
+          lemma: sourceLemma,
+          details: safeStringify(parentResult.error),
+        },
+        400,
+      );
     }
 
     if (!parentResult.data?.id) {
-      return jsonResponse({
-        ok: false,
-        error: 'Parent lexeme not found in lexemes',
-        lemma: sourceLemma,
-      }, 404);
+      return jsonResponse(
+        {
+          ok: false,
+          stage: 'resolve_parent_lexeme',
+          error: 'Parent lexeme not found in lexemes',
+          lemma: sourceLemma,
+        },
+        404,
+      );
     }
 
     const parentLexeme = parentResult.data;
@@ -272,36 +368,49 @@ Deno.serve(async (req: Request) => {
     });
 
     const relations = [];
+    const skipped = [];
 
     for (const candidate of candidates) {
-      const resolved = await resolveTarget(supabase, candidate.target_lemma);
-      const sourceUrl = ordbokeneArticleUrl(dictionaryCode, articleId);
-      const targetUrl = ordbokeneArticleUrl(dictionaryCode, candidate.target_article_id);
+      try {
+        const resolved = await resolveTarget(supabase, candidate.target_lemma);
 
-      relations.push({
-        source_entity_type: 'lexeme',
-        source_entity_id: parentLexeme.id,
-        relation_type: RELATION_TYPE,
-        target_text: candidate.target_lemma,
-        target_entity_type: resolved.target_entity_type,
-        target_entity_id: resolved.target_entity_id,
-        source: ORDBOKENE_SOURCE,
-        confidence: CONFIDENCE,
-        status: STATUS,
-        evidence: {
-          evidence_type: 'ordbokene_article_ref',
-          source_article_id: candidate.source_article_id,
-          source_dictionary_code: candidate.source_dictionary_code,
-          source_lemma: candidate.source_lemma,
-          target_article_id: candidate.target_article_id,
+        const sourceUrl = ordbokeneArticleUrl(dictionaryCode, articleId);
+        const targetUrl = ordbokeneArticleUrl(
+          dictionaryCode,
+          candidate.target_article_id,
+        );
+
+        relations.push({
+          source_entity_type: 'lexeme',
+          source_entity_id: parentLexeme.id,
+          relation_type: RELATION_TYPE,
+          target_text: candidate.target_lemma,
+          target_entity_type: resolved.target_entity_type,
+          target_entity_id: resolved.target_entity_id,
+          source: ORDBOKENE_SOURCE,
+          confidence: CONFIDENCE,
+          status: STATUS,
+          evidence: {
+            evidence_type: 'ordbokene_article_ref',
+            source_article_id: candidate.source_article_id,
+            source_dictionary_code: candidate.source_dictionary_code,
+            source_lemma: candidate.source_lemma,
+            target_article_id: candidate.target_article_id,
+            target_lemma: candidate.target_lemma,
+            definition_id: candidate.definition_id,
+            definition_order: candidate.definition_order,
+            raw_article_ref: candidate.raw_article_ref,
+          },
+          urls: [sourceUrl, targetUrl].filter(Boolean),
+          updated_at: new Date().toISOString(),
+        });
+      } catch (error) {
+        skipped.push({
           target_lemma: candidate.target_lemma,
-          definition_id: candidate.definition_id,
-          definition_order: candidate.definition_order,
-          raw_article_ref: candidate.raw_article_ref,
-        },
-        urls: [sourceUrl, targetUrl].filter(Boolean),
-        updated_at: new Date().toISOString(),
-      });
+          reason: safeStringify(error),
+          candidate,
+        });
+      }
     }
 
     if (dryRun) {
@@ -315,21 +424,57 @@ Deno.serve(async (req: Request) => {
         source_entity_id: parentLexeme.id,
         processed: candidates.length,
         would_upsert: relations.length,
+        skipped: skipped.length,
         relation_type: RELATION_TYPE,
         source: ORDBOKENE_SOURCE,
         confidence: CONFIDENCE,
         status: STATUS,
         relations,
+        skipped_details: skipped,
       });
     }
 
-    const { error: upsertError } = await supabase
-      .from('authoritative_semantic_relations')
-      .upsert(relations, {
-        onConflict: 'source_entity_type,source_entity_id,relation_type,target_text,source',
-      });
+    let upserted = 0;
+    const upsertErrors = [];
 
-    if (upsertError) throw upsertError;
+    for (const relation of relations) {
+      const { error: upsertError } = await supabase
+        .from('authoritative_semantic_relations')
+        .upsert(relation, {
+          onConflict:
+            'source_entity_type,source_entity_id,relation_type,target_text,source',
+        });
+
+      if (upsertError) {
+        upsertErrors.push({
+          target_text: relation.target_text,
+          error: safeStringify(upsertError),
+          details: upsertError,
+        });
+        continue;
+      }
+
+      upserted += 1;
+    }
+
+    if (upsertErrors.length > 0) {
+      return jsonResponse(
+        {
+          ok: false,
+          stage: 'upsert_relations',
+          article_id: articleId,
+          dictionary_code: dictionaryCode,
+          source_lemma: sourceLemma,
+          processed: candidates.length,
+          attempted: relations.length,
+          upserted,
+          skipped: skipped.length,
+          upsert_errors: upsertErrors,
+          skipped_details: skipped,
+        },
+        500,
+      );
+    }
 
     return jsonResponse({
       ok: true,
@@ -340,16 +485,22 @@ Deno.serve(async (req: Request) => {
       source_entity_type: 'lexeme',
       source_entity_id: parentLexeme.id,
       processed: candidates.length,
-      upserted: relations.length,
+      upserted,
+      skipped: skipped.length,
       relation_type: RELATION_TYPE,
       source: ORDBOKENE_SOURCE,
       confidence: CONFIDENCE,
       status: STATUS,
     });
   } catch (error) {
-    return jsonResponse({
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    }, 500);
+    return jsonResponse(
+      {
+        ok: false,
+        stage: 'unhandled_exception',
+        error: safeStringify(error),
+        stack: error instanceof Error ? error.stack : null,
+      },
+      500,
+    );
   }
 });
