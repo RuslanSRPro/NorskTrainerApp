@@ -418,7 +418,20 @@ serve(async (req) => {
       };
     } else if (runResolver) {
       for (let i = 0; i < maxResolverRuns; i += 1) {
-        const resolverRun = await invokeFunction('relation-resolver', {});
+        const resolverPayload: Record<string, unknown> = {
+  dry_run: false,
+  limit: 20,
+};
+
+if (inputLemma) {
+  resolverPayload.source_lemma = inputLemma;
+}
+
+if (parentLexemeId) {
+  resolverPayload.source_entity_id = parentLexemeId;
+}
+
+const resolverRun = await invokeFunction('relation-resolver', resolverPayload);
 
         resolverRuns.push(compact ? compactFunctionResult(resolverRun) : resolverRun);
 
