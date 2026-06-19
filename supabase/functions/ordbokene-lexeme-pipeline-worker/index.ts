@@ -97,12 +97,16 @@ async function lookupOrdbokeneArticleId(
   const articleIds = data?.articles?.[dictionaryCode];
 
   if (!Array.isArray(articleIds) || articleIds.length === 0) {
-    throw new Error(
-      `No Ordbokene article found for lemma="${normalizedLemma}", dictionary_code="${dictionaryCode}"`,
-    );
+    return {
+      found: false,
+      article_id: null,
+      lookup_url: lookupUrl,
+      raw_lookup: data,
+    };
   }
 
   return {
+    found: true,
     article_id: Number(articleIds[0]),
     lookup_url: lookupUrl,
     raw_lookup: data,
@@ -384,16 +388,37 @@ serve(async (req) => {
         dictionaryCode,
       );
 
-      articleId = lookup.article_id;
-
       steps.article_lookup = {
         ok: true,
         lemma: inputLemma,
         dictionary_code: dictionaryCode,
-        article_id: articleId,
+        found: lookup.found,
+        article_id: lookup.article_id,
         lookup_url: lookup.lookup_url,
         raw_lookup: lookup.raw_lookup,
       };
+
+      if (!lookup.found) {
+        return jsonResponse({
+          ok: true,
+          pipeline: 'ordbokene_lexeme_pipeline_v4',
+          lemma: inputLemma,
+          article_id: null,
+          dictionary_code: dictionaryCode,
+          entity_mode: body.item_type === 'expression' ? 'expression' : 'unknown',
+          ordbokene_status: 'not_listed',
+          diagnostic_status: 'article_not_found',
+          confidence: 1,
+          dry_run: dryRun,
+          compact,
+          run_resolver: runResolver,
+          steps,
+          note:
+            'No Ordbokene article found. This is valid negative source evidence, not a technical error.',
+        });
+      }
+
+      articleId = lookup.article_id;
     } else {
       steps.article_lookup = {
         ok: true,
@@ -508,6 +533,9 @@ serve(async (req) => {
         article_id: articleId,
         dictionary_code: dictionaryCode,
         entity_mode: entityMode,
+        ordbokene_status: 'expr_entry',
+        diagnostic_status: 'matched_article_lookup',
+        confidence: 1,
         dry_run: dryRun,
         compact,
         steps,
@@ -747,6 +775,9 @@ serve(async (req) => {
       dictionary_code: dictionaryCode,
       entity_mode: entityMode,
       parent_lexeme_id: parentLexemeId ?? parentLexemeIdFromCache,
+      ordbokene_status: entityMode === 'lexeme' ? 'entry' : 'expr_entry',
+      diagnostic_status: 'matched_article_lookup',
+      confidence: 1,
       dry_run: dryRun,
       compact,
       run_resolver: runResolver,
