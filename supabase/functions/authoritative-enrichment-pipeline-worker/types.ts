@@ -35,14 +35,43 @@ export type EnrichmentInput = {
   update_catalog?: boolean;
 };
 
+export type SourceName = 'ordbokene' | 'naob';
+
 export type SourceEvidence = {
-  source: 'ordbokene' | 'naob';
+  source: SourceName;
   status: string | null;
   diagnostic_status?: string | null;
   confidence?: number | null;
   success: boolean;
   error?: string | null;
   raw?: unknown;
+};
+
+export type VerificationTier =
+  | 'dictionary_entry'
+  | 'usage_evidence'
+  | 'component_match'
+  | 'not_found'
+  | 'technical_error';
+
+export type VerificationStatus =
+  | 'verified'
+  | 'partial'
+  | 'unverified'
+  | 'infrastructure_failure';
+
+export type SourceDetail = {
+  source: SourceName;
+  status: string | null;
+  success: boolean;
+  tier: VerificationTier;
+  found: boolean;
+  registered_entry: boolean;
+  whole_unit_match: boolean;
+  component_match: boolean;
+  usage_match: boolean;
+  confidence: number | null;
+  evidence_label: string;
 };
 
 export type UnifiedEvidenceSummary = {
@@ -67,5 +96,14 @@ export type UnifiedEvidenceSummary = {
     positive_sources: number;
     negative_sources: number;
     has_authoritative_evidence: boolean;
+
+    /**
+     * Aggregated from the strongest source-level tier.
+     * Full source-level evidence is preserved in source_details.
+     */
+    verification_status: VerificationStatus;
+    strongest_tier: VerificationTier;
+    strongest_source: SourceName | null;
+    source_details: SourceDetail[];
   };
 };
