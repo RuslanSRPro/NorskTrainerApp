@@ -43,15 +43,7 @@ export async function checkOrdbokeneLive(
 
   let articlePayload = await fetchJson(exactArticlesUrl);
   const suggestPayload = await fetchJson(exactSuggestUrl);
-console.log(
-  'ORDBOKENE ARTICLES DEBUG',
-  JSON.stringify(articlePayload).slice(0, 8000),
-);
 
-console.log(
-  'ORDBOKENE SUGGEST DEBUG',
-  JSON.stringify(suggestPayload).slice(0, 8000),
-);
   let articleIds = extractOrdbokeneArticleIds(articlePayload);
 
   if (articleIds.length === 0 && tokens.length === 1) {
@@ -87,6 +79,8 @@ console.log(
     return nt !== nq && nt.includes(nq);
   });
 
+  // Confirmed via the article endpoint itself — the only branch allowed
+  // to claim registered_entry: true. See system_architecture_v3.md, "Fix 1".
   if (articleIds.length > 0) {
     return {
       source: 'Ordbokene',
@@ -107,24 +101,12 @@ console.log(
     };
   }
 
-  if (exactSuggest && tokens.length === 1) {
-    return {
-      source: 'Ordbokene',
-      checked: true,
-      found: true,
-      quality: 'registered_entry',
-      registered_entry: true,
-      whole_unit_match: true,
-      component_match: false,
-      usage_match: false,
-      urls: [exactArticlesUrl, exactSuggestUrl],
-      evidence_label: 'Ordbokene exact lemma suggestion match',
-      raw_preview: {
-        exact_suggestions: exactSuggestTerms,
-      },
-    };
-  }
-
+  // Exact match from the suggest endpoint only (article lookup found
+  // nothing) — NOT a confirmed registered entry, regardless of whether the
+  // query is a single word or a multi-word expression. Single-token
+  // suggest matches previously had their own branch here that incorrectly
+  // claimed registered_entry: true; that branch is removed (Fix 1) so both
+  // cases now get the same, correctly weaker classification.
   if (exactSuggest) {
     return {
       source: 'Ordbokene',
@@ -136,7 +118,7 @@ console.log(
       component_match: false,
       usage_match: false,
       urls: [exactArticlesUrl, exactSuggestUrl],
-      evidence_label: 'Ordbokene exact expression suggestion match',
+      evidence_label: 'Ordbokene exact suggestion match (not confirmed via article lookup)',
       raw_preview: {
         exact_suggestions: exactSuggestTerms,
       },
