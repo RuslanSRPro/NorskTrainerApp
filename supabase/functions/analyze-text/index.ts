@@ -34,7 +34,6 @@ type ExpressionRow = {
   pos: string;
   expression_subtype: string | null;
   token_len: number;
-  verification_evidence: Record<string, unknown> | null;
 };
 
 type VerbMaps = {
@@ -74,61 +73,26 @@ function markCovered(covered: Set<number>, start: number, end: number) {
   }
 }
 
-function hasStrongWholeUnitEvidence(row: any): boolean {
-  const evidence = row.verification_evidence ?? {};
-
-  return Object.entries(evidence).some(([sourceKey, raw]: [string, any]) => {
-    const value = raw as any;
-    const inner = value?.evidence ?? value;
-
-    const sourceName =
-      inner?.source ??
-      value?.source ??
-      sourceKey ??
-      null;
-
-    const authoritative =
-      sourceName === 'NAOB' ||
-      sourceName === 'Ordbokene';
-
-    const wholeUnit =
-      inner?.whole_unit_match === true ||
-      value?.whole_unit_match === true;
-
-    const registered =
-      inner?.registered_entry === true ||
-      value?.registered_entry === true;
-
-    const quality =
-      inner?.original_quality ??
-      value?.original_quality ??
-      inner?.quality ??
-      value?.quality ??
-      null;
-
-    return (
-      authoritative &&
-      wholeUnit === true &&
-      (
-        registered === true ||
-        quality === 'registered_entry' ||
-        quality === 'structured_entry_match'
-      )
-    );
-  });
-}
-
+// Replaces the previous hasStrongWholeUnitEvidence() raw-evidence filter.
+// That function re-derived its own notion of "strong enough to trust" by
+// inspecting verification_evidence directly — a third place in the system
+// reinventing the same interpretation as services/verification.ts
+// (client) and aggregateVerificationTier() (server), with its own slightly
+// different rules. trusted_expressions_v1 already encodes the single
+// canonical trust verdict (expression_semantic_enrichment.review_status =
+// 'trusted', written only by semantic-audit-worker), so querying it
+// directly removes both the duplication and the risk of a fourth
+// diverging interpretation. See architecture-audit-full.md.
 async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
   const { data, error } = await supabase
-    .from('expression_catalog')
+    .from('trusted_expressions_v1')
     .select(`
       id,
       lemma,
       display_form,
       normalized_key,
       pos,
-      expression_subtype,
-      verification_evidence
+      expression_subtype
     `)
     .not('normalized_key', 'is', null);
 
@@ -143,10 +107,6 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
     if (key.includes('/')) continue;
     if (/[гґ]/i.test(key)) continue;
 
-    if (!hasStrongWholeUnitEvidence(row)) {
-      continue;
-    }
-
     const item: ExpressionRow = {
       id: row.id,
       lemma: row.lemma,
@@ -155,7 +115,6 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
       pos: row.pos ?? 'expression',
       expression_subtype: row.expression_subtype ?? null,
       token_len: tokenize(key).length,
-      verification_evidence: row.verification_evidence ?? null,
     };
 
     if (item.token_len < 2) continue;

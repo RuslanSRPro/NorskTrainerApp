@@ -474,86 +474,6 @@ function normalizeToken(value: string) {
     .replace(/^(en|ei|et)\s+/i, "")
     .trim();
 }
-// Transforms the analyze-text v7 response { job, ingestion.planned_items, orchestrator }
-// into the legacy { known, missing, expressions } format that the rest of this
-// screen expects. Called in runPwaTextAnalysis and runAiTextAnalysis.
-// The dictionary argument comes from analyzeTextLocal() — already loaded in
-// both call sites, so no extra fetch is needed.
-function adaptV7ResponseToLegacyFormat(
-  v7Result: any,
-  dictionary: Map<string, any>,
-): { ok: boolean; known: any[]; missing: any[]; expressions: any[] } {
-  const plannedItems: any[] = v7Result?.ingestion?.planned_items ?? [];
-
-  // если v7 вернул пустой/ошибочный ответ — не притворяемся успехом
-  const isOk = v7Result?.ok === true && plannedItems.length > 0;
-
-  const known: any[] = [];
-  const missing: any[] = [];
-  const expressions: any[] = [];
-
-  for (const item of plannedItems) {
-    const surfaceKey = normalizeToken(item.surface_form ?? '');
-    const lemmaKey   = normalizeToken(item.normalized_lemma ?? '');
-    const localMatch =
-      (surfaceKey && dictionary.get(surfaceKey)) ||
-      (lemmaKey   && dictionary.get(lemmaKey))   ||
-      null;
-
-    if (item.match_type === 'expression') {
-      expressions.push({
-        text:               item.surface_form || item.normalized_lemma,
-        lemma:              item.normalized_lemma,
-        type:               'expression',
-        expression_subtype: item.expression_subtype ?? null,
-        in_base:            true,
-        found:              localMatch ?? (item.expression_id
-                              ? { id: item.expression_id, lemma: item.normalized_lemma }
-                              : null),
-        meaning_ua:         localMatch?.translation_ua || localMatch?.ua || '',
-        meaning_en:         localMatch?.translation_en || localMatch?.en || '',
-        cefr:               localMatch?.cefr            || item.cefr            || '',
-        frequency_level:    localMatch?.frequency_level || item.frequency_level || '',
-        chunk_index:        item.chunk_index ?? 0,
-      });
-    } else {
-      // token
-      const resolved   = item.resolved;
-      const lexemeData =
-        localMatch ||
-        (resolved?.lexeme_id
-          ? {
-              id:    resolved.lexeme_id,
-              lemma: resolved.lemma ?? item.normalized_lemma,
-              pos:   resolved.pos,
-            }
-          : null);
-
-      if (lexemeData) {
-        known.push({
-          text:       item.surface_form,
-          lemma:      item.normalized_lemma,
-          match_type: 'single',   // rebuildAnalysisFromEdgeResult ожидает это поле
-          in_base:    true,
-          found:      lexemeData,
-        });
-      } else {
-        missing.push({
-          text:       item.surface_form,
-          lemma:      item.normalized_lemma,
-          type:       item.pos ?? null,
-          in_base:    false,
-          found:      null,
-          meaning_ua: '',
-          meaning_en: '',
-        });
-      }
-    }
-  }
-
-  return { ok: isOk, known, missing, expressions };
-}
-
 
 function splitWords(text: string) {
   return String(text || "")
@@ -1118,10 +1038,9 @@ export default function ReadingScreen() {
       if (!result?.ok)
         throw new Error(result?.message || "PWA text analyzer failed");
 
-      const adaptedResult = adaptV7ResponseToLegacyFormat(result, dictionary);
-      rebuildAnalysisFromEdgeResult(adaptedResult, learnedIds);
-      const candidates = buildAnalyzerCandidates(adaptedResult, "pwa", dictionary);
-      setAnalyzerResult(adaptedResult);
+      rebuildAnalysisFromEdgeResult(result, learnedIds);
+      const candidates = buildAnalyzerCandidates(result, "pwa", dictionary);
+      setAnalyzerResult(result);
       setAnalyzerCandidates(candidates);
 
       const unknownCandidates = candidates.filter(
@@ -1167,10 +1086,9 @@ export default function ReadingScreen() {
       if (!result?.ok)
         throw new Error(result?.message || "AI text analyzer failed");
 
-      const adaptedResult = adaptV7ResponseToLegacyFormat(result, dictionary);
-      rebuildAnalysisFromEdgeResult(adaptedResult, learnedIds);
-      const candidates = buildAnalyzerCandidates(adaptedResult, "ai", dictionary);
-      setAnalyzerResult(adaptedResult);
+      rebuildAnalysisFromEdgeResult(result, learnedIds);
+      const candidates = buildAnalyzerCandidates(result, "ai", dictionary);
+      setAnalyzerResult(result);
       setAnalyzerCandidates(candidates);
 
       const unknownCandidates = candidates.filter(

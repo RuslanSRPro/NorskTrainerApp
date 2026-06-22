@@ -44,6 +44,7 @@ export type SourceEvidence = {
   registered_entry?: boolean;
   whole_unit_match?: boolean;
   component_match?: boolean;
+  usage_match?: boolean;
   confidence?: number;
   evidence_label?: string;
   url?: string;
@@ -162,14 +163,26 @@ export const QUALITY_SCORE: Record<string, number> = {
   not_checked: 0,
 };
 
+// Sources whose `registered_entry: true` / `whole_unit_match: true` flags
+// are trusted as authoritative dictionary signals. Mirrors the server's
+// AUTHORITATIVE_DICTIONARIES set in semantic-audit-worker exactly — see
+// the reconciliation note on getEvidenceTier() below.
+const AUTHORITATIVE_DICTIONARIES = new Set<string>(['NAOB', 'Ordbokene']);
+
+// Quality strings that map to a tier WITHOUT needing a specific source or
+// boolean-flag combination. Deliberately does NOT include 'registered_entry',
+// 'structured_entry_match', or 'normative_reference' — on the server
+// (aggregateVerificationTier in semantic-audit-worker), those three are
+// reachable only through a combination of a boolean flag AND a specific
+// authoritative source, never from the quality string alone. Including them
+// here would let evidence reach dictionary_entry / dictionary_match /
+// normative_reference from any source, bypassing that check — see
+// architecture-audit-full.md for the full reconciliation table.
 export const QUALITY_TO_TIER: Record<string, VerificationTier> = {
-  registered_entry: 'dictionary_entry',
-  structured_entry_match: 'dictionary_match',
-  learner_dictionary: 'dictionary_match',
-  exact_expression_match: 'dictionary_match',
-  normative_reference: 'normative_reference',
+  learner_dictionary: 'usage_evidence',
+  exact_expression_match: 'usage_evidence',
   usage_example_match: 'usage_evidence',
-  search_page_match: 'usage_evidence',
+  search_page_match: 'component_match',
   component_match: 'component_match',
   ai_suggestion: 'ai_candidate',
 };
@@ -317,15 +330,50 @@ export function getEvidenceQualityScore(item?: SourceEvidence | null): number {
   return QUALITY_SCORE[quality] ?? 0;
 }
 
+// Mirrors the server's aggregateVerificationTier() in semantic-audit-worker
+// branch-for-branch, same priority order. Diverging from this — even by one
+// quality string or a missing source check — produces a tier on the client
+// that disagrees with what review_status the server actually wrote, which
+// is exactly the "two truths" failure mode this reconciliation closes. See
+// architecture-audit-full.md for the full before/after comparison table.
 export function getEvidenceTier(item?: SourceEvidence | null): VerificationTier {
   if (!item || !isFoundEvidence(item)) return 'ai_candidate';
 
-  if (item.registered_entry) return 'dictionary_entry';
-  if (item.whole_unit_match && item.quality === 'exact_expression_match') return 'dictionary_match';
-  if (item.quality && QUALITY_TO_TIER[item.quality]) return QUALITY_TO_TIER[item.quality];
+  const isAuthoritativeSource = Boolean(
+    item.source && AUTHORITATIVE_DICTIONARIES.has(item.source),
+  );
+
+  if (item.registered_entry && isAuthoritativeSource) {
+    return 'dictionary_entry';
+  }
+
+  if (
+    item.whole_unit_match &&
+    item.quality === 'structured_entry_match' &&
+    isAuthoritativeSource
+  ) {
+    return 'dictionary_match';
+  }
+
+  if (item.quality === 'normative_reference' && item.source === 'Språkrådet') {
+    return 'normative_reference';
+  }
+
+  if (item.usage_match === true) {
+    return 'usage_evidence';
+  }
+
+  if (item.quality && QUALITY_TO_TIER[item.quality]) {
+    return QUALITY_TO_TIER[item.quality];
+  }
+
   if (item.component_match) return 'component_match';
 
-  return 'usage_evidence';
+  // Server's equivalent fallback (when nothing in the evidence list matched
+  // any condition) is 'ai_candidate', not a softer tier — matched here
+  // deliberately so the client never shows evidence as more confirmed than
+  // the server's own review_status. Confirmed by the user.
+  return 'ai_candidate';
 }
 
 export function chooseStrongerTier(a: VerificationTier, b: VerificationTier): VerificationTier {

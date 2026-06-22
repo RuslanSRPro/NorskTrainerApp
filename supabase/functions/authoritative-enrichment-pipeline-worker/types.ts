@@ -47,18 +47,17 @@ export type SourceEvidence = {
   raw?: unknown;
 };
 
+/**
+ * Evidence-strength classification only — NOT a trust verdict.
+ * Trust decisions (trusted / candidate / conflicted / weak) belong solely
+ * to semantic-audit-worker. This worker supplies facts, not conclusions.
+ */
 export type VerificationTier =
   | 'dictionary_entry'
   | 'usage_evidence'
   | 'component_match'
   | 'not_found'
   | 'technical_error';
-
-export type VerificationStatus =
-  | 'verified'
-  | 'partial'
-  | 'unverified'
-  | 'infrastructure_failure';
 
 export type SourceDetail = {
   source: SourceName;
@@ -90,18 +89,23 @@ export type UnifiedEvidenceSummary = {
     naob?: SourceEvidence;
   };
 
+  /**
+   * Pure evidence facts. No trust verdict is computed here —
+   * semantic-audit-worker is the sole place that turns this into
+   * trusted / candidate / conflicted / weak.
+   */
   summary: {
     attempted_sources: number;
     successful_sources: number;
     positive_sources: number;
     negative_sources: number;
     has_authoritative_evidence: boolean;
+    has_infrastructure_failure: boolean;
 
     /**
      * Aggregated from the strongest source-level tier.
      * Full source-level evidence is preserved in source_details.
      */
-    verification_status: VerificationStatus;
     strongest_tier: VerificationTier;
     strongest_source: SourceName | null;
     source_details: SourceDetail[];

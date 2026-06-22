@@ -106,7 +106,7 @@ serve(async (req) => {
 
       const { data: existingExpression, error: existingError } = await supabase
         .from('expression_catalog')
-        .select('id, normalized_key')
+        .select('id, normalized_key, ordbokene_status')
         .eq('normalized_key', normalizedKey)
         .maybeSingle();
 
@@ -124,6 +124,8 @@ serve(async (req) => {
       }
 
       if (existingExpression) {
+        let ordbokeneStatusBackfilled = false;
+
         if (!dryRun) {
           const { error: duplicateUpdateError } = await supabase
             .from('ordbokene_expression_candidates')
@@ -150,6 +152,41 @@ serve(async (req) => {
               500,
             );
           }
+
+          // Backfill ordbokene_status onto the existing row if it does not
+          // already carry a stronger Ordbokene signal — never downgrades.
+          // 'expr_entry' (the whole article is the expression) outranks
+          // 'sub_article' (a nested definition inside another article), so
+          // an already-stronger status is left untouched. This is the only
+          // place expression_catalog is touched for an existing match — the
+          // user explicitly confirmed this should happen, unlike leaving
+          // existing rows fully untouched. See architecture-audit-full.md
+          // sections 46, 49-50.
+          if (existingExpression.ordbokene_status !== 'expr_entry') {
+            const { error: backfillError } = await supabase
+              .from('expression_catalog')
+              .update({
+                ordbokene_status: 'sub_article',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existingExpression.id);
+
+            if (backfillError) {
+              return jsonResponse(
+                {
+                  ok: false,
+                  stage: 'backfill_ordbokene_status',
+                  candidate_id: candidate.id,
+                  expression_id: existingExpression.id,
+                  error: backfillError.message,
+                  details: backfillError,
+                },
+                500,
+              );
+            }
+
+            ordbokeneStatusBackfilled = true;
+          }
         }
 
         results.push({
@@ -161,6 +198,7 @@ serve(async (req) => {
           review_reason: reviewReason,
           action: dryRun ? 'would_mark_duplicate' : 'marked_duplicate',
           expression_id: existingExpression.id,
+          ordbokene_status_backfilled: ordbokeneStatusBackfilled,
         });
 
         continue;
@@ -216,6 +254,13 @@ serve(async (req) => {
             review_priority: reviewPriority,
             review_reason: reviewReason,
           },
+
+          // Honest, source-specific Ordbokene catalog status — read by
+          // compute_expression_review_status() via a database trigger, not
+          // computed here. 'sub_article' because this candidate came from a
+          // definition nested inside a parent article, not the article's
+          // own headword. See architecture-audit-full.md sections 46-48.
+          ordbokene_status: 'sub_article',
 
           verification: 'needs_review',
           confidence: 'medium',

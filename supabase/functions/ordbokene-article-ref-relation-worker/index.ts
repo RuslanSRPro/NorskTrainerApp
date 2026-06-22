@@ -347,15 +347,27 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!parentResult.data?.id) {
-      return jsonResponse(
-        {
-          ok: false,
-          stage: 'resolve_parent_lexeme',
-          error: 'Parent lexeme not found in lexemes',
-          lemma: sourceLemma,
-        },
-        404,
-      );
+      // Not an error — verification path A simply has not processed this
+      // lemma yet. The same way `ordbokene_status: 'not_listed'` is valid
+      // negative source evidence rather than a technical error, a missing
+      // parent lexeme here is a legitimate, expected, temporary state, not
+      // a reason to fail the whole pipeline run. The caller
+      // (ordbokene-lexeme-pipeline-worker) checks `articleRefRelations.ok`
+      // to decide whether to abort — returning ok:true here lets the rest
+      // of the pipeline (relation-resolver) continue normally.
+      // See architecture-audit-full.md section 42, blocker 4.
+      return jsonResponse({
+        ok: true,
+        skipped: true,
+        stage: 'resolve_parent_lexeme',
+        reason:
+          'Parent lexeme not found in lexemes yet. Verification path A has not processed this word. Article ref relations will be created on a later run once the parent lexeme exists.',
+        article_id: articleId,
+        dictionary_code: dictionaryCode,
+        lemma: sourceLemma,
+        processed: 0,
+        upserted: 0,
+      });
     }
 
     const parentLexeme = parentResult.data;

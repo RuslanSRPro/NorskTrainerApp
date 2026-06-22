@@ -4,7 +4,6 @@
   ItemType,
   SourceDetail,
   VerificationTier,
-  VerificationStatus,
 } from './types.ts';
 
 const POSITIVE_STATUSES = new Set([
@@ -24,6 +23,17 @@ const NEGATIVE_STATUSES = new Set([
   'expression_not_found_in_article',
 ]);
 
+/**
+ * Builds a unified, source-level evidence summary.
+ *
+ * IMPORTANT: this function reports facts about evidence (which sources
+ * were checked, what they found, how strong each signal is) — it does NOT
+ * decide trust. The decision of trusted / candidate / conflicted / weak
+ * belongs solely to semantic-audit-worker, which consumes this summary
+ * (positive_sources, negative_sources, strongest_tier, source_details) as
+ * its input. Do not reintroduce a verification_status / verdict field here —
+ * that was the exact duplication this file was fixed to remove.
+ */
 export function buildUnifiedEvidenceSummary(params: {
   item_type: ItemType;
   item_id: string;
@@ -46,14 +56,9 @@ export function buildUnifiedEvidenceSummary(params: {
   }).length;
 
   const strongest = getStrongestSourceDetail(sourceDetails);
-  const hasInfrastructureFailure = sourceDetails.some(
+  const has_infrastructure_failure = sourceDetails.some(
     (detail) => detail.tier === 'technical_error',
   );
-
-  const verification_status = getVerificationStatus({
-    strongest,
-    hasInfrastructureFailure,
-  });
 
   return {
     item_type: params.item_type,
@@ -68,7 +73,7 @@ export function buildUnifiedEvidenceSummary(params: {
       positive_sources,
       negative_sources,
       has_authoritative_evidence: positive_sources > 0,
-      verification_status,
+      has_infrastructure_failure,
       strongest_tier: strongest?.tier ?? 'not_found',
       strongest_source: strongest?.source ?? null,
       source_details: sourceDetails,
@@ -272,30 +277,4 @@ function getTierRank(tier: VerificationTier): number {
     default:
       return 0;
   }
-}
-
-function getVerificationStatus(params: {
-  strongest: SourceDetail | null;
-  hasInfrastructureFailure: boolean;
-}): VerificationStatus {
-  if (params.hasInfrastructureFailure) {
-    return 'infrastructure_failure';
-  }
-
-  if (!params.strongest) {
-    return 'unverified';
-  }
-
-  if (params.strongest.tier === 'dictionary_entry') {
-    return 'verified';
-  }
-
-  if (
-    params.strongest.tier === 'usage_evidence' ||
-    params.strongest.tier === 'component_match'
-  ) {
-    return 'partial';
-  }
-
-  return 'unverified';
 }

@@ -17,6 +17,14 @@ function normalizeKey(value: string): string {
   return value.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
+// Used to tell a genuine multi-word expression article apart from a
+// single-token lemma that simply has no parent lexeme yet (because
+// verification path A has not processed it). See Fix: entity_mode
+// misclassification, architecture-audit-full.md section 42.
+function tokenCount(value: string): number {
+  return normalizeKey(value).split(' ').filter(Boolean).length;
+}
+
 async function getSupabaseClient() {
   const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
 
@@ -278,6 +286,32 @@ async function promoteStandaloneExpression(args: {
   const sourceUrl =
     `https://ord.uib.no/${args.dictionaryCode}/article/${args.articleId}.json`;
 
+  // Never blindly overwrite an existing expression_catalog row — it may
+  // already carry a higher verification tier (from path A, or a prior
+  // semantic-audit-worker pass) or richer source data than this function
+  // alone can produce. If a row already exists, leave it untouched and
+  // report it as a duplicate instead of upserting over it.
+  // See architecture-audit-full.md section 42, blocker 3.
+  const { data: existing, error: existingError } = await supabase
+    .from('expression_catalog')
+    .select('id, normalized_key, verification_tier')
+    .eq('normalized_key', normalized)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  if (existing) {
+    return {
+      ok: true,
+      dry_run: args.dryRun,
+      skipped: true,
+      reason:
+        'expression_catalog row already exists for this normalized_key; not overwritten.',
+      existing_expression_id: existing.id,
+      existing_verification_tier: existing.verification_tier,
+    };
+  }
+
   const payload = {
     lemma: normalized,
     display_form: args.lemma,
@@ -295,12 +329,18 @@ async function promoteStandaloneExpression(args: {
         ingestion_mode: 'standalone_expression',
       },
     },
-    verification: 'source_verified',
-    confidence: 'high',
+    // Honest, source-specific Ordbokene catalog status — read by
+    // compute_expression_review_status() via a database trigger, not
+    // computed here. 'expr_entry' because the entire article IS the
+    // expression (its own headword), the strongest Ordbokene signal. See
+    // architecture-audit-full.md sections 46-48.
+    ordbokene_status: 'expr_entry',
+    verification: 'needs_review',
+    confidence: 'medium',
     source_verified: 'Ordbokene',
-    verification_status: 'source_verified',
+    verification_status: 'candidate',
     linguistic_evidence: 'Ordbokene standalone expression article',
-    verification_tier: 'authoritative',
+    verification_tier: 'candidate',
     verification_evidence: {
       source: 'Ordbokene',
       article_id: args.articleId,
@@ -319,11 +359,12 @@ async function promoteStandaloneExpression(args: {
     };
   }
 
+  // Plain insert, not upsert — existence was already confirmed above.
+  // If a race condition somehow inserted the same normalized_key in the
+  // meantime, this throws loudly instead of silently overwriting it.
   const { data, error } = await supabase
     .from('expression_catalog')
-    .upsert(payload, {
-      onConflict: 'normalized_key',
-    })
+    .insert(payload)
     .select('id, lemma, normalized_key, expression_subtype')
     .single();
 
@@ -486,10 +527,78 @@ serve(async (req) => {
     };
 
     if (entityMode === 'expression') {
+      const candidateLemma = cacheLemma ?? inputLemma ?? '';
+      const candidateTokenCount = tokenCount(candidateLemma);
+
+      // A single-token lemma with no parent lexeme is NOT a standalone
+      // expression — it is an ordinary word that verification path A has
+      // not processed yet. This pipeline has no authority to create
+      // lexemes (it only ever reads `lexemes`, see getParentLexemeIdByLemma
+      // above), so promoting it into expression_catalog as a
+      // 'fixed_expression' would both miscategorize it and risk
+      // overwriting a correctly-classified row later. Decline instead.
+      // See architecture-audit-full.md section 42.
+      if (candidateTokenCount <= 1) {
+        steps.standalone_expression_promotion = {
+          ok: true,
+          skipped: true,
+          reason:
+            'Single-token lemma with no existing parent lexeme is not a standalone expression — it is an unverified lexeme. This pipeline does not create lexeme rows; verification path A must process it first.',
+        };
+
+        steps.expression_extraction = {
+          ok: true,
+          skipped: true,
+          reason: 'Skipped: single-token lemma, not an expression article.',
+        };
+
+        steps.expression_promotion = {
+          ok: true,
+          skipped: true,
+          reason: 'Skipped: single-token lemma, not an expression article.',
+        };
+
+        steps.has_expression_relations = {
+          ok: true,
+          skipped: true,
+          reason: 'Skipped: single-token lemma, not an expression article.',
+        };
+
+        steps.article_ref_relations = {
+          ok: true,
+          skipped: true,
+          reason: 'Skipped: single-token lemma, not an expression article.',
+        };
+
+        steps.relation_resolver = {
+          ok: true,
+          skipped: true,
+          reason: 'Skipped: single-token lemma, not an expression article.',
+        };
+
+        return jsonResponse({
+          ok: true,
+          pipeline: 'ordbokene_lexeme_pipeline_v4',
+          lemma: inputLemma,
+          article_id: articleId,
+          dictionary_code: dictionaryCode,
+          entity_mode: 'unverified_lexeme',
+          ordbokene_status: 'entry',
+          diagnostic_status: 'single_token_lemma_not_yet_in_lexemes',
+          confidence: 1,
+          dry_run: dryRun,
+          compact,
+          run_resolver: runResolver,
+          steps,
+          note:
+            'Single-token lemma found in Ordbokene but has no matching row in lexemes yet. This pipeline does not create lexeme rows — verification path A (lexical-worker / promote_verification_results_for_job) must process this word first.',
+        });
+      }
+
       const standaloneExpression = await promoteStandaloneExpression({
         articleId,
         dictionaryCode,
-        lemma: cacheLemma ?? inputLemma ?? '',
+        lemma: candidateLemma,
         dryRun,
       });
 
