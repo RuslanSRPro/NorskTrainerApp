@@ -1,163 +1,152 @@
-import { useSettingsStore } from '@/store/settingsStore';
+// services/theme.ts
 
-export type ThemeName = 'light' | 'dark' | 'reading' | 'turquoise';
+export type ThemeName    = 'light' | 'dark' | 'reading' | 'turquoise';
 export type FontSizeName = 'small' | 'medium' | 'large';
 
+// Unified color type — covers both settings.tsx and explore.tsx field names
 export type AppColors = {
+  // backgrounds
   background: string;
-  card: string;
-  cardAlt: string;
-  border: string;
-  textPrimary: string;
+  card:       string;
+  cardAlt:    string;   // secondary card / inner area
+  cardInner:  string;   // alias for cardAlt (explore.tsx)
+  inputBg:    string;
+  // text hierarchy
+  textPrimary:   string;
   textSecondary: string;
-  textTertiary: string;
-  accent: string;
-  accentText: string;
+  textTertiary:  string;
+  text:          string; // alias for textPrimary (explore.tsx)
+  textMuted:     string; // alias for textTertiary (explore.tsx)
+  // accent
+  accent:     string;
   accentSoft: string;
-  success: string;
-  successSoft: string;
-  warning: string;
-  warningSoft: string;
-  danger: string;
+  accentBg:   string;  // alias for accentSoft (explore.tsx)
+  // border
+  border: string;
+  // semantic
+  danger:     string;
   dangerSoft: string;
+  // tags
+  tagBg:   string;
+  tagText: string;
+  // grade buttons
+  hardBtn:  string; hardText:  string;
+  okBtn:    string; okText:    string;
+  easyBtn:  string; easyText:  string;
+  // next button
+  nextBtn: string; nextBorder: string; nextText: string;
 };
 
-/**
- * Four palettes:
- *  - light:     current cream/white look (default)
- *  - dark:      dark UI for low-light use
- *  - reading:   warm sepia / paper, easy on the eyes for long text-analysis sessions
- *  - turquoise: light background with a teal/turquoise accent identity
- */
+export type AppFonts = {
+  word:        number;
+  translation: number;
+  prompt:      number;
+  base:        number;
+  meta:        number;
+};
+
+// ── Themes ───────────────────────────────────────────────────────────────────
+
 export const THEMES: Record<ThemeName, AppColors> = {
+  // Apple iOS Light
   light: {
-    background: '#F7F4ED',
-    card: '#FFFFFF',
-    cardAlt: '#F8FAFC',
-    border: '#E5E7EB',
-    textPrimary: '#111827',
-    textSecondary: '#6B7280',
-    textTertiary: '#9CA3AF',
-    accent: '#0EA5E9',
-    accentText: '#0284C7',
-    accentSoft: '#E0F2FE',
-    success: '#22C55E',
-    successSoft: '#DCFCE7',
-    warning: '#F59E0B',
-    warningSoft: '#FEF3C7',
-    danger: '#EF4444',
-    dangerSoft: '#FEE2E2',
+    background: '#F2F2F7', card: '#FFFFFF', cardAlt: '#F2F2F7', cardInner: '#F2F2F7', inputBg: '#FFFFFF',
+    textPrimary: '#000000', textSecondary: '#3C3C43', textTertiary: '#8E8E93',
+    text: '#000000', textMuted: '#8E8E93',
+    accent: '#007AFF', accentSoft: '#EAF3FF', accentBg: '#EAF3FF',
+    border: '#C6C6C8',
+    danger: '#FF3B30', dangerSoft: '#FFF0EE',
+    tagBg: '#EAF3FF', tagText: '#007AFF',
+    hardBtn: '#FF3B30', hardText: '#FFFFFF',
+    okBtn: '#FF9500', okText: '#FFFFFF',
+    easyBtn: '#34C759', easyText: '#FFFFFF',
+    nextBtn: '#FFFFFF', nextBorder: '#C6C6C8', nextText: '#000000',
   },
-
+  // Apple iOS Dark
   dark: {
-    background: '#15181B',
-    card: '#1F2327',
-    cardAlt: '#262B30',
-    border: '#33383E',
-    textPrimary: '#F3F4F6',
-    textSecondary: '#A1A8B0',
-    textTertiary: '#6B7280',
-    accent: '#38BDF8',
-    accentText: '#7DD3FC',
-    accentSoft: '#0C3A4F',
-    success: '#4ADE80',
-    successSoft: '#143821',
-    warning: '#FBBF24',
-    warningSoft: '#3D2E0B',
-    danger: '#F87171',
-    dangerSoft: '#3D1414',
+    background: '#000000', card: '#1C1C1E', cardAlt: '#2C2C2E', cardInner: '#2C2C2E', inputBg: '#2C2C2E',
+    textPrimary: '#FFFFFF', textSecondary: '#EBEBF5', textTertiary: '#636366',
+    text: '#FFFFFF', textMuted: '#636366',
+    accent: '#0A84FF', accentSoft: '#001D3D', accentBg: '#001D3D',
+    border: '#38383A',
+    danger: '#FF453A', dangerSoft: '#2D0000',
+    tagBg: '#001D3D', tagText: '#0A84FF',
+    hardBtn: '#FF453A', hardText: '#FFFFFF',
+    okBtn: '#FF9F0A', okText: '#000000',
+    easyBtn: '#30D158', easyText: '#000000',
+    nextBtn: '#2C2C2E', nextBorder: '#38383A', nextText: '#FFFFFF',
   },
-
+  // Apple Books Sepia
   reading: {
-    background: '#F4ECDA',
-    card: '#FBF6EA',
-    cardAlt: '#F0E6D2',
-    border: '#E2D5BB',
-    textPrimary: '#3D3424',
-    textSecondary: '#8A7A5C',
-    textTertiary: '#A6987C',
-    accent: '#B5651D',
-    accentText: '#8A4A12',
-    accentSoft: '#F1E0C6',
-    success: '#5C7F3F',
-    successSoft: '#E6EBD9',
-    warning: '#B5821D',
-    warningSoft: '#F2E6C6',
-    danger: '#A4452F',
-    dangerSoft: '#F2DDD4',
+    background: '#F5E6C8', card: '#FFFBF0', cardAlt: '#F5E6C8', cardInner: '#F5E6C8', inputBg: '#FFFBF0',
+    textPrimary: '#2C1810', textSecondary: '#6B4C35', textTertiary: '#A07855',
+    text: '#2C1810', textMuted: '#A07855',
+    accent: '#8B4513', accentSoft: '#F0D9B5', accentBg: '#F0D9B5',
+    border: '#D4B896',
+    danger: '#C0392B', dangerSoft: '#FAE5E3',
+    tagBg: '#F0D9B5', tagText: '#8B4513',
+    hardBtn: '#C0392B', hardText: '#FFFFFF',
+    okBtn: '#D4810A', okText: '#FFFFFF',
+    easyBtn: '#27AE60', easyText: '#FFFFFF',
+    nextBtn: '#FFFBF0', nextBorder: '#D4B896', nextText: '#2C1810',
   },
-
+  // Apple macOS Mint
   turquoise: {
-    background: '#E9F6F0',
-    card: '#FFFFFF',
-    cardAlt: '#F1FAF6',
-    border: '#CDEBE0',
-    textPrimary: '#04342C',
-    textSecondary: '#0F6E56',
-    textTertiary: '#5DCAA5',
-    accent: '#1D9E75',
-    accentText: '#0F6E56',
-    accentSoft: '#E1F5EE',
-    success: '#22C55E',
-    successSoft: '#DCFCE7',
-    warning: '#F59E0B',
-    warningSoft: '#FEF3C7',
-    danger: '#EF4444',
-    dangerSoft: '#FEE2E2',
+    background: '#ECF8F5', card: '#FFFFFF', cardAlt: '#ECF8F5', cardInner: '#ECF8F5', inputBg: '#FFFFFF',
+    textPrimary: '#0A3728', textSecondary: '#1A6B55', textTertiary: '#64B8A0',
+    text: '#0A3728', textMuted: '#64B8A0',
+    accent: '#00977A', accentSoft: '#D1F2EA', accentBg: '#D1F2EA',
+    border: '#A8E6D8',
+    danger: '#FF3B30', dangerSoft: '#FFF0EE',
+    tagBg: '#D1F2EA', tagText: '#007A62',
+    hardBtn: '#FF3B30', hardText: '#FFFFFF',
+    okBtn: '#FF9500', okText: '#FFFFFF',
+    easyBtn: '#2DD4BF', easyText: '#0A3728',
+    nextBtn: '#FFFFFF', nextBorder: '#A8E6D8', nextText: '#0A3728',
   },
 };
 
-export const THEME_LABELS: Record<ThemeName, { ua: string; en: string; no: string }> = {
-  light: { ua: 'Світла', en: 'Light', no: 'Lys' },
-  dark: { ua: 'Темна', en: 'Dark', no: 'Mørk' },
-  reading: { ua: 'Читання', en: 'Reading', no: 'Lesemodus' },
-  turquoise: { ua: 'Бірюзова', en: 'Turquoise', no: 'Turkis' },
+// ── Font sizes ────────────────────────────────────────────────────────────────
+
+export const FONT_SIZES: Record<FontSizeName, AppFonts> = {
+  small:  { word: 26, translation: 18, prompt: 19, base: 14, meta: 11 },
+  medium: { word: 32, translation: 22, prompt: 23, base: 16, meta: 13 },
+  large:  { word: 40, translation: 28, prompt: 29, base: 18, meta: 15 },
 };
 
-/**
- * Font size multipliers.
- * "medium" matches the current sizes used across the app (multiplier 1).
- * Use scale(baseSize) to get the adjusted size for the current setting.
- */
-export const FONT_SCALE: Record<FontSizeName, number> = {
-  small: 0.88,
-  medium: 1,
-  large: 1.14,
+// Font scale multipliers — used by useAppTheme()
+const SCALE_MULTIPLIER: Record<FontSizeName, number> = {
+  small: 0.875, medium: 1, large: 1.125,
 };
 
-export const FONT_SIZE_LABELS: Record<FontSizeName, { ua: string; en: string; no: string }> = {
-  small: { ua: 'Малий', en: 'Small', no: 'Liten' },
-  medium: { ua: 'Звичайний', en: 'Medium', no: 'Normal' },
-  large: { ua: 'Великий', en: 'Large', no: 'Stor' },
+// ── Labels (multilingual) ────────────────────────────────────────────────────
+// settings.tsx reads: THEME_LABELS[option][lang]
+
+export const THEME_LABELS: Record<ThemeName, Record<string, string>> = {
+  light:     { ua: 'Світла',   en: 'Light',   no: 'Lys' },
+  dark:      { ua: 'Темна',    en: 'Dark',    no: 'Mørk' },
+  reading:   { ua: 'Читання',  en: 'Reading', no: 'Lesing' },
+  turquoise: { ua: 'Бірюзова', en: 'Teal',    no: 'Turkis' },
 };
 
-/**
- * Central hook for theme + font scale.
- *
- * Reads `theme` and `font_size` from settingsStore. Both fields are optional
- * for now (default to 'light' / 'medium') -- add them to services/settings.ts
- * and settingsStore once the Settings screen exposes the pickers.
- */
-export function useAppTheme() {
-  const { theme, font_size } = useSettingsStore() as {
-    theme?: ThemeName;
-    font_size?: FontSizeName;
-  };
+export const FONT_SIZE_LABELS: Record<FontSizeName, Record<string, string>> = {
+  small:  { ua: 'Малий',     en: 'Small',  no: 'Liten' },
+  medium: { ua: 'Звичайний', en: 'Normal', no: 'Normal' },
+  large:  { ua: 'Великий',   en: 'Large',  no: 'Stor' },
+};
 
-  const themeName: ThemeName = theme || 'light';
-  const fontSizeName: FontSizeName = font_size || 'medium';
+// ── Hooks ─────────────────────────────────────────────────────────────────────
 
-  const colors = THEMES[themeName];
-  const multiplier = FONT_SCALE[fontSizeName];
+import { useSettingsStore } from '@/store/settingsStore';
 
-  // Round to whole pixels so React Native doesn't sub-pixel render text.
-  const scale = (base: number) => Math.round(base * multiplier);
-
+// useAppTheme — used by settings.tsx and ScreenHeader.tsx
+// returns: { colors, scale(n) }  where scale is a function
+export function useAppTheme(): { colors: AppColors; scale: (n: number) => number } {
+  const themeName    = useSettingsStore((s) => s.theme)     as ThemeName;
+  const fontSizeName = useSettingsStore((s) => s.font_size) as FontSizeName;
+  const multiplier   = SCALE_MULTIPLIER[fontSizeName] ?? 1;
   return {
-    themeName,
-    fontSizeName,
-    colors,
-    multiplier,
-    scale,
+    colors: THEMES[themeName] ?? THEMES.light,
+    scale:  (n: number) => Math.round(n * multiplier),
   };
 }

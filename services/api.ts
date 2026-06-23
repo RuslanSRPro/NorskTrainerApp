@@ -2,22 +2,6 @@ import { supabase } from './supabase';
 import { getCurrentUserId } from '@/store/authStore';
 
 // ============================================================
-// Constants
-// ============================================================
-
-const APPS_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbxJ_bSNdi0W2Twgi1ZX563bsWO0yptcD_-KBQKkEHSNE0VXpL8CeENy9pQ8PcyN-f4q/exec';
-
-const ENRICH_WORD_URL =
-  'https://kevpkawrbtovrgyjkkvu.supabase.co/functions/v1/enrich-word';
-
-const ANALYZE_TEXT_URL =
-  'https://kevpkawrbtovrgyjkkvu.supabase.co/functions/v1/analyze-text';
-
-const PUBLISHABLE_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
-
-// ============================================================
 // LEXEME SELECT
 // ============================================================
 
@@ -41,12 +25,9 @@ const LEXEME_SELECT = `
   adjective_forms (
     positiv, intetkjonn, flertall,
     komparativ, superlativ, best_superlativ
-  ),
-  synonyms (
-    synonym_no, synonym_type, synonym_ua,
-    antonym_no, antonym_ua, synonym_status
   )
 `;
+
 
 // ============================================================
 // Types
@@ -140,7 +121,7 @@ function mapLexemeRow(item: any) {
     expression_subtype: vf.expression_subtype || ed.expression_subtype || '',
     base_verb:          vf.base_verb          || '',
     particle:           vf.particle           || '',
-    synonyms:           item.synonyms         || [],
+    synonyms:           [],
     // joined form objects for getFormLabels()
     verb_forms:       item.verb_forms?.[0]      || null,
     noun_forms:       item.noun_forms?.[0]      || null,
@@ -174,6 +155,7 @@ function candidateFrequencyLevel(candidate: any) {
   if (['high', 'medium', 'low', 'rare'].includes(raw)) return raw;
   return '';
 }
+
 
 // ============================================================
 // Attach SRS meta
@@ -268,6 +250,7 @@ function sortByLearningPriority<T>(items: T[]) {
     scoreLearningCandidate(b) - scoreLearningCandidate(a)
   );
 }
+
 
 // ============================================================
 // SRS calculations
@@ -521,11 +504,18 @@ function calculateSrsUpdate(params: {
   };
 }
 
+
 // ============================================================
 // Learning progress helpers
 // ============================================================
 
 async function getLearningProgressIds(userId: string): Promise<string[]> {
+  const { data: { session } } = await supabase.auth.getSession();
+  console.log('=== AUTH DEBUG ===');
+  console.log('userId:', userId);
+  console.log('session uid:', session?.user?.id ?? 'NO SESSION');
+  console.log('has token:', !!session?.access_token);
+
   const { data, error } = await supabase
     .from('learning_progress')
     .select('lexeme_id')
@@ -810,6 +800,7 @@ export async function getDashboardStatsFromSupabase(preferredUser?: string) {
   };
 }
 
+
 // ============================================================
 // Public: getReadingLexemesFromSupabase
 // ============================================================
@@ -957,39 +948,6 @@ export async function boostReadingLexemeHitsInSupabase(params: {
 }
 
 // ============================================================
-// Public: enrichWordViaEdgeFunction
-// ============================================================
-
-export async function enrichWordViaEdgeFunction(params: {
-  word:            string;
-  userId?:         string;
-  addToLearning?:  boolean;
-  repairExisting?: boolean;
-}): Promise<any> {
-  const response = await fetch(ENRICH_WORD_URL, {
-    method:  'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'apikey':        PUBLISHABLE_KEY,
-      'Authorization': `Bearer ${PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({
-      word:           params.word,
-      userId:         params.userId         || getCurrentUserId(),
-      addToLearning:  params.addToLearning  ?? false,
-      repairExisting: params.repairExisting ?? true,
-    }),
-  });
-
-  const text = await response.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error('Invalid response from enrich-word: ' + text);
-  }
-}
-
-// ============================================================
 // Public: searchLexemeInSupabase
 // ============================================================
 
@@ -1066,7 +1024,6 @@ export async function addExpressionCandidateToSupabase(params: {
     frequency_note:   candidate.frequency_note  || null,
     status:           'New',
     source:           candidate.source || 'AI analyzer',
-    // verification fields
     verification:        candidate.verification === 'known_dictionary' ? 'verified_dictionary' : 'ai_candidate',
     verification_tier:   candidate.verification_tier   || 'ai_candidate',
     verification_status: candidate.verification_status || 'ai_candidate',
@@ -1106,6 +1063,7 @@ export async function addExpressionCandidateToSupabase(params: {
 
 // ============================================================
 // Public: addLexemeToGlobalBaseFromSupabase
+// — enrich-word removed; only works for words already in lexemes
 // ============================================================
 
 export async function addLexemeToGlobalBaseFromSupabase(params: {
@@ -1123,42 +1081,31 @@ export async function addLexemeToGlobalBaseFromSupabase(params: {
     return { ok: true, alreadyExists: true, word: { ...found.item, learned: true } };
   }
 
-  const result = await enrichWordViaEdgeFunction({
-    word:          params.word,
-    userId,
-    addToLearning: true,
-  });
-
-  if (!result?.ok) throw new Error(result?.message || 'enrich-word failed');
-
+  // enrich-word edge function was deleted — new words can no longer be
+  // created automatically from here. The backend B-pipeline
+  // (ordbokene-lexeme-pipeline-worker, naob-pipeline-worker) enriches
+  // words asynchronously after analyze-text runs. Words will appear in
+  // the base once that pipeline processes them.
   return {
-    ok:            true,
-    alreadyExists: false,
-    word:          result.lexeme ? { ...result.lexeme, learned: true } : null,
+    ok:      false,
+    message: 'Word not found in database. It will be available after the enrichment pipeline processes it.',
   };
 }
 
 // ============================================================
 // Public: translateSentenceWithAI
+// — translate-sentence edge function was deleted; stub until replaced
 // ============================================================
 
 export async function translateSentenceWithAI(params: {
   sentence:        string;
   profileKey?:     string;
   targetLanguage?: 'ua' | 'en';
-}) {
-  const response = await supabase.functions.invoke('translate-sentence', {
-    body: {
-      sentence:       params.sentence,
-      profileKey:     params.profileKey     || getCurrentUserId(),
-      targetLanguage: params.targetLanguage || 'ua',
-    },
-  });
-
-  if (response.error) throw new Error(response.error.message || 'AI translation failed');
-  if (!response.data?.ok) throw new Error(response.data?.message || 'AI translation failed');
-
-  return response.data;
+}): Promise<any> {
+  // translate-sentence edge function was deleted as part of the legacy
+  // cleanup (2026-06-22). A replacement implementation is needed —
+  // either a new edge function or direct Gemini call from the client.
+  throw new Error('Sentence translation is temporarily unavailable. The translate-sentence service has been removed and needs to be replaced.');
 }
 
 // ============================================================
@@ -1188,32 +1135,17 @@ export async function analyzeTextViaAppsScript(textInput: string) {
 // ============================================================
 
 export async function inspectWordViaAppsScript(query: string) {
-  const found = await searchLexemeInSupabase(query);
-  if (found?.item) return { found: true, item: found.item };
-
-  const result = await enrichWordViaEdgeFunction({
-    word:           query,
-    userId:         getCurrentUserId(),
-    addToLearning:  false,
-    repairExisting: false,
-  });
-
-  if (result?.ok && result?.lexeme) {
-    return { found: true, item: result.lexeme, preview: result.lexeme };
-  }
-
-  return { found: false, item: null };
+  // enrich-word was deleted — fall back to database search only.
+  // Unknown words will no longer get an auto-generated preview;
+  // the backend pipeline enriches them asynchronously.
+  return searchLexemeInSupabase(query);
 }
 
-export async function addPreviewWordViaAppsScript(preview: any) {
-  const result = await enrichWordViaEdgeFunction({
-    word:          preview?.word || preview?.lemma || '',
-    userId:        getCurrentUserId(),
-    addToLearning: false,
-  });
-
-  if (!result?.ok) throw new Error(result?.message || 'Add preview failed');
-  return { ok: true, item: result.lexeme };
+export async function addPreviewWordViaAppsScript(_preview: any) {
+  // enrich-word was deleted — preview-based word creation is no longer
+  // available. Words are enriched via the B-pipeline (Ordbokene/NAOB)
+  // after analyze-text runs.
+  return { ok: false, message: 'Word preview creation is unavailable. Words are enriched automatically by the background pipeline.' };
 }
 
 export async function getLearningWords() {

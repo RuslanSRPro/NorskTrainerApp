@@ -68,6 +68,7 @@ serve(async (req) => {
           'candidate_kind',
           'status',
           'promoted_expression_id',
+          'parent_lemma',            // used as root_lemma in expression_catalog
         ].join(', '),
       )
       .eq('status', 'candidate')
@@ -104,9 +105,17 @@ serve(async (req) => {
           ? 'Short phrasal expression: valuable but higher duplicate/ambiguity risk'
           : null;
 
+      // root_lemma: the parent article lemma from which this expression was
+      // discovered. Stored in expression_catalog so that lexin-enrichment-worker
+      // can use it as root_word in expression mode without manual lookup.
+      // e.g. "legge merke til" → parent_lemma = "merke"
+      const rootLemma = candidate.parent_lemma
+        ? normalizeKey(String(candidate.parent_lemma))
+        : null;
+
       const { data: existingExpression, error: existingError } = await supabase
         .from('expression_catalog')
-        .select('id, normalized_key, ordbokene_status')
+        .select('id, normalized_key, ordbokene_status, root_lemma')
         .eq('normalized_key', normalizedKey)
         .maybeSingle();
 
@@ -125,6 +134,7 @@ serve(async (req) => {
 
       if (existingExpression) {
         let ordbokeneStatusBackfilled = false;
+        let rootLemmaBackfilled = false;
 
         if (!dryRun) {
           const { error: duplicateUpdateError } = await supabase
@@ -153,29 +163,33 @@ serve(async (req) => {
             );
           }
 
-          // Backfill ordbokene_status onto the existing row if it does not
-          // already carry a stronger Ordbokene signal — never downgrades.
-          // 'expr_entry' (the whole article is the expression) outranks
-          // 'sub_article' (a nested definition inside another article), so
-          // an already-stronger status is left untouched. This is the only
-          // place expression_catalog is touched for an existing match — the
-          // user explicitly confirmed this should happen, unlike leaving
-          // existing rows fully untouched. See architecture-audit-full.md
-          // sections 46, 49-50.
+          // Backfill ordbokene_status — never downgrades expr_entry.
+          const catalogUpdates: Record<string, unknown> = {
+            updated_at: new Date().toISOString(),
+          };
+
           if (existingExpression.ordbokene_status !== 'expr_entry') {
+            catalogUpdates.ordbokene_status = 'sub_article';
+            ordbokeneStatusBackfilled = true;
+          }
+
+          // Backfill root_lemma if not already set.
+          if (!existingExpression.root_lemma && rootLemma) {
+            catalogUpdates.root_lemma = rootLemma;
+            rootLemmaBackfilled = true;
+          }
+
+          if (Object.keys(catalogUpdates).length > 1) {
             const { error: backfillError } = await supabase
               .from('expression_catalog')
-              .update({
-                ordbokene_status: 'sub_article',
-                updated_at: new Date().toISOString(),
-              })
+              .update(catalogUpdates)
               .eq('id', existingExpression.id);
 
             if (backfillError) {
               return jsonResponse(
                 {
                   ok: false,
-                  stage: 'backfill_ordbokene_status',
+                  stage: 'backfill_expression_catalog',
                   candidate_id: candidate.id,
                   expression_id: existingExpression.id,
                   error: backfillError.message,
@@ -184,8 +198,6 @@ serve(async (req) => {
                 500,
               );
             }
-
-            ordbokeneStatusBackfilled = true;
           }
         }
 
@@ -196,9 +208,11 @@ serve(async (req) => {
           token_count: tokens,
           review_priority: reviewPriority,
           review_reason: reviewReason,
+          root_lemma: rootLemma,
           action: dryRun ? 'would_mark_duplicate' : 'marked_duplicate',
           expression_id: existingExpression.id,
           ordbokene_status_backfilled: ordbokeneStatusBackfilled,
+          root_lemma_backfilled: rootLemmaBackfilled,
         });
 
         continue;
@@ -215,6 +229,7 @@ serve(async (req) => {
           token_count: tokens,
           review_priority: reviewPriority,
           review_reason: reviewReason,
+          root_lemma: rootLemma,
           action: 'would_promote',
           source_url: sourceUrl,
         });
@@ -231,6 +246,10 @@ serve(async (req) => {
           language: 'no',
           pos: 'expression',
           expression_subtype: 'ordbokene_sub_article',
+
+          // root_lemma enables autonomous lexin-enrichment-worker orchestration:
+          // the orchestrator reads this field and passes it as root_word.
+          root_lemma: rootLemma,
 
           example: firstExample(candidate.examples),
           notes_ua: null,
@@ -255,11 +274,6 @@ serve(async (req) => {
             review_reason: reviewReason,
           },
 
-          // Honest, source-specific Ordbokene catalog status — read by
-          // compute_expression_review_status() via a database trigger, not
-          // computed here. 'sub_article' because this candidate came from a
-          // definition nested inside a parent article, not the article's
-          // own headword. See architecture-audit-full.md sections 46-48.
           ordbokene_status: 'sub_article',
 
           verification: 'needs_review',
@@ -335,6 +349,7 @@ serve(async (req) => {
         token_count: tokens,
         review_priority: reviewPriority,
         review_reason: reviewReason,
+        root_lemma: rootLemma,
         action: 'promoted',
         expression_id: insertedExpression.id,
       });

@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 type NaobStatus = 'uttrykk' | 'example' | 'not_found';
+type NormalizedNaobStatus = 'uttrykk' | 'example' | 'not_listed';
 
 type DiagnosticStatus =
   | 'matched_uttrykk'
@@ -61,6 +62,41 @@ function stripHtml(value: string): string {
       .replace(/\s+/g, ' ')
       .trim(),
   );
+}
+
+async function invokeFunction(
+  functionName: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; status: number; data: unknown }> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  }
+
+  const response = await fetch(
+    `${supabaseUrl}/functions/v1/${functionName}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const text = await response.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+
+  return { ok: response.ok, status: response.status, data };
 }
 
 function findExpressionInHtml(
@@ -379,22 +415,27 @@ serve(async (req) => {
     }
 
     let catalogUpdate = null;
+    let jfRelations = null;
 
     if (updateCatalog) {
+      const normalizedNaobStatus: NormalizedNaobStatus =
+        detected.naob_status === 'not_found'
+          ? 'not_listed'
+          : detected.naob_status;
+
+      // Writes only this source's own honest status.
+      // expression_review_status is recomputed automatically by a DB
+      // trigger (trg_expression_catalog_recompute_review_status) whenever
+      // naob_status or ordbokene_status changes — not computed here.
       const { data, error } = await supabase
         .from('expression_catalog')
         .update({
-          naob_status:
-            detected.naob_status === 'not_found'
-              ? 'not_listed'
-              : detected.naob_status,
-          expression_review_status:
-            detected.naob_status === 'not_found' ? 'unverified' : 'partial',
+          naob_status: normalizedNaobStatus,
           updated_at: new Date().toISOString(),
         })
         .eq('normalized_key', normalizedKey)
         .select(
-          'id, lemma, normalized_key, naob_status, expression_review_status',
+          'id, lemma, normalized_key, naob_status, ordbokene_status, expression_review_status',
         )
         .maybeSingle();
 
@@ -411,6 +452,46 @@ serve(async (req) => {
       }
 
       catalogUpdate = data;
+
+      // Fire jf.-relation worker when expression was found in this article.
+      // Only meaningful when naob_status !== 'not_found' — if the expression
+      // wasn't in the article, its jf.-links have no relation to this expression.
+      // expression_id comes from catalogUpdate.id (just updated above).
+      if (
+        catalogUpdate?.id &&
+        detected.naob_status !== 'not_found'
+      ) {
+        try {
+          const jfResult = await invokeFunction('naob-jf-relation-worker', {
+            naob_slug: naobSlug,
+            expression_id: catalogUpdate.id,
+            dry_run: false,
+          });
+
+          jfRelations = {
+            ok: jfResult.ok,
+            status: jfResult.status,
+            data: jfResult.data,
+          };
+
+          if (!jfResult.ok) {
+            console.error(
+              'naob-jf-relation-worker failed for',
+              naobSlug,
+              safeStringify(jfResult.data),
+            );
+          }
+        } catch (jfError) {
+          // jf-relation failure should not abort the main response —
+          // catalog update already succeeded.
+          console.error(
+            'naob-jf-relation-worker threw for',
+            naobSlug,
+            safeStringify(jfError),
+          );
+          jfRelations = { ok: false, error: safeStringify(jfError) };
+        }
+      }
     }
 
     return jsonResponse({
@@ -428,6 +509,7 @@ serve(async (req) => {
       match_context: detected.match_context,
       saved_evidence: savedEvidence,
       catalog_update: catalogUpdate,
+      jf_relations: jfRelations,
       note:
         detected.diagnostic_status === 'expression_found_unstructured'
           ? 'Expression was found in page, but its NAOB block type could not be determined. Inspect match_context manually.'
