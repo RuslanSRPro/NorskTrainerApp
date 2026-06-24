@@ -14,6 +14,7 @@
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone.",
+        "NSPhotoLibraryUsageDescription": "This app may access your photo library only when you choose to select an image.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
