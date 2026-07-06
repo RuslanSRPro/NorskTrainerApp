@@ -1,6 +1,7 @@
 ﻿import { StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassSurface } from '@/components/ui/glass/GlassSurface';
+import { ProgressTrack } from '@/components/ui/glass/ProgressTrack';
 import { visionSpacing } from '@/design-system/vision';
 
 type Props = {
@@ -37,10 +38,11 @@ export function ProgressHeroCard({
       : `${learnedWords} / ${totalWords} words`;
 
   return (
-    <GlassCard dark={dark} intensity={54} innerStyle={styles.inner}>
-      <View style={styles.top}>
-        <View style={{ flex: 1 }}>
+    <GlassSurface variant="hero" dark={dark} contentStyle={styles.inner}>
+      <View style={styles.header}>
+        <View style={styles.left}>
           <Text style={[styles.label, { color: mutedColor }]}>{label}</Text>
+
           <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>
             {footer}
           </Text>
@@ -49,50 +51,43 @@ export function ProgressHeroCard({
         <Text style={[styles.percent, { color: accent }]}>{pct}%</Text>
       </View>
 
-      <View style={[styles.barBg, { backgroundColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]}>
-        <View style={[styles.barFill, { backgroundColor: accent, width: `${Math.max(2, pct)}%` as any }]} />
-      </View>
-    </GlassCard>
+      <ProgressTrack value={pct} accent={accent} dark={dark} height={8} />
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
   inner: {
     paddingHorizontal: visionSpacing.lg,
-    paddingVertical: 14,
-    minHeight: 102,
+    paddingTop: 18,
+    paddingBottom: 17,
+    minHeight: 112,
   },
-  top: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: visionSpacing.md,
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  left: {
+    flex: 1,
+    paddingRight: 10,
   },
   label: {
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 4,
+    letterSpacing: 0.7,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '900',
-    lineHeight: 22,
+    lineHeight: 24,
   },
   percent: {
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
-    marginTop: -2,
-  },
-  barBg: {
-    height: 7,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: 7,
-    borderRadius: 999,
+    lineHeight: 40,
   },
 });

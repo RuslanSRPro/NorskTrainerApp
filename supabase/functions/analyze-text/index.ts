@@ -1,3 +1,5 @@
+// supabase/functions/analyze-text/index.ts
+
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
@@ -5,7 +7,16 @@ import {
   normalizeExpression,
   tokenize,
 } from '../_shared/nlp/normalize.ts';
-import { normalizeCompoundTokens } from '../_shared/nlp/morphology.ts';
+import {
+  planItems,
+  type ExpressionRow,
+  type PlannedItem,
+  type SurfaceResolution,
+  type VerbMaps,
+} from './grammar-parser.ts';
+import { generateExpressionCandidates } from './candidate-generator.ts';
+import { resolveExpressions } from './expression-resolver.ts';
+import { resolveCandidatesAgainstCatalog } from './candidate-catalog-bridge.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY =
@@ -16,9 +27,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const SOURCES = ['NAOB', 'Ordbokene', 'Lexin', 'Språkrådet', 'Wiktionary'];
 
 const INGESTION_VERSION =
-  'ts_expression_aware_ingestion_v7_strict_verified_expressions';
+  'ts_expression_aware_ingestion_v14_lexeme360_full_family';
 
-const MAX_PHRASE_TOKENS = 8;
+const MAX_360_CANDIDATES_PER_ROOT = 30;
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,65 +38,163 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type',
 };
 
-type ExpressionRow = {
+type Lexeme360CandidateRow = {
   id: string;
   lemma: string;
-  display_form: string;
-  normalized_key: string;
-  pos: string;
+  root_lemma: string;
+  lexeme_id: string | null;
   expression_subtype: string | null;
-  token_len: number;
+  verification_status: string | null;
 };
 
-type VerbMaps = {
-  presensToInfinitiv: Map<string, string>;
-  perfektumToInfinitiv: Map<string, string>;
-};
-
-type SurfaceResolution = {
-  lexeme_id: string;
-  lemma: string;
-  pos: string;
-  form_type: string;
-  grammatical_features: Record<string, unknown>;
-  confidence: string;
-  source: string;
-};
-
-type PlannedItem = {
-  raw_input: string;
-  normalized_input: string;
-  normalized_lemma: string;
-  surface_form: string;
-  pos: string | null;
-  match_type: 'expression' | 'token';
-  expression_id: string | null;
-  token_start: number;
-  token_end: number;
-  expression_subtype?: string | null;
-  resolved?: SurfaceResolution | null;
-  match_strategy?: 'exact_expression' | 'compound_normalized' | 'token';
-  compound_normalized?: string | null;
-};
-
-function markCovered(covered: Set<number>, start: number, end: number) {
-  for (let i = start; i <= end; i++) {
-    covered.add(i);
-  }
+function normalizeRootLemma(value: unknown): string {
+  return normalizeExpression(String(value ?? ''))
+    .replace(/^å\s+/i, '')
+    .trim();
 }
 
-// Replaces the previous hasStrongWholeUnitEvidence() raw-evidence filter.
-// That function re-derived its own notion of "strong enough to trust" by
-// inspecting verification_evidence directly — a third place in the system
-// reinventing the same interpretation as services/verification.ts
-// (client) and aggregateVerificationTier() (server), with its own slightly
-// different rules. trusted_expressions_v1 already encodes the single
-// canonical trust verdict (expression_semantic_enrichment.review_status =
-// 'trusted', written only by semantic-audit-worker), so querying it
-// directly removes both the duplication and the risk of a fourth
-// diverging interpretation. See architecture-audit-full.md.
+// ФИКС: root-кандидатом для Lexeme360 может быть ТОЛЬКО verb или expression.
+// Lexeme360 по дизайну — про семейства "глагол + частица/предлог/возвратное
+// местоимение меняет значение" (ta → ta opp, ta seg av, ...), а не про
+// произвольные части речи.
+//
+// Раньше здесь были разрешены noun/adjective/adverb через .includes(),
+// что дало два самостоятельных бага:
+//   1) "pronoun".includes("noun") === true — местоимения (jeg, meg)
+//      проходили фильтр, хотя pronoun не было в списке разрешённых вообще.
+//   2) "adverb".includes("verb") === true — то же самое для adverb.
+// Оба — следствие substring-проверки вместо точного сравнения.
+//
+// Кроме того, разрешение noun как root тянуло в карусель пословицы/устойчивые
+// словосочетания типа "brent barn skyr ilden", "Israels barn" — это не
+// meaning-shift конструкции глагольного типа, а отдельная категория
+// (proverbs/fixed noun phrases), которую Lexeme360 не должен показывать.
+// Ограничение до verb+expression устраняет это как побочный эффект, без
+// необходимости отдельно фильтровать по expression_subtype здесь.
+const LEXEME360_ROOT_ALLOWED_POS = new Set(['verb', 'expression']);
+
+function isLexicalRootCandidate(pos: string | null | undefined): boolean {
+  const safePos = String(pos ?? '').toLowerCase().trim();
+  return LEXEME360_ROOT_ALLOWED_POS.has(safePos);
+}
+
+function getExpressionRootFor360(item: PlannedItem): string {
+  const anyItem = item as any;
+
+  const explicitRoot = normalizeRootLemma(
+    anyItem.root_lemma ||
+      anyItem.rootLemma ||
+      anyItem.base_lemma ||
+      item.network_root_lemma,
+  );
+
+  if (explicitRoot) return explicitRoot;
+
+  const lemma = normalizeRootLemma(
+    item.resolved?.lemma || item.normalized_lemma || item.normalized_input,
+  );
+
+  if (!lemma) return '';
+
+  if (item.match_type === 'expression' && lemma.includes(' ')) {
+    return normalizeRootLemma(lemma.split(/\s+/)[0]);
+  }
+
+  return lemma;
+}
+
+function collectRootLemmasFor360(items: PlannedItem[]): string[] {
+  const roots = new Set<string>();
+
+  for (const item of items) {
+    const root = getExpressionRootFor360(item);
+
+    console.log('[LEXEME360 INPUT]', {
+      surface: item.surface_form,
+      normalized: item.normalized_input,
+      lemma: item.normalized_lemma,
+      resolved_lemma: item.resolved?.lemma ?? null,
+      root_lemma_for_360: root,
+      lexeme_id: item.resolved?.lexeme_id ?? null,
+      expression_id: item.expression_id ?? null,
+      pos: item.resolved?.pos ?? item.pos,
+      match_type: item.match_type,
+      expression_subtype: item.expression_subtype ?? null,
+      verification_status: (item as any).verification_status ?? null,
+      match_strategy: item.match_strategy ?? null,
+    });
+
+    if (!root) continue;
+    if (!isLexicalRootCandidate(item.resolved?.pos ?? item.pos)) continue;
+
+    roots.add(root);
+  }
+
+  console.log('[LEXEME360 ROOTS]', [...roots]);
+
+  return [...roots];
+}
+
 async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
-  const { data, error } = await supabase
+  const dict = new Map<string, ExpressionRow>();
+
+  function addExpression(row: {
+    id?: string | null;
+    lemma?: string | null;
+    display_form?: string | null;
+    normalized_key?: string | null;
+    pos?: string | null;
+    expression_subtype?: string | null;
+  }) {
+    const rawKey =
+      row.normalized_key ||
+      row.lemma ||
+      row.display_form ||
+      '';
+
+    const key = normalizeExpression(rawKey);
+
+    if (!key) return;
+    if (key.includes('/')) return;
+    if (/[гґ]/i.test(key)) return;
+
+    const tokenLen = tokenize(key).length;
+    if (tokenLen < 2) return;
+
+    const item: ExpressionRow = {
+      id: String(row.id ?? ''),
+      lemma: row.lemma || key,
+      display_form: row.display_form || row.lemma || key,
+      normalized_key: key,
+      pos: 'expression',
+      expression_subtype: row.expression_subtype ?? null,
+      token_len: tokenLen,
+    };
+
+    if (!item.id) return;
+
+    if (!dict.has(key)) {
+      dict.set(key, item);
+    }
+
+    // Reflexive variants:
+    // glede seg til -> glede meg til / glede deg til / glede oss til / glede dere til
+    if (key.includes('seg')) {
+      for (const pron of ['meg', 'deg', 'oss', 'dere']) {
+        const variant = key.replace(/\bseg\b/g, pron);
+
+        if (variant !== key && !dict.has(variant)) {
+          dict.set(variant, {
+            ...item,
+            normalized_key: variant,
+          });
+        }
+      }
+    }
+  }
+
+  // 1. Trusted expressions.
+  const { data: trustedData, error: trustedError } = await supabase
     .from('trusted_expressions_v1')
     .select(`
       id,
@@ -96,42 +206,81 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
     `)
     .not('normalized_key', 'is', null);
 
-  if (error) throw error;
+  if (trustedError) throw trustedError;
 
-  const dict = new Map<string, ExpressionRow>();
+  for (const row of trustedData ?? []) {
+    addExpression(row);
+  }
 
-  for (const row of data ?? []) {
-    const key = normalizeExpression(row.normalized_key);
+  // 2. Expression catalog entries already linked to lexemes.
+  const { data: catalogData, error: catalogError } = await supabase
+    .from('expression_catalog')
+    .select(`
+      id,
+      lemma,
+      lexeme_id,
+      expression_subtype,
+      verification_status
+    `)
+    .not('lexeme_id', 'is', null);
 
-    if (!key) continue;
-    if (key.includes('/')) continue;
-    if (/[гґ]/i.test(key)) continue;
+  if (catalogError) throw catalogError;
 
-    const item: ExpressionRow = {
+  for (const row of catalogData ?? []) {
+    addExpression({
       id: row.id,
       lemma: row.lemma,
-      display_form: row.display_form,
-      normalized_key: key,
-      pos: row.pos ?? 'expression',
-      expression_subtype: row.expression_subtype ?? null,
-      token_len: tokenize(key).length,
-    };
-
-    if (item.token_len < 2) continue;
-
-    if (!dict.has(key)) {
-      dict.set(key, item);
-    }
-
-    if (key.includes('seg')) {
-      for (const pron of ['meg', 'deg', 'oss', 'dere']) {
-        const variant = key.replace(/\bseg\b/g, pron);
-        if (variant !== key && !dict.has(variant)) {
-          dict.set(variant, item);
-        }
-      }
-    }
+      display_form: row.lemma,
+      normalized_key: row.lemma,
+      pos: 'expression',
+      expression_subtype: row.expression_subtype,
+    });
   }
+
+  // 3. Legacy expressions from lexemes.
+  // This is required to restore v6 behavior:
+  // old analyzer used lexemes where pos = expression.
+  const { data: lexemeExpressionData, error: lexemeExpressionError } =
+    await supabase
+      .from('lexemes')
+      .select(`
+        id,
+        lemma,
+        display_form,
+        pos,
+        expression_data (
+          expression_subtype
+        )
+      `)
+      .eq('pos', 'expression');
+
+  if (lexemeExpressionError) throw lexemeExpressionError;
+
+  for (const row of lexemeExpressionData ?? []) {
+    const expressionData = Array.isArray(row.expression_data)
+      ? row.expression_data[0]
+      : null;
+
+    addExpression({
+      id: row.id,
+      lemma: row.lemma,
+      display_form: row.display_form || row.lemma,
+      normalized_key: row.lemma,
+      pos: 'expression',
+      expression_subtype: expressionData?.expression_subtype ?? null,
+    });
+  }
+
+  console.log('[LOAD EXPRESSIONS]', {
+    total: dict.size,
+    has_ta_med: dict.has('ta med'),
+    has_ta_imot: dict.has('ta imot'),
+    has_ta_opp: dict.has('ta opp'),
+    has_ta_seg_av: dict.has('ta seg av'),
+    has_finne_ut: dict.has('finne ut'),
+    has_gå_fra_hverandre: dict.has('gå fra hverandre'),
+    sample: [...dict.keys()].slice(0, 30),
+  });
 
   return dict;
 }
@@ -192,146 +341,203 @@ async function resolveSurfaceForm(
   };
 }
 
-function findKnownExpression(
-  tokensRaw: string[],
-  tokensNorm: string[],
-  start: number,
-  expressionDict: Map<string, ExpressionRow>,
-  verbMaps: VerbMaps,
-): {
-  expr: ExpressionRow;
-  rawSurface: string;
-  normalizedKey: string;
-  end: number;
-  matchStrategy: 'exact_expression' | 'compound_normalized';
-  compoundNormalized: string | null;
-} | null {
-  const maxLen = Math.min(
-    MAX_PHRASE_TOKENS,
-    tokensNorm.length - start,
-  );
+async function loadLexeme360NetworkCandidates(
+  rootLemmas: string[],
+  existingExpressionIds: Set<string>,
+): Promise<Lexeme360CandidateRow[]> {
+  if (!rootLemmas.length) return [];
 
-  for (let len = maxLen; len >= 2; len--) {
-    const rawSlice = tokensRaw.slice(start, start + len);
-    const normSlice = tokensNorm.slice(start, start + len);
+  const { data, error } = await supabase
+    .from('expression_catalog')
+    .select(`
+      id,
+      lemma,
+      root_lemma,
+      lexeme_id,
+      expression_subtype,
+      verification_status
+    `)
+    .in('root_lemma', rootLemmas)
+    .not('lemma', 'is', null)
+    .order('root_lemma')
+    .order('lemma');
 
-    const rawSurface = rawSlice.join(' ');
-    const normKey = normSlice.join(' ');
+  if (error) throw error;
 
-    const exact = expressionDict.get(normKey);
+  const byRootCount = new Map<string, number>();
+  const result: Lexeme360CandidateRow[] = [];
 
-    if (exact) {
-      return {
-        expr: exact,
-        rawSurface,
-        normalizedKey: exact.normalized_key,
-        end: start + len - 1,
-        matchStrategy: 'exact_expression',
-        compoundNormalized: null,
-      };
-    }
+  for (const row of data ?? []) {
+    const id = String(row.id ?? '');
+    const lemma = normalizeExpression(row.lemma ?? '');
+    const root = normalizeRootLemma(row.root_lemma ?? '');
 
-    const normalizedTokens = normalizeCompoundTokens(
-      normSlice,
-      verbMaps.presensToInfinitiv,
-      verbMaps.perfektumToInfinitiv,
-    );
+    if (!id || !lemma || !root) continue;
+    if (existingExpressionIds.has(id)) continue;
+    if (lemma.includes('/')) continue;
+    if (/[гґ]/i.test(lemma)) continue;
 
-    const compoundKey = normalizedTokens.join(' ');
+    const count = byRootCount.get(root) ?? 0;
+    if (count >= MAX_360_CANDIDATES_PER_ROOT) continue;
 
-    if (compoundKey !== normKey) {
-      const compound = expressionDict.get(compoundKey);
+    byRootCount.set(root, count + 1);
 
-      if (compound) {
-        return {
-          expr: compound,
-          rawSurface,
-          normalizedKey: compound.normalized_key,
-          end: start + len - 1,
-          matchStrategy: 'compound_normalized',
-          compoundNormalized: compoundKey,
-        };
-      }
-    }
+    result.push({
+      ...row,
+    } as Lexeme360CandidateRow);
   }
 
-  return null;
+  console.log('[LEXEME360 FAMILY]', {
+    roots: rootLemmas,
+    found: result.length,
+    items: result.map((r) => ({
+      lemma: r.lemma,
+      root_lemma: r.root_lemma,
+      lexeme_id: r.lexeme_id,
+      subtype: r.expression_subtype,
+      verification_status: r.verification_status,
+      card_type: r.lexeme_id ? 'ready' : 'candidate',
+    })),
+  });
+
+  return result;
 }
 
-async function planItems(
-  text: string,
-  expressionDict: Map<string, ExpressionRow>,
-  verbMaps: VerbMaps,
-): Promise<PlannedItem[]> {
-  const tokensRaw = tokenize(text);
-  const tokensNorm = tokensRaw.map((t) => normalizeExpression(t));
+async function addLexeme360NetworkCandidates(
+  items: PlannedItem[],
+): Promise<{
+  roots: string[];
+  added: number;
+  candidates: Lexeme360CandidateRow[];
+}> {
+  const roots = collectRootLemmasFor360(items);
 
-  const covered = new Set<number>();
-  const items: PlannedItem[] = [];
+  const existingExpressionIds = new Set(
+    items
+      .map((item) => item.expression_id)
+      .filter((id): id is string => Boolean(id)),
+  );
 
-  for (let index = 0; index < tokensNorm.length; index++) {
-    if (covered.has(index)) continue;
+  const candidates = await loadLexeme360NetworkCandidates(
+    roots,
+    existingExpressionIds,
+  );
 
-    const expressionMatch = findKnownExpression(
-      tokensRaw,
-      tokensNorm,
-      index,
-      expressionDict,
-      verbMaps,
-    );
-
-    if (expressionMatch) {
-      const expr = expressionMatch.expr;
-
-      items.push({
-        raw_input: expressionMatch.rawSurface,
-        normalized_input: expressionMatch.normalizedKey,
-        normalized_lemma: expressionMatch.normalizedKey,
-        surface_form: expressionMatch.rawSurface,
-        pos: 'expression',
-        match_type: 'expression',
-        expression_id: expr.id,
-        token_start: index,
-        token_end: expressionMatch.end,
-        expression_subtype: expr.expression_subtype,
-        resolved: null,
-        match_strategy: expressionMatch.matchStrategy,
-        compound_normalized: expressionMatch.compoundNormalized,
-      });
-
-      markCovered(covered, index, expressionMatch.end);
-      continue;
-    }
-
-    const rawSurface = tokensRaw[index];
-    const normalized = normalize(rawSurface);
-
-    if (!normalized || normalized.length < 2) {
-      covered.add(index);
-      continue;
-    }
-
-    const resolved = await resolveSurfaceForm(rawSurface);
-
-    items.push({
-      raw_input: rawSurface,
-      normalized_input: normalized,
-      normalized_lemma: resolved?.lemma ?? normalized,
-      surface_form: rawSurface,
-      pos: resolved?.pos ?? null,
-      match_type: 'token',
-      expression_id: null,
-      token_start: index,
-      token_end: index,
-      resolved,
-      match_strategy: 'token',
-      compound_normalized: null,
-    });
-
-    covered.add(index);
+  if (!candidates.length) {
+    return {
+      roots,
+      added: 0,
+      candidates: [],
+    };
   }
 
-  return items.sort((a, b) => a.token_start - b.token_start);
+  const existingNormalizedExpressions = new Set(
+    items
+      .filter((item) => item.match_type === 'expression')
+      .map((item) =>
+        normalizeExpression(item.normalized_lemma || item.normalized_input)
+      )
+      .filter(Boolean),
+  );
+
+  let tokenPosition = items.length;
+  let added = 0;
+
+  for (const candidate of candidates) {
+    const normalizedExpression = normalizeExpression(candidate.lemma);
+    const root = normalizeRootLemma(candidate.root_lemma);
+
+    if (!normalizedExpression || existingNormalizedExpressions.has(normalizedExpression)) {
+      continue;
+    }
+
+    items.push({
+      raw_input: candidate.lemma,
+      normalized_input: normalizedExpression,
+      normalized_lemma: normalizedExpression,
+      surface_form: candidate.lemma,
+      pos: 'expression',
+      match_type: 'expression',
+      expression_id: candidate.id,
+      token_start: tokenPosition,
+      token_end: tokenPosition,
+      expression_subtype: candidate.expression_subtype ?? null,
+      resolved: candidate.lexeme_id
+        ? {
+            lexeme_id: candidate.lexeme_id,
+            lemma: normalizedExpression,
+            pos: 'expression',
+            form_type: 'expression',
+            grammatical_features: {
+              resolver: 'lexeme360_network',
+              expression_id: candidate.id,
+              root_lemma: root,
+              verification_status: candidate.verification_status ?? null,
+              expression_subtype: candidate.expression_subtype ?? null,
+            },
+            confidence: 'high',
+            source: 'lexeme360_network',
+          }
+        : null,
+      match_strategy: 'lexeme360_network_candidate',
+      compound_normalized: null,
+      network_root_lemma: root,
+    });
+
+    tokenPosition++;
+    added++;
+    existingNormalizedExpressions.add(normalizedExpression);
+  }
+
+  return {
+    roots,
+    added,
+    candidates,
+  };
+}
+
+// ФИКС: dedupePlannedItems — финальный защитный проход по всему массиву
+// plannedItems перед вставкой в БД. Убирает дубликаты, которые могут
+// возникнуть из-за нескольких независимых путей добавления items
+// (parser, candidate_generator, candidate_catalog_bridge,
+// addLexeme360NetworkCandidates) — если два пути привели к ОДНОЙ И ТОЙ ЖЕ
+// реальной встрече выражения в тексте (совпадают и expression_id, и
+// границы токенов), остаётся только первое вхождение.
+//
+// Важно: token_start/token_end включены в ключ ВСЕГДА, даже когда
+// expression_id уже известен. Иначе одно и то же выражение, реально
+// встретившееся в тексте несколько раз (например "tok seg av barna... og
+// senere tok seg av hunden"), схлопнулось бы в одно вхождение — теряя
+// вторую реальную встречу вместо устранения дубликата одной и той же
+// встречи, найденной разными путями резолюции.
+function dedupePlannedItems(items: PlannedItem[]): PlannedItem[] {
+  const seen = new Set<string>();
+  const result: PlannedItem[] = [];
+  let removed = 0;
+
+  for (const item of items) {
+    const key = item.expression_id
+      ? `expr:${item.expression_id}:${item.token_start}:${item.token_end}`
+      : `${item.match_type}:${normalizeExpression(item.normalized_lemma || item.normalized_input)}:${item.token_start}:${item.token_end}`;
+
+    if (seen.has(key)) {
+      removed++;
+      continue;
+    }
+
+    seen.add(key);
+    result.push(item);
+  }
+
+  if (removed > 0) {
+    console.log('[DEDUPE PLANNED ITEMS]', {
+      before: items.length,
+      after: result.length,
+      removed,
+    });
+  }
+
+  return result;
 }
 
 async function insertSourceChecksBatch(
@@ -340,6 +546,7 @@ async function insertSourceChecksBatch(
     itemId: string;
     lexemeId: string | null;
     query: string;
+    surfaceForm: string;
     queryType: 'expression' | 'token';
   }>,
 ) {
@@ -351,6 +558,7 @@ async function insertSourceChecksBatch(
       source,
       stage: 'lemma',
       query: row.query,
+      surface_form: row.surfaceForm,
       query_type: row.queryType,
       status: 'pending',
       attempt_count: 0,
@@ -373,11 +581,14 @@ async function insertSourceChecksBatch(
 async function insertItems(jobId: string, items: PlannedItem[]) {
   let expressionItems = 0;
   let tokenItems = 0;
+  let lexeme360NetworkItems = 0;
+  let generatedExpressionCandidates = 0;
 
   const sourceCheckRows: Array<{
     itemId: string;
     lexemeId: string | null;
     query: string;
+    surfaceForm: string;
     queryType: 'expression' | 'token';
   }> = [];
 
@@ -403,8 +614,10 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
           token_start: item.token_start,
           token_end: item.token_end,
           expression_subtype: item.expression_subtype ?? null,
+          verification_status: (item as any).verification_status ?? null,
           match_strategy: item.match_strategy ?? null,
           compound_normalized: item.compound_normalized ?? null,
+          network_root_lemma: item.network_root_lemma ?? null,
           resolved_lexeme_id: item.resolved?.lexeme_id ?? null,
           resolved_lemma: item.resolved?.lemma ?? null,
           resolved_pos: item.resolved?.pos ?? null,
@@ -426,10 +639,24 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
       tokenItems++;
     }
 
+    if (item.match_strategy === 'lexeme360_network_candidate') {
+      lexeme360NetworkItems++;
+    }
+
+    if (item.match_strategy === 'candidate_generator') {
+      generatedExpressionCandidates++;
+    }
+
+    const verificationQuery =
+      item.match_type === 'expression'
+        ? item.normalized_lemma
+        : (item.normalized_lemma || item.normalized_input);
+
     sourceCheckRows.push({
       itemId: data.id,
       lexemeId: item.resolved?.lexeme_id ?? null,
-      query: item.normalized_input,
+      query: verificationQuery,
+      surfaceForm: item.surface_form,
       queryType: item.match_type,
     });
   }
@@ -439,6 +666,8 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
   return {
     expressionItems,
     tokenItems,
+    lexeme360NetworkItems,
+    generatedExpressionCandidates,
   };
 }
 
@@ -457,11 +686,21 @@ async function triggerOrchestrator(jobId: string) {
     },
   );
 
+  let payload: unknown = null;
+
   try {
-    return await response.json();
+    payload = await response.json();
   } catch {
-    return null;
+    payload = null;
   }
+
+  if (!response.ok) {
+    throw new Error(
+      `job-orchestrator failed for job ${jobId}: ${response.status} ${response.statusText} ${JSON.stringify(payload)}`,
+    );
+  }
+
+  return payload;
 }
 
 serve(async (req) => {
@@ -500,18 +739,106 @@ serve(async (req) => {
     if (jobError) throw jobError;
 
     const expressionDict = await loadExpressions();
+
+    console.log('[PARSER DICT]', {
+      size: expressionDict.size,
+      has_ta_med: expressionDict.has('ta med'),
+      has_ta_imot: expressionDict.has('ta imot'),
+      has_ta_opp: expressionDict.has('ta opp'),
+      has_ta_seg_av: expressionDict.has('ta seg av'),
+      has_finne_ut: expressionDict.has('finne ut'),
+      has_gå_fra_hverandre: expressionDict.has('gå fra hverandre'),
+      sample: [...expressionDict.keys()].slice(0, 30),
+    });
+
     const verbMaps = await loadVerbMaps();
 
     const plannedItems = await planItems(
       text,
       expressionDict,
       verbMaps,
+      resolveSurfaceForm,
     );
 
-    const { expressionItems, tokenItems } = await insertItems(
-      jobId,
+    const generatedCandidates = generateExpressionCandidates(plannedItems);
+    plannedItems.push(...generatedCandidates);
+
+    // ФИКС: bridge-шаг между candidate_generator и остальным пайплайном.
+    // candidate_generator создаёt items с expression_id: null, полагая,
+    // что кто-то потом найдёт совпадение в expression_catalog по
+    // normalized_lemma — но ни resolveExpressions (работает только с уже
+    // готовым expression_id), ни addLexeme360NetworkCandidates (работает
+    // по root_lemma, не по точной лемме) этого не делали. Без этого шага
+    // такие "осиротевшие" кандидаты доходили до промоушена как НОВЫЕ
+    // записи, даже если выражение уже существовало в каталоге (см. кейс
+    // "tok meg av" → normalized_lemma "ta seg av", хотя "ta seg av" уже
+    // есть в expression_catalog).
+    //
+    // Запускается ДО addLexeme360NetworkCandidates, чтобы её
+    // existingExpressionIds уже содержал найденные здесь expression_id —
+    // это предотвращает повторное добавление того же выражения через
+    // сетевой (root_lemma) путь.
+    const candidateBridgeResult = await resolveCandidatesAgainstCatalog(
+      supabase,
       plannedItems,
     );
+
+    const expressionResolution = await resolveExpressions(
+      supabase,
+      plannedItems,
+    );
+
+    const lexeme360Network = await addLexeme360NetworkCandidates(plannedItems);
+
+    // ФИКС: финальный дедуп после того, как все источники (parser,
+    // candidate_generator + bridge, lexeme360 network) дописали в массив.
+    // Защита от повторной вставки одного и того же expression_id (или
+    // одной и той же normalized_lemma в тех же границах токенов) в БД.
+    const dedupedPlannedItems = dedupePlannedItems(plannedItems);
+    plannedItems.length = 0;
+    plannedItems.push(...dedupedPlannedItems);
+
+    const resolvedLexemeIds = plannedItems
+      .map((i) => i.resolved?.lexeme_id)
+      .filter((id): id is string => Boolean(id));
+
+    if (resolvedLexemeIds.length > 0) {
+      const { data: lexemeData } = await supabase
+        .from('lexemes')
+        .select('id, cefr_level, frequency_rank, frequency_ipm')
+        .in('id', resolvedLexemeIds);
+
+      if (lexemeData?.length) {
+        const lexemeMap = new Map(
+          lexemeData.map((l) => [
+            l.id,
+            {
+              cefr_level: l.cefr_level ?? null,
+              frequency_rank: l.frequency_rank ?? null,
+              frequency_ipm: l.frequency_ipm ?? null,
+            },
+          ])
+        );
+
+        for (const item of plannedItems) {
+          const lid = item.resolved?.lexeme_id;
+
+          if (lid && lexemeMap.has(lid)) {
+            const meta = lexemeMap.get(lid)!;
+            (item as any).cefr_level = meta.cefr_level;
+            (item as any).frequency_rank = meta.frequency_rank;
+            (item as any).frequency_ipm = meta.frequency_ipm;
+          }
+        }
+      }
+    }
+
+    const {
+      expressionItems,
+      tokenItems,
+      lexeme360NetworkItems,
+      generatedExpressionCandidates,
+    } = await insertItems(jobId, plannedItems);
 
     const { error: jobUpdateError } = await supabase
       .from('lexeme_processing_jobs')
@@ -521,12 +848,28 @@ serve(async (req) => {
           ingestion_version: INGESTION_VERSION,
           total_items: plannedItems.length,
           expression_items: expressionItems,
+          parser_expression_items: expressionItems,
           token_items: tokenItems,
+          generated_expression_candidates: generatedExpressionCandidates,
+          candidate_catalog_bridge_matched: candidateBridgeResult.matched,
+          candidate_catalog_bridge_unmatched: candidateBridgeResult.unmatched,
+          lexeme360_network_items: lexeme360NetworkItems,
+          lexeme360_roots: lexeme360Network.roots,
+          lexeme360_candidates_found: lexeme360Network.candidates.length,
+          lexeme360_candidates_added: lexeme360Network.added,
           source_checks_per_item: SOURCES.length,
           surface_resolver: true,
           compound_normalization: true,
           legacy_aligned_expression_parser: true,
+          legacy_expression_lexemes: true,
+          candidate_generator: true,
+          candidate_catalog_bridge: true,
+          expression_resolver: true,
+          resolved_expressions: expressionResolution.resolved,
+          unresolved_expressions: expressionResolution.unresolved,
           strict_verified_expression_catalog: true,
+          lexeme360_network_enrichment: true,
+          lexeme360_root_fix: true,
           raw_token_preservation: true,
           batched_source_checks: true,
         },
@@ -536,9 +879,29 @@ serve(async (req) => {
 
     if (jobUpdateError) throw jobUpdateError;
 
-    const orchestratorResult = await triggerOrchestrator(jobId);
+    EdgeRuntime.waitUntil(
+      triggerOrchestrator(jobId).catch((error) => {
+        console.error(
+          'Background job-orchestrator failed:',
+          error instanceof Error ? error.message : String(error),
+        );
+        console.error(
+          'Background job-orchestrator stack:',
+          error instanceof Error ? error.stack : null,
+        );
+      }),
+    );
 
-    const { data: job } = await supabase
+    const orchestratorResult = {
+      queued: true,
+      mode: 'background',
+      job_id: jobId,
+    };
+
+    const {
+      data: job,
+      error: jobReadError,
+    } = await supabase
       .from('lexeme_processing_jobs')
       .select(`
         id,
@@ -554,6 +917,8 @@ serve(async (req) => {
       .eq('id', jobId)
       .single();
 
+    if (jobReadError) throw jobReadError;
+
     return Response.json(
       {
         ok: true,
@@ -561,7 +926,17 @@ serve(async (req) => {
         ingestion: {
           planned_items: plannedItems,
           expression_items: expressionItems,
+          parser_expression_items: expressionItems,
           token_items: tokenItems,
+          generated_expression_candidates: generatedExpressionCandidates,
+          candidate_catalog_bridge_matched: candidateBridgeResult.matched,
+          candidate_catalog_bridge_unmatched: candidateBridgeResult.unmatched,
+          resolved_expressions: expressionResolution.resolved,
+          unresolved_expressions: expressionResolution.unresolved,
+          lexeme360_network_items: lexeme360NetworkItems,
+          lexeme360_roots: lexeme360Network.roots,
+          lexeme360_candidates_found: lexeme360Network.candidates.length,
+          lexeme360_candidates_added: lexeme360Network.added,
         },
         orchestrator: orchestratorResult,
       },
@@ -573,10 +948,17 @@ serve(async (req) => {
       },
     );
   } catch (error) {
+    console.error('ANALYZE-TEXT ERROR:', error);
+    console.error(
+      'ANALYZE-TEXT STACK:',
+      error instanceof Error ? error.stack : null,
+    );
+
     return Response.json(
       {
         ok: false,
         error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : null,
       },
       {
         status: 500,

@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
         ? body.job_id.trim()
         : null;
 
-    const { data: checks, error } = await supabase.rpc(
+    const claimResult = await supabase.rpc(
       'claim_next_source_checks',
       {
         p_limit: limit,
@@ -45,9 +45,15 @@ Deno.serve(async (req) => {
       },
     );
 
-    if (error) {
-      throw error;
+    if (!claimResult) {
+      throw new Error('claim_next_source_checks returned undefined');
     }
+
+    if (claimResult.error) {
+      throw claimResult.error;
+    }
+
+    const checks = claimResult.data;
 
     const results = [];
 

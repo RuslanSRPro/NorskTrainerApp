@@ -384,7 +384,7 @@ export default function ReadingScreen() {
 
   return (
     <>
-      <ScrollView style={{flex:1,backgroundColor:T.background}} contentContainerStyle={s.content}>
+      <ScrollView style={{flex:1,backgroundColor: 'transparent'}} contentContainerStyle={s.content}>
         <Text style={[s.title,{color:T.textPrimary,fontSize:20}]}>{tr("reading_title")}</Text>
         <Text style={[s.subtitle,{color:T.textSecondary,fontSize:F.base}]}>{tr("reading_subtitle")}</Text>
 

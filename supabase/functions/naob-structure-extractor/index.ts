@@ -364,6 +364,46 @@ serve(async (req) => {
       forceRefresh,
     });
 
+    // ФИКС: gloss-экстрактор (парсинг uttrykksbetydning для всех выражений
+    // статьи целиком) вызывается ЗДЕСЬ — сразу после того, как статья
+    // реально зафетчена/закеширована, а не из job-orchestrator по одной
+    // лексеме за раз. Причины:
+    //   1. Полнота: naob-expression-batch-worker пробует несколько candidate
+    //      slugs подряд (ta, ta_2, ta_3...), кешируя КАЖДЫЙ, даже неудачные
+    //      попытки (update_catalog: false). Хук на уровне best_slug из
+    //      job-orchestrator обработал бы только финально совпавший slug —
+    //      остальные закешированные статьи (со своими глоссами) остались
+    //      бы непропарсенными.
+    //   2. Персистентный дедуп: article.cache_hit — это факт "контент этой
+    //      статьи не менялся с прошлого раза", не зависящий от того, в
+    //      рамках какого job'а/вызова мы сейчас находимся. In-memory Set
+    //      внутри одного вызова job-orchestrator такой гарантии не даёт —
+    //      статья "ta_2" будет перепарсена заново в СЛЕДУЮЩЕМ job'е, даже
+    //      если она не изменилась.
+    //
+    // Запускается в фоне (EdgeRuntime.waitUntil), не блокируя основной
+    // ответ этой функции — извлечение глосс не влияет на naob_status/
+    // expression_catalog, которые вычисляются дальше в этом хендлере.
+    //
+    // Извлекает и сохраняет глоссы/синонимы из uttrykksbetydning для ВСЕХ
+    // выражений статьи целиком (см. naob-synonym-extractor).
+    const GLOSS_EXTRACTOR_FUNCTION_NAME = 'naob-synonym-extractor';
+
+    if (!article.cache_hit || forceRefresh) {
+      EdgeRuntime.waitUntil(
+        invokeFunction(GLOSS_EXTRACTOR_FUNCTION_NAME, {
+          naob_slug: naobSlug,
+          dry_run: false,
+        }).catch((glossError) => {
+          console.error(
+            'naob-structure-extractor: gloss extraction failed for slug',
+            naobSlug,
+            safeStringify(glossError),
+          );
+        }),
+      );
+    }
+
     const detected = findExpressionInHtml(article.html, expressionLemma);
     const normalizedKey = normalizeKey(expressionLemma);
 

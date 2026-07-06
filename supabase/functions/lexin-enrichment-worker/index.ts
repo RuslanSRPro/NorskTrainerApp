@@ -10,6 +10,14 @@ const corsHeaders = {
 const LEXIN_SOURCE = 'lexin';
 const LEXIN_BASE_URL = 'https://editorportal.oslomet.no/api/v1/findwords';
 
+// ФИКС: жёсткий лимит вариантов перевода/определения на (language_code, translation_type).
+// Раньше был только dedup без верхнего предела — Lexin с несколькими группами
+// (омографы/сенсы) мог дать rank 1,2,3,4,5,6... без ограничения. Теперь всё,
+// что превышает лимит, помечается как excluded (rank=-1) и не идёт в upsert.
+// Это же правило используется в ai-fallback (services/... AI fallback function) —
+// держим значение синхронизированным между воркерами.
+const MAX_TRANSLATION_VARIANTS = 2;
+
 // Architecture rule: writes FACTS only — never writes to
 // authoritative_semantic_relations directly.
 // Gloss terms go to lexin_gloss_candidates (staging).
@@ -148,10 +156,22 @@ serve(async (req) => {
     // Auto-resolve root_word from expression_catalog.root_lemma when
     // expression_id is provided but root_word is not manually specified.
     // This enables autonomous orchestration without manual root_word lookup.
-    if (!rootWord && expressionId) {
+    //
+    // ОТКАТ: попытка писать expression_catalog.lexeme_id прямо в
+    // entity_translations.lexeme_id нарушает constraint
+    // entity_translations_single_entity (строка не может иметь ОДНОВРЕМЕННО
+    // lexeme_id и expression_id). Правильный способ синхронизировать
+    // lexemes.translation_ua/en для expression'ов — через триггер
+    // sync_lexeme_translation_columns, который сам резолвит lexeme_id через
+    // expression_catalog по expression_id (см. миграцию
+    // 20260705110000_fix_sync_via_expression_lookup.sql). Здесь оставляем
+    // lexeme_id: null при записи (как и было изначально) — это корректно,
+    // достаём из expression_catalog только root_lemma для авто-резолва
+    // root_word.
+    if (expressionId && !rootWord) {
       const { data: catalogRow } = await supabase
         .from('expression_catalog')
-        .select('root_lemma, lemma')
+        .select('root_lemma')
         .eq('id', expressionId)
         .maybeSingle();
 
@@ -240,17 +260,25 @@ serve(async (req) => {
             urls: [lexin.url],
           });
 
-          // Blocker 2 fix: use 'expression_primary' not 'primary' for idiom translations.
-          // translation_rank=1 — always rank 1 for idiom translations (one per language).
+          // ФИКС: translation_rank теперь ставится как placeholder 0, а не
+          // жёстко 1. Раньше при нескольких совпавших E-idi (несколько
+          // сенсов одного выражения в статье) каждое давало свою запись
+          // с rank=1 — то есть могло быть N записей "ранга 1" одновременно,
+          // лимит фактически не работал. Теперь все idiom-переводы проходят
+          // через тот же общий rerank+dedup+cap цикл ниже, что и primary.
           if (ukrIdi?.text?.trim()) {
             const parsedUkrIdi = parseIdiomText(ukrIdi.text);
             translations.push({
+              // lexeme_id: null — обязательно для expression-строк, см.
+              // constraint entity_translations_single_entity. Синхронизация
+              // lexemes.translation_ua/en делается триггером через
+              // expression_catalog-lookup, не через это поле.
               lexeme_id: null,
               expression_id: expressionId,
               language_code: 'uk',
               translation: parsedUkrIdi.expressionText,
               translation_type: 'expression_primary',
-              translation_rank: 1,
+              translation_rank: 0, // placeholder — reassigned below
               source: LEXIN_SOURCE,
               confidence: 'high',
               surface_form: ukrIdi.text.trim(),
@@ -265,7 +293,7 @@ serve(async (req) => {
               language_code: 'en',
               translation: parsedBIdi.expressionText,
               translation_type: 'expression_primary',
-              translation_rank: 1,
+              translation_rank: 0, // placeholder — reassigned below
               source: LEXIN_SOURCE,
               confidence: 'high',
               surface_form: bIdi.text.trim(),
@@ -340,6 +368,12 @@ serve(async (req) => {
         }
 
         // Ukrainian definition (Ukr-def) → translation_type: 'definition'
+        // ФИКС: раньше здесь НЕ было translation_rank вообще — такие записи
+        // полностью пропускали rerank-цикл (условие `!== 0` их не трогало,
+        // т.к. rank был undefined) и шли в upsert БЕЗ дедупликации и БЕЗ
+        // лимита. Именно отсюда мог появляться "основной + 5 дополнительных"
+        // при нескольких сенсах слова в статье Lexin. Теперь rank=0 —
+        // попадает в общий цикл ниже наравне с primary/expression_primary.
         for (const e of entriesOfType(group, 'Ukr-def')) {
           if (!e.text?.trim()) continue;
           translations.push({
@@ -348,6 +382,7 @@ serve(async (req) => {
             language_code: 'uk',
             translation: e.text.trim(),
             translation_type: 'definition',
+            translation_rank: 0, // placeholder — reassigned after all groups (ФИКС)
             source: LEXIN_SOURCE,
             confidence: 'medium',
             surface_form: null,
@@ -413,15 +448,22 @@ serve(async (req) => {
       }
     }
 
-    // Global ranking for 'primary' translations — after collecting all groups.
-    // Lexin returns multiple groups (homographs/senses); same translation may
-    // appear in several. Deduplicate per (language, type) and assign rank=1
-    // to the first unique occurrence, rank=2,3... to subsequent.
+    // Global ranking for 'primary' / 'expression_primary' / 'definition'
+    // translations — after collecting all groups. Lexin returns multiple
+    // groups (homographs/senses); same translation may appear in several.
+    // Deduplicate per (language, type) and assign rank=1 to the first unique
+    // occurrence, rank=2 to the second.
+    //
+    // ФИКС: добавлен верхний предел MAX_TRANSLATION_VARIANTS. Раньше здесь
+    // была только дедупликация без cap — третий, четвёртый, пятый уникальный
+    // вариант перевода получали rank=3,4,5... и всё равно уходили в upsert.
+    // Теперь всё, что превышает лимит, помечается rank=-1 (excluded) и
+    // отфильтровывается ниже, как и обычные дубликаты.
     const seenTranslations = new Map<string, Set<string>>();
     const rankCounters = new Map<string, number>();
 
     for (const t of translations) {
-      if (t.translation_rank !== 0) continue; // expression_primary already ranked
+      if (t.translation_rank !== 0) continue; // уже проставлен явно (не должно оставаться после фикса выше)
 
       const groupKey = `${t.language_code}:${t.translation_type}`;
       if (!seenTranslations.has(groupKey)) {
@@ -434,15 +476,18 @@ serve(async (req) => {
 
       if (seen.has(key)) {
         t.translation_rank = -1; // duplicate — filtered before upsert
-      } else {
-        seen.add(key);
-        const rank = (rankCounters.get(groupKey) ?? 0) + 1;
-        rankCounters.set(groupKey, rank);
-        t.translation_rank = rank;
+        continue;
       }
+
+      seen.add(key);
+      const rank = (rankCounters.get(groupKey) ?? 0) + 1;
+      rankCounters.set(groupKey, rank);
+
+      // ФИКС: применяем лимит здесь
+      t.translation_rank = rank > MAX_TRANSLATION_VARIANTS ? -1 : rank;
     }
 
-    // Remove duplicates before inserting
+    // Remove duplicates AND entries beyond MAX_TRANSLATION_VARIANTS before inserting
     const dedupedTranslations = translations.filter((t) => t.translation_rank !== -1);
 
     if (dryRun) {
@@ -455,6 +500,7 @@ serve(async (req) => {
         lexeme_id: lexemeId,
         expression_id: expressionId,
         groups_parsed: groups.length,
+        max_translation_variants: MAX_TRANSLATION_VARIANTS,
         // Distincts between "article not found" and "article found but expression not matched"
         // idiom_matches = 0 + expression_mode = true → root_word wrong or expression not in article
         idiom_matches: expressionMode ? idiomMatches : null,
@@ -534,6 +580,7 @@ serve(async (req) => {
       lexeme_id: lexemeId,
       expression_id: expressionId,
       groups_parsed: groups.length,
+      max_translation_variants: MAX_TRANSLATION_VARIANTS,
       idiom_matches: expressionMode ? idiomMatches : null,
       matched_expression: expressionMode ? idiomMatches > 0 : null,
       results,

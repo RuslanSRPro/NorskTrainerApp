@@ -1,6 +1,6 @@
 ﻿import { StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassSurface } from '@/components/ui/glass/GlassSurface';
 import { visionSpacing } from '@/design-system/vision';
 
 type Props = {
@@ -32,40 +32,61 @@ export function TodayStatsCard({
   ];
 
   return (
-    <GlassCard dark={dark} intensity={42} innerStyle={styles.inner}>
+    <GlassSurface
+      variant="card"
+      material="light"
+      shape="card"
+      dark={dark}
+      contentStyle={styles.inner}
+    >
       <View style={styles.row}>
-        {stats.map((item) => (
+        {stats.map((item, index) => (
           <View key={item.label} style={styles.item}>
             <Text style={[styles.value, { color: textColor }]} numberOfLines={1}>
               {item.value}
             </Text>
+
             <Text style={[styles.label, { color: mutedColor }]} numberOfLines={1}>
               {item.label}
             </Text>
+
+            {index < stats.length - 1 ? (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.divider,
+                  {
+                    backgroundColor: dark
+                      ? 'rgba(255,255,255,0.12)'
+                      : 'rgba(255,255,255,0.34)',
+                  },
+                ]}
+              />
+            ) : null}
           </View>
         ))}
       </View>
-    </GlassCard>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
   inner: {
     paddingHorizontal: visionSpacing.md,
-    paddingVertical: 8,
-    minHeight: 50,
+    paddingVertical: 10,
+    minHeight: 56,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
   },
   item: {
     flex: 1,
     alignItems: 'center',
+    position: 'relative',
   },
   value: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '900',
     marginBottom: 2,
   },
@@ -73,5 +94,12 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '800',
   },
+  divider: {
+    position: 'absolute',
+    right: 0,
+    top: 6,
+    bottom: 6,
+    width: 0.7,
+    opacity: 0.7,
+  },
 });
-

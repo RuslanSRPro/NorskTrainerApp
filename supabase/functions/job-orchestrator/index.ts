@@ -1,5 +1,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  loadJobEntities,
+  versionCompletedJob,
+} from '../_shared/final-versioning.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get(
@@ -10,6 +14,9 @@ const supabase = createClient(
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
 );
+
+const CURRENT_VERIFICATION_VERSION = 5;
+const CURRENT_METHOD_VERSION = 1;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,53 +47,191 @@ async function safeJson(response: Response) {
   }
 }
 
+async function getRemainingSourceCheckCount(jobId: string): Promise<number> {
+  const result = await supabase
+    .from('lexeme_source_checks')
+    .select('id', { count: 'exact', head: true })
+    .eq('job_id', jobId)
+    .in('status', ['pending', 'processing', 'retry_scheduled']);
+
+  if (!result) {
+    throw new Error(
+      `getRemainingSourceCheckCount returned undefined for job ${jobId}`,
+    );
+  }
+
+  if (result.error) {
+    throw new Error(
+      `getRemainingSourceCheckCount failed for job ${jobId}: ${safeStringify(
+        result.error,
+      )}`,
+    );
+  }
+
+  return result.count ?? 0;
+}
+
 async function runLexicalWorker(jobId: string) {
   const batches = [];
+  const warnings: string[] = [];
 
-  for (let i = 0; i < 5; i++) {
-    const workerResponse = await fetch(
-      `${SUPABASE_URL}/functions/v1/lexical-worker`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          'Content-Type': 'application/json',
+  // A job can easily contain more than 100 source checks because each token
+  // is checked against several sources. Do not promote until all checks are
+  // really finished. `claimed === 0` alone is not a reliable completion signal.
+  const maxRounds = 50;
+
+  for (let round = 0; round < maxRounds; round++) {
+    let workerResponse: Response;
+
+    try {
+      workerResponse = await fetch(
+        `${SUPABASE_URL}/functions/v1/lexical-worker`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            limit: 20,
+            job_id: jobId,
+          }),
         },
-        body: JSON.stringify({
-          limit: 20,
-          job_id: jobId,
-        }),
-      },
-    );
+      );
+    } catch (fetchError) {
+      // ФИКС: раньше этот fetch не был обёрнут в try/catch — если
+      // lexical-worker обрывался платформой посреди выполнения (что
+      // подтверждённо происходит на multi-word "ta"-семействе из-за
+      // последовательной обработки claimed checks внутри lexical-worker),
+      // соединение рвалось необработанным исключением, которое роняло
+      // ВЕСЬ job-orchestrator целиком с HTTP 500 — а job оставался
+      // навечно в статусе 'processing', потому что ничего не откатывало
+      // его обратно и никто не перезапускал orchestrator автоматически.
+      // Теперь такой обрыв — это просто ещё один "нет прогресса в этом
+      // раунде", обрабатываемый той же логикой reset_stuck_source_checks
+      // + warnings ниже, вместо падения всего job'а.
+      warnings.push(
+        `lexical-worker request failed for job ${jobId} on round ${round}: ${safeStringify(
+          fetchError,
+        )} — treating as no-progress round.`,
+      );
+
+      try {
+        await rpcOrThrow<number>('reset_stuck_source_checks', { p_job_id: jobId });
+      } catch (resetError) {
+        console.error(
+          'runLexicalWorker: reset_stuck_source_checks after fetch failure failed for job',
+          jobId,
+          safeStringify(resetError),
+        );
+      }
+
+      const remainingAfterFailure = await getRemainingSourceCheckCount(jobId);
+
+      if (remainingAfterFailure === 0) break;
+
+      if (round === maxRounds - 1) {
+        warnings.push(
+          `lexical-worker reached maxRounds=${maxRounds} after repeated request failures, ${remainingAfterFailure} source checks still remain for job ${jobId} — proceeding with partial results.`,
+        );
+      }
+
+      continue;
+    }
 
     const workerJson = await safeJson(workerResponse);
     batches.push(workerJson);
 
-    if (!workerJson.claimed || workerJson.claimed === 0) {
+    if (!workerResponse.ok || workerJson.ok === false) {
+      // ФИКС: раньше это был throw, который ронял весь job. Теперь —
+      // тот же принцип, что и выше: не падаем, логируем, пробуем
+      // эскалировать зависшие checks и продолжаем со следующим раундом.
+      warnings.push(
+        `lexical-worker returned non-ok for job ${jobId} on round ${round}: ${safeStringify(
+          workerJson,
+        )} — treating as no-progress round.`,
+      );
+
+      try {
+        await rpcOrThrow<number>('reset_stuck_source_checks', { p_job_id: jobId });
+      } catch (resetError) {
+        console.error(
+          'runLexicalWorker: reset_stuck_source_checks after non-ok response failed for job',
+          jobId,
+          safeStringify(resetError),
+        );
+      }
+
+      const remainingAfterNonOk = await getRemainingSourceCheckCount(jobId);
+
+      if (remainingAfterNonOk === 0) break;
+
+      if (round === maxRounds - 1) {
+        warnings.push(
+          `lexical-worker reached maxRounds=${maxRounds} after repeated non-ok responses, ${remainingAfterNonOk} source checks still remain for job ${jobId} — proceeding with partial results.`,
+        );
+      }
+
+      continue;
+    }
+
+    let remaining = await getRemainingSourceCheckCount(jobId);
+
+    if (remaining === 0) {
       break;
+    }
+
+    if (!workerJson.claimed || workerJson.claimed === 0) {
+      // ФИКС: раньше здесь сразу бросалось исключение, которое роняло ВЕСЬ
+      // job (promotion/enrichment/audit для всех 56 items из-за 12 застрявших).
+      // reset_stuck_source_checks вызывается только ОДИН раз, в самом начале
+      // всего job-orchestrator запуска (см. serve() выше) — если check
+      // зависает в 'processing' ПОСЕРЕДИНЕ текущего прогона (не до его
+      // начала), тот единственный вызов reset его не увидит. Пытаемся
+      // эскалировать зависшие checks здесь же, внутри цикла, перед тем как
+      // сдаваться.
+      try {
+        await rpcOrThrow<number>('reset_stuck_source_checks', { p_job_id: jobId });
+      } catch (resetError) {
+        console.error(
+          'runLexicalWorker: mid-loop reset_stuck_source_checks failed for job',
+          jobId,
+          safeStringify(resetError),
+        );
+      }
+
+      remaining = await getRemainingSourceCheckCount(jobId);
+
+      if (remaining === 0) {
+        break;
+      }
+
+      // Если после свежей эскалации всё ещё что-то остаётся claimed=0 —
+      // это либо retry_scheduled с будущим next_retry_at (легитимно ждать),
+      // либо что-то, что reset не смог разрешить прямо сейчас (эскалация до
+      // failed происходит только после max_attempts). Не роняем ВЕСЬ job из-за
+      // этого — продолжаем с тем, что уже готово. job-completion-auditor
+      // (финальный шаг ниже) увидит и, если нужно, сам добьёт то, что
+      // осталось неполным, вместо того чтобы весь job навечно застревал в
+      // 'pending' без promotion вообще.
+      warnings.push(
+        `lexical-worker claimed 0 checks but ${remaining} source checks still remain for job ${jobId} even after mid-loop escalation — proceeding with partial results, job-completion-auditor will report/heal the rest.`,
+      );
+      break;
+    }
+
+    if (round === maxRounds - 1) {
+      warnings.push(
+        `lexical-worker reached maxRounds=${maxRounds} but ${remaining} source checks are still pending/processing for job ${jobId} — proceeding with partial results.`,
+      );
     }
   }
 
-  return batches;
-}
+  if (warnings.length) {
+    console.warn('runLexicalWorker: completed with warnings for job', jobId, warnings);
+  }
 
-async function runFormEnrichment(jobId: string) {
-  const response = await fetch(
-    `${SUPABASE_URL}/functions/v1/form-enrichment-worker`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        limit: 50,
-        job_id: jobId,
-      }),
-    },
-  );
-
-  return await safeJson(response);
+  return { batches, warnings };
 }
 
 async function runSemanticAuditWorker(jobId: string) {
@@ -123,196 +268,6 @@ async function runSemanticAuditWorker(jobId: string) {
   return batches;
 }
 
-async function runSemanticNormalizationWorker(jobId: string) {
-  const response = await fetch(
-    `${SUPABASE_URL}/functions/v1/semantic-normalization-worker`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        limit: 50,
-        job_id: jobId,
-      }),
-    },
-  );
-
-  return await safeJson(response);
-}
-
-// --- Variant B / Ordbokene deep enrichment pipeline ----------------------
-//
-// Triggered once per job, after promote_verification_results_for_job, for
-// every item that was just promoted into lexemes/expression_catalog. Runs
-// in the background via EdgeRuntime.waitUntil() — does not block the
-// response. ordbokene-lexeme-pipeline-worker resolves the article itself
-// from `lemma`, so no separate article lookup is needed here.
-//
-// NAOB (via authoritative-enrichment-pipeline-worker) is intentionally not
-// wired in yet — its NAOB path requires a `source_lemma` whose derivation
-// from job-orchestrator's available data has not been worked out, and
-// source-runners.ts has not been reviewed. Ordbokene-only for now.
-//
-// Known limitation: if job-orchestrator is invoked again for the same job
-// while items are still in current_stage='semantic_audit' (e.g. a retry),
-// this will re-trigger enrichment for the same lemmas. That is wasteful but
-// not unsafe — ordbokene-lexeme-pipeline-worker's promoteStandaloneExpression
-// and ordbokene-expression-promotion-worker both already skip existing
-// expression_catalog rows rather than overwriting them.
-//
-// Cap of 20 items per run mirrors the existing maxPromotionBatches /
-// maxResolverRuns pattern inside ordbokene-lexeme-pipeline-worker itself —
-// a backlog beyond that is simply picked up on a later orchestrator run.
-const ORDBOKENE_ENRICHMENT_BATCH_LIMIT = 20;
-
-async function enqueueOrdbokeneEnrichment(jobId: string) {
-  const { data: promotedItems, error } = await supabase
-    .from('lexeme_processing_items')
-    .select('id, expression_id, lexeme_id, normalized_lemma, surface_form, match_type')
-    .eq('job_id', jobId)
-    .eq('current_stage', 'semantic_audit')
-    .or('expression_id.not.is.null,lexeme_id.not.is.null')
-    .limit(ORDBOKENE_ENRICHMENT_BATCH_LIMIT);
-
-  if (error) {
-    console.error(
-      'enqueueOrdbokeneEnrichment: failed to load promoted items for job',
-      jobId,
-      safeStringify(error),
-    );
-    return;
-  }
-
-  for (const item of promotedItems ?? []) {
-    const lemma = item.normalized_lemma ?? item.surface_form;
-    if (!lemma) continue;
-
-    try {
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/ordbokene-lexeme-pipeline-worker`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            lemma,
-            parent_lexeme_id: item.lexeme_id ?? null,
-            dry_run: false,
-          }),
-        },
-      );
-
-      const result = await safeJson(response);
-
-      if (!result.ok) {
-        console.error(
-          'enqueueOrdbokeneEnrichment: pipeline failed for',
-          lemma,
-          'job',
-          jobId,
-          safeStringify(result),
-        );
-      }
-    } catch (enrichError) {
-      console.error(
-        'enqueueOrdbokeneEnrichment: request failed for',
-        lemma,
-        'job',
-        jobId,
-        safeStringify(enrichError),
-      );
-    }
-  }
-}
-// ---------------------------------------------------------------------
-
-// --- Variant B / NAOB enrichment pipeline ---------------------------------
-//
-// Same trigger point and same EdgeRuntime.waitUntil() background pattern as
-// Ordbokene above, but only for items with an expression_id — the NAOB
-// chain (naob-pipeline-worker → naob-expression-batch-worker →
-// naob-structure-extractor) is expression-only by construction, it has no
-// lexeme mode at all (unlike ordbokene-lexeme-pipeline-worker). Calling it
-// for a plain lexeme would be meaningless.
-//
-// naob-pipeline-worker requires `expression_lemma`, not `lemma` — different
-// field name than the Ordbokene worker. source_lemma is intentionally left
-// unset here; buildCandidateSlugs() inside naob-expression-batch-worker
-// already falls back to trying every token of the expression when
-// source_lemma is absent (see architecture-audit-full.md section 46).
-//
-// expression_review_status is no longer computed by this pipeline's TS code
-// at all — a database trigger recomputes it from ordbokene_status +
-// naob_status whenever either column changes (section 46-47), so no extra
-// coordination is needed here between the two enrichment calls below.
-const NAOB_ENRICHMENT_BATCH_LIMIT = 20;
-
-async function enqueueNaobEnrichment(jobId: string) {
-  const { data: promotedItems, error } = await supabase
-    .from('lexeme_processing_items')
-    .select('id, expression_id, normalized_lemma, surface_form, match_type')
-    .eq('job_id', jobId)
-    .eq('current_stage', 'semantic_audit')
-    .not('expression_id', 'is', null)
-    .limit(NAOB_ENRICHMENT_BATCH_LIMIT);
-
-  if (error) {
-    console.error(
-      'enqueueNaobEnrichment: failed to load promoted items for job',
-      jobId,
-      safeStringify(error),
-    );
-    return;
-  }
-
-  for (const item of promotedItems ?? []) {
-    const expressionLemma = item.normalized_lemma ?? item.surface_form;
-    if (!expressionLemma) continue;
-
-    try {
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/naob-pipeline-worker`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            expression_lemma: expressionLemma,
-            update_catalog: true,
-          }),
-        },
-      );
-
-      const result = await safeJson(response);
-
-      if (!result.ok) {
-        console.error(
-          'enqueueNaobEnrichment: pipeline failed for',
-          expressionLemma,
-          'job',
-          jobId,
-          safeStringify(result),
-        );
-      }
-    } catch (enrichError) {
-      console.error(
-        'enqueueNaobEnrichment: request failed for',
-        expressionLemma,
-        'job',
-        jobId,
-        safeStringify(enrichError),
-      );
-    }
-  }
-}
-// ---------------------------------------------------------------------
-
 async function rpcOrThrow<T = unknown>(
   name: string,
   args: Record<string, unknown>,
@@ -348,6 +303,12 @@ serve(async (req) => {
         ? body.job_id.trim()
         : null;
 
+    const requestedRunId =
+      typeof body.run_id === 'string' &&
+      body.run_id.trim().length > 0
+        ? body.run_id.trim()
+        : null;
+
     let jobsQuery = supabase
       .from('lexeme_processing_jobs')
       .select('*')
@@ -376,6 +337,14 @@ serve(async (req) => {
     for (const job of jobs ?? []) {
       const jobId = job.id;
 
+      const runId =
+        requestedRunId ??
+        job.summary?.run_id ??
+        `text-analysis-${jobId}`;
+
+      const beforeVersioningSnapshot =
+        await loadJobEntities(supabase, jobId);
+
       await supabase
         .from('lexeme_processing_jobs')
         .update({
@@ -395,7 +364,7 @@ serve(async (req) => {
         },
       );
 
-      const lexicalBatches =
+      const { batches: lexicalBatches, warnings: lexicalWarnings } =
         await runLexicalWorker(jobId);
 
       const promotedCount =
@@ -406,47 +375,55 @@ serve(async (req) => {
           },
         );
 
-      if (promotedCount > 0) {
-        EdgeRuntime.waitUntil(
-          enqueueOrdbokeneEnrichment(jobId).catch((backgroundError) => {
-            console.error(
-              'Background Ordbokene enrichment failed for job',
-              jobId,
-              safeStringify(backgroundError),
-            );
-          }),
-        );
+      // ============================================================
+      // ФИКС: enrichment больше НЕ запускается отсюда.
+      //
+      // Раньше здесь было 5 фоновых цепочек (Ordbokene, NAOB, Expression
+      // translation+AI, Authoritative+AI, 360° neighborhood), собранных в
+      // один Promise.all и запущенных через EdgeRuntime.waitUntil() —
+      // каждая цепочка обрабатывала до 20 items последовательным
+      // for...await, БЕЗ пагинации. Диагностика по данным entity_translations
+      // показала: для job'а с 23 "ta"-expressions автоматический AI-перевод
+      // реально дошёл только до 2 из них, после чего вся фоновая цепочка
+      // замолкала на 4+ минуты без единой ошибки — сам job при этом уже
+      // отчитался статусом 'ready' клиенту, поэтому проблема была не видна
+      // снаружи вообще (см. stopper_investigation_summary.md и переписку
+      // от 2026-07-06 про диагностику AI-перевода).
+      //
+      // Теперь enrichment вынесен в job-enrichment-batch-worker — он
+      // обрабатывает ОДНУ цепочку небольшим батчем (offset/limit/has_more)
+      // за один вызов. job-orchestrator лишь помечает job как готовый к
+      // enrichment-стадии; реальную докрутку до полного завершения делает
+      // pipeline-supervisor, вызывающий job-enrichment-batch-worker в
+      // цикле, пока has_more не станет false по всем цепочкам.
+      //
+      // enrichment_pending: true в summary — явный флаг для
+      // pipeline-supervisor, что после build_result/versioning для этого
+      // job'а ещё нужно прогнать enrichment-цепочки.
+      // ============================================================
 
-        // Separate, independent background task from Ordbokene above — a
-        // failure or slowdown in one source's enrichment should not affect
-        // the other.
-        EdgeRuntime.waitUntil(
-          enqueueNaobEnrichment(jobId).catch((backgroundError) => {
+      if (promotedCount > 0) {
+        await supabase.rpc('append_job_summary_field', {
+          p_job_id: jobId,
+          p_field: 'enrichment_pending',
+          p_value: {
+            promoted_count: promotedCount,
+            queued_at: new Date().toISOString(),
+          },
+        }).then(
+          () => {},
+          (rpcError: unknown) => {
             console.error(
-              'Background NAOB enrichment failed for job',
+              'job-orchestrator: append_job_summary_field(enrichment_pending) failed for job',
               jobId,
-              safeStringify(backgroundError),
+              safeStringify(rpcError),
             );
-          }),
+          },
         );
       }
 
-      const formEnqueued =
-        await rpcOrThrow<number>(
-          'enqueue_form_enrichment_for_job',
-          {
-            p_job_id: jobId,
-          },
-        );
-
-      const formEnrichment =
-        await runFormEnrichment(jobId);
-
       const semanticAuditBatches =
         await runSemanticAuditWorker(jobId);
-
-      const semanticNormalization =
-        await runSemanticNormalizationWorker(jobId);
 
       const buildResult =
         await rpcOrThrow<string>(
@@ -464,18 +441,28 @@ serve(async (req) => {
           },
         );
 
+      const versioningResult =
+        await versionCompletedJob(
+          supabase,
+          {
+            jobId,
+            runId,
+            before: beforeVersioningSnapshot,
+            verificationVersion: CURRENT_VERIFICATION_VERSION,
+            methodVersion: CURRENT_METHOD_VERSION,
+          },
+        );
+
       processedJobs.push({
         job_id: jobId,
         lexical_batches: lexicalBatches,
+        lexical_warnings: lexicalWarnings.length ? lexicalWarnings : undefined,
         promoted_count: promotedCount,
-        ordbokene_enrichment_queued: promotedCount > 0,
-        naob_enrichment_queued: promotedCount > 0,
-        form_enqueued: formEnqueued,
-        form_enrichment: formEnrichment,
+        enrichment_pending: promotedCount > 0,
         semantic_audit_batches: semanticAuditBatches,
-        semantic_normalization: semanticNormalization,
         build_result: buildResult,
         counters,
+        final_versioning: versioningResult,
       });
     }
 

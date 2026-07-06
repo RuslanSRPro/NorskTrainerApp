@@ -7,6 +7,7 @@ import { getCurrentUserId } from '@/store/authStore';
 
 const LEXEME_SELECT = `
   id, lemma, pos, display_form,
+  dictionary_status, dictionary_exclusion_reason, is_learning_lexeme,
   translation_ua, translation_en, example, notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
   verification, verification_tier, verification_status, source_verified,
@@ -101,6 +102,9 @@ function mapLexemeRow(item: any) {
     frequency_note:   item.frequency_note   || '',
     status:   item.status         || 'New',
     source:   item.source         || '',
+    dictionary_status: item.dictionary_status || 'active',
+    dictionary_exclusion_reason: item.dictionary_exclusion_reason || null,
+    is_learning_lexeme: item.is_learning_lexeme !== false,
     // verification fields
     verification:          item.verification          || '',
     verification_tier:     item.verification_tier     || null,
@@ -165,6 +169,7 @@ function attachSrsMetaToLexemeRows(rows: any[]) {
   return (rows || [])
     .map((item: any) => {
       if (!item?.lexemes) return null;
+      if (item.lexemes.is_learning_lexeme === false) return null;
       return {
         ...item.lexemes,
         srs: {
@@ -551,7 +556,8 @@ async function fetchNewWords(params: {
   let query = supabase
     .from('lexemes')
     .select(LEXEME_SELECT)
-    .eq('status', 'New');
+    .eq('status', 'New')
+    .eq('is_learning_lexeme', true);
 
   query = applyCategoryFilterToQuery(query, params.categoryFilter);
 
@@ -580,6 +586,7 @@ async function fetchDueWords(params: {
       lexemes (${LEXEME_SELECT})
     `)
     .eq('user_id', params.userId)
+    .eq('lexemes.is_learning_lexeme', true)
     .lte('next_due_at', now)
     .order('next_due_at', { ascending: true })
     .limit(params.limit * 3);
@@ -605,6 +612,7 @@ async function fetchWeakWords(params: {
       lexemes (${LEXEME_SELECT})
     `)
     .eq('user_id', params.userId)
+    .eq('lexemes.is_learning_lexeme', true)
     .or('weak_score.gte.20,priority_score.gte.75,queue_score.gte.60,lapses.gte.1,difficulty_val.gte.7')
     .order('priority_score', { ascending: false, nullsFirst: false })
     .limit(params.limit * 3);
@@ -631,6 +639,7 @@ async function fetchPriorityWords(params: {
       lexemes (${LEXEME_SELECT})
     `)
     .eq('user_id', params.userId)
+    .eq('lexemes.is_learning_lexeme', true)
     .or('personal_hits.gte.1,priority_score.gte.30,weak_score.gte.20')
     .order('priority_score', { ascending: false, nullsFirst: false })
     .limit(params.limit * 4);
@@ -757,7 +766,7 @@ export async function getDashboardStatsFromSupabase(preferredUser?: string) {
     reviewsTodayResult,
     accuracyTodayResult,
   ] = await Promise.all([
-    supabase.from('lexemes').select('id', { count: 'exact', head: true }),
+    supabase.from('lexemes').select('id', { count: 'exact', head: true }).eq('is_learning_lexeme', true),
 
     supabase.from('learning_progress')
       .select('id', { count: 'exact', head: true })
@@ -816,6 +825,7 @@ export async function getReadingLexemesFromSupabase(preferredUser?: string) {
     const { data, error } = await supabase
       .from('lexemes')
       .select(LEXEME_SELECT)
+      .eq('is_learning_lexeme', true)
       .range(from, from + PAGE_SIZE - 1)
       .limit(PAGE_SIZE);
 
@@ -854,6 +864,18 @@ export async function addLexemeToLearningFromSupabase(params: {
   const userId   = params.preferred_user || getCurrentUserId();
   const lexemeId = params.lexemeId;
   if (!lexemeId) throw new Error('Missing lexemeId');
+
+  const { data: lexemeRow, error: lexemeError } = await supabase
+    .from('lexemes')
+    .select('id, is_learning_lexeme, dictionary_status, dictionary_exclusion_reason')
+    .eq('id', lexemeId)
+    .maybeSingle();
+
+  if (lexemeError) throw new Error(lexemeError.message);
+  if (!lexemeRow) throw new Error('Lexeme not found');
+  if (lexemeRow.is_learning_lexeme === false) {
+    throw new Error(`This lexeme is excluded from learning: ${lexemeRow.dictionary_exclusion_reason || lexemeRow.dictionary_status || 'not_learning_lexeme'}`);
+  }
 
   const { data: existing } = await supabase
     .from('learning_progress')
@@ -967,6 +989,7 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
     const { data, error } = await supabase
       .from('lexemes')
       .select(LEXEME_SELECT)
+      .eq('is_learning_lexeme', true)
       .or(`lemma.eq.${key},display_form.eq.${key}`)
       .limit(1)
       .maybeSingle();
@@ -979,6 +1002,7 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
     const { data, error } = await supabase
       .from('lexemes')
       .select(LEXEME_SELECT)
+      .eq('is_learning_lexeme', true)
       .or(`lemma.ilike.${key},display_form.ilike.${key}`)
       .limit(1)
       .maybeSingle();
@@ -1023,6 +1047,8 @@ export async function addExpressionCandidateToSupabase(params: {
     frequency_source: candidate.frequency_source || (candidate.frequency_level ? 'gemini_estimate' : null),
     frequency_note:   candidate.frequency_note  || null,
     status:           'New',
+    dictionary_status: 'active',
+    is_learning_lexeme: true,
     source:           candidate.source || 'AI analyzer',
     verification:        candidate.verification === 'known_dictionary' ? 'verified_dictionary' : 'ai_candidate',
     verification_tier:   candidate.verification_tier   || 'ai_candidate',

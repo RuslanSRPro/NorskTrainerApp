@@ -322,6 +322,8 @@ function auditSemantic(row: AuditRow) {
     form_confidence: formConfidence,
     learning_confidence: learningConfidence,
     review_status: reviewStatus,
+    aggregate_tier: aggregateTier,
+    source_evidence: sourceEvidence,
     conflicts,
     audit_notes: notes,
     evidence: {
@@ -351,6 +353,8 @@ function auditSemantic(row: AuditRow) {
     },
   };
 }
+
+// ── Claim + audit functions ───────────────────────────────────────────────────
 
 async function claimLexemes(
   limit: number,

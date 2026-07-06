@@ -73,8 +73,7 @@ async function saveAuthoritativeRelations(
 
   if (!entity) return;
 
-  const relations =
-    result.authoritative_relations ?? [];
+  const relations = result.authoritative_relations ?? [];
 
   if (!relations.length) return;
 
@@ -83,7 +82,7 @@ async function saveAuthoritativeRelations(
       continue;
     }
 
-    const { error } = await supabase.rpc(
+    const rpcResult = await supabase.rpc(
       'save_authoritative_semantic_relation',
       {
         p_source_entity_type: entity.type,
@@ -106,24 +105,26 @@ async function saveAuthoritativeRelations(
           item_id: check.item_id,
           query: check.query,
           query_type: check.query_type,
-          evidence_label:
-            relation.evidence_label ?? null,
-          version:
-            'authoritative-relation-persistence-v1',
+          evidence_label: relation.evidence_label ?? null,
+          version: 'authoritative-relation-persistence-v1',
         },
 
-        p_urls: relation.url
-          ? [relation.url]
-          : [],
+        p_urls: relation.url ? [relation.url] : [],
 
         p_target_entity_type: null,
         p_target_entity_id: null,
       },
     );
 
-    if (error) {
+    if (!rpcResult) {
       throw new Error(
-        `save_authoritative_semantic_relation failed for ${check.id}: ${error.message}`,
+        `save_authoritative_semantic_relation returned undefined for check ${check.id}`,
+      );
+    }
+
+    if (rpcResult.error) {
+      throw new Error(
+        `save_authoritative_semantic_relation failed for ${check.id}: ${rpcResult.error.message}`,
       );
     }
   }
@@ -149,21 +150,16 @@ export async function processSourceCheck(
   const evidence = {
     ...sanitizeEvidence(result.evidence),
 
-    
-    registered_entry:
-      result.registered_entry ?? false,
+    registered_entry: result.registered_entry ?? false,
+    whole_unit_match: result.whole_unit_match ?? false,
+    component_match: result.component_match ?? false,
+    usage_match: result.usage_match ?? false,
 
-    whole_unit_match:
-      result.whole_unit_match ?? false,
-
-    component_match:
-      result.component_match ?? false,
-
-    usage_match:
-      result.usage_match ?? false,
+    surface_form: check.surface_form ?? null,
+    canonical_query: check.query,
   };
 
-  const { error } = await supabase.rpc(
+  const rpcResult = await supabase.rpc(
     'update_lexeme_source_check_status',
     {
       p_check_id: check.id,
@@ -174,12 +170,9 @@ export async function processSourceCheck(
 
       p_found: result.found,
 
-      p_error_code: result.error
-        ? 'lookup_error'
-        : null,
+      p_error_code: result.error ? 'lookup_error' : null,
 
-      p_error_message:
-        result.error ?? null,
+      p_error_message: result.error ?? null,
 
       p_evidence: evidence,
 
@@ -190,9 +183,15 @@ export async function processSourceCheck(
     },
   );
 
-  if (error) {
+  if (!rpcResult) {
     throw new Error(
-      `update_lexeme_source_check_status failed for ${check.id}: ${error.message}`,
+      `update_lexeme_source_check_status returned undefined for check ${check.id}`,
+    );
+  }
+
+  if (rpcResult.error) {
+    throw new Error(
+      `update_lexeme_source_check_status failed for ${check.id}: ${rpcResult.error.message}`,
     );
   }
 

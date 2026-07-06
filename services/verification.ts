@@ -394,7 +394,10 @@ export function normalizeTier(value?: VerificationTier | string | null): Verific
 
   if (value === 'verified_dictionary' || value === 'registered_entry') return 'dictionary_entry';
   if (value === 'source_supported' || value === 'dictionary_verified') return 'dictionary_match';
-  if (value === 'candidate_authoritative') return 'usage_evidence';
+  // Legacy verification statuses are no longer treated as verified tiers.
+  // They remain candidates until reprocessed by the new verification pipeline.
+  if (value === 'candidate_authoritative') return 'ai_candidate';
+  if (value === 'component_verified') return 'ai_candidate';
 
   return 'ai_candidate';
 }
@@ -433,7 +436,12 @@ export function inferVerificationTier(input?: VerificationInput | null): Verific
     tier = chooseStrongerTier(tier, 'usage_evidence');
   }
 
-  if (input.component_verified) {
+  // Legacy component_verified should not automatically promote a lexeme.
+  // Only explicit verification_method='component' (new pipeline) may do that.
+  if (
+    input.component_verified &&
+    (input as any).verification_method === 'component'
+  ) {
     tier = chooseStrongerTier(tier, 'component_match');
   }
 

@@ -1,6 +1,4 @@
-﻿// app/(tabs)/index.tsx
-
-import { useFocusEffect, useRouter } from 'expo-router';
+﻿import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,12 +9,11 @@ import { HomeBackground } from '@/components/home/HomeBackground';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { ProgressHeroCard } from '@/components/home/ProgressHeroCard';
 import { TodayStatsCard } from '@/components/home/TodayStatsCard';
-import { useWallpaper } from '@/components/home/useWallpaper';
 
-import { getDashboardStatsFromSupabase } from '@/services/api';
-import { useSettingsStore } from '@/store/settingsStore';
-import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getDashboardStatsFromSupabase } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
+import { useSettingsStore } from '@/store/settingsStore';
 
 type Stats = {
   totalWords: number;
@@ -59,9 +56,15 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const { theme, themeName } = useTheme();
-  const { preferred_user, app_language } = useSettingsStore();
+
+  const {
+    preferred_user,
+    app_language,
+    display_name,
+    loadSettings,
+  } = useSettingsStore();
+
   const { user } = useAuthStore();
-  const { wallpaper, customUri } = useWallpaper();
 
   const [showAnalytics, setShowAnalytics] = useState(false);
 
@@ -78,26 +81,43 @@ export default function HomeScreen() {
   const isUa = lang === 'ua';
   const isDark = themeName === 'dark';
 
-  const name = useMemo(() => nameFromEmail(user?.email), [user?.email]);
+  const fallbackName = useMemo(
+    () => nameFromEmail(user?.email),
+    [user?.email],
+  );
+
+  const name = useMemo(() => {
+    if (display_name?.trim()) {
+      return display_name.trim();
+    }
+
+    return fallbackName;
+  }, [display_name, fallbackName]);
+
   const greeting = useMemo(() => timeGreeting(lang), [lang]);
 
-  const pct = stats.totalWords > 0
-    ? Math.round((stats.learnedWords / stats.totalWords) * 100)
-    : 0;
+  const pct =
+    stats.totalWords > 0
+      ? Math.round((stats.learnedWords / stats.totalWords) * 100)
+      : 0;
 
   const textColor = isDark ? '#FFFFFF' : theme.textPrimary;
-  const mutedColor = isDark ? 'rgba(255,255,255,0.62)' : theme.textMuted;
+  const mutedColor = isDark
+    ? 'rgba(255,255,255,0.62)'
+    : theme.textMuted;
 
   useFocusEffect(
     useCallback(() => {
+      loadSettings();
+
       getDashboardStatsFromSupabase(preferred_user)
         .then(setStats)
         .catch(() => {});
-    }, [preferred_user])
+    }, [preferred_user]),
   );
 
   return (
-    <HomeBackground wallpaper={wallpaper} customUri={customUri} dark={isDark}>
+    <HomeBackground dark={isDark}>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -173,6 +193,7 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
+
   content: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -180,6 +201,3 @@ const styles = StyleSheet.create({
     gap: 10,
   },
 });
-
-
-

@@ -113,6 +113,7 @@ function buildOrdbokenePayload(
   input: EnrichmentInput,
 ): Record<string, unknown> {
   const lemma = normalizeText(input.lemma);
+  const sourceLemma = normalizeText(input.source_lemma);
 
   if (!lemma && !input.expression_id && !input.lexeme_id) {
     throw new Error(
@@ -127,6 +128,12 @@ function buildOrdbokenePayload(
       input.item_type === 'expression'
         ? lemma
         : undefined,
+    // Important for expressions such as "ta opp":
+    // Ordbokene often stores them as sub-articles under the base article "ta",
+    // not as independent article entries. Passing source_lemma allows the
+    // downstream ordbokene-lexeme-pipeline-worker to load the parent article
+    // and perform sub-article lookup.
+    source_lemma: sourceLemma,
     expression_id: input.expression_id,
     lexeme_id: input.lexeme_id,
     pos: input.pos,
@@ -188,7 +195,35 @@ function extractOrdbokeneStatus(
     extractStatus(result, 'ordbokene_status') ??
     extractStatus(result, 'status');
 
-  if (direct) return normalizeNegativeStatus(direct);
+  if (direct) {
+    const normalizedDirect = normalizeNegativeStatus(direct);
+
+    // The Ordbokene worker may report an exact phrase hit from suggestions
+    // without turning it into a canonical status. For expressions this is
+    // usage-level evidence, because the phrase exists in Ordbokene but not
+    // necessarily as a standalone article.
+    if (
+      input.item_type === 'expression' &&
+      normalizedDirect === 'exact_expression_match'
+    ) {
+      return 'sub_article';
+    }
+
+    return normalizedDirect;
+  }
+
+  const originalQuality = extractDeepString(result, 'original_quality');
+  const quality = extractDeepString(result, 'quality');
+  const wholeUnitMatch = extractDeepBoolean(result, 'whole_unit_match');
+
+  if (
+    input.item_type === 'expression' &&
+    wholeUnitMatch === true &&
+    (originalQuality === 'exact_expression_match' ||
+      quality === 'exact_expression_match')
+  ) {
+    return 'sub_article';
+  }
 
   const obj = result as Record<string, unknown>;
   const steps = asRecord(obj.steps);
@@ -220,6 +255,18 @@ function extractOrdbokeneDiagnosticStatus(
     extractStatus(result, 'diagnostic_status');
 
   if (direct) return direct;
+
+  const originalQuality = extractDeepString(result, 'original_quality');
+  const quality = extractDeepString(result, 'quality');
+  const wholeUnitMatch = extractDeepBoolean(result, 'whole_unit_match');
+
+  if (
+    wholeUnitMatch === true &&
+    (originalQuality === 'exact_expression_match' ||
+      quality === 'exact_expression_match')
+  ) {
+    return 'matched_exact_expression_suggestion';
+  }
 
   const obj = result as Record<string, unknown>;
   const steps = asRecord(obj.steps);
@@ -413,6 +460,72 @@ function extractConfidence(result: unknown): number | null {
     typeof (obj.evidence as Record<string, unknown>).confidence === 'number'
   ) {
     return (obj.evidence as Record<string, unknown>).confidence as number;
+  }
+
+  return null;
+}
+
+function extractDeepString(
+  value: unknown,
+  key: string,
+  depth = 0,
+): string | null {
+  if (depth > 8 || value === null || value === undefined) return null;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractDeepString(item, key, depth + 1);
+      if (found !== null) return found;
+    }
+
+    return null;
+  }
+
+  if (typeof value !== 'object') return null;
+
+  const obj = value as Record<string, unknown>;
+  const ownValue = obj[key];
+
+  if (typeof ownValue === 'string') {
+    return ownValue;
+  }
+
+  for (const child of Object.values(obj)) {
+    const found = extractDeepString(child, key, depth + 1);
+    if (found !== null) return found;
+  }
+
+  return null;
+}
+
+function extractDeepBoolean(
+  value: unknown,
+  key: string,
+  depth = 0,
+): boolean | null {
+  if (depth > 8 || value === null || value === undefined) return null;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractDeepBoolean(item, key, depth + 1);
+      if (found !== null) return found;
+    }
+
+    return null;
+  }
+
+  if (typeof value !== 'object') return null;
+
+  const obj = value as Record<string, unknown>;
+  const ownValue = obj[key];
+
+  if (typeof ownValue === 'boolean') {
+    return ownValue;
+  }
+
+  for (const child of Object.values(obj)) {
+    const found = extractDeepBoolean(child, key, depth + 1);
+    if (found !== null) return found;
   }
 
   return null;

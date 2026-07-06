@@ -33,6 +33,11 @@ export type Lexeme360CarouselItem = {
   learner_value_score?: number;
   example?: string;
   learned?: boolean;
+  status?: 'ready' | 'candidate';
+  canOpen?: boolean;
+  canAdd?: boolean;
+  sourceLabel?: string;
+  colorKey?: string;
 };
 
 type Props = {
@@ -42,8 +47,9 @@ type Props = {
   onAdd?: (id: string) => void;
 };
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = Math.min(330, SCREEN_WIDTH - 68);
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CARD_WIDTH = Math.min(350, SCREEN_WIDTH - 56);
+const CARD_HEIGHT = Math.min(382, Math.max(320, Math.round(SCREEN_HEIGHT * 0.43)));
 const CARD_GAP = 12;
 const SNAP = CARD_WIDTH + CARD_GAP;
 
@@ -86,6 +92,39 @@ function relationLabel(type: string, lang: AppLanguage) {
   if (lang === 'ua') return 'Новий сенс';
   if (lang === 'no') return 'Ny betydning';
   return 'New meaning';
+}
+
+function stableColorIndex(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash % 5;
+}
+
+function getReadyBorderColor(item: Lexeme360CarouselItem) {
+  const colors = ['#0EA5E9', '#22C55E', '#F59E0B', '#EC4899', '#8B5CF6'];
+  return colors[stableColorIndex(item.id || item.lemma || '')];
+}
+
+function getCardVisual(item: Lexeme360CarouselItem) {
+  const isCandidate = item.status === 'candidate' || item.canOpen === false;
+
+  if (isCandidate) {
+    return {
+      card: styles.cardCandidate,
+      badge: styles.badgeCandidate,
+      badgeText: styles.badgeCandidateText,
+      borderColor: '#D1D5DB',
+    };
+  }
+
+  return {
+    card: null,
+    badge: null,
+    badgeText: null,
+    borderColor: getReadyBorderColor(item),
+  };
 }
 
 
@@ -256,6 +295,7 @@ export function Lexeme360Carousel({
 
       <FlatList
         ref={listRef}
+        style={styles.list}
         data={visibleItems}
         keyExtractor={(item) => `${item.relation_type}-${item.id}`}
         horizontal
@@ -278,16 +318,25 @@ export function Lexeme360Carousel({
         renderItem={({ item }) => {
           const translation = pickTranslation(item, lang);
           const displayLemma = displayLemmaWithInfinitiveMarker(item.lemma, item.pos);
-          const label = relationLabel(item.relation_type, lang);
+          const isCandidate = item.status === 'candidate' || item.canOpen === false;
+          const label = isCandidate
+            ? lang === 'ua'
+              ? 'Кандидат'
+              : lang === 'no'
+                ? 'Kandidat'
+                : 'Candidate'
+            : relationLabel(item.relation_type, lang);
+          const visual = getCardVisual(item);
 
           return (
             <Pressable
-              style={styles.card}
+              style={[styles.card, visual.card, { borderColor: visual.borderColor }]}
+              disabled={isCandidate}
               onPress={() => onSelect?.(item.id, displayLemma)}
             >
               <View style={styles.cardHeader}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{label}</Text>
+                <View style={[styles.badge, visual.badge]}>
+                  <Text style={[styles.badgeText, visual.badgeText]}>{label}</Text>
                 </View>
 
                 {item.pos ? (
@@ -307,14 +356,14 @@ export function Lexeme360Carousel({
 
               {item.example ? (
                 <View style={styles.exampleBox}>
-                  <Text style={styles.exampleText} numberOfLines={2}>
+                  <Text style={styles.exampleText} numberOfLines={3}>
                     {item.example}
                   </Text>
                 </View>
               ) : null}
 
               <View style={styles.actionsRow}>
-                {onAdd ? (
+                {onAdd && item.canAdd !== false ? (
                   <Pressable
                     style={[
                       styles.actionButton,
@@ -342,25 +391,34 @@ export function Lexeme360Carousel({
                   </Pressable>
                 ) : null}
 
-                <Pressable
-                  style={[styles.actionButton, styles.openButton]}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    onSelect?.(item.id, displayLemma);
-                  }}
-                >
-                  <Text style={styles.openText}>
-                    {lang === 'ua'
-                      ? 'Відкрити'
-                      : lang === 'no'
-                        ? 'Åpne'
-                        : 'Open'}
-                  </Text>
-                </Pressable>
+                {item.canOpen !== false ? (
+                  <Pressable
+                    style={[styles.actionButton, styles.openButton]}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      onSelect?.(item.id, displayLemma);
+                    }}
+                  >
+                    <Text style={styles.openText}>
+                      {lang === 'ua'
+                        ? 'Відкрити'
+                        : lang === 'no'
+                          ? 'Åpne'
+                          : 'Open'}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
 
-              <Text style={styles.compactHint} numberOfLines={2}>
-                {importanceDescription(item.importance_level, lang)}
+              <Text style={[styles.compactHint, isCandidate && styles.compactHintCandidate]} numberOfLines={3}>
+                {isCandidate
+                  ? item.sourceLabel ||
+                    (lang === 'ua'
+                      ? 'Знайдено в словнику · очікує обробки'
+                      : lang === 'no'
+                        ? 'Funnet i ordbok · venter på behandling'
+                        : 'Found in dictionary · waiting for processing')
+                  : importanceDescription(item.importance_level, lang)}
               </Text>
             </Pressable>
           );
@@ -405,7 +463,7 @@ export function Lexeme360Carousel({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 18,
+    marginBottom: 10,
   },
   topRow: {
     flexDirection: 'row',
@@ -425,18 +483,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#9CA3AF',
   },
+  list: {
+    height: CARD_HEIGHT,
+    maxHeight: CARD_HEIGHT,
+  },
   listContent: {
     paddingRight: CARD_GAP,
   },
   card: {
     width: CARD_WIDTH,
-    minHeight: 222,
+    height: CARD_HEIGHT,
     marginRight: CARD_GAP,
     backgroundColor: '#F8FAFC',
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#0EA5E9',
+  },
+  cardCandidate: {
+    backgroundColor: '#F9FAFB',
+    borderStyle: 'dashed',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -456,6 +522,12 @@ const styles = StyleSheet.create({
     color: '#0284C7',
     letterSpacing: 0.2,
   },
+  badgeCandidate: {
+    backgroundColor: '#E5E7EB',
+  },
+  badgeCandidateText: {
+    color: '#6B7280',
+  },
   posBadge: {
     backgroundColor: '#F1EFE8',
     borderRadius: 999,
@@ -469,15 +541,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   lemma: {
-    fontSize: 26,
-    lineHeight: 31,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: '900',
     color: '#111827',
     marginBottom: 6,
   },
   translation: {
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 18,
+    lineHeight: 25,
     fontWeight: '800',
     color: '#0EA5E9',
     marginBottom: 8,
@@ -498,9 +570,10 @@ const styles = StyleSheet.create({
   },
   exampleBox: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    marginTop: 4,
   },
   exampleText: {
     fontSize: 14,
@@ -541,19 +614,22 @@ const styles = StyleSheet.create({
   },
   compactHint: {
     marginTop: 10,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: '700',
     color: '#6B7280',
     textAlign: 'center',
     paddingHorizontal: 8,
+  },
+  compactHintCandidate: {
+    color: '#9CA3AF',
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    marginTop: 12,
+    marginTop: 10,
   },
   navButton: {
     width: 34,
