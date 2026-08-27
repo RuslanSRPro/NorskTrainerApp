@@ -17,12 +17,25 @@ function normalizeKey(value: string): string {
   return value.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
-// Used to tell a genuine multi-word expression article apart from a
-// single-token lemma that simply has no parent lexeme yet (because
-// verification path A has not processed it). See Fix: entity_mode
-// misclassification, architecture-audit-full.md section 42.
 function tokenCount(value: string): number {
   return normalizeKey(value).split(' ').filter(Boolean).length;
+}
+
+// ФИКС: единая функция для превращения ошибки Supabase/Postgrest (сырой
+// объект {message, details, hint, code}, НЕ экземпляр Error) в читаемое
+// сообщение. Раньше `throw error` (без обёртки в new Error) приводило к
+// тому, что catch-блок в конце файла делал String(err) на объекте — что
+// даёт буквально "[object Object]" вместо реального текста ошибки.
+// Диагностировано на job'ах, падавших на лемме "møte" — реальная причина
+// (несколько строк в lexemes) была полностью замаскирована этим багом.
+function toReadableError(err: any, context: string): Error {
+  if (err instanceof Error) return err;
+
+  const message = err?.message ?? 'unknown error';
+  const code = err?.code ? ` (code: ${err.code})` : '';
+  const details = err?.details ? ` — ${err.details}` : '';
+
+  return new Error(`${context}: ${message}${code}${details}`);
 }
 
 async function getSupabaseClient() {
@@ -169,23 +182,60 @@ async function getArticleCacheRow(articleId: number, dictionaryCode: string) {
     .eq('dictionary_code', dictionaryCode)
     .maybeSingle();
 
-  if (error) throw error;
+  // ФИКС: throw error -> throw toReadableError(...) — см. комментарий у
+  // определения toReadableError выше. article_id+dictionary_code — реальный
+  // composite unique key в этой таблице (в отличие от lexemes.lemma), так
+  // что .maybeSingle() здесь корректна и не должна падать на нормальных
+  // данных; но если когда-нибудь появится дубль — ошибка теперь хотя бы
+  // будет читаемой, а не "[object Object]".
+  if (error) throw toReadableError(error, `getArticleCacheRow(${articleId}, ${dictionaryCode})`);
   return data;
 }
 
-async function getParentLexemeIdByLemma(lemma: string | null) {
-  if (!lemma) return null;
+// ФИКС: было .maybeSingle(), которая БРОСАЕТ ошибку при >1 строке.
+// Норвежский язык имеет законную омонимию по части речи — например "møte"
+// существует как ДВЕ отдельные записи в lexemes: глагол ("встречать") и
+// существительное ("встреча"), обе полностью верифицированы. Это не
+// дубликат/ошибка данных, а нормальная лингвистическая ситуация — код
+// просто не был готов к ней. Диагностировано: job'ы падали с
+// "unhandled_exception" / "[object Object]" на лемме "møte".
+//
+// Теперь функция явно обрабатывает 0/1/N совпадений и никогда не бросает
+// исключение из-за неоднозначности — при N>1 возвращает parentLexemeId:
+// null и ambiguous: true, чтобы вызывающий код мог решить, что делать,
+// вместо падения всего pipeline.
+async function getParentLexemeIdByLemma(lemma: string | null): Promise<{
+  parentLexemeId: string | null;
+  ambiguous: boolean;
+  candidateCount: number;
+}> {
+  if (!lemma) return { parentLexemeId: null, ambiguous: false, candidateCount: 0 };
 
   const supabase = await getSupabaseClient();
 
   const { data, error } = await supabase
     .from('lexemes')
     .select('id, lemma, pos')
-    .eq('lemma', normalizeKey(lemma))
-    .maybeSingle();
+    .eq('lemma', normalizeKey(lemma));
 
-  if (error) throw error;
-  return data?.id ?? null;
+  if (error) {
+    throw toReadableError(error, `getParentLexemeIdByLemma("${lemma}")`);
+  }
+
+  const rows = data ?? [];
+
+  if (rows.length === 0) {
+    return { parentLexemeId: null, ambiguous: false, candidateCount: 0 };
+  }
+
+  if (rows.length === 1) {
+    return { parentLexemeId: rows[0].id, ambiguous: false, candidateCount: 1 };
+  }
+
+  // Несколько lexemes с одинаковой леммой (омонимия по части речи) — не
+  // выбираем "наугад" первую попавшуюся, это могло бы привязать
+  // standalone-выражение не к тому значению слова.
+  return { parentLexemeId: null, ambiguous: true, candidateCount: rows.length };
 }
 
 function classifyExpressionSubtype(lemma: string): string {
@@ -202,57 +252,18 @@ function classifyExpressionSubtype(lemma: string): string {
   const last = parts[parts.length - 1];
 
   const particles = new Set([
-    'av',
-    'på',
-    'opp',
-    'ut',
-    'inn',
-    'over',
-    'under',
-    'til',
-    'fra',
-    'med',
-    'imot',
-    'igjen',
-    'fram',
-    'frem',
-    'ned',
-    'bort',
+    'av', 'på', 'opp', 'ut', 'inn', 'over', 'under', 'til', 'fra', 'med',
+    'imot', 'igjen', 'fram', 'frem', 'ned', 'bort',
   ]);
 
   const prepositions = new Set([
-    'av',
-    'på',
-    'i',
-    'til',
-    'for',
-    'fra',
-    'med',
-    'mot',
-    'om',
-    'over',
-    'under',
-    'etter',
-    'gjennom',
+    'av', 'på', 'i', 'til', 'for', 'fra', 'med', 'mot', 'om', 'over',
+    'under', 'etter', 'gjennom',
   ]);
 
   const commonVerbs = new Set([
-    'ta',
-    'gå',
-    'komme',
-    'få',
-    'bli',
-    'sette',
-    'stå',
-    'ha',
-    'gi',
-    'holde',
-    'legge',
-    'slå',
-    'trekke',
-    'se',
-    'si',
-    'gjøre',
+    'ta', 'gå', 'komme', 'få', 'bli', 'sette', 'stå', 'ha', 'gi', 'holde',
+    'legge', 'slå', 'trekke', 'se', 'si', 'gjøre',
   ]);
 
   if (
@@ -286,19 +297,14 @@ async function promoteStandaloneExpression(args: {
   const sourceUrl =
     `https://ord.uib.no/${args.dictionaryCode}/article/${args.articleId}.json`;
 
-  // Never blindly overwrite an existing expression_catalog row — it may
-  // already carry a higher verification tier (from path A, or a prior
-  // semantic-audit-worker pass) or richer source data than this function
-  // alone can produce. If a row already exists, leave it untouched and
-  // report it as a duplicate instead of upserting over it.
-  // See architecture-audit-full.md section 42, blocker 3.
   const { data: existing, error: existingError } = await supabase
     .from('expression_catalog')
     .select('id, normalized_key, verification_tier')
     .eq('normalized_key', normalized)
     .maybeSingle();
 
-  if (existingError) throw existingError;
+  // ФИКС: throw error -> throw toReadableError(...)
+  if (existingError) throw toReadableError(existingError, `promoteStandaloneExpression: checking existing row for "${normalized}"`);
 
   if (existing) {
     return {
@@ -329,11 +335,6 @@ async function promoteStandaloneExpression(args: {
         ingestion_mode: 'standalone_expression',
       },
     },
-    // Honest, source-specific Ordbokene catalog status — read by
-    // compute_expression_review_status() via a database trigger, not
-    // computed here. 'expr_entry' because the entire article IS the
-    // expression (its own headword), the strongest Ordbokene signal. See
-    // architecture-audit-full.md sections 46-48.
     ordbokene_status: 'expr_entry',
     verification: 'needs_review',
     confidence: 'medium',
@@ -359,16 +360,14 @@ async function promoteStandaloneExpression(args: {
     };
   }
 
-  // Plain insert, not upsert — existence was already confirmed above.
-  // If a race condition somehow inserted the same normalized_key in the
-  // meantime, this throws loudly instead of silently overwriting it.
   const { data, error } = await supabase
     .from('expression_catalog')
     .insert(payload)
     .select('id, lemma, normalized_key, expression_subtype')
     .single();
 
-  if (error) throw error;
+  // ФИКС: throw error -> throw toReadableError(...)
+  if (error) throw toReadableError(error, `promoteStandaloneExpression: inserting "${normalized}"`);
 
   return {
     ok: true,
@@ -509,7 +508,11 @@ serve(async (req) => {
         ? normalizeKey(articleCacheRow.lemma)
         : inputLemma;
 
-    const parentLexemeIdFromCache = await getParentLexemeIdByLemma(cacheLemma);
+    // ФИКС: getParentLexemeIdByLemma теперь возвращает объект
+    // {parentLexemeId, ambiguous, candidateCount} вместо голого
+    // string|null, и никогда не бросает исключение из-за омонимии.
+    const parentLookup = await getParentLexemeIdByLemma(cacheLemma);
+    const parentLexemeIdFromCache = parentLookup.parentLexemeId;
 
     const entityMode =
       body.entity_mode != null
@@ -523,6 +526,11 @@ serve(async (req) => {
       entity_mode: entityMode,
       cache_lemma: cacheLemma,
       parent_lexeme_id: parentLexemeIdFromCache,
+      // ФИКС: новые диагностические поля — видно в логах/ответе, если для
+      // леммы нашлось несколько lexemes (омонимия), вместо тихого выбора
+      // "первой попавшейся" или падения всего pipeline.
+      parent_lexeme_ambiguous: parentLookup.ambiguous,
+      parent_lexeme_candidate_count: parentLookup.candidateCount,
       word_class: articleCacheRow?.word_class ?? null,
     };
 
@@ -530,20 +538,13 @@ serve(async (req) => {
       const candidateLemma = cacheLemma ?? inputLemma ?? '';
       const candidateTokenCount = tokenCount(candidateLemma);
 
-      // A single-token lemma with no parent lexeme is NOT a standalone
-      // expression — it is an ordinary word that verification path A has
-      // not processed yet. This pipeline has no authority to create
-      // lexemes (it only ever reads `lexemes`, see getParentLexemeIdByLemma
-      // above), so promoting it into expression_catalog as a
-      // 'fixed_expression' would both miscategorize it and risk
-      // overwriting a correctly-classified row later. Decline instead.
-      // See architecture-audit-full.md section 42.
       if (candidateTokenCount <= 1) {
         steps.standalone_expression_promotion = {
           ok: true,
           skipped: true,
-          reason:
-            'Single-token lemma with no existing parent lexeme is not a standalone expression — it is an unverified lexeme. This pipeline does not create lexeme rows; verification path A must process it first.',
+          reason: parentLookup.ambiguous
+            ? `Single-token lemma matches ${parentLookup.candidateCount} lexemes (homonyms by part of speech) — this pipeline cannot disambiguate which one to link without part-of-speech data from the article. Not treated as a standalone expression; also not linked to any single lexeme.`
+            : 'Single-token lemma with no existing parent lexeme is not a standalone expression — it is an unverified lexeme. This pipeline does not create lexeme rows; verification path A must process it first.',
         };
 
         steps.expression_extraction = {
@@ -582,16 +583,19 @@ serve(async (req) => {
           lemma: inputLemma,
           article_id: articleId,
           dictionary_code: dictionaryCode,
-          entity_mode: 'unverified_lexeme',
+          entity_mode: parentLookup.ambiguous ? 'ambiguous_lexeme' : 'unverified_lexeme',
           ordbokene_status: 'entry',
-          diagnostic_status: 'single_token_lemma_not_yet_in_lexemes',
+          diagnostic_status: parentLookup.ambiguous
+            ? 'single_token_lemma_ambiguous_homonym'
+            : 'single_token_lemma_not_yet_in_lexemes',
           confidence: 1,
           dry_run: dryRun,
           compact,
           run_resolver: runResolver,
           steps,
-          note:
-            'Single-token lemma found in Ordbokene but has no matching row in lexemes yet. This pipeline does not create lexeme rows — verification path A (lexical-worker / promote_verification_results_for_job) must process this word first.',
+          note: parentLookup.ambiguous
+            ? `Lemma matches ${parentLookup.candidateCount} lexemes with the same spelling but different parts of speech (e.g. verb/noun homonyms). This pipeline does not disambiguate — handled as informational, not an error.`
+            : 'Single-token lemma found in Ordbokene but has no matching row in lexemes yet. This pipeline does not create lexeme rows — verification path A (lexical-worker / promote_verification_results_for_job) must process this word first.',
         });
       }
 
@@ -899,6 +903,11 @@ serve(async (req) => {
       {
         ok: false,
         stage: 'unhandled_exception',
+        // ФИКС: err instanceof Error ? err.message : String(err) давало
+        // "[object Object]" для сырых PostgrestError-объектов, проброшенных
+        // через `throw error` без обёртки. Теперь все внутренние throw
+        // используют toReadableError(...) -> всегда настоящий Error с
+        // читаемым .message, так что эта строка работает как задумано.
         error: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : null,
       },

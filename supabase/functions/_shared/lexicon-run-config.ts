@@ -1,7 +1,7 @@
 export const CURRENT_RUN_ID =
-  'lexicon-refresh-v5-2026-07-04';
+  'lexicon-refresh-v6-2026-07-25';
 
-export const CURRENT_VERIFICATION_VERSION = 5;
+export const CURRENT_VERIFICATION_VERSION = 6;
 
 export const CURRENT_METHOD_VERSION = 1;
 

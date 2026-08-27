@@ -3,7 +3,7 @@
 // Semantic status colours (learned=green, in_base=yellow, unknown=red) stay fixed —
 // they encode learning state, not UI theme.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
@@ -14,10 +14,12 @@ import {
   addExpressionCandidateToSupabase, analyzeTextViaAppsScript,
   boostReadingLexemeHitsInSupabase, getReadingLexemesFromSupabase,
   inspectWordViaAppsScript, translateSentenceWithAI,
+  getJobProgress, getJobChainProgress, getJobStatus,
 } from "@/services/api";
 import { speakNorwegian, stopSpeech } from "@/services/speech";
 import { useSettingsStore } from "@/store/settingsStore";
 import { VerificationBadge } from "@/components/VerificationBadge";
+import { SynonymsBadge } from "@/components/SynonymsBadge";
 import { Lexeme360, Lexeme360Sheet } from "@/components/Lexeme360";
 import { t } from "@/services/i18n";
 import { resolveVerification } from "@/services/verification";
@@ -36,6 +38,26 @@ type AnalyzerCandidate = {
 };
 type AppLanguage = "ua" | "en" | "no";
 type ReadingTextKey = keyof typeof READING_TEXT.en;
+
+// ДОБАВЛЕНО (05.08.2026): состояние прогресса фоновой обработки job'а
+// (job-orchestrator → enrichment-цепочки), запущенного через analyze-text.
+// См. getJobProgress/getJobChainProgress/getJobStatus в services/api.ts —
+// там же объяснено, почему статус завершённости берётся из
+// lexeme_processing_jobs.status, а не из progress_percent.
+type JobChainRow = {
+  chain_index: number;
+  chain_key: string;
+  display_label: string;
+  done_count: number;
+  total_count: number;
+  is_current: boolean;
+  is_complete: boolean;
+};
+
+type JobPhase = "processing" | "completed" | "needs_review";
+
+const OVERALL_POLL_MS = 4000;
+const CHAIN_POLL_MS = 4000;
 
 const READING_TEXT = {
   ua: {
@@ -62,6 +84,8 @@ const READING_TEXT = {
     candidates_summary:"У базі: {inBase} · Кандидати на додавання: {unknown} · Вибрано: {selected}",
     add_selected_count:"➕ Додати вибрані ({count})",adding_short:"Додаю...",
     unique_words_not_in_base:"Унікальних слів не в базі: {count}",words_in_base_not_learned:"Слів є в базі, але не вивчено: {count}",database_coverage:"Покриття базою: {coverage}%",
+    job_progress_title:"⚙️ Фонова обробка",job_processing:"Обробка триває...",job_completed:"Готово! Усі дані оброблено.",
+    job_needs_review:"Потрібна ручна перевірка.",job_close:"Закрити",
   },
   en: {
     reading_title:"📖 Reading Mode",reading_subtitle:"PWA analysis and AI analysis work independently, but both use the local base for highlighting.",
@@ -87,6 +111,8 @@ const READING_TEXT = {
     candidates_summary:"In base: {inBase} · Add candidates: {unknown} · Selected: {selected}",
     add_selected_count:"➕ Add selected ({count})",adding_short:"Adding...",
     unique_words_not_in_base:"Unique words not in base: {count}",words_in_base_not_learned:"Words in base, not learned: {count}",database_coverage:"Database coverage: {coverage}%",
+    job_progress_title:"⚙️ Background processing",job_processing:"Still processing...",job_completed:"Done! All data processed.",
+    job_needs_review:"Needs manual review.",job_close:"Close",
   },
   no: {
     reading_title:"📖 Lesemodus",reading_subtitle:"PWA-analyse og AI-analyse fungerer separat, men begge bruker den lokale databasen til markering.",
@@ -112,6 +138,8 @@ const READING_TEXT = {
     candidates_summary:"I basen: {inBase} · Kandidater å legge til: {unknown} · Valgt: {selected}",
     add_selected_count:"➕ Legg til valgte ({count})",adding_short:"Legger til...",
     unique_words_not_in_base:"Unike ord ikke i basen: {count}",words_in_base_not_learned:"Ord i basen, men ikke lært: {count}",database_coverage:"Database-dekning: {coverage}%",
+    job_progress_title:"⚙️ Bakgrunnsbehandling",job_processing:"Behandling pågår...",job_completed:"Ferdig! All data er behandlet.",
+    job_needs_review:"Trenger manuell gjennomgang.",job_close:"Lukk",
   },
 } as const;
 
@@ -216,6 +244,15 @@ export default function ReadingScreen() {
   const [addingGlobalWord,setAddingGlobalWord]=useState(false);
   const [previewWord,setPreviewWord]=useState<any>(null);
 
+  // ДОБАВЛЕНО (05.08.2026): прогресс фоновой обработки job'а
+  const [jobId,setJobId]=useState<string|null>(null);
+  const [jobPhase,setJobPhase]=useState<JobPhase>("processing");
+  const [jobPercent,setJobPercent]=useState(0);
+  const [jobChainRows,setJobChainRows]=useState<JobChainRow[]>([]);
+  const [showJobModal,setShowJobModal]=useState(false);
+  const overallPollRef=useRef<ReturnType<typeof setInterval>|null>(null);
+  const chainPollRef=useRef<ReturnType<typeof setInterval>|null>(null);
+
   const stats=useMemo(()=>{
     const total=analysis.length,learned=analysis.filter(i=>i.status==="learned").length;
     const inBase=analysis.filter(i=>i.status==="in_base").length,unknown=analysis.filter(i=>i.status==="unknown").length;
@@ -228,7 +265,92 @@ export default function ReadingScreen() {
   const uniqueUnknownWords=Array.from(new Set(analysis.filter(i=>i.status==="unknown"&&i.normalized).map(i=>i.normalized)));
   const uniqueInBaseWords=Array.from(new Map(analysis.filter(i=>i.status==="in_base"&&i.normalized).map(i=>[i.normalized,i])).values());
 
-  function clearText(){setText("");setAnalysis([]);setSentences([]);setError("");setSelectedWord(null);setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");setAddingWord(false);setActiveSource(null);setAnalyzerResult(null);setAnalyzerCandidates([]);setAnalyzerMessage("");}
+  // ─── job progress polling ──────────────────────────────────────────────
+  function stopOverallPolling(){if(overallPollRef.current){clearInterval(overallPollRef.current);overallPollRef.current=null;}}
+  function stopChainPolling(){if(chainPollRef.current){clearInterval(chainPollRef.current);chainPollRef.current=null;}}
+
+  async function pollOverallProgress(id:string){
+    try{
+      // Статус — источник истины про завершённость (см. комментарий в
+      // services/api.ts у getJobStatus). Percent — только для отображения
+      // числа на иконке, пока обработка идёт.
+      const statusRow=await getJobStatus(id);
+      const status=String(statusRow?.status||"");
+
+      if(status==="completed"){
+        setJobPhase("completed");
+        setJobPercent(100);
+        stopOverallPolling();
+        stopChainPolling();
+        return;
+      }
+      if(status==="needs_manual_review"){
+        setJobPhase("needs_review");
+        stopOverallPolling();
+        stopChainPolling();
+        return;
+      }
+
+      const progress=await getJobProgress(id);
+      const percent=Number(progress?.progress_percent??0);
+      setJobPercent(Number.isFinite(percent)?percent:0);
+      setJobPhase("processing");
+    }catch{
+      // transient errors (network hiccup) — keep previous state, try again
+      // on the next tick rather than showing a broken icon.
+    }
+  }
+
+  async function pollChainProgress(id:string){
+    try{
+      const rows=await getJobChainProgress(id);
+      setJobChainRows(rows);
+    }catch{
+      // keep last known rows on transient error
+    }
+  }
+
+  function startJobTracking(id:string){
+    setJobId(id);
+    setJobPhase("processing");
+    setJobPercent(0);
+    setJobChainRows([]);
+    stopOverallPolling();
+    pollOverallProgress(id);
+    overallPollRef.current=setInterval(()=>pollOverallProgress(id),OVERALL_POLL_MS);
+  }
+
+  function clearJobTracking(){
+    stopOverallPolling();
+    stopChainPolling();
+    setJobId(null);
+    setJobPhase("processing");
+    setJobPercent(0);
+    setJobChainRows([]);
+    setShowJobModal(false);
+  }
+
+  function openJobModal(){
+    if(!jobId)return;
+    setShowJobModal(true);
+    if(jobPhase==="processing"){
+      pollChainProgress(jobId);
+      stopChainPolling();
+      chainPollRef.current=setInterval(()=>pollChainProgress(jobId),CHAIN_POLL_MS);
+    }
+  }
+
+  function closeJobModal(){
+    setShowJobModal(false);
+    stopChainPolling();
+  }
+
+  useEffect(()=>{
+    return()=>{stopOverallPolling();stopChainPolling();};
+  },[]);
+  // ─────────────────────────────────────────────────────────────────────
+
+  function clearText(){setText("");setAnalysis([]);setSentences([]);setError("");setSelectedWord(null);setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");setAddingWord(false);setActiveSource(null);setAnalyzerResult(null);setAnalyzerCandidates([]);setAnalyzerMessage("");clearJobTracking();}
   function clearWordSearch(){setWordQuery("");setWordSearchMessage("");setPreviewWord(null);}
   function openSentence(sentence:string){setSelectedSentence(sentence);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");}
 
@@ -334,9 +456,13 @@ export default function ReadingScreen() {
       if(!text.trim())return;
       if(isPwa)setPwaLoading(true);else setAiTextLoading(true);
       setLoading(true);setError("");setAnalyzerMessage("");setAnalyzerResult(null);setAnalyzerCandidates([]);setActiveSource(source);
+      clearJobTracking();
       const{dictionary}=await analyzeTextLocal();
       const learnedIds=new Set<string>(Array.from(dictionary.values()).filter((w:any)=>w.learned&&w.id).map((w:any)=>w.id));
       const result=await analyzeTextViaAppsScript(text.trim());
+      console.log('JOB DEBUG result.ok:', result?.ok);
+      console.log('JOB DEBUG result.job:', JSON.stringify(result?.job));
+      console.log('JOB DEBUG result keys:', result?Object.keys(result):'no result');
       if(!result?.ok)throw new Error(result?.message||(isPwa?"PWA text analyzer failed":"AI text analyzer failed"));
       const adapted=adaptV7ResponseToLegacyFormat(result,dictionary);
       rebuildAnalysisFromEdgeResult(adapted,learnedIds);
@@ -344,6 +470,12 @@ export default function ReadingScreen() {
       setAnalyzerResult(adapted);setAnalyzerCandidates(candidates);
       const unk=candidates.filter(i=>i.status==="unknown").length,inB=candidates.filter(i=>i.status==="in_base"||i.status==="learned").length;
       setAnalyzerMessage(tr(isPwa?"pwa_ready":"ai_ready",{inBase:inB,unknown:unk}));
+      // ДОБАВЛЕНО (05.08.2026): job.id уже возвращается analyze-text (см.
+      // response shape {ok, job, ingestion, orchestrator}) — начинаем
+      // отслеживать фоновую обработку сразу после успешного анализа.
+      if(result?.job?.id){
+        startJobTracking(String(result.job.id));
+      }
     }catch(err:any){setAnalyzerMessage(String(err?.message||err));}
     finally{if(isPwa)setPwaLoading(false);else setAiTextLoading(false);setLoading(false);}
   }
@@ -416,7 +548,24 @@ export default function ReadingScreen() {
 
         {/* Text analysis card */}
         <View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
-          <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("text_analysis_title")}</Text>
+          <View style={s.cardHeaderRow}>
+            <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4,marginBottom:0}]}>{tr("text_analysis_title")}</Text>
+            {/* ДОБАВЛЕНО (05.08.2026): иконка прогресса фоновой обработки.
+                ⏳ пока job-orchestrator/enrichment-цепочки работают,
+                ✅ когда lexeme_processing_jobs.status='completed',
+                ⚠️ если job попал в needs_manual_review. Тап — модалка с
+                таблицей цепочек (пока processing) или итоговым сообщением. */}
+            {jobId?(
+              <Pressable style={[s.jobPill,{backgroundColor:T.cardAlt,borderColor:T.border}]} onPress={openJobModal}>
+                <Text style={s.jobPillIcon}>
+                  {jobPhase==="completed"?"✅":jobPhase==="needs_review"?"⚠️":"⏳"}
+                </Text>
+                {jobPhase==="processing"?(
+                  <Text style={[s.jobPillText,{color:T.textSecondary}]}>{jobPercent}%</Text>
+                ):null}
+              </Pressable>
+            ):null}
+          </View>
           <TextInput style={[s.textArea,{backgroundColor:T.inputBg,borderColor:T.border,color:T.textPrimary}]} value={text} onChangeText={setText} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
           <View style={s.actionsCol}>
             <Pressable style={[s.pwaBtn,{backgroundColor:T.accentBg},pwaLoading&&s.disabled]} disabled={pwaLoading||aiTextLoading||!text.trim()} onPress={()=>runAnalysis("pwa")}>
@@ -557,9 +706,42 @@ export default function ReadingScreen() {
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
-              {selectedWord?.verification_tier||selectedWord?.verification_evidence?<VerificationBadge tier={selectedWord.verification_tier} sourceVerified={selectedWord.source_verified} evidence={selectedWord.verification_evidence} lemma={selectedWord.lemma||selectedWord.word} size="md" lang={lang}/>:null}
+
+              {/* ФИКС: три компактні іконки в одному ряду — синоніми, 360°,
+                  верифікація (крайня права) — той самий порядок і стиль,
+                  що й у режимі тренування. VerificationBadge size="sm"
+                  прибирає текстовий лейбл поруч із лампочкою (раніше
+                  size="md" показував "Знайдено в словнику" текстом). */}
+              <View style={s.modalToolsRow}>
+                <SynonymsBadge
+                  synonyms={selectedWord?.synonyms}
+                  lemma={selectedWord?.lemma||selectedWord?.word}
+                  size="sm"
+                  lang={lang}
+                />
+
+                {selectedWord?.id ? (
+                  <Lexeme360
+                    lexemeId={selectedWord.id}
+                    lemma={selectedWord.lemma||selectedWord.word}
+                    pos={selectedWord.pos||selectedWord.category||selectedWord.type}
+                    lang={lang}
+                    onSelectWord={(id:string,lemma:string)=>setSelectedWord({id,word:lemma,lemma})}
+                  />
+                ) : null}
+
+                {selectedWord?.verification_tier||selectedWord?.verification_evidence ? (
+                  <VerificationBadge
+                    tier={selectedWord.verification_tier}
+                    sourceVerified={selectedWord.source_verified}
+                    evidence={selectedWord.verification_evidence}
+                    lemma={selectedWord.lemma||selectedWord.word}
+                    size="sm"
+                    lang={lang}
+                  />
+                ) : null}
+              </View>
             </View>
-            {selectedWord?.id?<View style={{marginTop:12}}><Lexeme360 lexemeId={selectedWord.id} lemma={selectedWord.lemma||selectedWord.word} pos={selectedWord.pos||selectedWord.category||selectedWord.type} lang={lang} onSelectWord={(id:string,lemma:string)=>setSelectedWord({id,word:lemma,lemma})}/></View>:null}
             {selectedWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{selectedWord.example}</Text></View>:null}
             {getFormLabels(selectedWord||{}).length>0?<View style={s.formsBox}><Text style={[s.formsTitle,{color:T.textMuted}]}>{tr("forms")}</Text>{getFormLabels(selectedWord||{}).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>:null}
             <Pressable style={[s.speakBtn,{backgroundColor:T.accentBg}]} onPress={()=>speakNorwegian(selectedWord?.lemma||selectedWord?.word||"")}><Text style={[s.speakBtnText,{color:T.accent}]}>🔊 {tr("pronounce")}</Text></Pressable>
@@ -596,6 +778,55 @@ export default function ReadingScreen() {
         </Modal>
       ))}
 
+      {/* ДОБАВЛЕНО (05.08.2026): модалка прогресса фоновой обработки —
+          таблица цепочек пока processing, итоговое сообщение когда
+          completed/needs_review (chain rows после завершения не
+          показательны, см. комментарий у getJobChainProgress в api.ts). */}
+      <Modal visible={showJobModal} transparent animationType="fade" onRequestClose={closeJobModal}>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalCard,{backgroundColor:T.card}]}>
+            <ScrollView style={s.modalScroll} contentContainerStyle={s.modalScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("job_progress_title")}</Text>
+
+              {jobPhase==="completed"?(
+                <View style={[s.jobStatusBox,{backgroundColor:T.accentBg}]}>
+                  <Text style={s.jobStatusIcon}>✅</Text>
+                  <Text style={[s.jobStatusText,{color:T.textPrimary}]}>{tr("job_completed")}</Text>
+                </View>
+              ):jobPhase==="needs_review"?(
+                <View style={[s.jobStatusBox,{backgroundColor:T.dangerSoft}]}>
+                  <Text style={s.jobStatusIcon}>⚠️</Text>
+                  <Text style={[s.jobStatusText,{color:T.danger}]}>{tr("job_needs_review")}</Text>
+                </View>
+              ):(
+                <>
+                  <View style={[s.jobStatusBox,{backgroundColor:T.accentBg}]}>
+                    <Text style={s.jobStatusIcon}>⏳</Text>
+                    <Text style={[s.jobStatusText,{color:T.textPrimary}]}>{tr("job_processing")} {jobPercent}%</Text>
+                  </View>
+                  {jobChainRows.map(row=>(
+                    <View key={row.chain_key} style={[s.chainRow,{borderBottomColor:T.border},row.is_current&&{backgroundColor:T.cardAlt}]}>
+                      <View style={{flex:1}}>
+                        <Text style={[s.chainLabel,{color:T.textPrimary}]}>
+                          {row.is_current?"▶ ":row.is_complete?"✓ ":"　"}{row.display_label}
+                        </Text>
+                      </View>
+                      <Text style={[s.chainCount,{color:row.is_complete?T.accent:T.textMuted}]}>
+                        {row.done_count}/{row.total_count}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              <Pressable style={[s.closeBtn,{backgroundColor:T.accent}]} onPress={closeJobModal}>
+                <Text style={s.closeBtnText}>{tr("job_close")}</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={show360} transparent animationType="slide" onRequestClose={()=>setShow360(false)} statusBarTranslucent>
         <Pressable style={s.overlay360} onPress={()=>setShow360(false)}>
           <Pressable onPress={e=>e.stopPropagation()} style={[s.sheet360,{backgroundColor:T.card}]}>
@@ -615,7 +846,15 @@ const s=StyleSheet.create({
   content:{paddingTop:70,paddingHorizontal:20,paddingBottom:120},
   title:{fontWeight:"900",marginBottom:10},subtitle:{lineHeight:24,marginBottom:20},
   card:{borderRadius:22,padding:18,marginBottom:18,borderWidth:0.5},
+  cardHeaderRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:14},
   sectionTitle:{fontWeight:"900",marginBottom:14},
+  // ДОБАВЛЕНО (05.08.2026): пилюля-иконка прогресса job'а
+  jobPill:{flexDirection:"row",alignItems:"center",gap:5,borderRadius:999,paddingVertical:6,paddingHorizontal:10,borderWidth:0.5},
+  jobPillIcon:{fontSize:16},jobPillText:{fontSize:12,fontWeight:"800"},
+  jobStatusBox:{flexDirection:"row",alignItems:"center",gap:10,borderRadius:16,padding:14,marginBottom:16},
+  jobStatusIcon:{fontSize:22},jobStatusText:{fontWeight:"800",fontSize:15,flex:1},
+  chainRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingVertical:10,borderBottomWidth:0.5,borderRadius:8,paddingHorizontal:6},
+  chainLabel:{fontSize:14,fontWeight:"700"},chainCount:{fontSize:13,fontWeight:"900"},
   wordInput:{borderWidth:0.5,borderRadius:16,padding:14,fontWeight:"700",marginBottom:14},
   textArea:{minHeight:160,borderWidth:0.5,borderRadius:16,padding:14,fontWeight:"600",marginBottom:14},
   actionsRow:{flexDirection:"row",gap:10,marginTop:4},actionsCol:{gap:10},
@@ -657,6 +896,7 @@ const s=StyleSheet.create({
   modalLabel:{fontWeight:"900",marginBottom:8},modalWord:{fontWeight:"900"},
   modalTrans:{marginTop:10,fontWeight:"800",lineHeight:28},
   modalMetaRow:{marginTop:8,flexDirection:"row",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8},
+  modalToolsRow:{flexDirection:"row",alignItems:"center",gap:6},
   modalCat:{fontWeight:"700"},sentenceModalText:{lineHeight:31,fontWeight:"900"},
   placeholderBox:{marginTop:18,borderRadius:16,padding:14},placeholderTitle:{fontSize:15,fontWeight:"900",marginBottom:6},
   placeholderText:{fontSize:15,fontWeight:"700",lineHeight:22},bulletText:{fontSize:15,fontWeight:"700",lineHeight:22,marginBottom:4},

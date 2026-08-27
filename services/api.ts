@@ -5,30 +5,126 @@ import { getCurrentUserId } from '@/store/authStore';
 // LEXEME SELECT
 // ============================================================
 
+// ФИКС: добавлено relations_count. Колонка уже существует в lexemes и
+// реально заполняется (подтверждено: "ta" → 15), но не запрашивалась
+// здесь — из-за этого trainingEngine.hasRelations(w) всегда получала
+// w.relations_count === undefined и иконка режима 360° никогда не
+// показывалась в тренировке, независимо от того, сколько реальных связей
+// было в expression_catalog/lexeme_relations.
+// FIX: verb_forms(...) / noun_forms(...) / adjective_forms(...) as embedded
+// relations were removed - those tables do not exist in the current schema.
+// Forms now come from a direct, separate read of lexeme_form_variants
+// (see fetchFormVariantsMap below) instead of a sync bridge, per the
+// production decision to avoid a second, potentially-stale data layer.
 const LEXEME_SELECT = `
   id, lemma, pos, display_form,
   dictionary_status, dictionary_exclusion_reason, is_learning_lexeme,
   translation_ua, translation_en, example, notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
+  relations_count, synonyms,
   verification, verification_tier, verification_status, source_verified,
   verification_evidence, source, enrichment_status, enrichment_error,
   expression_data (
     expression_subtype
-  ),
-  verb_forms (
-    infinitiv, presens, preteritum, perfektum, gruppe,
-    expression_subtype, base_verb, particle, requires_seg
-  ),
-  noun_forms (
-    official_gender, accepted_articles, preferred_article,
-    ubest_entall, best_entall, ubest_flertall, best_flertall
-  ),
-  adjective_forms (
-    positiv, intetkjonn, flertall,
-    komparativ, superlativ, best_superlativ
   )
 `;
 
+// ============================================================
+// Direct read from lexeme_form_variants - no bridge table.
+// Different sources wrote form_key under different naming
+// conventions (norwegian vs english terms); this normalizes them
+// into one canonical set consumed by mapLexemeRow / getAllForms().
+// past_perfect ("hadde X") is deliberately NOT aliased to perfektum
+// ("har X") - different tense, would silently give a wrong form.
+// ============================================================
+
+const FORM_KEY_ALIASES: Record<string, string> = {
+  infinitiv: 'infinitiv',
+  infinitive: 'infinitiv',
+  presens: 'presens',
+  present: 'presens',
+  preteritum: 'preteritum',
+  past: 'preteritum',
+  perfektum: 'perfektum',
+  present_perfect: 'perfektum',
+  imperative: 'imperative',
+  positiv: 'positiv',
+  intetkjonn: 'intetkjonn',
+  flertall: 'flertall',
+  komparativ: 'komparativ',
+  superlativ: 'superlativ',
+  best_superlativ: 'best_superlativ',
+  ubest_entall: 'ubest_entall',
+  best_entall: 'best_entall',
+  ubest_flertall: 'ubest_flertall',
+  best_flertall: 'best_flertall',
+};
+
+const VERB_FORM_KEYS = new Set(['infinitiv', 'presens', 'preteritum', 'perfektum', 'imperative']);
+const ADJECTIVE_FORM_KEYS = new Set(['positiv', 'intetkjonn', 'flertall', 'komparativ', 'superlativ', 'best_superlativ']);
+const NOUN_FORM_KEYS = new Set(['ubest_entall', 'best_entall', 'ubest_flertall', 'best_flertall']);
+
+type FormsBundle = {
+  verb_forms: Record<string, string>;
+  noun_forms: Record<string, string>;
+  adjective_forms: Record<string, string>;
+};
+
+async function fetchFormVariantsMap(
+  lexemeIds: string[],
+): Promise<Map<string, FormsBundle>> {
+  const result = new Map<string, FormsBundle>();
+  if (lexemeIds.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from('lexeme_form_variants')
+    .select('lexeme_id, form_key, value, is_primary, verification_status')
+    .in('lexeme_id', lexemeIds);
+
+  if (error) {
+    console.error('fetchFormVariantsMap failed:', error.message);
+    return result;
+  }
+
+  // Group rows by lexeme_id, then pick one value per canonical form_key -
+  // prefer is_primary=true, fall back to the first row encountered.
+  const grouped = new Map<string, any[]>();
+  for (const row of data || []) {
+    if (!row.lexeme_id || !row.form_key) continue;
+    const list = grouped.get(row.lexeme_id) || [];
+    list.push(row);
+    grouped.set(row.lexeme_id, list);
+  }
+
+  for (const [lexemeId, rows] of grouped.entries()) {
+    const chosen: Record<string, { value: string; isPrimary: boolean }> = {};
+
+    for (const row of rows) {
+      const canonical = FORM_KEY_ALIASES[row.form_key];
+      if (!canonical) continue;
+
+      const existing = chosen[canonical];
+      // Prefer primary; if neither/both are primary, keep the first seen.
+      if (!existing || (row.is_primary && !existing.isPrimary)) {
+        chosen[canonical] = { value: row.value, isPrimary: !!row.is_primary };
+      }
+    }
+
+    const verb_forms: Record<string, string> = {};
+    const noun_forms: Record<string, string> = {};
+    const adjective_forms: Record<string, string> = {};
+
+    for (const [key, { value }] of Object.entries(chosen)) {
+      if (VERB_FORM_KEYS.has(key)) verb_forms[key] = value;
+      else if (ADJECTIVE_FORM_KEYS.has(key)) adjective_forms[key] = value;
+      else if (NOUN_FORM_KEYS.has(key)) noun_forms[key] = value;
+    }
+
+    result.set(lexemeId, { verb_forms, noun_forms, adjective_forms });
+  }
+
+  return result;
+}
 
 // ============================================================
 // Types
@@ -66,12 +162,12 @@ type SrsPrevious = {
 // Map lexeme row → app format
 // ============================================================
 
-function mapLexemeRow(item: any) {
+function mapLexemeRow(item: any, forms?: FormsBundle) {
   if (!item) return null;
 
-  const vf = item.verb_forms?.[0]      || {};
-  const nf = item.noun_forms?.[0]      || {};
-  const af = item.adjective_forms?.[0] || {};
+  const vf = forms?.verb_forms      || {};
+  const nf = forms?.noun_forms      || {};
+  const af = forms?.adjective_forms || {};
   const ed = item.expression_data?.[0] || {};
 
   const pos = item.pos || '';
@@ -100,6 +196,10 @@ function mapLexemeRow(item: any) {
     frequency_level:  item.frequency_level  || '',
     frequency_source: item.frequency_source || '',
     frequency_note:   item.frequency_note   || '',
+    // ФИКС: пробрасываем relations_count из БД в объект, который реально
+    // видит trainingEngine.hasRelations(w) — само поле уже запрашивается
+    // выше (LEXEME_SELECT), но терялось именно на этом шаге маппинга.
+    relations_count: item.relations_count ?? 0,
     status:   item.status         || 'New',
     source:   item.source         || '',
     dictionary_status: item.dictionary_status || 'active',
@@ -125,16 +225,31 @@ function mapLexemeRow(item: any) {
     expression_subtype: vf.expression_subtype || ed.expression_subtype || '',
     base_verb:          vf.base_verb          || '',
     particle:           vf.particle           || '',
-    synonyms:           [],
-    // joined form objects for getFormLabels()
-    verb_forms:       item.verb_forms?.[0]      || null,
-    noun_forms:       item.noun_forms?.[0]      || null,
-    adjective_forms:  item.adjective_forms?.[0] || null,
+    // ФИКС: было захардкожено synonyms: [] — приложение никогда не могло
+    // увидеть ни одной из связей, собранных naob-synonym-resolver в
+    // authoritative_semantic_relations (мост sync_lexeme_synonym_column
+    // теперь пишет их в lexemes.synonyms, запрошено выше в LEXEME_SELECT).
+    // Каждый элемент: { text, resolved, target_entity_type, target_entity_id, confidence, source }.
+    synonyms:           item.synonyms || [],
+    // joined form objects for getFormLabels() - now sourced directly
+    // from lexeme_form_variants via fetchFormVariantsMap, not a bridge table.
+    verb_forms:       forms?.verb_forms      || null,
+    noun_forms:       forms?.noun_forms      || null,
+    adjective_forms:  forms?.adjective_forms || null,
   };
 }
 
-function mapLexemeRows(rows: any[]) {
-  return (rows || []).map(mapLexemeRow).filter(Boolean);
+// FIX: now async - fetches lexeme_form_variants for the whole batch in one
+// query (not per-row), then maps rows with their matching forms bundle.
+async function mapLexemeRows(rows: any[]) {
+  const validRows = (rows || []).filter(Boolean);
+  const lexemeIds = validRows.map((r) => r.id).filter(Boolean);
+
+  const formsMap = await fetchFormVariantsMap(lexemeIds);
+
+  return validRows
+    .map((row) => mapLexemeRow(row, formsMap.get(row.id)))
+    .filter(Boolean);
 }
 
 function normalizeLexemeSearchKey(value: string) {
@@ -159,7 +274,6 @@ function candidateFrequencyLevel(candidate: any) {
   if (['high', 'medium', 'low', 'rare'].includes(raw)) return raw;
   return '';
 }
-
 
 // ============================================================
 // Attach SRS meta
@@ -255,7 +369,6 @@ function sortByLearningPriority<T>(items: T[]) {
     scoreLearningCandidate(b) - scoreLearningCandidate(a)
   );
 }
-
 
 // ============================================================
 // SRS calculations
@@ -509,7 +622,6 @@ function calculateSrsUpdate(params: {
   };
 }
 
-
 // ============================================================
 // Learning progress helpers
 // ============================================================
@@ -569,7 +681,7 @@ async function fetchNewWords(params: {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return mapLexemeRows(data || []);
+  return await mapLexemeRows(data || []);
 }
 
 async function fetchDueWords(params: {
@@ -593,9 +705,9 @@ async function fetchDueWords(params: {
 
   if (error) throw new Error(error.message);
 
+  const mapped2 = await mapLexemeRows(attachSrsMetaToLexemeRows(data || []));
   return sortByLearningPriority(
-    mapLexemeRows(attachSrsMetaToLexemeRows(data || []))
-      .filter((item) => matchesCategoryFilter(item, params.categoryFilter))
+    mapped2.filter((item) => matchesCategoryFilter(item, params.categoryFilter))
   ).slice(0, params.limit);
 }
 
@@ -619,9 +731,9 @@ async function fetchWeakWords(params: {
 
   if (error) throw new Error(error.message);
 
+  const mapped3 = await mapLexemeRows(attachSrsMetaToLexemeRows(data || []));
   return sortByLearningPriority(
-    mapLexemeRows(attachSrsMetaToLexemeRows(data || []))
-      .filter((item) => matchesCategoryFilter(item, params.categoryFilter))
+    mapped3.filter((item) => matchesCategoryFilter(item, params.categoryFilter))
   ).slice(0, params.limit);
 }
 
@@ -646,8 +758,9 @@ async function fetchPriorityWords(params: {
 
   if (error) throw new Error(error.message);
 
+  const mapped4 = await mapLexemeRows(attachSrsMetaToLexemeRows(data || []));
   return sortByLearningPriority(
-    mapLexemeRows(attachSrsMetaToLexemeRows(data || []))
+    mapped4
       .filter((item) => matchesCategoryFilter(item, params.categoryFilter))
       .filter((item: any) => item?.srs?.memory_status !== 'passive_known')
   ).slice(0, params.limit);
@@ -809,7 +922,6 @@ export async function getDashboardStatsFromSupabase(preferredUser?: string) {
   };
 }
 
-
 // ============================================================
 // Public: getReadingLexemesFromSupabase
 // ============================================================
@@ -847,7 +959,8 @@ export async function getReadingLexemesFromSupabase(preferredUser?: string) {
     (learnedData || []).map((item: any) => item.lexeme_id).filter(Boolean)
   );
 
-  return mapLexemeRows(allLexemes).map((word: any) => ({
+  const mappedAll = await mapLexemeRows(allLexemes);
+  return mappedAll.map((word: any) => ({
     ...word,
     learned: learnedIds.has(word.id),
   }));
@@ -1172,6 +1285,60 @@ export async function addPreviewWordViaAppsScript(_preview: any) {
   // available. Words are enriched via the B-pipeline (Ordbokene/NAOB)
   // after analyze-text runs.
   return { ok: false, message: 'Word preview creation is unavailable. Words are enriched automatically by the background pipeline.' };
+}
+// ============================================================
+// Public: job progress polling (for the ⏳/✅ icon on the reading screen)
+// ============================================================
+
+// ДОБАВЛЕНО (05.08.2026): get_job_progress — уже существующая продовая
+// RPC-функция (SECURITY DEFINER, возвращает jsonb). done_items/total_items/
+// progress_percent считаются по items и достигают 100% сразу после
+// promotion — РАНЬШЕ, чем реально завершатся все enrichment-цепочки
+// (подтверждено на живых данных 04-05.08.2026). Поэтому "готово ли ВСЁ"
+// определяет не этот percent, а getJobStatus() ниже.
+export async function getJobProgress(jobId: string): Promise<any> {
+  const { data, error } = await supabase.rpc('get_job_progress', {
+    p_job_id: jobId,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// ДОБАВЛЕНО (05.08.2026): get_job_chain_progress — разбивка по 10
+// enrichment-цепочкам. ВАЖНО: enrichment_offsets сбрасывается в {} как
+// только job переходит из 'enrichment' в 'audit'/'done' — то есть после
+// реального завершения все строки покажут done_count=0. UI должен
+// использовать эту функцию только ПОКА job не completed.
+export async function getJobChainProgress(jobId: string): Promise<Array<{
+  chain_index: number;
+  chain_key: string;
+  display_label: string;
+  done_count: number;
+  total_count: number;
+  is_current: boolean;
+  is_complete: boolean;
+}>> {
+  const { data, error } = await supabase.rpc('get_job_chain_progress', {
+    p_job_id: jobId,
+  });
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+// ДОБАВЛЕНО (05.08.2026): единственный надёжный сигнал полного
+// завершения — status='completed' на lexeme_processing_jobs выставляется
+// только когда pipeline-supervisor реально доходит до stage='done'.
+export async function getJobStatus(jobId: string): Promise<{
+  status: string;
+  summary: any;
+} | null> {
+  const { data, error } = await supabase
+    .from('lexeme_processing_jobs')
+    .select('status, summary')
+    .eq('id', jobId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function getLearningWords() {

@@ -2,12 +2,11 @@
   "expo": {
     "name": "NorskTrainerApp",
     "slug": "NorskTrainerApp",
-    "version": "1.0.0",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "norsktrainerapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ruslanrs.norsktrainer",
@@ -15,7 +14,10 @@
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone.",
         "NSPhotoLibraryUsageDescription": "This app may access your photo library only when you choose to select an image.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -25,7 +27,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.ruslanrs.NorskTrainerApp",
       "permissions": [
@@ -51,7 +52,27 @@
         }
       ],
       "expo-speech-recognition",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone.",
+          "enableBackgroundRecording": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      "expo-image",
+      "expo-web-browser",
+      "expo-asset",
+      "expo-status-bar",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -62,6 +83,13 @@
       "eas": {
         "projectId": "1939392b-c40a-45a9-945f-d0f8e593bd55"
       }
+    },
+    "owner": "ruslanrs",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1939392b-c40a-45a9-945f-d0f8e593bd55"
     }
   }
 }

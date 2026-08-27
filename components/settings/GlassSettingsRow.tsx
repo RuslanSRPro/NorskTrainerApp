@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   title: {
-    fontWeight: '820',
+    fontWeight: '800',
   },
   hint: {
     marginTop: 2,

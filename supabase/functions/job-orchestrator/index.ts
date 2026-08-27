@@ -18,6 +18,24 @@ const supabase = createClient(
 const CURRENT_VERIFICATION_VERSION = 5;
 const CURRENT_METHOD_VERSION = 1;
 
+// ФИКС (05.08.2026): было 60с — оказалось слишком коротким порогом
+// устаревания лока. Реальная обработка job-orchestrator (runLexicalWorker
+// до 50 раундов, каждый — настоящий внешний вызов) может легитимно
+// занимать дольше минуты. При коротком пороге cron pipeline-supervisor
+// мог "украсть" лок у ещё живого, работающего вызова, посчитав его
+// мёртвым — оба запуска продолжали работать параллельно над одним job'ом,
+// одновременно пытаясь промоушить одни и те же items. Найдено на живых
+// данных: job e66914c9 (30 прилагательных) — duplicate key error на
+// (lemma, pos) = (rask, noun), два разных "касания" одной lexeme-записи
+// с разрывом ~20 минут. Job самовосстановился и завершился успешно, но
+// сама гонка реальна. Новый порог — заведомо больше реалистичного
+// максимума обработки одного job'а.
+//
+// ВАЖНО: это порог для ОТДЕЛЬНОГО лок-ресурса
+// (lexeme_processing_jobs.orchestrator_locked_at), см. комментарий ниже
+// в основном цикле — не путать с pipeline_supervisor_state.locked_at.
+const LOCK_STALE_SECONDS = 900; // 15 минут (было 60с)
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
@@ -71,13 +89,17 @@ async function getRemainingSourceCheckCount(jobId: string): Promise<number> {
   return result.count ?? 0;
 }
 
-async function runLexicalWorker(jobId: string) {
+type LexicalWorkerRunResult = {
+  batches: any[];
+  warnings: string[];
+  incomplete: boolean;
+  remaining: number;
+};
+
+async function runLexicalWorker(jobId: string): Promise<LexicalWorkerRunResult> {
   const batches = [];
   const warnings: string[] = [];
 
-  // A job can easily contain more than 100 source checks because each token
-  // is checked against several sources. Do not promote until all checks are
-  // really finished. `claimed === 0` alone is not a reliable completion signal.
   const maxRounds = 50;
 
   for (let round = 0; round < maxRounds; round++) {
@@ -99,17 +121,6 @@ async function runLexicalWorker(jobId: string) {
         },
       );
     } catch (fetchError) {
-      // ФИКС: раньше этот fetch не был обёрнут в try/catch — если
-      // lexical-worker обрывался платформой посреди выполнения (что
-      // подтверждённо происходит на multi-word "ta"-семействе из-за
-      // последовательной обработки claimed checks внутри lexical-worker),
-      // соединение рвалось необработанным исключением, которое роняло
-      // ВЕСЬ job-orchestrator целиком с HTTP 500 — а job оставался
-      // навечно в статусе 'processing', потому что ничего не откатывало
-      // его обратно и никто не перезапускал orchestrator автоматически.
-      // Теперь такой обрыв — это просто ещё один "нет прогресса в этом
-      // раунде", обрабатываемый той же логикой reset_stuck_source_checks
-      // + warnings ниже, вместо падения всего job'а.
       warnings.push(
         `lexical-worker request failed for job ${jobId} on round ${round}: ${safeStringify(
           fetchError,
@@ -134,6 +145,8 @@ async function runLexicalWorker(jobId: string) {
         warnings.push(
           `lexical-worker reached maxRounds=${maxRounds} after repeated request failures, ${remainingAfterFailure} source checks still remain for job ${jobId} — proceeding with partial results.`,
         );
+
+        return { batches, warnings, incomplete: true, remaining: remainingAfterFailure };
       }
 
       continue;
@@ -143,9 +156,6 @@ async function runLexicalWorker(jobId: string) {
     batches.push(workerJson);
 
     if (!workerResponse.ok || workerJson.ok === false) {
-      // ФИКС: раньше это был throw, который ронял весь job. Теперь —
-      // тот же принцип, что и выше: не падаем, логируем, пробуем
-      // эскалировать зависшие checks и продолжаем со следующим раундом.
       warnings.push(
         `lexical-worker returned non-ok for job ${jobId} on round ${round}: ${safeStringify(
           workerJson,
@@ -170,6 +180,8 @@ async function runLexicalWorker(jobId: string) {
         warnings.push(
           `lexical-worker reached maxRounds=${maxRounds} after repeated non-ok responses, ${remainingAfterNonOk} source checks still remain for job ${jobId} — proceeding with partial results.`,
         );
+
+        return { batches, warnings, incomplete: true, remaining: remainingAfterNonOk };
       }
 
       continue;
@@ -182,14 +194,6 @@ async function runLexicalWorker(jobId: string) {
     }
 
     if (!workerJson.claimed || workerJson.claimed === 0) {
-      // ФИКС: раньше здесь сразу бросалось исключение, которое роняло ВЕСЬ
-      // job (promotion/enrichment/audit для всех 56 items из-за 12 застрявших).
-      // reset_stuck_source_checks вызывается только ОДИН раз, в самом начале
-      // всего job-orchestrator запуска (см. serve() выше) — если check
-      // зависает в 'processing' ПОСЕРЕДИНЕ текущего прогона (не до его
-      // начала), тот единственный вызов reset его не увидит. Пытаемся
-      // эскалировать зависшие checks здесь же, внутри цикла, перед тем как
-      // сдаваться.
       try {
         await rpcOrThrow<number>('reset_stuck_source_checks', { p_job_id: jobId });
       } catch (resetError) {
@@ -206,24 +210,19 @@ async function runLexicalWorker(jobId: string) {
         break;
       }
 
-      // Если после свежей эскалации всё ещё что-то остаётся claimed=0 —
-      // это либо retry_scheduled с будущим next_retry_at (легитимно ждать),
-      // либо что-то, что reset не смог разрешить прямо сейчас (эскалация до
-      // failed происходит только после max_attempts). Не роняем ВЕСЬ job из-за
-      // этого — продолжаем с тем, что уже готово. job-completion-auditor
-      // (финальный шаг ниже) увидит и, если нужно, сам добьёт то, что
-      // осталось неполным, вместо того чтобы весь job навечно застревал в
-      // 'pending' без promotion вообще.
       warnings.push(
-        `lexical-worker claimed 0 checks but ${remaining} source checks still remain for job ${jobId} even after mid-loop escalation — proceeding with partial results, job-completion-auditor will report/heal the rest.`,
+        `lexical-worker claimed 0 checks but ${remaining} source checks still remain for job ${jobId} even after mid-loop escalation — this batch of orchestrator work is incomplete, pipeline-supervisor will retry the orchestrator stage.`,
       );
-      break;
+
+      return { batches, warnings, incomplete: true, remaining };
     }
 
     if (round === maxRounds - 1) {
       warnings.push(
         `lexical-worker reached maxRounds=${maxRounds} but ${remaining} source checks are still pending/processing for job ${jobId} — proceeding with partial results.`,
       );
+
+      return { batches, warnings, incomplete: true, remaining };
     }
   }
 
@@ -231,7 +230,7 @@ async function runLexicalWorker(jobId: string) {
     console.warn('runLexicalWorker: completed with warnings for job', jobId, warnings);
   }
 
-  return { batches, warnings };
+  return { batches, warnings, incomplete: false, remaining: 0 };
 }
 
 async function runSemanticAuditWorker(jobId: string) {
@@ -337,133 +336,234 @@ serve(async (req) => {
     for (const job of jobs ?? []) {
       const jobId = job.id;
 
-      const runId =
-        requestedRunId ??
-        job.summary?.run_id ??
-        `text-analysis-${jobId}`;
-
-      const beforeVersioningSnapshot =
-        await loadJobEntities(supabase, jobId);
-
-      await supabase
-        .from('lexeme_processing_jobs')
-        .update({
-          status: 'processing',
-          started_at:
-            job.started_at ??
-            new Date().toISOString(),
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq('id', jobId);
-
-      await rpcOrThrow<number>(
-        'reset_stuck_source_checks',
+      // ДОБАВЛЕНО (04.08.2026): лок против параллельного выполнения
+      // job-orchestrator для одного и того же job_id.
+      //
+      // ВАЖНО: это ОТДЕЛЬНЫЙ, независимый лок-ресурс
+      // (lexeme_processing_jobs.orchestrator_locked_at) — НЕ
+      // pipeline_supervisor_state.locked_at. Изначальная версия этого
+      // фикса ошибочно переиспользовала claim_pipeline_supervisor_job на
+      // тот же ресурс, что и pipeline-supervisor — но supervisor держит
+      // СВОЙ лок (pipeline_supervisor_state.locked_at) на всё время
+      // своего HTTP-вызова к этой функции (см. processOneStepWithLock в
+      // pipeline-supervisor/index.ts), поэтому попытка взять тот же
+      // ресурс здесь всегда видела бы "уже занято" — самоблокировка
+      // (self-deadlock) обычного, штатного пути supervisor'а, а не
+      // только редкой гонки. Найдено при ревью, до деплоя (04.08.2026).
+      // claim_job_orchestrator_run — независимая RPC на отдельную
+      // колонку, никем больше не используемую, поэтому конфликта с
+      // локом supervisor'а нет.
+      //
+      // Сама гонка, которую это защищает: analyze-text вызывает
+      // job-orchestrator напрямую через EdgeRuntime.waitUntil() сразу
+      // при создании job'а — если в этот момент cron pipeline-supervisor
+      // тоже подхватит тот же job_id (job.status в этот момент обычно
+      // 'processing', что проходит фильтр и здесь, и в
+      // get_active_pipeline_jobs), оба вызова могли раньше одновременно
+      // выполнять runLexicalWorker/promote_verification_results_for_job/
+      // build_text_analysis_result для одного job'а.
+      const claimed = await rpcOrThrow<boolean>(
+        'claim_job_orchestrator_run',
         {
           p_job_id: jobId,
+          p_stale_seconds: LOCK_STALE_SECONDS,
         },
       );
 
-      const { batches: lexicalBatches, warnings: lexicalWarnings } =
-        await runLexicalWorker(jobId);
+      if (!claimed) {
+        processedJobs.push({
+          job_id: jobId,
+          action: 'skipped',
+          reason: 'locked by another in-flight job-orchestrator run',
+        });
 
-      const promotedCount =
-        await rpcOrThrow<number>(
-          'promote_verification_results_for_job',
-          {
-            p_job_id: jobId,
-          },
-        );
-
-      // ============================================================
-      // ФИКС: enrichment больше НЕ запускается отсюда.
-      //
-      // Раньше здесь было 5 фоновых цепочек (Ordbokene, NAOB, Expression
-      // translation+AI, Authoritative+AI, 360° neighborhood), собранных в
-      // один Promise.all и запущенных через EdgeRuntime.waitUntil() —
-      // каждая цепочка обрабатывала до 20 items последовательным
-      // for...await, БЕЗ пагинации. Диагностика по данным entity_translations
-      // показала: для job'а с 23 "ta"-expressions автоматический AI-перевод
-      // реально дошёл только до 2 из них, после чего вся фоновая цепочка
-      // замолкала на 4+ минуты без единой ошибки — сам job при этом уже
-      // отчитался статусом 'ready' клиенту, поэтому проблема была не видна
-      // снаружи вообще (см. stopper_investigation_summary.md и переписку
-      // от 2026-07-06 про диагностику AI-перевода).
-      //
-      // Теперь enrichment вынесен в job-enrichment-batch-worker — он
-      // обрабатывает ОДНУ цепочку небольшим батчем (offset/limit/has_more)
-      // за один вызов. job-orchestrator лишь помечает job как готовый к
-      // enrichment-стадии; реальную докрутку до полного завершения делает
-      // pipeline-supervisor, вызывающий job-enrichment-batch-worker в
-      // цикле, пока has_more не станет false по всем цепочкам.
-      //
-      // enrichment_pending: true в summary — явный флаг для
-      // pipeline-supervisor, что после build_result/versioning для этого
-      // job'а ещё нужно прогнать enrichment-цепочки.
-      // ============================================================
-
-      if (promotedCount > 0) {
-        await supabase.rpc('append_job_summary_field', {
-          p_job_id: jobId,
-          p_field: 'enrichment_pending',
-          p_value: {
-            promoted_count: promotedCount,
-            queued_at: new Date().toISOString(),
-          },
-        }).then(
-          () => {},
-          (rpcError: unknown) => {
-            console.error(
-              'job-orchestrator: append_job_summary_field(enrichment_pending) failed for job',
-              jobId,
-              safeStringify(rpcError),
-            );
-          },
-        );
+        continue;
       }
 
-      const semanticAuditBatches =
-        await runSemanticAuditWorker(jobId);
+      try {
+        const runId =
+          requestedRunId ??
+          job.summary?.run_id ??
+          `text-analysis-${jobId}`;
 
-      const buildResult =
-        await rpcOrThrow<string>(
-          'build_text_analysis_result',
+        const beforeVersioningSnapshot =
+          await loadJobEntities(supabase, jobId);
+
+        await supabase
+          .from('lexeme_processing_jobs')
+          .update({
+            status: 'processing',
+            started_at:
+              job.started_at ??
+              new Date().toISOString(),
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq('id', jobId);
+
+        await rpcOrThrow<number>(
+          'reset_stuck_source_checks',
           {
             p_job_id: jobId,
           },
         );
 
-      const counters =
-        await rpcOrThrow<Record<string, unknown>>(
-          'recalculate_job_progress',
-          {
-            p_job_id: jobId,
-          },
-        );
+        const {
+          batches: lexicalBatches,
+          warnings: lexicalWarnings,
+          incomplete: orchestratorIncomplete,
+          remaining: sourceChecksRemaining,
+        } = await runLexicalWorker(jobId);
 
-      const versioningResult =
-        await versionCompletedJob(
-          supabase,
-          {
+        if (orchestratorIncomplete) {
+          processedJobs.push({
+            job_id: jobId,
+            lexical_batches: lexicalBatches,
+            lexical_warnings: lexicalWarnings.length ? lexicalWarnings : undefined,
+            orchestrator_incomplete: true,
+            source_checks_remaining: sourceChecksRemaining,
+            enrichment_pending: false,
+          });
+
+          continue;
+        }
+
+        // ДОБАВЛЕНО (12.08.2026, Шаг Б): перед промоушеном расширяем
+        // items, у которых verification evidence (NAOB) показывает
+        // БОЛЬШЕ частей речи, чем уже назначено (или чем изначально
+        // ничего не назначено — совсем новое слово). Клонирует
+        // lexeme_processing_items + lexeme_source_checks на каждый
+        // дополнительный найденный POS, используя УЖЕ полученную
+        // evidence — без повторных запросов к NAOB/Ordbokene. После
+        // расширения promote_verification_results_for_job (уже
+        // pos-aware, см. Шаг A) сам корректно создаст/сопоставит
+        // отдельные лексемы для каждого клона — здесь больше ничего
+        // менять не нужно. Идемпотентно (safe на повторных тиках) —
+        // проверяет exists перед каждым клонированием. Подтверждено на
+        // живых данных (job 878f282e, 15 клонов, 5 из 5 выборочно
+        // проверенных вручную — все реальные, не ложные срабатывания).
+        let multiPosExpanded = 0;
+
+        try {
+          multiPosExpanded = await rpcOrThrow<number>(
+            'expand_multi_pos_occurrences_for_job',
+            {
+              p_job_id: jobId,
+            },
+          );
+        } catch (expandError) {
+          // Не роняем весь job из-за сбоя этого не-критичного шага —
+          // просто логируем и идём дальше без расширения на этом тике;
+          // если это временный сбой, следующий тик подхватит остаток
+          // (функция идемпотентна).
+          console.error(
+            'job-orchestrator: expand_multi_pos_occurrences_for_job failed for job',
             jobId,
-            runId,
-            before: beforeVersioningSnapshot,
-            verificationVersion: CURRENT_VERIFICATION_VERSION,
-            methodVersion: CURRENT_METHOD_VERSION,
-          },
-        );
+            safeStringify(expandError),
+          );
+        }
 
-      processedJobs.push({
-        job_id: jobId,
-        lexical_batches: lexicalBatches,
-        lexical_warnings: lexicalWarnings.length ? lexicalWarnings : undefined,
-        promoted_count: promotedCount,
-        enrichment_pending: promotedCount > 0,
-        semantic_audit_batches: semanticAuditBatches,
-        build_result: buildResult,
-        counters,
-        final_versioning: versioningResult,
-      });
+        const promotedCount =
+          await rpcOrThrow<number>(
+            'promote_verification_results_for_job',
+            {
+              p_job_id: jobId,
+            },
+          );
+
+        const { count: pendingEnrichmentCount } = await supabase
+          .from('lexeme_processing_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('job_id', jobId)
+          .eq('current_stage', 'semantic_audit')
+          .or('lexeme_id.not.is.null,expression_id.not.is.null');
+
+        const enrichmentNeeded = (pendingEnrichmentCount ?? 0) > 0;
+
+        if (enrichmentNeeded) {
+          await supabase.rpc('append_job_summary_field', {
+            p_job_id: jobId,
+            p_field: 'enrichment_pending',
+            p_value: {
+              promoted_count: promotedCount,
+              pending_enrichment_count: pendingEnrichmentCount,
+              queued_at: new Date().toISOString(),
+            },
+          }).then(
+            () => {},
+            (rpcError: unknown) => {
+              console.error(
+                'job-orchestrator: append_job_summary_field(enrichment_pending) failed for job',
+                jobId,
+                safeStringify(rpcError),
+              );
+            },
+          );
+        }
+
+        const semanticAuditBatches =
+          await runSemanticAuditWorker(jobId);
+
+        const buildResult =
+          await rpcOrThrow<string>(
+            'build_text_analysis_result',
+            {
+              p_job_id: jobId,
+            },
+          );
+
+        const counters =
+          await rpcOrThrow<Record<string, unknown>>(
+            'recalculate_job_progress',
+            {
+              p_job_id: jobId,
+            },
+          );
+
+        const versioningResult =
+          await versionCompletedJob(
+            supabase,
+            {
+              jobId,
+              runId,
+              before: beforeVersioningSnapshot,
+              verificationVersion: CURRENT_VERIFICATION_VERSION,
+              methodVersion: CURRENT_METHOD_VERSION,
+            },
+          );
+
+        processedJobs.push({
+          job_id: jobId,
+          lexical_batches: lexicalBatches,
+          lexical_warnings: lexicalWarnings.length ? lexicalWarnings : undefined,
+          orchestrator_incomplete: false,
+          multi_pos_expanded: multiPosExpanded,
+          promoted_count: promotedCount,
+          pending_enrichment_count: pendingEnrichmentCount,
+          enrichment_pending: enrichmentNeeded,
+          semantic_audit_batches: semanticAuditBatches,
+          build_result: buildResult,
+          counters,
+          final_versioning: versioningResult,
+        });
+      } finally {
+        // ДОБАВЛЕНО (04.08.2026): освобождаем лок вне зависимости от
+        // исхода (успех, ошибка, orchestrator_incomplete-continue) —
+        // finally гарантированно отработает даже при `continue` внутри
+        // try-блока цикла.
+        await supabase
+          .rpc('release_job_orchestrator_run', { p_job_id: jobId })
+          .then(
+            () => {},
+            (releaseError: unknown) => {
+              console.error(
+                'job-orchestrator: release_job_orchestrator_run failed for job',
+                jobId,
+                safeStringify(releaseError),
+              );
+            },
+          );
+      }
     }
 
     return Response.json(

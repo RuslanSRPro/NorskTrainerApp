@@ -10,40 +10,6 @@ const corsHeaders = {
 const LEXIN_SOURCE = 'lexin';
 const LEXIN_BASE_URL = 'https://editorportal.oslomet.no/api/v1/findwords';
 
-// ФИКС: жёсткий лимит вариантов перевода/определения на (language_code, translation_type).
-// Раньше был только dedup без верхнего предела — Lexin с несколькими группами
-// (омографы/сенсы) мог дать rank 1,2,3,4,5,6... без ограничения. Теперь всё,
-// что превышает лимит, помечается как excluded (rank=-1) и не идёт в upsert.
-// Это же правило используется в ai-fallback (services/... AI fallback function) —
-// держим значение синхронизированным между воркерами.
-const MAX_TRANSLATION_VARIANTS = 2;
-
-// Architecture rule: writes FACTS only — never writes to
-// authoritative_semantic_relations directly.
-// Gloss terms go to lexin_gloss_candidates (staging).
-// authoritative-enrichment-pipeline-worker decides what to promote.
-//
-// includeEngLang=1 gives Ukrainian (Ukr-*) and English (B-*) in one call.
-//
-// Two modes:
-//
-// LEXEME MODE (no root_word):
-//   query = lemma
-//   uses: Ukr-lem→'primary', B-lem→'primary', Ukr-def, E-def, B-def, E-eks, B-eks
-//
-// EXPRESSION MODE (root_word provided):
-//   query = root_word (e.g. "merke" for "legge merke til")
-//   E-idi lives inside the root word article, not directly searchable by phrase
-//   uses: E-idi match → Ukr-idi→'expression_primary', B-idi→'expression_primary'
-//   gloss terms → lexin_gloss_candidates with confidence='medium'
-//   skips Ukr-lem/B-lem of root word — those belong to root word, not expression
-//
-// TODO (future): in expression mode, save E-eks/Ukr-eks that are tied to the
-// matched E-idi entry (not all examples from the root word article). Requires
-// Lexin API to link examples to specific idioms — structure not yet confirmed.
-//
-// TODO (future): extract morphology from ordbankList in lexeme mode.
-
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
     status,
@@ -84,11 +50,351 @@ function parseIdiomText(text: string): {
   return { expressionText, gloss, glossTerms };
 }
 
-type LexinEntry = { id: number; sub_id: number; type: string; text: string; index: number | null };
-type LexinGroup = LexinEntry[];
+type LexinEntry = {
+  id: number;
+  sub_id: number;
+  type: string;
+  text: string;
+  index: number | null;
+  pri_id?: number | null;
+};
 
-function entriesOfType(group: LexinGroup, ...types: string[]): LexinEntry[] {
-  return group.filter((e) => types.includes(e.type));
+// ============================================================================
+// ФИКС v4 (10.07.2026 — найдено через сырой JSON-ответ Lexin для "bestå"):
+//
+// Lexin НЕ возвращает массив групп-по-смыслам, как предполагала вся
+// предыдущая версия parser'а. "result" — это массив из ОДНОЙ секции, а
+// внутри неё — ПЛОСКИЙ список записей вперемешку для НЕСКОЛЬКИХ разных
+// словарных статей (разных "id"), включая статьи слов, вообще не
+// совпадающих с искомой леммой (Lexin подмешивает fuzzy/похожие по
+// написанию результаты — напр. на запрос "bestå" пришли ещё статьи
+// "vare", "omfatte", "hangle", "stryke", "sikkert").
+//
+// Поэтому: сначала группируем весь плоский список по "id" в
+// Map<id, entries[]>, и только затем для каждой такой "суб-статьи"
+// отдельно проверяем совпадение и собираем переводы/определения/примеры.
+// source_entry_id для каждой конкретно записи берётся с неё самой (e.id).
+//
+// ПОДТВЕРЖДЕНО НА ЖИВЫХ ДАННЫХ (15.07.2026, dry-run "bestå"):
+// entries_skipped_no_match = 5, matched_entry_ids = [47750, 402].
+// ============================================================================
+
+function groupEntriesById(flatEntries: LexinEntry[]): Map<number, LexinEntry[]> {
+  const byId = new Map<number, LexinEntry[]>();
+  for (const e of flatEntries) {
+    if (e.id == null) continue;
+    if (!byId.has(e.id)) byId.set(e.id, []);
+    byId.get(e.id)!.push(e);
+  }
+  return byId;
+}
+
+function entriesOfType(bucket: LexinEntry[], ...types: string[]): LexinEntry[] {
+  return bucket.filter((e) => types.includes(e.type));
+}
+
+// ФИКС (найдено 10.07.2026 через сравнение с сайтом lexin.oslomet.no):
+// физический порядок появления записей в плоском "result" НЕ совпадает с
+// порядком, который сам Lexin показывает как основной/первый на своём
+// сайте. Настоящий порядок релевантности хранится отдельно, в поле
+// верхнего уровня "resArray" — {"0":{"id":402},"1":{"id":47750},...},
+// где числовой ключ — позиция статьи на сайте.
+function extractEntryOrderFromResArray(rawData: any): Map<number, number> {
+  const resArray = rawData?.resArray;
+  const orderMap = new Map<number, number>();
+  if (resArray && typeof resArray === 'object') {
+    for (const [key, val] of Object.entries(resArray)) {
+      const idx = Number(key);
+      const id = (val as any)?.id;
+      if (Number.isFinite(idx) && typeof id === 'number') {
+        if (!orderMap.has(id) || idx < (orderMap.get(id) as number)) {
+          orderMap.set(id, idx);
+        }
+      }
+    }
+  }
+  return orderMap;
+}
+
+// ФИКС v6 (11.07.2026 — подтверждено на `nå`):
+// украинские варианты Lexin могут одновременно использовать `|`, запятые
+// и пробелы между самостоятельными инфинитивами. Нормализация превращает
+// их в явный список через запятые, сохраняя все варианты.
+function isUkrainianInfinitiveToken(token: string): boolean {
+  const clean = token
+    .trim()
+    .replace(/^[("'«„]+|[)"'»“.,;:!?]+$/g, '');
+
+  return /(?:ти|тися|тись)$/iu.test(clean);
+}
+
+function splitWhitespaceInfinitiveList(segment: string): string[] {
+  const trimmed = segment.trim();
+  if (!trimmed) return [];
+
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+
+  if (tokens.length > 1 && tokens.every(isUkrainianInfinitiveToken)) {
+    return tokens;
+  }
+
+  return [trimmed];
+}
+
+function normalizeTranslationSegment(segment: string): string[] {
+  return segment
+    .split(',')
+    .flatMap((part) => splitWhitespaceInfinitiveList(part))
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+// ФИКС v11 (19.07.2026 — найдено на живых данных: "å ta på seg" получило
+// ОДНУ строку translation из 12 склеенных вариантов: "вдягти, одягти,
+// вдягати, вдягнути, одягнути, взути, узути, взувати, узувати, взяти на
+// себе, одягати, взувати; брати на себе" — включая внутренние дубли
+// ("одягати" и "взувати" дважды).
+//
+// Причина: cleanTranslationText уже правильно разбирала текст Lexin на
+// отдельные варианты (v6, split по '|' + запятым + пробельным
+// инфинитивам), но в конце схлопывала массив обратно в ОДНУ строку через
+// unique.join(', '). Файл уже содержит отдельный цикл ранжирования/дедупа
+// ПОСЛЕ сборки translations (см. seenPerEntry/rankPerEntry ниже по файлу)
+// — он рассчитан именно на приём отдельных вариантов как отдельных строк
+// entity_translations с инкрементным translation_rank внутри одного
+// source_entry_id, и дедуп он делает сам. Но получал на вход уже
+// склеенную мега-строку как единственный "вариант" — то есть отработать
+// как задумано не мог.
+//
+// Фикс — здесь: возвращаем string[] вместо string, ничего не склеивая.
+// Дедуп внутри Lexin-текста (совпадающие после normalizeKey варианты)
+// остаётся здесь же, до передачи дальше — это защита от дублей УЖЕ
+// ВНУТРИ одного sub_id (напр. "одягати" дважды в одном исходном тексте),
+// а не от дублей между разными source_entry_id (та защита — отдельный
+// уровень, ниже по файлу). Cap на количество вариантов сюда намеренно НЕ
+// добавлен — v_cap_uk/v_cap_en в sync_lexeme_translation_columns
+// применяются на агрегации между смыслами (source_entry_id), а внутри
+// одного смысла distinct on (source_entry_id) в sync-функции и так
+// выбирает только translation_rank=1 — значит хранить все варианты здесь
+// безопасно, лишнее просто не попадёт в lexemes.translation_ua.
+function cleanTranslationVariants(text: string): string[] {
+  const normalized = String(text ?? '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) return [];
+
+  const candidates = normalized
+    .split('|')
+    .flatMap((block) => normalizeTranslationSegment(block));
+
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const candidate of candidates) {
+    const cleaned = candidate
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([,.;:!?])/g, '$1')
+      .trim();
+
+    if (!cleaned) continue;
+
+    const key = normalizeKey(cleaned);
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    unique.push(cleaned);
+  }
+
+  return unique;
+}
+
+// Обёртка для идиом-веток (Ukr-idi/B-idi через parseIdiomText): там на
+// входе уже ОДНА конкретная фраза идиомы, не Lexin-поле с несколькими
+// синонимами через "|" — join здесь безопасен и лишь нормализует
+// пунктуацию/пробелы, не теряя и не размножая варианты.
+function cleanTranslationText(text: string): string {
+  return cleanTranslationVariants(text).join(', ');
+}
+
+// ФИКС v12 (25.07.2026 — найдено на живых данных: "bygge"):
+// Lexin разделяет РАЗНЫЕ смыслы одного слова внутри ОДНОГО Ukr-lem
+// текстового поля через ";" — напр. "будувати; ґрунтуватися" для bygge
+// (значение 1: "строить", значение 2: "основываться на"). Прежняя
+// cleanTranslationVariants не считала ";" границей смысла — весь текст
+// уходил в одну плоскую группу вариантов с общим sense_rank=1, из-за чего
+// downstream (translation-aspect-reorder-worker) пытался переставить
+// "будувати"/"побудувати"/"збудувати" вперемешку со "спертися"/
+// "ґрунтуватися" как единую видову пару, и AI закономерно не мог найти
+// среди них общую базову форму — либо путал местами, либо (при защите от
+// галлюцинаций) отбрасывал часть слов как несовпадение множества.
+//
+// Разбиение depth-aware (";" не считается границей ВНУТРИ скобок — тот
+// же принцип, что уже применяется для запятых в gloss-парсинге) на
+// смысловые группы; внутри каждой группы — прежняя логика
+// (|/,/пробельные-инфинитивы). Каждая группа получает свой sense_rank по
+// порядку появления (1, 2, 3...), а не всегда 1.
+function splitOutsideParens(text: string, separator: string): string[] {
+  const result: string[] = [];
+  let depth = 0;
+  let current = '';
+
+  for (const char of text) {
+    if (char === '(') depth++;
+    if (char === ')') depth = Math.max(0, depth - 1);
+
+    if (char === separator && depth === 0) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result;
+}
+
+function cleanTranslationSenseGroups(text: string): string[][] {
+  const normalized = String(text ?? '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) return [];
+
+  const senseSegments = splitOutsideParens(normalized, ';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return senseSegments
+    .map((segment) => {
+      const candidates = segment
+        .split('|')
+        .flatMap((block) => normalizeTranslationSegment(block));
+
+      const seen = new Set<string>();
+      const unique: string[] = [];
+
+      for (const candidate of candidates) {
+        const cleaned = candidate
+          .replace(/\s+/g, ' ')
+          .replace(/\s+([,.;:!?])/g, '$1')
+          .trim();
+
+        if (!cleaned) continue;
+
+        const key = normalizeKey(cleaned);
+        if (seen.has(key)) continue;
+
+        seen.add(key);
+        unique.push(cleaned);
+      }
+
+      return unique;
+    })
+    .filter((group) => group.length > 0);
+}
+
+// ФИКС v5 (11.07.2026 — подтверждено диагностикой для `nå`):
+// прежняя проверка `v.includes('verb')` ошибочно классифицировала
+// `adverb` как `verb`. POS сопоставляется по точным значениям и целым
+// токенам. Статьи с одинаковой леммой, но разной частью речи (омонимы:
+// virke-дієслово vs virke-іменник) различаются через E-kat/N-kat.
+function normalizePos(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const v = normalizeKey(String(value))
+    .replace(/[.:;,]+$/g, '')
+    .trim();
+
+  const exactMap: Record<string, string> = {
+    verb: 'verb',
+
+    substantiv: 'noun',
+    noun: 'noun',
+
+    adjektiv: 'adjective',
+    adjective: 'adjective',
+    adj: 'adjective',
+
+    adverb: 'adverb',
+    adv: 'adverb',
+
+    preposisjon: 'preposition',
+    preposition: 'preposition',
+
+    pronomen: 'pronoun',
+    pronoun: 'pronoun',
+
+    konjunksjon: 'conjunction',
+    conjunction: 'conjunction',
+
+    subjunksjon: 'subjunction',
+    subjunction: 'subjunction',
+
+    interjeksjon: 'interjection',
+    interjection: 'interjection',
+
+    determinativ: 'determiner',
+    determiner: 'determiner',
+
+    artikkel: 'article',
+    article: 'article',
+
+    tallord: 'numeral',
+    numeral: 'numeral',
+
+    'дієслово': 'verb',
+    'іменник': 'noun',
+    'прикметник': 'adjective',
+    'прислівник': 'adverb',
+    'прийменник': 'preposition',
+    'займенник': 'pronoun',
+    'сполучник': 'conjunction',
+    'вигук': 'interjection',
+    'числівник': 'numeral',
+  };
+
+  if (exactMap[v]) return exactMap[v];
+
+  const tokens = v
+    .split(/[^\p{L}]+/u)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  for (const token of tokens) {
+    if (exactMap[token]) return exactMap[token];
+  }
+
+  return null;
+}
+
+function collectRawPosSignals(bucket: LexinEntry[]): Array<{
+  type: string;
+  text: string;
+  sub_id: number | null;
+  index: number | null;
+}> {
+  const explicitTypes = new Set([
+    'E-kat', 'N-kat', 'B-kat',
+    'E-pos', 'N-pos', 'B-pos',
+    'E-gram', 'N-gram', 'B-gram',
+    'E-ordklasse', 'N-ordklasse', 'B-ordklasse',
+  ]);
+
+  return bucket
+    .filter((e) => {
+      const type = String(e.type ?? '');
+      return explicitTypes.has(type) || /(?:^|[-_])(kat|pos|gram|ordklasse)(?:$|[-_])/i.test(type);
+    })
+    .map((e) => ({
+      type: String(e.type ?? ''),
+      text: String(e.text ?? '').trim(),
+      sub_id: e.sub_id ?? null,
+      index: e.index ?? null,
+    }));
 }
 
 async function fetchLexin(query: string): Promise<{ ok: boolean; data: unknown; url: string }> {
@@ -128,15 +434,11 @@ serve(async (req) => {
 
     const lexemeId: string | null = body.lexeme_id ?? null;
     const expressionId: string | null = body.expression_id ?? null;
-    const lemma: string | null = body.lemma ? normalizeKey(String(body.lemma)) : null;
-    // root_word: the source article lemma (not necessarily linguistic root).
-    // e.g. "legge merke til" → root_word = "merke" (the Ordbokene article).
-    // If not provided explicitly and expression_id is given, auto-resolved
-    // from expression_catalog.root_lemma — no manual lookup needed.
-    let rootWord: string | null = body.root_word
-      ? normalizeKey(String(body.root_word))
-      : null;
+    let lemma: string | null = body.lemma ? normalizeKey(String(body.lemma)) : null;
+
+    let explicitPos: string | null = body.pos ? String(body.pos) : null;
     const dryRun = body.dry_run !== false;
+    const allowUnknownPos = Boolean(body.allow_unknown_pos ?? false);
 
     if (!lemma) return jsonResponse({ ok: false, error: 'lemma is required' }, 400);
     if (!lexemeId && !expressionId) {
@@ -153,65 +455,372 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    // Auto-resolve root_word from expression_catalog.root_lemma when
-    // expression_id is provided but root_word is not manually specified.
-    // This enables autonomous orchestration without manual root_word lookup.
+    // ФИКС: auto-resolve pos из lexemes.pos, если не передан явно в body —
+    // нужен для POS-фильтра однословных совпадений (E-lem-путь) ниже.
+    if (lexemeId) {
+      const { data: lexemeRow, error: lexemeLookupError } = await supabase
+        .from('lexemes')
+        .select('lemma, pos')
+        .eq('id', lexemeId)
+        .maybeSingle();
+
+      if (lexemeLookupError) {
+        return jsonResponse({ ok: false, stage: 'load_lexeme', error: safeStringify(lexemeLookupError) }, 500);
+      }
+
+      // lexeme_id — источник истины. Это защищает от повреждённой UTF-8
+      // строки в body (например best� вместо bestå) и от случайной леммы.
+      if (lexemeRow?.lemma) lemma = normalizeKey(String(lexemeRow.lemma));
+      if (!explicitPos && lexemeRow?.pos) explicitPos = String(lexemeRow.pos);
+    }
+
+    // ФИКС v10 (15.07.2026 — defense-in-depth по итогам обсуждения
+    // "смешения lem-match и idi-match записи на один expression_id").
     //
-    // ОТКАТ: попытка писать expression_catalog.lexeme_id прямо в
-    // entity_translations.lexeme_id нарушает constraint
-    // entity_translations_single_entity (строка не может иметь ОДНОВРЕМЕННО
-    // lexeme_id и expression_id). Правильный способ синхронизировать
-    // lexemes.translation_ua/en для expression'ов — через триггер
-    // sync_lexeme_translation_columns, который сам резолвит lexeme_id через
-    // expression_catalog по expression_id (см. миграцию
-    // 20260705110000_fix_sync_via_expression_lookup.sql). Здесь оставляем
-    // lexeme_id: null при записи (как и было изначально) — это корректно,
-    // достаём из expression_catalog только root_lemma для авто-резолва
-    // root_word.
-    if (expressionId && !rootWord) {
-      const { data: catalogRow } = await supabase
+    // До этого фикса expression_id не сверялся с БД вообще: после удаления
+    // старого блока авто-резолва root_lemma (v9) body.lemma использовалась
+    // как есть, без проверки, что она реально принадлежит указанному
+    // expression_id. Штатный вызывающий код (job-enrichment-batch-worker)
+    // всегда передаёт lemma = normalized_lemma именно этого expression_id
+    // — рассинхрон невозможен при нормальной работе пайплайна. Но это
+    // делает функцию хрупкой к двум реальным сценариям, оба уже
+    // встречались в этой сессии:
+    //   (а) expression_id, для которого в expression_catalog нет строки
+    //       (найдено на живых данных: "ta til" из тестового job'а,
+    //       expression_id e370ff2c-... — 11 таких "осиротевших" items
+    //       подтверждено в lexeme_processing_items);
+    //   (б) ручной/отладочный вызов с намеренно или случайно неверной
+    //       lemma в body — раньше ничем не проверялся.
+    //
+    // Симметрично lexeme_id (см. блок выше): expression_catalog — источник
+    // истины. lemma из БД имеет приоритет над body.lemma. Если строки нет
+    // вовсе — функция отказывает явно и до похода в Lexin, а не тратит
+    // внешний вызов впустую и не пишет что-либо от чужого имени.
+    if (expressionId) {
+      const { data: expressionRow, error: expressionLookupError } = await supabase
         .from('expression_catalog')
-        .select('root_lemma')
+        .select('lemma')
         .eq('id', expressionId)
         .maybeSingle();
 
-      if (catalogRow?.root_lemma) {
-        rootWord = normalizeKey(catalogRow.root_lemma);
+      if (expressionLookupError) {
+        return jsonResponse({ ok: false, stage: 'load_expression', error: safeStringify(expressionLookupError) }, 500);
       }
+
+      if (!expressionRow) {
+        return jsonResponse({
+          ok: true,
+          skipped: true,
+          reason: 'expression_id_not_found',
+          detail: 'No row in expression_catalog for this expression_id — nothing to look up or write to.',
+          expression_id: expressionId,
+          lemma_from_body: lemma,
+        });
+      }
+
+      lemma = normalizeKey(String(expressionRow.lemma));
     }
 
-    const queryWord = rootWord ?? lemma;
-    const expressionMode = Boolean(rootWord && expressionId);
+    const requestedPos = normalizePos(explicitPos);
+
+    // ============================================================================
+    // ФИКС v9 (15.07.2026 — убран root_lemma/root_word как обязательный
+    // указатель "в какой статье искать").
+    //
+    // ПРИЧИНА: root_lemma — служебное поле для семей 360° (группировка
+    // "ta", "ta til", "ta opp"... вокруг общего корня), созданное ИМЕННО
+    // для этой цели. Использовать его как обязательный входной параметр
+    // для Lexin-поиска было категориальной ошибкой: 765 выражений, у
+    // которых 360°-группировка ещё не проставила root_lemma (в основном —
+    // Gemini-сгенерированные "выражения", у которых по построению нет
+    // корневой статьи), автоматически лишались перевода вовсе, хотя их
+    // LEMMA была на месте и её можно было просто передать в Lexin.
+    //
+    // РЕШЕНИЕ (по итогам обсуждения 15.07.2026): не подгонять Lexin под
+    // нашу структуру данных через root_lemma как жёсткий указатель, откуда
+    // искать, а честно спрашивать Lexin по LEMMA (как и для обычных слов)
+    // и принимать любой ответ как есть. Технически: queryWord = lemma
+    // всегда, без root_word.
+    //
+    // Внутри каждой статьи, которую вернёт Lexin на этот запрос, ищем ОБА
+    // типа совпадения независимо друг от друга:
+    //   - E-lem/N-lem === lemma → однословное совпадение — переводы из
+    //     Ukr-lem/B-lem/Ukr-def (как раньше в LEXEME MODE).
+    //   - E-idi === lemma → устойчивое выражение найдено ВНУТРИ чьей-то
+    //     статьи — переводы из Ukr-idi/B-idi (как раньше в EXPRESSION
+    //     MODE, но без необходимости заранее знать, чья это статья).
+    //
+    // Если Lexin вернул статью и там нашлось совпадение (любого из двух
+    // типов) — записываем настоящий словарный перевод. Если нет ни того,
+    // ни другого — пусто, кандидат идёт на AI fallback дальше по
+    // пайплайну. Симметрично и для лексем, и для выражений: единственный
+    // критерий — нашёл Lexin или нет.
+    //
+    // ПОСЛЕДСТВИЕ, ПРИНЯТОЕ ОСОЗНАННО: раньше explicit root_word
+    // ГАРАНТИРОВАННО указывал верную статью для поиска E-idi. Теперь для
+    // многословных выражений результат зависит от того, вернёт ли Lexin
+    // САМ хоть одну релевантную статью на запрос полной фразой (его
+    // собственный fuzzy-поиск). Часть выражений, находившихся раньше
+    // гарантированно через root_lemma, теперь могут не найтись — это цена
+    // простоты и честности подхода "спросили — приняли ответ как есть"
+    // вместо "подгоняем запрос под свою модель данных".
+    // ============================================================================
+
+    const queryWord = lemma;
 
     const lexin = await fetchLexin(queryWord);
     if (!lexin.ok || !lexin.data) {
       return jsonResponse({
         ok: true, skipped: true,
         reason: 'Lexin returned no results',
-        lemma, root_word: rootWord, url: lexin.url,
+        lemma, url: lexin.url,
       });
     }
 
     const data = lexin.data as any;
     const result = data?.result ?? data?.results ?? data?.data ?? data?.words ?? data;
-    const groups: LexinGroup[] = Array.isArray(result) ? result : [];
+
+    const rawSections: LexinEntry[][] = Array.isArray(result) ? result : [];
+    const flatEntries: LexinEntry[] = rawSections.flatMap((section) =>
+      Array.isArray(section) ? section : [],
+    );
+
+    const entryBuckets = groupEntriesById(flatEntries);
     const normalizedLemma = normalizeKey(lemma);
+
+    const entryOrderFromLexin = extractEntryOrderFromResArray(data);
+    let fallbackOrderCounter = 100000;
+    const resolveEntryOrder = (entryId: number): number => {
+      if (entryOrderFromLexin.has(entryId)) return entryOrderFromLexin.get(entryId)!;
+      return fallbackOrderCounter++;
+    };
 
     const translations: any[] = [];
     const sourceEvidence: any[] = [];
     const definitions: any[] = [];
     const examples: any[] = [];
     const glossCandidates: any[] = [];
-    let idiomMatches = 0;  // how many E-idi entries matched our lemma
+    let idiomMatches = 0;
+    let lemMatches = 0;
 
-    for (const group of groups) {
-      if (!Array.isArray(group)) continue;
+    let entriesSkippedNoMatch = 0;
+    let entriesSkippedPosMismatch = 0;
+    let entriesSkippedUnknownPos = 0;
+    let entriesMatched = 0;
+    const matchedEntryIds: number[] = [];
+    const posDebugEntries: Array<Record<string, unknown>> = [];
 
-      if (expressionMode) {
-        // ── EXPRESSION MODE ───────────────────────────────────────────
-        const ukrIdiEntries = entriesOfType(group, 'Ukr-idi');
-        const bIdiEntries = entriesOfType(group, 'B-idi');
-        const eIdiList = entriesOfType(group, 'E-idi');
+    for (const [entryId, bucket] of entryBuckets) {
+      // ── ПОПЫТКА 1: однословное совпадение (E-lem/N-lem === lemma) ────
+      const lemEntries = entriesOfType(bucket, 'E-lem', 'N-lem');
+      const hasLemMatch = lemEntries.some((e) => {
+        const t = normalizeKey(e.text ?? '');
+        return t === normalizedLemma || t.replace(/^å\s+/, '') === normalizedLemma.replace(/^å\s+/, '');
+      });
+
+      // ── ПОПЫТКА 2: выражение внутри этой статьи (E-idi === lemma) ────
+      const eIdiList = entriesOfType(bucket, 'E-idi');
+      const matchingIdiEntries = eIdiList.filter((e) => {
+        if (!e.text?.trim()) return false;
+        const parsed = parseIdiomText(e.text);
+        return normalizeKey(parsed.expressionText) === normalizedLemma;
+      });
+      const hasIdiMatch = matchingIdiEntries.length > 0;
+
+      if (!hasLemMatch && !hasIdiMatch) {
+        entriesSkippedNoMatch++;
+        continue;
+      }
+
+      // ── Ветка E-lem: обычное словарное совпадение ────────────────────
+      if (hasLemMatch) {
+        const catEntries = entriesOfType(bucket, 'E-kat', 'N-kat', 'B-kat');
+        const rawPosSignals = collectRawPosSignals(bucket);
+        const entryPosRaw = catEntries.find((e) => e.text?.trim())?.text ?? null;
+        const entryPos = normalizePos(entryPosRaw);
+
+        if (dryRun) {
+          posDebugEntries.push({
+            entry_id: entryId,
+            matched_via: 'lem',
+            requested_pos: requestedPos,
+            detected_pos: entryPos,
+            detected_pos_raw: entryPosRaw,
+            raw_pos_signals: rawPosSignals,
+            lemma_entries: lemEntries.map((e) => ({ type: e.type, text: e.text, sub_id: e.sub_id ?? null })),
+            category_entries: catEntries.map((e) => ({ type: e.type, text: e.text, sub_id: e.sub_id ?? null })),
+            all_entry_types: [...new Set(bucket.map((e) => String(e.type ?? '')))].sort(),
+            entries_summary: bucket.map((e) => ({ type: e.type, text: e.text, sub_id: e.sub_id ?? null, index: e.index ?? null })),
+          });
+        }
+
+        let posBlocked = false;
+        if (requestedPos && !entryPos && !allowUnknownPos) {
+          entriesSkippedUnknownPos++;
+          posBlocked = true;
+        } else if (requestedPos && entryPos && entryPos !== requestedPos) {
+          entriesSkippedPosMismatch++;
+          posBlocked = true;
+        }
+
+        if (!posBlocked) {
+          entriesMatched++;
+          lemMatches++;
+          matchedEntryIds.push(entryId);
+
+          for (const e of entriesOfType(bucket, 'Ukr-lem')) {
+            if (!e.text?.trim()) continue;
+            const entryIdForRow = e.id ?? entryId;
+            const senseGroups = cleanTranslationSenseGroups(e.text);
+
+            senseGroups.forEach((group, senseIndex) => {
+              for (const variant of group) {
+                translations.push({
+                  lexeme_id: lexemeId,
+                  expression_id: expressionId,
+                  language_code: 'uk',
+                  translation: variant,
+                  translation_type: expressionId ? 'expression_primary' : 'primary',
+                  translation_rank: 0,
+                  sense_rank: senseIndex + 1,
+                  source: LEXIN_SOURCE,
+                  confidence: 'high',
+                  surface_form: lemEntries[0]?.text ?? lemma,
+                  source_entry_id: entryIdForRow,
+                  source_sub_id: e.sub_id ?? null,
+                  entry_order: resolveEntryOrder(entryIdForRow),
+                });
+              }
+            });
+          }
+
+          for (const e of entriesOfType(bucket, 'B-lem')) {
+            if (!e.text?.trim()) continue;
+            const entryIdForRow = e.id ?? entryId;
+            const senseGroups = cleanTranslationSenseGroups(e.text);
+
+            senseGroups.forEach((group, senseIndex) => {
+              for (const variant of group) {
+                translations.push({
+                  lexeme_id: lexemeId,
+                  expression_id: expressionId,
+                  language_code: 'en',
+                  translation: variant,
+                  translation_type: expressionId ? 'expression_primary' : 'primary',
+                  translation_rank: 0,
+                  sense_rank: senseIndex + 1,
+                  source: LEXIN_SOURCE,
+                  confidence: 'high',
+                  surface_form: lemEntries[0]?.text ?? lemma,
+                  source_entry_id: entryIdForRow,
+                  source_sub_id: e.sub_id ?? null,
+                  entry_order: resolveEntryOrder(entryIdForRow),
+                });
+              }
+            });
+          }
+
+          for (const e of entriesOfType(bucket, 'Ukr-def')) {
+            if (!e.text?.trim()) continue;
+            const entryIdForRow = e.id ?? entryId;
+            const senseGroups = cleanTranslationSenseGroups(e.text);
+
+            senseGroups.forEach((group, senseIndex) => {
+              for (const variant of group) {
+                translations.push({
+                  lexeme_id: lexemeId,
+                  expression_id: expressionId,
+                  language_code: 'uk',
+                  translation: variant,
+                  translation_type: 'definition',
+                  translation_rank: 0,
+                  sense_rank: senseIndex + 1,
+                  source: LEXIN_SOURCE,
+                  confidence: 'medium',
+                  surface_form: null,
+                  source_entry_id: entryIdForRow,
+                  source_sub_id: e.sub_id ?? null,
+                  entry_order: resolveEntryOrder(entryIdForRow),
+                });
+              }
+            });
+          }
+
+          for (const e of entriesOfType(bucket, 'E-def', 'N-def')) {
+            if (!e.text?.trim()) continue;
+            definitions.push({
+              lexeme_id: lexemeId,
+              expression_id: expressionId,
+              language_code: 'nb',
+              definition: e.text.trim(),
+              source: LEXIN_SOURCE,
+              source_type: e.type === 'N-def' ? 'n_def' : 'e_def',
+              source_entry_id: e.id ?? entryId,
+            });
+          }
+
+          for (const e of entriesOfType(bucket, 'B-def')) {
+            if (!e.text?.trim()) continue;
+            definitions.push({
+              lexeme_id: lexemeId,
+              expression_id: expressionId,
+              language_code: 'en',
+              definition: e.text.trim(),
+              source: LEXIN_SOURCE,
+              source_type: 'b_def',
+              source_entry_id: e.id ?? entryId,
+            });
+          }
+
+          // ФИКС v7 (15.07.2026): Ukr-eks сопоставляется с E-eks по
+          // ЗНАЧЕНИЮ index (порядковый номер), не по позиции в массиве
+          // Ukr-eks — сами Ukr-eks приходят в порядке 0,2,1.
+          const ukrEksEntries = entriesOfType(bucket, 'Ukr-eks');
+          const eEksEntries = entriesOfType(bucket, 'E-eks', 'N-eks');
+
+          for (let eksIdx = 0; eksIdx < eEksEntries.length; eksIdx++) {
+            const e = eEksEntries[eksIdx];
+            if (!e.text?.trim()) continue;
+
+            const ukrMatch =
+              (e.index !== null && e.index !== undefined
+                ? ukrEksEntries.find((u) => u.index === e.index)
+                : null) ??
+              ukrEksEntries.find((u) => u.index === eksIdx) ??
+              null;
+
+            examples.push({
+              lexeme_id: lexemeId,
+              expression_id: expressionId,
+              language_code: 'nb',
+              example_text: e.text.trim(),
+              translation_uk: ukrMatch?.text?.trim() ?? null,
+              source: LEXIN_SOURCE,
+              source_type: e.type === 'N-eks' ? 'n_eks' : 'e_eks',
+              source_entry_id: e.id ?? entryId,
+            });
+          }
+
+          for (const e of entriesOfType(bucket, 'B-eks')) {
+            if (!e.text?.trim()) continue;
+            examples.push({
+              lexeme_id: lexemeId,
+              expression_id: expressionId,
+              language_code: 'en',
+              example_text: e.text.trim(),
+              translation_uk: null,
+              source: LEXIN_SOURCE,
+              source_type: 'b_eks',
+              source_entry_id: e.id ?? entryId,
+            });
+          }
+        }
+      }
+
+      // ── Ветка E-idi: выражение найдено внутри статьи ──────────────────
+      if (hasIdiMatch) {
+        const ukrIdiEntries = entriesOfType(bucket, 'Ukr-idi');
+        const bIdiEntries = entriesOfType(bucket, 'B-idi');
 
         for (let idiIdx = 0; idiIdx < eIdiList.length; idiIdx++) {
           const e = eIdiList[idiIdx];
@@ -221,10 +830,8 @@ serve(async (req) => {
           if (normalizeKey(parsed.expressionText) !== normalizedLemma) continue;
 
           idiomMatches++;
+          matchedEntryIds.push(entryId);
 
-          // Index matching: Lexin is inconsistent — E-idi: index=null,
-          // B-idi: index=null, but Ukr-idi: index=0.
-          // Strategy: exact match first, then positional fallback.
           const ukrIdi =
             ukrIdiEntries.find((u) => u.index === e.index) ??
             ukrIdiEntries.find((u) => u.index === idiIdx) ??
@@ -235,16 +842,13 @@ serve(async (req) => {
             bIdiEntries[idiIdx] ??
             null;
 
-          // Source evidence — one row per unique (expression_id, source, source_status, expression_text)
-          // Blocker 1 fix: expression_text is now part of the unique key in the DB,
-          // so two different E-idi for the same expression won't overwrite each other.
           sourceEvidence.push({
             lexeme_id: lexemeId,
             expression_id: expressionId,
             source: LEXIN_SOURCE,
             source_status: 'e_idi',
             surface_form: e.text.trim(),
-            expression_text: parsed.expressionText,   // part of unique key
+            expression_text: parsed.expressionText,
             hint_text: parsed.gloss,
             gloss_terms: parsed.glossTerms,
             ukr_translation: ukrIdi?.text?.trim() ?? null,
@@ -256,53 +860,51 @@ serve(async (req) => {
               parsed,
               ukr_idi: ukrIdi ?? null,
               b_idi: bIdi ?? null,
+              found_in_entry_id: entryId,
             },
             urls: [lexin.url],
           });
 
-          // ФИКС: translation_rank теперь ставится как placeholder 0, а не
-          // жёстко 1. Раньше при нескольких совпавших E-idi (несколько
-          // сенсов одного выражения в статье) каждое давало свою запись
-          // с rank=1 — то есть могло быть N записей "ранга 1" одновременно,
-          // лимит фактически не работал. Теперь все idiom-переводы проходят
-          // через тот же общий rerank+dedup+cap цикл ниже, что и primary.
           if (ukrIdi?.text?.trim()) {
             const parsedUkrIdi = parseIdiomText(ukrIdi.text);
+            const entryIdForRow = ukrIdi.id ?? entryId;
             translations.push({
-              // lexeme_id: null — обязательно для expression-строк, см.
-              // constraint entity_translations_single_entity. Синхронизация
-              // lexemes.translation_ua/en делается триггером через
-              // expression_catalog-lookup, не через это поле.
-              lexeme_id: null,
+              lexeme_id: expressionId ? null : lexemeId,
               expression_id: expressionId,
               language_code: 'uk',
-              translation: parsedUkrIdi.expressionText,
-              translation_type: 'expression_primary',
-              translation_rank: 0, // placeholder — reassigned below
+              translation: cleanTranslationText(parsedUkrIdi.expressionText),
+              translation_type: expressionId ? 'expression_primary' : 'primary',
+              translation_rank: 0,
+              sense_rank: 1,
               source: LEXIN_SOURCE,
               confidence: 'high',
               surface_form: ukrIdi.text.trim(),
+              source_entry_id: entryIdForRow,
+              source_sub_id: ukrIdi.sub_id ?? null,
+              entry_order: resolveEntryOrder(entryIdForRow),
             });
           }
 
           if (bIdi?.text?.trim()) {
             const parsedBIdi = parseIdiomText(bIdi.text);
+            const entryIdForRow = bIdi.id ?? entryId;
             translations.push({
-              lexeme_id: null,
+              lexeme_id: expressionId ? null : lexemeId,
               expression_id: expressionId,
               language_code: 'en',
-              translation: parsedBIdi.expressionText,
-              translation_type: 'expression_primary',
-              translation_rank: 0, // placeholder — reassigned below
+              translation: cleanTranslationText(parsedBIdi.expressionText),
+              translation_type: expressionId ? 'expression_primary' : 'primary',
+              translation_rank: 0,
+              sense_rank: 1,
               source: LEXIN_SOURCE,
               confidence: 'high',
               surface_form: bIdi.text.trim(),
+              source_entry_id: entryIdForRow,
+              source_sub_id: bIdi.sub_id ?? null,
+              entry_order: resolveEntryOrder(entryIdForRow),
             });
           }
 
-          // Gloss terms → staging only.
-          // Blocker 3 fix: confidence = 'medium', not 'low'.
-          // These terms come from official Lexin E-idi, not heuristics.
           for (const term of parsed.glossTerms) {
             glossCandidates.push({
               source_lexeme_id: lexemeId,
@@ -316,7 +918,7 @@ serve(async (req) => {
               target_status: 'pending',
               promotion_status: 'pending',
               source: LEXIN_SOURCE,
-              confidence: 'medium',  // ← was 'low'
+              confidence: 'medium',
               evidence: {
                 evidence_type: 'lexin_gloss_term',
                 source_idi: e.text,
@@ -326,168 +928,42 @@ serve(async (req) => {
             });
           }
         }
-
-      } else {
-        // ── LEXEME MODE ───────────────────────────────────────────────
-        const eLemEntries = entriesOfType(group, 'E-lem');
-        const hasExactMatch = eLemEntries.some((e) => {
-          const t = normalizeKey(e.text ?? '');
-          return t === normalizedLemma || t.replace(/^å\s+/, '') === normalizedLemma.replace(/^å\s+/, '');
-        });
-
-        // Ukrainian primary (Ukr-lem) — collected per group, ranked globally below
-        for (const e of entriesOfType(group, 'Ukr-lem')) {
-          if (!e.text?.trim()) continue;
-          translations.push({
-            lexeme_id: lexemeId,
-            expression_id: expressionId,
-            language_code: 'uk',
-            translation: e.text.trim(),
-            translation_type: 'primary',
-            translation_rank: 0, // placeholder — reassigned after all groups
-            source: LEXIN_SOURCE,
-            confidence: hasExactMatch ? 'high' : 'medium',
-            surface_form: eLemEntries[0]?.text ?? lemma,
-          });
-        }
-
-        // English primary (B-lem)
-        for (const e of entriesOfType(group, 'B-lem')) {
-          if (!e.text?.trim()) continue;
-          translations.push({
-            lexeme_id: lexemeId,
-            expression_id: expressionId,
-            language_code: 'en',
-            translation: e.text.trim(),
-            translation_type: 'primary',
-            translation_rank: 0, // placeholder — reassigned after all groups
-            source: LEXIN_SOURCE,
-            confidence: hasExactMatch ? 'high' : 'medium',
-            surface_form: eLemEntries[0]?.text ?? lemma,
-          });
-        }
-
-        // Ukrainian definition (Ukr-def) → translation_type: 'definition'
-        // ФИКС: раньше здесь НЕ было translation_rank вообще — такие записи
-        // полностью пропускали rerank-цикл (условие `!== 0` их не трогало,
-        // т.к. rank был undefined) и шли в upsert БЕЗ дедупликации и БЕЗ
-        // лимита. Именно отсюда мог появляться "основной + 5 дополнительных"
-        // при нескольких сенсах слова в статье Lexin. Теперь rank=0 —
-        // попадает в общий цикл ниже наравне с primary/expression_primary.
-        for (const e of entriesOfType(group, 'Ukr-def')) {
-          if (!e.text?.trim()) continue;
-          translations.push({
-            lexeme_id: lexemeId,
-            expression_id: expressionId,
-            language_code: 'uk',
-            translation: e.text.trim(),
-            translation_type: 'definition',
-            translation_rank: 0, // placeholder — reassigned after all groups (ФИКС)
-            source: LEXIN_SOURCE,
-            confidence: 'medium',
-            surface_form: null,
-          });
-        }
-
-        // Norwegian definition (E-def)
-        for (const e of entriesOfType(group, 'E-def')) {
-          if (!e.text?.trim()) continue;
-          definitions.push({
-            lexeme_id: lexemeId,
-            expression_id: expressionId,
-            language_code: 'nb',
-            definition: e.text.trim(),
-            source: LEXIN_SOURCE,
-            source_type: 'e_def',
-          });
-        }
-
-        // English definition (B-def)
-        for (const e of entriesOfType(group, 'B-def')) {
-          if (!e.text?.trim()) continue;
-          definitions.push({
-            lexeme_id: lexemeId,
-            expression_id: expressionId,
-            language_code: 'en',
-            definition: e.text.trim(),
-            source: LEXIN_SOURCE,
-            source_type: 'b_def',
-          });
-        }
-
-        // Norwegian examples (E-eks) with Ukrainian translation
-        const ukrEksEntries = entriesOfType(group, 'Ukr-eks');
-        for (const e of entriesOfType(group, 'E-eks')) {
-          if (!e.text?.trim()) continue;
-          const ukrMatch = ukrEksEntries.find((u) => u.index === e.index);
-          examples.push({
-            lexeme_id: lexemeId,
-            expression_id: expressionId,
-            language_code: 'nb',
-            example_text: e.text.trim(),
-            translation_uk: ukrMatch?.text?.trim() ?? null,
-            source: LEXIN_SOURCE,
-            source_type: 'e_eks',
-          });
-        }
-
-        // English examples (B-eks) — iterate directly, NOT matched by index
-        // (all have index: null, positional matching is unreliable)
-        for (const e of entriesOfType(group, 'B-eks')) {
-          if (!e.text?.trim()) continue;
-          examples.push({
-            lexeme_id: lexemeId,
-            expression_id: expressionId,
-            language_code: 'en',
-            example_text: e.text.trim(),
-            translation_uk: null,
-            source: LEXIN_SOURCE,
-            source_type: 'b_eks',
-          });
-        }
       }
     }
 
-    // Global ranking for 'primary' / 'expression_primary' / 'definition'
-    // translations — after collecting all groups. Lexin returns multiple
-    // groups (homographs/senses); same translation may appear in several.
-    // Deduplicate per (language, type) and assign rank=1 to the first unique
-    // occurrence, rank=2 to the second.
-    //
-    // ФИКС: добавлен верхний предел MAX_TRANSLATION_VARIANTS. Раньше здесь
-    // была только дедупликация без cap — третий, четвёртый, пятый уникальный
-    // вариант перевода получали rank=3,4,5... и всё равно уходили в upsert.
-    // Теперь всё, что превышает лимит, помечается rank=-1 (excluded) и
-    // отфильтровывается ниже, как и обычные дубликаты.
-    const seenTranslations = new Map<string, Set<string>>();
-    const rankCounters = new Map<string, number>();
+    // Ранжирование и дедупликация ПО СМЫСЛУ (source_entry_id + sense_rank),
+    // не по всей статье — переводы из разных статей/подсмыслов не
+    // конкурируют за rank и не считаются дублями друг друга. ФИКС
+    // (25.07.2026): добавлен sense_rank в ключ группировки — раньше все
+    // "подсмыслы" внутри одной статьи (source_entry_id) делили один
+    // rank-счётчик, из-за чего разные значения слова (см. cleanTranslation
+    // SenseGroups выше) смешивались в общее ранжирование.
+    const seenPerEntry = new Map<string, Set<string>>();
+    const rankPerEntry = new Map<string, number>();
 
     for (const t of translations) {
-      if (t.translation_rank !== 0) continue; // уже проставлен явно (не должно оставаться после фикса выше)
+      if (t.translation_rank !== 0) continue;
 
-      const groupKey = `${t.language_code}:${t.translation_type}`;
-      if (!seenTranslations.has(groupKey)) {
-        seenTranslations.set(groupKey, new Set());
-        rankCounters.set(groupKey, 0);
+      const entryKey = `${t.language_code}:${t.translation_type}:${t.source_entry_id ?? 'null'}:${t.sense_rank ?? 1}`;
+      if (!seenPerEntry.has(entryKey)) {
+        seenPerEntry.set(entryKey, new Set());
+        rankPerEntry.set(entryKey, 0);
       }
 
-      const key = (t.translation ?? '').toLowerCase().trim();
-      const seen = seenTranslations.get(groupKey)!;
+      const dedupKey = (t.translation ?? '').toLowerCase().trim();
+      const seen = seenPerEntry.get(entryKey)!;
 
-      if (seen.has(key)) {
-        t.translation_rank = -1; // duplicate — filtered before upsert
+      if (seen.has(dedupKey)) {
+        t.translation_rank = -1;
         continue;
       }
 
-      seen.add(key);
-      const rank = (rankCounters.get(groupKey) ?? 0) + 1;
-      rankCounters.set(groupKey, rank);
-
-      // ФИКС: применяем лимит здесь
-      t.translation_rank = rank > MAX_TRANSLATION_VARIANTS ? -1 : rank;
+      seen.add(dedupKey);
+      const rank = (rankPerEntry.get(entryKey) ?? 0) + 1;
+      rankPerEntry.set(entryKey, rank);
+      t.translation_rank = rank;
     }
 
-    // Remove duplicates AND entries beyond MAX_TRANSLATION_VARIANTS before inserting
     const dedupedTranslations = translations.filter((t) => t.translation_rank !== -1);
 
     if (dryRun) {
@@ -495,16 +971,21 @@ serve(async (req) => {
         ok: true,
         dry_run: true,
         lemma,
-        root_word: rootWord,
-        expression_mode: expressionMode,
         lexeme_id: lexemeId,
         expression_id: expressionId,
-        groups_parsed: groups.length,
-        max_translation_variants: MAX_TRANSLATION_VARIANTS,
-        // Distincts between "article not found" and "article found but expression not matched"
-        // idiom_matches = 0 + expression_mode = true → root_word wrong or expression not in article
-        idiom_matches: expressionMode ? idiomMatches : null,
-        matched_expression: expressionMode ? idiomMatches > 0 : null,
+        total_entries_in_response: entryBuckets.size,
+        requested_pos: requestedPos,
+        entries_matched: entriesMatched,
+        entries_skipped_no_match: entriesSkippedNoMatch,
+        entries_skipped_pos_mismatch: entriesSkippedPosMismatch,
+        entries_skipped_unknown_pos: entriesSkippedUnknownPos,
+        allow_unknown_pos: allowUnknownPos,
+        pos_debug_entries: posDebugEntries,
+        matched_entry_ids: [...new Set(matchedEntryIds)],
+        lem_matches: lemMatches,
+        idiom_matches: idiomMatches,
+        matched_via_lem: lemMatches > 0,
+        matched_via_idi: idiomMatches > 0,
         would_upsert: {
           entity_translations: dedupedTranslations.length,
           expression_source_evidence: sourceEvidence.length,
@@ -540,11 +1021,9 @@ serve(async (req) => {
     await upsertBatch(
       'entity_translations',
       dedupedTranslations,
-      'lexeme_id,expression_id,language_code,translation_type,source,translation',
+      'lexeme_id,expression_id,language_code,translation_type,source,source_entry_id,translation',
     );
 
-    // Blocker 1: expression_text is now part of the unique key (see migration
-    // 20260622160000_fix_expression_source_evidence_unique.sql)
     await upsertBatch(
       'expression_source_evidence',
       sourceEvidence,
@@ -554,7 +1033,7 @@ serve(async (req) => {
     await upsertBatch(
       'entity_definitions',
       definitions.filter((d) => d.definition?.trim()),
-      'lexeme_id,expression_id,language_code,source',
+      'lexeme_id,expression_id,language_code,source,source_entry_id',
     );
 
     await upsertBatch(
@@ -569,20 +1048,73 @@ serve(async (req) => {
       'source_lexeme_id,source_expression_id,gloss_term,source',
     );
 
+    // Удаляем устаревшие Lexin-строки, которые больше не проходят
+    // текущие фильтры совпадения/POS. Иначе старые ошибки остаются в БД
+    // навсегда после повторного прогона.
+    async function cleanupStaleRows(
+      table: string,
+      currentRows: any[],
+      selectColumns: string,
+      keyOf: (row: any) => string,
+    ) {
+      if (results[table]?.errors?.length) return;
+
+      let query = supabase.from(table).select(`id,${selectColumns}`).eq('source', LEXIN_SOURCE);
+      query = lexemeId ? query.eq('lexeme_id', lexemeId) : query.is('lexeme_id', null);
+      query = expressionId ? query.eq('expression_id', expressionId) : query.is('expression_id', null);
+
+      const { data: existing, error } = await query;
+      if (error) {
+        results[table].errors.push(`cleanup_lookup_failed: ${safeStringify(error)}`);
+        return;
+      }
+
+      const validKeys = new Set(currentRows.map(keyOf));
+      const staleIds = (existing ?? []).filter((row: any) => !validKeys.has(keyOf(row))).map((row: any) => row.id);
+      if (!staleIds.length) return;
+
+      const { error: deleteError } = await supabase.from(table).delete().in('id', staleIds);
+      if (deleteError) results[table].errors.push(`cleanup_delete_failed: ${safeStringify(deleteError)}`);
+      else (results[table] as any).deleted_stale = staleIds.length;
+    }
+
+    await cleanupStaleRows(
+      'entity_translations',
+      dedupedTranslations,
+      'lexeme_id,expression_id,language_code,translation_type,source_entry_id,translation',
+      (r) => [r.lexeme_id ?? '', r.expression_id ?? '', r.language_code ?? '', r.translation_type ?? '', r.source_entry_id ?? '', normalizeKey(r.translation ?? '')].join('|'),
+    );
+    await cleanupStaleRows(
+      'entity_definitions',
+      definitions.filter((d) => d.definition?.trim()),
+      'lexeme_id,expression_id,language_code,source_entry_id,definition',
+      (r) => [r.lexeme_id ?? '', r.expression_id ?? '', r.language_code ?? '', r.source_entry_id ?? '', normalizeKey(r.definition ?? '')].join('|'),
+    );
+    await cleanupStaleRows(
+      'entity_examples',
+      examples.filter((e) => e.example_text?.trim()),
+      'lexeme_id,expression_id,language_code,example_text',
+      (r) => [r.lexeme_id ?? '', r.expression_id ?? '', r.language_code ?? '', normalizeKey(r.example_text ?? '')].join('|'),
+    );
+
     const totalErrors = Object.values(results).flatMap((r) => r.errors);
 
     return jsonResponse({
       ok: totalErrors.length === 0,
       dry_run: false,
       lemma,
-      root_word: rootWord,
-      expression_mode: expressionMode,
       lexeme_id: lexemeId,
       expression_id: expressionId,
-      groups_parsed: groups.length,
-      max_translation_variants: MAX_TRANSLATION_VARIANTS,
-      idiom_matches: expressionMode ? idiomMatches : null,
-      matched_expression: expressionMode ? idiomMatches > 0 : null,
+      total_entries_in_response: entryBuckets.size,
+      requested_pos: requestedPos,
+      entries_matched: entriesMatched,
+      entries_skipped_no_match: entriesSkippedNoMatch,
+      entries_skipped_pos_mismatch: entriesSkippedPosMismatch,
+      entries_skipped_unknown_pos: entriesSkippedUnknownPos,
+      allow_unknown_pos: allowUnknownPos,
+      matched_entry_ids: [...new Set(matchedEntryIds)],
+      lem_matches: lemMatches,
+      idiom_matches: idiomMatches,
       results,
       errors: totalErrors.length > 0 ? totalErrors : undefined,
     });

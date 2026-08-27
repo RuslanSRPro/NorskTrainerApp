@@ -41,6 +41,7 @@ type ExpressionCatalogRow = {
   root_lemma: string | null;
   lexeme_id: string | null;
   verification_status: string | null;
+  verification: string | null; // ДОБАВЛЕНО (02.08.2026): для skip-source-checks фикса
   expression_subtype: string | null;
 };
 
@@ -115,6 +116,7 @@ export async function resolveCandidatesAgainstCatalog(
       root_lemma,
       lexeme_id,
       verification_status,
+      verification,
       expression_subtype
     `)
     .in('lemma', lemmaKeys);
@@ -157,6 +159,7 @@ export async function resolveCandidatesAgainstCatalog(
     item.network_root_lemma = rootLemma;
     item.expression_subtype = row.expression_subtype ?? item.expression_subtype ?? null;
     (item as any).verification_status = row.verification_status ?? null;
+    (item as any).verification = row.verification ?? null; // ДОБАВЛЕНО
 
     item.resolved = row.lexeme_id
       ? {
@@ -169,6 +172,7 @@ export async function resolveCandidatesAgainstCatalog(
             expression_id: row.id,
             root_lemma: rootLemma,
             verification_status: row.verification_status ?? null,
+            verification: row.verification ?? null, // ДОБАВЛЕНО
             expression_subtype: row.expression_subtype ?? null,
           },
           confidence: 'high',

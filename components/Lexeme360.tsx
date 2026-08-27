@@ -172,6 +172,11 @@ type Lexeme360Data = {
   examples: ExampleRow[];
   grammar: GrammarForms;
   relations: RelatedItem[];
+  // ФИКС: исходный lexemeId, с которым открыли Lexeme360 — может
+  // отличаться от `id`, если открытая лексема сама оказалась выражением
+  // и данные шапки были подгружены для её корня. Используется только для
+  // подсветки нужной карточки в карусели, на отображение шапки не влияет.
+  requestedId?: string;
 };
 
 type TargetMeta = {
@@ -362,6 +367,67 @@ function getMeaningExtensionSubtitle(lang: AppLanguage) {
 // ── Data fetch ───────────────────────────────────────────────────────────────
 
 async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
+  // 0. ФИКС v4: раньше шапка (лемма/POS/CEFR/переводы/формы) всегда
+  // подгружалась ДЛЯ ТОГО lexemeId, что был передан в компонент — если
+  // открывали "ta til" (саму expression), шапка показывала "å ta til".
+  //
+  // ВАЖНО: expression_catalog.lexeme_id указывает на САМУ expression (её
+  // собственную карточку, когда та "стала словом"), а НЕ на корень — это
+  // выяснилось только после того, как предыдущая версия фикса (через
+  // root_lexeme_id из RPC) вернула тот же id, что и на входе, ничего не
+  // меняя, и полностью сломала карусель (root_lemma снова стал "ta til").
+  //
+  // Поэтому здесь два независимых шага:
+  //   1. resolvedRootLemma (текст) — источник истины для поиска семьи
+  //      ниже, всегда берётся из RPC, не зависит от шага 2;
+  //   2. effectiveId — best-effort поиск id САМОЙ корневой лексемы через
+  //      обычный текстовый select по lexemes.lemma (эта таблица, в
+  //      отличие от expression_catalog, не блокируется RLS для клиента —
+  //      подтверждено остальным кодом этого файла, читающим её напрямую).
+  //      Если корень с таким именем не найден как отдельная лексема —
+  //      remains lexemeId, шапка покажет исходную expression, но карусель
+  //      всё равно будет работать благодаря шагу 1.
+  let effectiveId = lexemeId;
+  let resolvedRootLemma = '';
+
+  const { data: originalRow } = await supabase
+    .from('lexemes')
+    .select('lemma')
+    .eq('id', lexemeId)
+    .maybeSingle();
+
+  const originalLemma = normalizeText(originalRow?.lemma);
+
+  if (originalLemma) {
+    const { data: rootInfo, error: rootLemmaError } = await supabase.rpc(
+      'get_lexeme360_root_lemma',
+      { p_lemma: originalLemma },
+    );
+
+    if (rootLemmaError) {
+      console.log('Lexeme360 root lemma RPC error:', rootLemmaError);
+    }
+
+    const rootRow = Array.isArray(rootInfo) ? rootInfo[0] : rootInfo;
+    resolvedRootLemma = normalizeText(rootRow?.root_lemma);
+
+    if (
+      resolvedRootLemma &&
+      normalizeRootLemma(resolvedRootLemma) !== normalizeRootLemma(originalLemma)
+    ) {
+      const { data: rootLexemeRow } = await supabase
+        .from('lexemes')
+        .select('id')
+        .eq('lemma', resolvedRootLemma)
+        .limit(1)
+        .maybeSingle();
+
+      if (rootLexemeRow?.id) {
+        effectiveId = rootLexemeRow.id;
+      }
+    }
+  }
+
   // 1. Core lexeme + morphology.
   const { data, error } = await supabase
     .from('lexemes')
@@ -376,7 +442,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       noun_forms ( ubest_entall, best_entall, ubest_flertall, best_flertall, official_gender ),
       adjective_forms ( positiv, intetkjonn, flertall, komparativ, superlativ )
     `)
-    .eq('id', lexemeId)
+    .eq('id', effectiveId)
     .single();
 
   if (error || !data) return null;
@@ -389,7 +455,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     .select(
       'language_code, translation, sense_rank, translation_rank, source, translation_type',
     )
-    .eq('lexeme_id', lexemeId)
+    .eq('lexeme_id', effectiveId)
     .in('translation_type', ['primary', 'expression_primary', 'definition'])
     .order('source')
     .order('sense_rank', { ascending: true, nullsFirst: false })
@@ -464,7 +530,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
   const { data: examplesData } = await supabase
     .from('entity_examples')
     .select('example_text, translation_uk, cefr_level, source')
-    .eq('lexeme_id', lexemeId)
+    .eq('lexeme_id', effectiveId)
     .eq('language_code', 'nb')
     .limit(3);
 
@@ -487,7 +553,15 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
   // We read through a SECURITY DEFINER RPC to avoid RLS issues on internal
   // relation/registry tables and to keep the client query simple.
 
-  const rootLemma = normalizeRootLemma(lemma);
+  // ФИКС v4: используем resolvedRootLemma из шага "0." — он приходит
+  // напрямую из RPC и не зависит от того, удалось ли найти отдельную
+  // lexemes-запись для корня (шаг "б" в комментарии выше). Раньше здесь
+  // бралась lemma из уже загруженных данных effectiveId — если поиск
+  // корневой лексемы по тексту не находил совпадения, effectiveId
+  // оставался равен исходному lexemeId, lemma оставалась "ta til", и
+  // семья снова не находилась, несмотря на то, что RPC корень правильно
+  // резолвила.
+  const rootLemma = normalizeRootLemma(resolvedRootLemma || lemma);
 
   const { data: readyExpressions, error: readyExpressionsError } =
     await supabase.rpc('get_lexeme360_ready_expressions', {
@@ -691,6 +765,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     examples,
     grammar: { ...vf, ...nf, ...af },
     relations,
+    requestedId: lexemeId,
   };
 }
 
@@ -950,7 +1025,13 @@ function Lexeme360Content({
   const hasContent = Boolean(data && meaningExtensions.length > 0);
 
   const posLabel = data?.pos || pos || '';
-  const displayLemma = displayLemmaWithInfinitiveMarker(lemma, posLabel);
+  // ФИКС: раньше здесь бралась только внешняя lemma (проп, переданный
+  // при открытии — например, "ta til"), хотя pos/cefr/переводы уже
+  // правильно приоритизировали data (реальные данные корня, если
+  // effectiveId-редирект сработал). Теперь заголовок так же приоритизирует
+  // data?.lemma — саму загруженную лексему ("ta"), с тем же fallback на
+  // проп, что и у posLabel выше.
+  const displayLemma = displayLemmaWithInfinitiveMarker(data?.lemma || lemma, posLabel);
   const coreTranslation = data ? pickLexemeTranslation(data, lang) : '';
   const headerExample = data?.examples?.[0]?.text || '';
 
@@ -1058,6 +1139,7 @@ function Lexeme360Content({
             <Lexeme360Carousel
               items={meaningExtensions}
               lang={lang}
+              highlightId={data?.requestedId ?? data?.id}
               onSelect={(id, nextLemma) => {
                 onClose?.();
                 onSelectWord?.(id, nextLemma);

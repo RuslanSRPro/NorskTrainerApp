@@ -11,18 +11,67 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_JOBS_PER_TICK = 1;
+const MAX_JOBS_PER_TICK = 3;
 const LOCK_STALE_SECONDS = 60;
 const WORKER_TIMEOUT_MS = 45000;
 const BATCH_LIMIT = 3;
 
+// ДОБАВЛЕНО (05.08.2026): для этих цепочек job-enrichment-batch-worker
+// НЕ использует runChunked/CONCURRENCY=3 (как остальные) — весь список
+// уходит ОДНИМ HTTP-вызовом в ai-enrichment-worker, который сам батчит до
+// BATCH_SIZE=10 в ОДИН запрос к Gemini (см. ai-enrichment-worker/index.ts,
+// processCandidatesBatch/callGeminiBatch). Значит больший limit здесь — не
+// больше параллельных внешних вызовов (всё ещё один round-trip к Gemini),
+// а полнее использование уже поддерживаемой пакетности. Замер на живых
+// данных (job a958eced, 05.08.2026): при limit=3 цепочка
+// expression_ai_fallback давала ~6.2 items/мин — практически на пределе
+// теоретического максимума для BATCH_LIMIT=3 при тике 30с. Подняли до 10,
+// совпадает с BATCH_SIZE самого ai-enrichment-worker — тот же один
+// Gemini-вызов, но до ~3.3x больше items за тик.
+// ФИКС (07.08.2026): поднято 10→20, синхронно с BATCH_SIZE в
+// ai-enrichment-worker (оба числа держим вместе — раздельное поднятие
+// эффекта не даёт, см. комментарий там).
+// ФИКС (20.08.2026): добавлена 'translation_reorder' — та же логика, её
+// собственный job-scoped вызов теперь тоже уходит одним HTTP-вызовом с
+// массивом lexeme_ids в translation-aspect-reorder-worker (который сам
+// эффективно батчит группы по 20 в один Gemini-вызов внутри, см. её
+// отдельный файл v2). limit здесь фактически больше не имеет значения для
+// этой конкретной цепочки — enqueueTranslationReorderEnrichment теперь
+// игнорирует offset/limit и всегда забирает job целиком за один шаг (см.
+// её собственный комментарий в job-enrichment-batch-worker) — но
+// добавление в AI_FALLBACK_CHAINS оставлено для консистентности и на
+// случай, если это поведение когда-нибудь изменится обратно на постраничное.
+const AI_FALLBACK_BATCH_LIMIT = 20;
+const AI_FALLBACK_CHAINS = new Set(['expression_ai_fallback', 'authoritative_ai_fallback', 'translation_reorder']);
+
+// ФИКС (20.08.2026, найдено при разборе стоимости): добавлена
+// 'translation_reorder' — раньше эта цепочка была полностью реализована
+// в job-enrichment-batch-worker, но НИКОГДА не входила в этот список, то
+// есть обычный round-robin её никогда не вызывал. Единственный путь, каким
+// она реально работала — отдельный глобальный pg_cron (каждые 2 минуты,
+// по всей базе, независимо от job'ов), вызывавший translation-aspect-
+// reorder-worker напрямую и притом БЕЗ батчинга по группам (Gemini
+// вызывался отдельно на каждую multi-variant группу) — измерено 4132
+// реальных AI-решения за 05.08-19.08, вероятная главная статья расхода.
+// Позиция — МЕЖДУ 'authoritative_ai_fallback' и
+// 'translation_canonicalization', как и предписано собственным
+// комментарием enqueueTranslationReorderEnrichment в
+// job-enrichment-batch-worker (все варианты перевода уже на месте к этому
+// моменту, а canonicalization должна видеть УЖЕ переставленный порядок).
+// Отдельный глобальный cron (id=3 в cron.job) предлагается отключить —
+// `SELECT cron.unschedule(3)` — ПОСЛЕ деплоя этой правки, не раньше.
 const ENRICHMENT_CHAINS = [
   'ordbokene',
   'naob',
+  'naob_synonyms',
+  'lexeme_translation',
   'expression_translation',
-  'expression_ai_fallback',
   'authoritative',
+  'expression_ai_fallback',
   'authoritative_ai_fallback',
+  'translation_reorder',
+  'translation_canonicalization',
+  'forms',
 ] as const;
 
 type Chain = (typeof ENRICHMENT_CHAINS)[number];
@@ -118,6 +167,12 @@ async function callWorker(
 function classifyWorkerResult(result: WorkerCallResult): Classification {
   if (result.network_error) return 'retryable_error';
 
+  if (typeof result.data?.failed === 'number' && result.data.failed > 0) {
+    if ((result.data?.permanent ?? 0) > 0) return 'blocked_manual_review';
+    if ((result.data?.retryable ?? 0) > 0) return 'retryable_error';
+    return 'retryable_error';
+  }
+
   const text = JSON.stringify(result.data ?? '').toLowerCase();
 
   if (!result.ok) {
@@ -128,13 +183,16 @@ function classifyWorkerResult(result: WorkerCallResult): Classification {
       result.status === 502 ||
       result.status === 503 ||
       result.status === 504 ||
+      /"status"\s*:\s*5\d\d/.test(text) ||
       text.includes('timeout') ||
       text.includes('temporarily') ||
       text.includes('unavailable') ||
       text.includes('high demand') ||
       text.includes('wallclocktime') ||
       text.includes('worker_resource_limit') ||
-      text.includes('earlydrop')
+      text.includes('earlydrop') ||
+      text.includes('resource_exhausted') ||
+      text.includes('quota')
     ) {
       return 'retryable_error';
     }
@@ -167,7 +225,21 @@ function classifyWorkerResult(result: WorkerCallResult): Classification {
     return 'blocked_manual_review';
   }
 
-  if ((result.data?.audit_errors ?? 0) > 0) return 'blocked_manual_review';
+  if ((result.data?.audit_errors ?? 0) > 0) {
+    if (
+      text.includes('502') ||
+      text.includes('503') ||
+      text.includes('429') ||
+      text.includes('bad gateway') ||
+      text.includes('unavailable') ||
+      text.includes('high demand') ||
+      text.includes('timeout')
+    ) {
+      return 'retryable_error';
+    }
+
+    return 'blocked_manual_review';
+  }
 
   return 'success';
 }
@@ -249,6 +321,25 @@ async function updateJobStatus(jobId: string, status: string, summaryPatch?: Rec
   }
 }
 
+async function checkEnrichmentPending(jobId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('lexeme_processing_jobs')
+    .select('summary')
+    .eq('id', jobId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      'pipeline-supervisor: checkEnrichmentPending failed to load job summary',
+      jobId,
+      safeStringify(error),
+    );
+    return false;
+  }
+
+  return Boolean(data?.summary?.enrichment_pending);
+}
+
 async function claimJob(jobId: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('claim_pipeline_supervisor_job', {
     p_job_id: jobId,
@@ -319,7 +410,43 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       };
     }
 
-    const enrichmentPending = Boolean(result.data?.processed_jobs?.[0]?.enrichment_pending);
+    const firstJobResult = result.data?.processed_jobs?.[0];
+
+    const orchestratorSkipped = firstJobResult?.action === 'skipped';
+
+    if (orchestratorSkipped) {
+      state.last_error = null;
+      await saveState(state); // stage НЕ меняем — остаёмся в 'orchestrator'
+
+      return {
+        job_id: jobId,
+        stage: state.stage,
+        step: 'job-orchestrator',
+        classification: 'success',
+        orchestrator_skipped: true,
+        reason: firstJobResult?.reason,
+        note: 'job-orchestrator run was locked by an in-flight call, retrying orchestrator stage on next tick',
+      };
+    }
+
+    const orchestratorIncomplete = Boolean(firstJobResult?.orchestrator_incomplete);
+
+    if (orchestratorIncomplete) {
+      state.last_error = null;
+      await saveState(state);
+
+      return {
+        job_id: jobId,
+        stage: state.stage,
+        step: 'job-orchestrator',
+        classification: 'success',
+        orchestrator_incomplete: true,
+        source_checks_remaining: firstJobResult?.source_checks_remaining,
+        note: 'large batch, retrying orchestrator stage on next tick',
+      };
+    }
+
+    const enrichmentPending = await checkEnrichmentPending(jobId);
 
     state.stage = enrichmentPending ? 'enrichment' : 'audit';
     state.last_error = null;
@@ -337,11 +464,15 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     const chain: Chain = ENRICHMENT_CHAINS[state.enrichment_chain_index % ENRICHMENT_CHAINS.length];
     const offset = state.enrichment_offsets[chain] ?? 0;
 
+    // ДОБАВЛЕНО (05.08.2026): точечно больший limit для двух AI-цепочек —
+    // см. комментарий у AI_FALLBACK_BATCH_LIMIT/AI_FALLBACK_CHAINS выше.
+    const effectiveLimit = AI_FALLBACK_CHAINS.has(chain) ? AI_FALLBACK_BATCH_LIMIT : BATCH_LIMIT;
+
     const result = await callWorker('job-enrichment-batch-worker', {
       job_id: jobId,
       chain,
       offset,
-      limit: BATCH_LIMIT,
+      limit: effectiveLimit,
     });
 
     const classification = classifyWorkerResult(result);
@@ -458,6 +589,32 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     state.last_error = null;
 
     if (!hasMore) {
+      // ДОБАВЛЕНО (07.08.2026): job-completion-auditor теперь явно
+      // сообщает, остались ли items, вообще не дошедшие до промоушена
+      // (audit их физически не видит своим обычным запросом — см.
+      // комментарий в job-completion-auditor/index.ts,
+      // countUnpromotedItems). Если такие есть, audit-цикл не может их
+      // починить сам — им нужен runLexicalWorker/
+      // promote_verification_results_for_job, то есть стадия
+      // 'orchestrator', не 'audit' и не 'done'.
+      const unpromotedRemaining = Number(result.data?.unpromoted_items_remaining ?? 0);
+
+      if (unpromotedRemaining > 0) {
+        state.stage = 'orchestrator';
+        state.audit_offset = 0;
+        state.last_error = null;
+        await saveState(state);
+
+        return {
+          job_id: jobId,
+          stage: state.stage,
+          step: 'job-completion-auditor',
+          classification: 'success',
+          unpromoted_items_remaining: unpromotedRemaining,
+          note: 'audit found unpromoted items invisible to its own query — routing back to orchestrator stage to finish verification/promotion',
+        };
+      }
+
       const stillIncomplete = Number(result.data?.items_still_incomplete_after_heal ?? 0);
 
       if (stillIncomplete > 0) {
@@ -499,7 +656,7 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       classification: 'success',
       items_checked: result.data?.items_checked,
       items_still_incomplete_after_heal: result.data?.items_still_incomplete_after_heal,
-      has_more,
+      has_more: hasMore,
     };
   }
 
@@ -544,53 +701,10 @@ serve(async (req) => {
     if (explicitJobId) {
       jobIds = [explicitJobId];
     } else {
-      // ============================================================
-      // ФИКС: раньше здесь брали "N самых старых job'ов со статусом
-      // pending/processing/ready" через .limit(), и ТОЛЬКО ПОСЛЕ этого
-      // в JS отфильтровывали среди них те, что уже done/needs_manual_review.
-      // Если lexeme_processing_jobs.status не переходил в 'completed'
-      // одновременно с pipeline_supervisor_state.stage='done', эти
-      // "мёртвые" записи навсегда занимали весь LIMIT-срез (самые старые
-      // по created_at) — и более новые job'ы никогда не попадали в
-      // выборку вообще, сколько бы их ни было. Диагностика подтвердила:
-      // job'ы недельной давности (29-30 июня) навсегда блокировали
-      // очередь для 127+ новых verification_refresh job'ов.
-      //
-      // Теперь исключаем done/needs_manual_review НА УРОВНЕ SQL (через
-      // отдельный запрос к pipeline_supervisor_state + .not('id','in',...)),
-      // ДО применения .limit() — так LIMIT всегда отрезает от реально
-      // пригодных к обработке job'ов.
-      // ============================================================
-
       const candidateLimit = Math.max(MAX_JOBS_PER_TICK * 20, 200);
 
-      const { data: doneOrReviewRows, error: doneOrReviewError } = await supabase
-        .from('pipeline_supervisor_state')
-        .select('job_id')
-        .in('stage', ['done', 'needs_manual_review']);
-
-      if (doneOrReviewError) {
-        return jsonResponse({
-          ok: false,
-          stage: 'discover_excluded',
-          error: safeStringify(doneOrReviewError),
-        }, 500);
-      }
-
-      const excludedIds = (doneOrReviewRows ?? []).map((r: any) => r.job_id as string);
-
-      let jobsQuery = supabase
-        .from('lexeme_processing_jobs')
-        .select('id, status, created_at')
-        .in('status', ['pending', 'processing', 'ready'])
-        .order('created_at', { ascending: true })
-        .limit(candidateLimit);
-
-      if (excludedIds.length > 0) {
-        jobsQuery = jobsQuery.not('id', 'in', `(${excludedIds.join(',')})`);
-      }
-
-      const { data: candidateJobs, error: candidateError } = await jobsQuery;
+      const { data: candidateJobs, error: candidateError } = await supabase
+        .rpc('get_active_pipeline_jobs', { p_limit: candidateLimit });
 
       if (candidateError) {
         return jsonResponse({
@@ -606,7 +720,6 @@ serve(async (req) => {
 
       debugInfo = {
         candidates_found: candidateIds.length,
-        excluded_done_or_review: excludedIds.length,
         selected_for_this_tick: jobIds.length,
       };
     }

@@ -2,7 +2,7 @@
 // Norsk Trainer App — semantic carousel for Lexeme360
 // FlatList-based carousel: better horizontal gestures inside modal/scroll containers.
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -45,6 +45,10 @@ type Props = {
   lang: AppLanguage;
   onSelect?: (id: string, lemma: string) => void;
   onAdd?: (id: string) => void;
+  // ФИКС: id элемента, к которому нужно автоскроллить и подсветить при
+  // открытии — используется, когда 360° открыт напрямую с конкретной
+  // expression (например, из превью в analyze-text), а не с корня.
+  highlightId?: string;
 };
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -230,6 +234,7 @@ export function Lexeme360Carousel({
   lang,
   onSelect,
   onAdd,
+  highlightId,
 }: Props) {
   const listRef = useRef<FlatList<Lexeme360CarouselItem>>(null);
   const [index, setIndex] = useState(0);
@@ -256,6 +261,23 @@ export function Lexeme360Carousel({
         }),
     [items]
   );
+
+  // ФИКС: автоскролл к highlightId при первом появлении данных.
+  // getItemLayout уже есть в FlatList ниже, поэтому scrollToIndex надёжен
+  // без задержки на измерение layout. Хук расположен ДО условного return
+  // ниже — обязательное требование Rules of Hooks (хуки нельзя вызывать
+  // после условного выхода).
+  useEffect(() => {
+    if (!highlightId || visibleItems.length === 0) return;
+
+    const targetIndex = visibleItems.findIndex((item) => item.id === highlightId);
+    if (targetIndex < 0) return;
+
+    setIndex(targetIndex);
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: targetIndex, animated: false });
+    });
+  }, [highlightId, visibleItems]);
 
   if (!visibleItems.length) return <EmptyState lang={lang} />;
 
@@ -327,10 +349,16 @@ export function Lexeme360Carousel({
                 : 'Candidate'
             : relationLabel(item.relation_type, lang);
           const visual = getCardVisual(item);
+          const isHighlighted = highlightId != null && item.id === highlightId;
 
           return (
             <Pressable
-              style={[styles.card, visual.card, { borderColor: visual.borderColor }]}
+              style={[
+                styles.card,
+                visual.card,
+                { borderColor: isHighlighted ? '#0EA5E9' : visual.borderColor },
+                isHighlighted && { borderWidth: 2 },
+              ]}
               disabled={isCandidate}
               onPress={() => onSelect?.(item.id, displayLemma)}
             >

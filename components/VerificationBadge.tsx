@@ -479,31 +479,43 @@ export function VerificationBadge({
     safeLang
   );
 
-  const dotSize = size === 'sm' ? 10 : 13;
+  // ФИКС: раньше badge был просто цветной точкой 10px (size='sm') почти
+  // без отступов (paddingHorizontal: 0 для badgeSm) — реальная область
+  // нажатия была едва больше самой точки, из-за чего требовалось попадать
+  // несколько раз подряд. Теперь вместо голой точки — иконка (тот же
+  // emoji-стиль, что уже используется в QUALITY_ICONS этого файла и в
+  // триггере Lexeme360, не новая библиотека), в цветном полупрозрачном
+  // круге — цвет сохраняет мгновенное считывание уровня verification,
+  // иконка даёт форму, которую легче видеть и легче попасть пальцем.
+  // hitSlop расширяет тач-таргет до Apple HIG-минимума (44×44), не меняя
+  // визуальный размер самого бейджа.
+  const iconSize = size === 'sm' ? 26 : 32;
 
   return (
     <>
       <TouchableOpacity
         onPress={() => setModalVisible(true)}
-        style={[styles.badge, size === 'sm' && styles.badgeSm]}
+        style={styles.badge}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityLabel={`${tr('accessibilityPrefix', safeLang)}: ${verification.label}. ${tr('accessibilitySuffix', safeLang)}`}
         activeOpacity={0.7}
       >
         <View
           style={[
-            styles.dot,
+            styles.iconCircle,
             {
-              width: dotSize,
-              height: dotSize,
-              backgroundColor: verification.dot,
-              shadowColor: verification.dot,
-              shadowOpacity: 0.5,
-              shadowRadius: 3,
-              shadowOffset: { width: 0, height: 1 },
-              elevation: 2,
+              width: iconSize,
+              height: iconSize,
+              borderRadius: iconSize / 2,
+              backgroundColor: `${verification.dot}26`,
+              borderColor: `${verification.dot}55`,
             },
           ]}
-        />
+        >
+          <Text style={{ fontSize: iconSize * 0.5, color: verification.dot }}>
+            💡
+          </Text>
+        </View>
 
         {size === 'md' ? (
           <Text style={[styles.badgeLabel, { color: verification.color }]}>
@@ -592,17 +604,14 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 2,
-    paddingHorizontal: 1,
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
-  badgeSm: {
-    paddingHorizontal: 0,
-  },
-  dot: {
-    borderRadius: 99,
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.1)',
+  iconCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   badgeLabel: {
     fontSize: 12,

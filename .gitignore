@@ -42,3 +42,20 @@ app-example
 /ios
 /android
 .env.local
+# Local temporary / backup files
+*.bak-*
+*.before-sdk57.*
+results_a/
+comparison.csv
+sample.json
+no_frequency.txt
+supabase/.temp/
+
+# Local temporary / backup files
+*.bak-*
+*.before-sdk57.*
+results_a/
+comparison.csv
+sample.json
+no_frequency.txt
+supabase/.temp/

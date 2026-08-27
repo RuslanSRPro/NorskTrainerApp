@@ -32,6 +32,10 @@ function firstExample(examples: unknown): string | null {
   return typeof first === 'string' ? first.trim() : null;
 }
 
+// ФИКС: raw Postgres unique_violation error code — используется для
+// распознавания race condition при INSERT (см. комментарий ниже).
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+
 serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') {
@@ -91,6 +95,80 @@ serve(async (req) => {
 
     const results = [];
 
+    // ФИКС: вынесена в отдельную функцию — используется и на "нормальном"
+    // пути (нашли existingExpression через SELECT сразу), и на "аварийном"
+    // пути (проиграли гонку при INSERT, перечитали и обрабатываем как
+    // duplicate). Раньше эта логика была только инлайн в одном месте —
+    // теперь переиспользуется без дублирования.
+    async function markAsDuplicateAndBackfill(
+      candidate: any,
+      normalizedKey: string,
+      rootLemma: string | null,
+      reviewPriority: string,
+      reviewReason: string | null,
+      existingExpression: { id: string; normalized_key: string; ordbokene_status: string | null; root_lemma: string | null },
+      noteOverride?: string,
+    ) {
+      let ordbokeneStatusBackfilled = false;
+      let rootLemmaBackfilled = false;
+
+      if (!dryRun) {
+        const { error: duplicateUpdateError } = await supabase
+          .from('ordbokene_expression_candidates')
+          .update({
+            status: 'duplicate',
+            promoted_expression_id: existingExpression.id,
+            review_priority: reviewPriority,
+            review_reason: reviewReason,
+            review_note:
+              noteOverride ??
+              'Promotion skipped: matched existing expression_catalog.normalized_key',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', candidate.id);
+
+        if (duplicateUpdateError) {
+          throw Object.assign(new Error('mark_duplicate_failed'), {
+            stage: 'mark_duplicate',
+            candidate_id: candidate.id,
+            details: duplicateUpdateError,
+          });
+        }
+
+        const catalogUpdates: Record<string, unknown> = {
+          updated_at: new Date().toISOString(),
+        };
+
+        if (existingExpression.ordbokene_status !== 'expr_entry') {
+          catalogUpdates.ordbokene_status = 'sub_article';
+          ordbokeneStatusBackfilled = true;
+        }
+
+        if (!existingExpression.root_lemma && rootLemma) {
+          catalogUpdates.root_lemma = rootLemma;
+          rootLemmaBackfilled = true;
+        }
+
+        if (Object.keys(catalogUpdates).length > 1) {
+          const { error: backfillError } = await supabase
+            .from('expression_catalog')
+            .update(catalogUpdates)
+            .eq('id', existingExpression.id);
+
+          if (backfillError) {
+            throw Object.assign(new Error('backfill_failed'), {
+              stage: 'backfill_expression_catalog',
+              candidate_id: candidate.id,
+              expression_id: existingExpression.id,
+              details: backfillError,
+            });
+          }
+        }
+      }
+
+      return { ordbokeneStatusBackfilled, rootLemmaBackfilled };
+    }
+
     for (const candidate of candidates ?? []) {
       const normalizedKey = normalizeKey(
         candidate.normalized_key ?? candidate.lemma,
@@ -133,87 +211,36 @@ serve(async (req) => {
       }
 
       if (existingExpression) {
-        let ordbokeneStatusBackfilled = false;
-        let rootLemmaBackfilled = false;
-
-        if (!dryRun) {
-          const { error: duplicateUpdateError } = await supabase
-            .from('ordbokene_expression_candidates')
-            .update({
-              status: 'duplicate',
-              promoted_expression_id: existingExpression.id,
-              review_priority: reviewPriority,
-              review_reason: reviewReason,
-              review_note:
-                'Promotion skipped: matched existing expression_catalog.normalized_key',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', candidate.id);
-
-          if (duplicateUpdateError) {
-            return jsonResponse(
-              {
-                ok: false,
-                stage: 'mark_duplicate',
-                candidate_id: candidate.id,
-                error: duplicateUpdateError.message,
-                details: duplicateUpdateError,
-              },
-              500,
+        try {
+          const { ordbokeneStatusBackfilled, rootLemmaBackfilled } =
+            await markAsDuplicateAndBackfill(
+              candidate,
+              normalizedKey,
+              rootLemma,
+              reviewPriority,
+              reviewReason,
+              existingExpression,
             );
-          }
 
-          // Backfill ordbokene_status — never downgrades expr_entry.
-          const catalogUpdates: Record<string, unknown> = {
-            updated_at: new Date().toISOString(),
-          };
-
-          if (existingExpression.ordbokene_status !== 'expr_entry') {
-            catalogUpdates.ordbokene_status = 'sub_article';
-            ordbokeneStatusBackfilled = true;
-          }
-
-          // Backfill root_lemma if not already set.
-          if (!existingExpression.root_lemma && rootLemma) {
-            catalogUpdates.root_lemma = rootLemma;
-            rootLemmaBackfilled = true;
-          }
-
-          if (Object.keys(catalogUpdates).length > 1) {
-            const { error: backfillError } = await supabase
-              .from('expression_catalog')
-              .update(catalogUpdates)
-              .eq('id', existingExpression.id);
-
-            if (backfillError) {
-              return jsonResponse(
-                {
-                  ok: false,
-                  stage: 'backfill_expression_catalog',
-                  candidate_id: candidate.id,
-                  expression_id: existingExpression.id,
-                  error: backfillError.message,
-                  details: backfillError,
-                },
-                500,
-              );
-            }
-          }
+          results.push({
+            candidate_id: candidate.id,
+            lemma: candidate.lemma,
+            normalized_key: normalizedKey,
+            token_count: tokens,
+            review_priority: reviewPriority,
+            review_reason: reviewReason,
+            root_lemma: rootLemma,
+            action: dryRun ? 'would_mark_duplicate' : 'marked_duplicate',
+            expression_id: existingExpression.id,
+            ordbokene_status_backfilled: ordbokeneStatusBackfilled,
+            root_lemma_backfilled: rootLemmaBackfilled,
+          });
+        } catch (e: any) {
+          return jsonResponse(
+            { ok: false, stage: e.stage ?? 'mark_duplicate', candidate_id: candidate.id, error: e.message, details: e.details },
+            500,
+          );
         }
-
-        results.push({
-          candidate_id: candidate.id,
-          lemma: candidate.lemma,
-          normalized_key: normalizedKey,
-          token_count: tokens,
-          review_priority: reviewPriority,
-          review_reason: reviewReason,
-          root_lemma: rootLemma,
-          action: dryRun ? 'would_mark_duplicate' : 'marked_duplicate',
-          expression_id: existingExpression.id,
-          ordbokene_status_backfilled: ordbokeneStatusBackfilled,
-          root_lemma_backfilled: rootLemmaBackfilled,
-        });
 
         continue;
       }
@@ -298,7 +325,89 @@ serve(async (req) => {
         .select('id')
         .single();
 
+      // ============================================================
+      // ФИКС: race condition ("duplicate key value violates unique
+      // constraint expression_catalog_unique_key"). Между SELECT-проверкой
+      // выше (существует ли строка) и этим INSERT другой параллельный
+      // вызов этой же функции (для другого lexeme/job, но той же
+      // normalized_key) мог успеть вставить строку раньше нас — classic
+      // TOCTOU race, усилившаяся сегодня после включения параллельной
+      // обработки нескольких job'ов одновременно (MAX_JOBS_PER_TICK=3,
+      // CONCURRENCY=3 в job-enrichment-batch-worker).
+      //
+      // Раньше это приводило к падению всего item'а с 500 и попаданием
+      // job'а в needs_manual_review — хотя по сути ничего плохого не
+      // произошло, мы просто проиграли гонку за создание той же самой
+      // записи. Теперь: если INSERT падает именно с unique_violation
+      // (23505) — считаем это НЕ ошибкой, а "нас опередили", перечитываем
+      // выигравшую строку и обрабатываем её ТЕМ ЖЕ путём, что и обычный
+      // duplicate (backfill root_lemma/ordbokene_status при необходимости).
+      // ============================================================
       if (insertError) {
+        const isRaceCondition =
+          insertError.code === POSTGRES_UNIQUE_VIOLATION ||
+          /duplicate key value violates unique constraint/i.test(insertError.message ?? '');
+
+        if (isRaceCondition) {
+          const { data: winnerExpression, error: winnerError } = await supabase
+            .from('expression_catalog')
+            .select('id, normalized_key, ordbokene_status, root_lemma')
+            .eq('normalized_key', normalizedKey)
+            .maybeSingle();
+
+          if (winnerError || !winnerExpression) {
+            // Крайне маловероятно (строка должна существовать, раз именно
+            // она вызвала unique_violation), но на всякий случай — не
+            // маскируем настоящую проблему тихим success.
+            return jsonResponse(
+              {
+                ok: false,
+                stage: 'race_condition_recovery_failed',
+                candidate_id: candidate.id,
+                normalized_key: normalizedKey,
+                original_insert_error: insertError.message,
+                recovery_error: winnerError?.message ?? 'expression not found after unique_violation',
+              },
+              500,
+            );
+          }
+
+          try {
+            const { ordbokeneStatusBackfilled, rootLemmaBackfilled } =
+              await markAsDuplicateAndBackfill(
+                candidate,
+                normalizedKey,
+                rootLemma,
+                reviewPriority,
+                reviewReason,
+                winnerExpression,
+                'Promotion lost a race condition with a concurrent insert; recovered as duplicate.',
+              );
+
+            results.push({
+              candidate_id: candidate.id,
+              lemma: candidate.lemma,
+              normalized_key: normalizedKey,
+              token_count: tokens,
+              review_priority: reviewPriority,
+              review_reason: reviewReason,
+              root_lemma: rootLemma,
+              action: 'marked_duplicate_after_race',
+              expression_id: winnerExpression.id,
+              ordbokene_status_backfilled: ordbokeneStatusBackfilled,
+              root_lemma_backfilled: rootLemmaBackfilled,
+            });
+          } catch (e: any) {
+            return jsonResponse(
+              { ok: false, stage: e.stage ?? 'mark_duplicate_after_race', candidate_id: candidate.id, error: e.message, details: e.details },
+              500,
+            );
+          }
+
+          continue;
+        }
+
+        // Не race condition — настоящая ошибка, ведём себя как раньше.
         return jsonResponse(
           {
             ok: false,
@@ -364,7 +473,8 @@ serve(async (req) => {
       duplicates: results.filter(
         (r) =>
           r.action === 'would_mark_duplicate' ||
-          r.action === 'marked_duplicate',
+          r.action === 'marked_duplicate' ||
+          r.action === 'marked_duplicate_after_race',
       ).length,
       high_review_priority: results.filter(
         (r) => r.review_priority === 'high',

@@ -11,6 +11,7 @@ import {
   planItems,
   type ExpressionRow,
   type PlannedItem,
+  type SurfaceFormContext,
   type SurfaceResolution,
   type VerbMaps,
 } from './grammar-parser.ts';
@@ -27,9 +28,128 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const SOURCES = ['NAOB', 'Ordbokene', 'Lexin', 'Språkrådet', 'Wiktionary'];
 
 const INGESTION_VERSION =
-  'ts_expression_aware_ingestion_v14_lexeme360_full_family';
+  'ts_expression_aware_ingestion_v17_paginated_loads';
 
-const MAX_360_CANDIDATES_PER_ROOT = 30;
+const MAX_360_CANDIDATES_PER_ROOT = 70;
+
+// ФИКС (22.08.2026, найдено на живых данных: job'ы 365ff40a/af0928d9/
+// 4990d144, слова avtalt tid/bestemme seg for noe/si i fra om noe получили
+// expression_id, которого НЕТ в expression_catalog):
+//
+// loadExpressions() строит словарь из 3 источников по порядку (trusted_
+// expressions_v1 → expression_catalog → legacy lexemes(pos='expression')),
+// с правилом "первый найденный ключ побеждает" (if !dict.has(key)).
+// Источники 2 и 3 читались через голый .select() БЕЗ .range()/пагинации —
+// PostgREST молча обрезает такой ответ до дефолтного лимита (обычно 1000
+// строк). На момент находки expression_catalog(lexeme_id NOT NULL) = 1743
+// строки, legacy lexemes(pos='expression') = 1783 строки — ОБЕ таблицы
+// превышали лимит одновременно. Для лемм, не попавших в обрезанную тысячу
+// источника 2 (implicit sort order, непредсказуемо какие именно), ключ
+// либо оставался полностью свободным (если совпадающей legacy-записи тоже
+// не было в своей обрезанной тысяче), либо заполнялся УСТАРЕВШИМ id из
+// источника 3 — оба исхода дают "осиротевший"/неверный expression_id,
+// который потом проваливает exists-проверку в
+// promote_verification_results_for_job() и item навсегда виснет на
+// current_stage='source_checks', несмотря на успешную верификацию.
+//
+// Также проверен и запатчен loadVerbMaps() (verb_forms, 404 строк на
+// момент фикса — пока безопасно, но растёт с каждой сессией обогащения
+// словаря и рано или поздно пересечёт тот же лимит тем же самым молчаливым
+// образом — "тикающая бомба", патчится превентивно, не дожидаясь, пока
+// реально проявится) и trusted_expressions_v1 (12 строк, тоже пагинирован
+// для консистентности, хотя риск там минимальный).
+//
+// fetchAllRows() — универсальный хелпер: гоняет .range()-цикл страницами
+// по PAGE_SIZE, пока очередная страница не вернёт меньше строк, чем сам
+// размер страницы (это и есть сигнал "это была последняя страница").
+// Работает независимо от того, насколько вырастет любая из этих таблиц
+// в будущем — в отличие от простого поднятия лимита PostgREST, которое
+// лишь отодвигает тот же порог на новое (тоже конечное) число.
+const PAGINATION_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T = any>(
+  queryFactory: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>,
+  pageSize = PAGINATION_PAGE_SIZE,
+): Promise<T[]> {
+  const results: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + pageSize - 1;
+    const { data, error } = await queryFactory(from, to);
+
+    if (error) throw error;
+
+    const rows = data ?? [];
+    results.push(...rows);
+
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return results;
+}
+
+// ДОБАВЛЕНО (02.08.2026): фикс дублирования source_checks для уже
+// верифицированных слов/выражений. См. verification-architecture doc
+// (02.08.2026) и promote_verification_results_for_job() для контекста
+// значений tier/status на lexemes/expression_catalog.
+const TARGET_VERIFICATION_VERSION = 5;
+
+// ФИКС (15.08.2026): skip_source_checks раньше был безусловным для любого
+// verified_dictionary+version>=5 слова — навсегда закрывал единственный
+// путь, которым Step Б (expand_multi_pos_occurrences_for_job) узнаёт о
+// втором потенциальном POS: source_checks для этого слова просто больше
+// никогда не создавались, сколько бы раз оно ни встречалось в новых
+// текстах. Подтверждённый пример слепой зоны: "lett" (adjective,
+// verified) потенциально омонимичен с "lete" (verb, past_participle=lett)
+// — это никогда не всплывёт через свежий NAOB-evidence, потому что
+// source_checks для "lett" не создаются с момента первой верификации.
+//
+// Полный отказ от skip убивает весь смысл оптимизации (снова 5 запросов
+// к источникам на каждое слово при каждой встрече). Вместо этого — малый
+// шанс полной переверификации при каждой встрече уже известного слова:
+// не гарантия обнаружить омонимию быстро, но при повторных встречах
+// слова в разных текстах со временем даёт Step Б реальный шанс сработать,
+// сохраняя ~95% экономии на span'ах, где переверификация не выпала.
+const HOMONYM_RECHECK_PROBABILITY = 0.05;
+
+function shouldForceHomonymRecheck(): boolean {
+  return Math.random() < HOMONYM_RECHECK_PROBABILITY;
+}
+
+// ФИКС (02.08.2026, вторая итерация): читаем сырые verification_tier/
+// verification_status, а НЕ score-based enum `verification` — на
+// expression_catalog нет триггера, который бы пересчитывал этот enum
+// автоматически (recompute_expression_score() ни на одном триггере не
+// висит, проверено через information_schema.triggers), в отличие от
+// lexemes, где verification гарантированно свежий (lexemes_sync_verification).
+//
+// ФИКС (02.08.2026, третья итерация): читать один только verification_status
+// тоже было ошибкой — в promote_verification_results_for_job() ветка
+// 'multi_source' проверяется РАНЬШЕ best_rank>=4, поэтому best_rank=3
+// (tier='usage_evidence', самое слабое совпадение) при нескольких
+// согласных источниках тоже даёт status='multi_source'. Status-only
+// пропустил бы повторную проверку для выражений, подтверждённых только
+// по примеру употребления, а не по словарной статье — это заметно мягче
+// порога, согласованного для lexemes. Функция ниже — точное зеркало уже
+// задокументированного правила триггера trg_recompute_lexeme_verification()
+// на lexemes, а не новый порог.
+function isSufficientlyVerifiedExpression(
+  tier: string | null,
+  status: string | null,
+): boolean {
+  if (status === 'usage_verified') return true;
+
+  if (
+    (tier === 'dictionary_entry' || tier === 'dictionary_match') &&
+    (status === 'multi_source' || status === 'authoritative')
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 
 const corsHeaders = {
@@ -45,6 +165,7 @@ type Lexeme360CandidateRow = {
   lexeme_id: string | null;
   expression_subtype: string | null;
   verification_status: string | null;
+  verification: string | null; // ДОБАВЛЕНО
 };
 
 function normalizeRootLemma(value: unknown): string {
@@ -194,44 +315,56 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
   }
 
   // 1. Trusted expressions.
-  const { data: trustedData, error: trustedError } = await supabase
-    .from('trusted_expressions_v1')
-    .select(`
-      id,
-      lemma,
-      display_form,
-      normalized_key,
-      pos,
-      expression_subtype
-    `)
-    .not('normalized_key', 'is', null);
+  // ФИКС (22.08.2026): пагинировано через fetchAllRows() — риск здесь
+  // минимальный (12 строк на момент фикса), но так все три источника
+  // одинаково защищены от будущего роста, без исключений на "эта
+  // маленькая, ладно так". См. заголовочный комментарий файла.
+  const trustedData = await fetchAllRows(async (from, to) => {
+    return await supabase
+      .from('trusted_expressions_v1')
+      .select(`
+        id,
+        lemma,
+        display_form,
+        normalized_key,
+        pos,
+        expression_subtype
+      `)
+      .not('normalized_key', 'is', null)
+      .order('id', { ascending: true })
+      .range(from, to);
+  });
 
-  if (trustedError) throw trustedError;
-
-  for (const row of trustedData ?? []) {
+  for (const row of trustedData) {
     addExpression(row);
   }
 
   // 2. Expression catalog entries already linked to lexemes.
-  const { data: catalogData, error: catalogError } = await supabase
-    .from('expression_catalog')
-    .select(`
-      id,
-      lemma,
-      lexeme_id,
-      expression_subtype,
-      verification_status
-    `)
-    .not('lexeme_id', 'is', null);
+  // ФИКС (22.08.2026): ГЛАВНОЕ место сегодняшнего бага — было 1743 строки
+  // без пагинации, PostgREST обрезал до ~1000. См. заголовочный комментарий
+  // файла для полного разбора последствий (осиротевшие expression_id).
+  const catalogData = await fetchAllRows(async (from, to) => {
+    return await supabase
+      .from('expression_catalog')
+      .select(`
+        id,
+        lemma,
+        normalized_key,
+        lexeme_id,
+        expression_subtype,
+        verification_status
+      `)
+      .not('lexeme_id', 'is', null)
+      .order('id', { ascending: true })
+      .range(from, to);
+  });
 
-  if (catalogError) throw catalogError;
-
-  for (const row of catalogData ?? []) {
+  for (const row of catalogData) {
     addExpression({
       id: row.id,
       lemma: row.lemma,
       display_form: row.lemma,
-      normalized_key: row.lemma,
+      normalized_key: row.normalized_key || row.lemma,
       pos: 'expression',
       expression_subtype: row.expression_subtype,
     });
@@ -240,8 +373,12 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
   // 3. Legacy expressions from lexemes.
   // This is required to restore v6 behavior:
   // old analyzer used lexemes where pos = expression.
-  const { data: lexemeExpressionData, error: lexemeExpressionError } =
-    await supabase
+  //
+  // ФИКС (22.08.2026): тоже было 1783 строки без пагинации — этот
+  // источник и подставлял устаревшие id вместо "дыр" источника 2, когда
+  // тот был обрезан. Пагинирован по той же причине.
+  const lexemeExpressionData = await fetchAllRows(async (from, to) => {
+    return await supabase
       .from('lexemes')
       .select(`
         id,
@@ -252,11 +389,12 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
           expression_subtype
         )
       `)
-      .eq('pos', 'expression');
+      .eq('pos', 'expression')
+      .order('id', { ascending: true })
+      .range(from, to);
+  });
 
-  if (lexemeExpressionError) throw lexemeExpressionError;
-
-  for (const row of lexemeExpressionData ?? []) {
+  for (const row of lexemeExpressionData) {
     const expressionData = Array.isArray(row.expression_data)
       ? row.expression_data[0]
       : null;
@@ -273,6 +411,9 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
 
   console.log('[LOAD EXPRESSIONS]', {
     total: dict.size,
+    trusted_rows: trustedData.length,
+    catalog_rows: catalogData.length,
+    legacy_rows: lexemeExpressionData.length,
     has_ta_med: dict.has('ta med'),
     has_ta_imot: dict.has('ta imot'),
     has_ta_opp: dict.has('ta opp'),
@@ -286,16 +427,23 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
 }
 
 async function loadVerbMaps(): Promise<VerbMaps> {
-  const { data, error } = await supabase
-    .from('verb_forms')
-    .select('infinitiv, presens, perfektum');
-
-  if (error) throw error;
+  // ФИКС (22.08.2026): пагинировано превентивно через fetchAllRows() —
+  // 404 строки на момент фикса, безопасно СЕЙЧАС, но растёт с каждой
+  // сессией обогащения словаря и рано или поздно пересечёт тот же лимит
+  // PostgREST тем же самым молчаливым образом, как это уже случилось с
+  // expression_catalog/legacy lexemes. См. заголовочный комментарий файла.
+  const data = await fetchAllRows(async (from, to) => {
+    return await supabase
+      .from('verb_forms')
+      .select('infinitiv, presens, perfektum')
+      .order('lexeme_id', { ascending: true })
+      .range(from, to);
+  });
 
   const presensToInfinitiv = new Map<string, string>();
   const perfektumToInfinitiv = new Map<string, string>();
 
-  for (const row of data ?? []) {
+  for (const row of data) {
     const infinitiv = normalize(row.infinitiv ?? '');
     const presens = normalize(row.presens ?? '');
     const perfektum = normalize(row.perfektum ?? '');
@@ -309,36 +457,218 @@ async function loadVerbMaps(): Promise<VerbMaps> {
     }
   }
 
+  console.log('[LOAD VERB MAPS]', {
+    total_rows: data.length,
+    presens_map_size: presensToInfinitiv.size,
+    perfektum_map_size: perfektumToInfinitiv.size,
+  });
+
   return {
     presensToInfinitiv,
     perfektumToInfinitiv,
   };
 }
 
+
+// ============================================================================
+// CONTEXTUAL POS FALLBACKS (v1.4)
+//
+// PostgreSQL RPC уже получает контекст, но для части омонимов в БД может не
+// быть полной form-variant связи. Поэтому перед передачей кандидатов в
+// grammar-parser мы:
+//   1) нормализуем POS для общеизвестных местоимений, если старая строка
+//      lexemes всё ещё имеет pos='unknown';
+//   2) при необходимости догружаем альтернативную лексему по lemma+pos:
+//        nå  -> adverb
+//        sin/sitt/sine -> pronoun, lemma=sin
+//
+// Это не подменяет RPC и не создаёт искусственные UUID: дополнительный
+// кандидат добавляется только если соответствующая реальная лексема уже
+// существует в public.lexemes.
+// ============================================================================
+
+const KNOWN_PRONOUN_SURFACES = new Set([
+  'jeg', 'du', 'han', 'hun', 'hen', 'vi', 'dere', 'de',
+  'meg', 'deg', 'ham', 'henne', 'oss', 'dem',
+  'den', 'det', 'seg',
+]);
+
+const POS_FALLBACK_CACHE = new Map<string, SurfaceResolution | null>();
+
+function normalizeKnownResolutionPos(
+  surfaceForm: string,
+  resolution: SurfaceResolution,
+): SurfaceResolution {
+  const surface = normalizeExpression(surfaceForm);
+
+  if (
+    KNOWN_PRONOUN_SURFACES.has(surface) &&
+    String(resolution.pos ?? '').toLowerCase() === 'unknown'
+  ) {
+    return {
+      ...resolution,
+      pos: 'pronoun',
+      grammatical_features: {
+        ...(resolution.grammatical_features ?? {}),
+        pos_override: 'known_pronoun_surface',
+      },
+      confidence:
+        resolution.confidence === 'low' ? 'high' : resolution.confidence,
+    };
+  }
+
+  return resolution;
+}
+
+async function loadLexemeFallbackResolution(
+  lemma: string,
+  pos: string,
+  surfaceForm: string,
+  formType: string,
+  featureReason: string,
+): Promise<SurfaceResolution | null> {
+  const cacheKey = `${lemma}::${pos}::${formType}`;
+
+  if (POS_FALLBACK_CACHE.has(cacheKey)) {
+    return POS_FALLBACK_CACHE.get(cacheKey) ?? null;
+  }
+
+  const { data, error } = await supabase
+    .from('lexemes')
+    .select('id, lemma, pos')
+    .eq('lemma', lemma)
+    .eq('pos', pos)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[SURFACE FALLBACK LOOKUP FAILED]', {
+      lemma,
+      pos,
+      surfaceForm,
+      error: error.message,
+    });
+    POS_FALLBACK_CACHE.set(cacheKey, null);
+    return null;
+  }
+
+  if (!data?.id) {
+    POS_FALLBACK_CACHE.set(cacheKey, null);
+    return null;
+  }
+
+  const resolution: SurfaceResolution = {
+    lexeme_id: data.id,
+    lemma: data.lemma,
+    pos: data.pos,
+    form_type: formType,
+    grammatical_features: {
+      surface: surfaceForm,
+      resolver: 'contextual_lexeme_fallback',
+      reason: featureReason,
+    },
+    confidence: 'high',
+    source: 'lexemes',
+  };
+
+  POS_FALLBACK_CACHE.set(cacheKey, resolution);
+  return resolution;
+}
+
+function hasResolution(
+  resolutions: SurfaceResolution[],
+  lemma: string,
+  pos: string,
+): boolean {
+  return resolutions.some(
+    (row) =>
+      normalizeExpression(row.lemma) === normalizeExpression(lemma) &&
+      String(row.pos ?? '').toLowerCase() === pos,
+  );
+}
+
+// ФИКС (v1.3): resolveSurfaceForm теперь возвращает МАССИВ вариантов, а не
+// один. Раньше брался только data[0] — первая строка ответа RPC, даже если
+// RPC вернула несколько (что теперь происходит намеренно для слов без
+// контекста — см. shared параметр context ниже и комментарий в
+// resolve_surface_form SQL). Обратная совместимость: если RPC вернула ровно
+// одну строку (как раньше для однозначных слов), массив будет содержать
+// один элемент — вызывающий код (grammar-parser.ts) обрабатывает оба
+// случая одинаково через цикл.
 async function resolveSurfaceForm(
   surfaceForm: string,
-): Promise<SurfaceResolution | null> {
+  context?: SurfaceFormContext,
+): Promise<SurfaceResolution[]> {
   const { data, error } = await supabase.rpc('resolve_surface_form', {
     p_surface_form: surfaceForm,
+    p_prev_token: context?.prevToken ?? null,
+    p_next_token: context?.nextToken ?? null,
+    p_preceded_by_infinitive_marker:
+      context?.precededByInfinitiveMarker ?? false,
   });
 
   if (error) throw error;
 
-  const row = Array.isArray(data) ? data[0] : null;
+  const rows = Array.isArray(data) ? data : [];
 
-  if (!row?.lexeme_id || !row?.lemma) {
-    return null;
+  const resolutions: SurfaceResolution[] = rows
+    .filter((row: any) => row?.lexeme_id && row?.lemma)
+    .map((row: any) =>
+      normalizeKnownResolutionPos(surfaceForm, {
+        lexeme_id: row.lexeme_id,
+        lemma: row.lemma,
+        pos: row.pos,
+        form_type: row.form_type,
+        grammatical_features: row.grammatical_features ?? {},
+        confidence: row.confidence,
+        source: row.source,
+      })
+    );
+
+  const surface = normalizeExpression(surfaceForm);
+
+  // "nå" может быть глаголом "достигать" и наречием "сейчас".
+  // Если RPC вернула только глагол, добавляем существующую adverb-лексему
+  // как альтернативу. Окончательный выбор делает grammar-parser по контексту.
+  if (surface === 'nå' && !hasResolution(resolutions, 'nå', 'adverb')) {
+    const adverbFallback = await loadLexemeFallbackResolution(
+      'nå',
+      'adverb',
+      surfaceForm,
+      'base',
+      'nå_adverb_candidate',
+    );
+
+    if (adverbFallback) {
+      resolutions.push(adverbFallback);
+    }
   }
 
-  return {
-    lexeme_id: row.lexeme_id,
-    lemma: row.lemma,
-    pos: row.pos,
-    form_type: row.form_type,
-    grammatical_features: row.grammatical_features ?? {},
-    confidence: row.confidence,
-    source: row.source,
-  };
+  // Притяжательное местоимение sin имеет формы sin/sitt/sine.
+  // Если RPC увидела в "sitt" только imperative глагола sitte, догружаем
+  // реальную pronoun-лексему sin и передаём оба варианта parser'у.
+  if (
+    ['sin', 'sitt', 'sine'].includes(surface) &&
+    !hasResolution(resolutions, 'sin', 'pronoun')
+  ) {
+    const pronounFallback = await loadLexemeFallbackResolution(
+      'sin',
+      'pronoun',
+      surfaceForm,
+      surface === 'sitt'
+        ? 'possessive_neuter'
+        : surface === 'sine'
+        ? 'possessive_plural'
+        : 'possessive_common',
+      'possessive_pronoun_candidate',
+    );
+
+    if (pronounFallback) {
+      resolutions.push(pronounFallback);
+    }
+  }
+
+  return resolutions;
 }
 
 async function loadLexeme360NetworkCandidates(
@@ -355,7 +685,8 @@ async function loadLexeme360NetworkCandidates(
       root_lemma,
       lexeme_id,
       expression_subtype,
-      verification_status
+      verification_status,
+      verification
     `)
     .in('root_lemma', rootLemmas)
     .not('lemma', 'is', null)
@@ -473,6 +804,7 @@ async function addLexeme360NetworkCandidates(
               expression_id: candidate.id,
               root_lemma: root,
               verification_status: candidate.verification_status ?? null,
+              verification: candidate.verification ?? null, // ДОБАВЛЕНО
               expression_subtype: candidate.expression_subtype ?? null,
             },
             confidence: 'high',
@@ -497,28 +829,17 @@ async function addLexeme360NetworkCandidates(
 }
 
 // ФИКС: dedupePlannedItems — финальный защитный проход по всему массиву
-// plannedItems перед вставкой в БД. Убирает дубликаты, которые могут
-// возникнуть из-за нескольких независимых путей добавления items
-// (parser, candidate_generator, candidate_catalog_bridge,
-// addLexeme360NetworkCandidates) — если два пути привели к ОДНОЙ И ТОЙ ЖЕ
-// реальной встрече выражения в тексте (совпадают и expression_id, и
-// границы токенов), остаётся только первое вхождение.
-//
-// Важно: token_start/token_end включены в ключ ВСЕГДА, даже когда
-// expression_id уже известен. Иначе одно и то же выражение, реально
-// встретившееся в тексте несколько раз (например "tok seg av barna... og
-// senere tok seg av hunden"), схлопнулось бы в одно вхождение — теряя
-// вторую реальную встречу вместо устранения дубликата одной и той же
-// встречи, найденной разными путями резолюции.
+// plannedItems перед вставкой в БД.
 function dedupePlannedItems(items: PlannedItem[]): PlannedItem[] {
   const seen = new Set<string>();
   const result: PlannedItem[] = [];
   let removed = 0;
 
   for (const item of items) {
+    const posKey = item.resolved?.pos ?? item.pos ?? 'unknown';
     const key = item.expression_id
       ? `expr:${item.expression_id}:${item.token_start}:${item.token_end}`
-      : `${item.match_type}:${normalizeExpression(item.normalized_lemma || item.normalized_input)}:${item.token_start}:${item.token_end}`;
+      : `${item.match_type}:${normalizeExpression(item.normalized_lemma || item.normalized_input)}:${item.token_start}:${item.token_end}:${posKey}`;
 
     if (seen.has(key)) {
       removed++;
@@ -578,11 +899,70 @@ async function insertSourceChecksBatch(
   if (error) throw error;
 }
 
+async function queueSkippedItemsForEnrichment(
+  entries: Array<{ kind: 'lexeme' | 'expression'; id: string }>,
+) {
+  if (!entries.length) return;
+
+  const uniqueLexemeIds = [
+    ...new Set(
+      entries.filter((e) => e.kind === 'lexeme').map((e) => e.id),
+    ),
+  ];
+  const uniqueExpressionIds = [
+    ...new Set(
+      entries.filter((e) => e.kind === 'expression').map((e) => e.id),
+    ),
+  ];
+
+  if (uniqueLexemeIds.length > 0) {
+    const { error: lexemeEnrichmentError } = await supabase
+      .from('lexeme_semantic_enrichment')
+      .upsert(
+        uniqueLexemeIds.map((lexeme_id) => ({
+          lexeme_id,
+          status: 'pending',
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: 'lexeme_id' },
+      );
+
+    if (lexemeEnrichmentError) {
+      console.error(
+        '[SKIP-VERIFIED ENRICHMENT QUEUE] lexeme upsert failed:',
+        lexemeEnrichmentError,
+      );
+    }
+  }
+
+  if (uniqueExpressionIds.length > 0) {
+    const { error: expressionEnrichmentError } = await supabase
+      .from('expression_semantic_enrichment')
+      .upsert(
+        uniqueExpressionIds.map((expression_id) => ({
+          expression_id,
+          status: 'pending',
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: 'expression_id' },
+      );
+
+    if (expressionEnrichmentError) {
+      console.error(
+        '[SKIP-VERIFIED ENRICHMENT QUEUE] expression upsert failed:',
+        expressionEnrichmentError,
+      );
+    }
+  }
+}
+
 async function insertItems(jobId: string, items: PlannedItem[]) {
   let expressionItems = 0;
   let tokenItems = 0;
   let lexeme360NetworkItems = 0;
   let generatedExpressionCandidates = 0;
+  let skippedAlreadyVerified = 0;
+  let homonymRechecksForced = 0;
 
   const sourceCheckRows: Array<{
     itemId: string;
@@ -592,21 +972,27 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
     queryType: 'expression' | 'token';
   }> = [];
 
+  const enrichmentQueue: Array<{ kind: 'lexeme' | 'expression'; id: string }> = [];
+
   for (const item of items) {
+    const skip = Boolean((item as any).skip_source_checks);
+    const isExpressionPath = item.match_type === 'expression';
+
     const { data, error } = await supabase
       .from('lexeme_processing_items')
       .insert({
         job_id: jobId,
         expression_id: item.expression_id,
-        lexeme_id: null,
+        lexeme_id:
+          skip && !isExpressionPath ? (item.resolved?.lexeme_id ?? null) : null,
         raw_input: item.raw_input,
         normalized_input: item.normalized_input,
         normalized_lemma: item.normalized_lemma,
         surface_form: item.surface_form,
         pos: item.pos,
         match_type: item.match_type,
-        status: 'pending',
-        current_stage: 'source_checks',
+        status: skip ? 'done' : 'pending',
+        current_stage: skip ? 'semantic_audit' : 'source_checks',
         attempt_count: 0,
         max_attempts: 3,
         result_summary: {
@@ -626,6 +1012,18 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
           resolved_source: item.resolved?.source ?? null,
           resolved_features:
             item.resolved?.grammatical_features ?? null,
+          ...(skip
+            ? {
+                promotion_status: 'already_verified_skip',
+                promotion_version: 'ingestion_skip_already_verified_v1',
+              }
+            : {}),
+          ...((item as any)._homonym_recheck_forced
+            ? {
+                homonym_recheck_forced: true,
+                homonym_recheck_version: 'homonym_recheck_v1',
+              }
+            : {}),
         },
       })
       .select('id')
@@ -647,6 +1045,22 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
       generatedExpressionCandidates++;
     }
 
+    if ((item as any)._homonym_recheck_forced) {
+      homonymRechecksForced++;
+    }
+
+    if (skip) {
+      skippedAlreadyVerified++;
+
+      if (isExpressionPath && item.expression_id) {
+        enrichmentQueue.push({ kind: 'expression', id: item.expression_id });
+      } else if (!isExpressionPath && item.resolved?.lexeme_id) {
+        enrichmentQueue.push({ kind: 'lexeme', id: item.resolved.lexeme_id });
+      }
+
+      continue;
+    }
+
     const verificationQuery =
       item.match_type === 'expression'
         ? item.normalized_lemma
@@ -662,12 +1076,15 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
   }
 
   await insertSourceChecksBatch(jobId, sourceCheckRows);
+  await queueSkippedItemsForEnrichment(enrichmentQueue);
 
   return {
     expressionItems,
     tokenItems,
     lexeme360NetworkItems,
     generatedExpressionCandidates,
+    skippedAlreadyVerified,
+    homonymRechecksForced,
   };
 }
 
@@ -714,6 +1131,14 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const text = String(body.text || '').trim();
 
+    const isolatedMode = body.mode === 'word_list';
+
+    console.log('[ENCODING DEBUG] raw text:', text);
+    console.log(
+      '[ENCODING DEBUG] char codes:',
+      Array.from(text.slice(0, 20)).map((c) => c.charCodeAt(0)),
+    );
+
     if (!text) {
       return Response.json(
         {
@@ -758,26 +1183,12 @@ serve(async (req) => {
       expressionDict,
       verbMaps,
       resolveSurfaceForm,
+      { isolatedMode },
     );
 
     const generatedCandidates = generateExpressionCandidates(plannedItems);
     plannedItems.push(...generatedCandidates);
 
-    // ФИКС: bridge-шаг между candidate_generator и остальным пайплайном.
-    // candidate_generator создаёt items с expression_id: null, полагая,
-    // что кто-то потом найдёт совпадение в expression_catalog по
-    // normalized_lemma — но ни resolveExpressions (работает только с уже
-    // готовым expression_id), ни addLexeme360NetworkCandidates (работает
-    // по root_lemma, не по точной лемме) этого не делали. Без этого шага
-    // такие "осиротевшие" кандидаты доходили до промоушена как НОВЫЕ
-    // записи, даже если выражение уже существовало в каталоге (см. кейс
-    // "tok meg av" → normalized_lemma "ta seg av", хотя "ta seg av" уже
-    // есть в expression_catalog).
-    //
-    // Запускается ДО addLexeme360NetworkCandidates, чтобы её
-    // existingExpressionIds уже содержал найденные здесь expression_id —
-    // это предотвращает повторное добавление того же выражения через
-    // сетевой (root_lemma) путь.
     const candidateBridgeResult = await resolveCandidatesAgainstCatalog(
       supabase,
       plannedItems,
@@ -790,10 +1201,6 @@ serve(async (req) => {
 
     const lexeme360Network = await addLexeme360NetworkCandidates(plannedItems);
 
-    // ФИКС: финальный дедуп после того, как все источники (parser,
-    // candidate_generator + bridge, lexeme360 network) дописали в массив.
-    // Защита от повторной вставки одного и того же expression_id (или
-    // одной и той же normalized_lemma в тех же границах токенов) в БД.
     const dedupedPlannedItems = dedupePlannedItems(plannedItems);
     plannedItems.length = 0;
     plannedItems.push(...dedupedPlannedItems);
@@ -805,7 +1212,7 @@ serve(async (req) => {
     if (resolvedLexemeIds.length > 0) {
       const { data: lexemeData } = await supabase
         .from('lexemes')
-        .select('id, cefr_level, frequency_rank, frequency_ipm')
+        .select('id, cefr_level, frequency_rank, frequency_ipm, verification, verification_version')
         .in('id', resolvedLexemeIds);
 
       if (lexemeData?.length) {
@@ -816,6 +1223,8 @@ serve(async (req) => {
               cefr_level: l.cefr_level ?? null,
               frequency_rank: l.frequency_rank ?? null,
               frequency_ipm: l.frequency_ipm ?? null,
+              verification: l.verification ?? null,
+              verification_version: l.verification_version ?? null,
             },
           ])
         );
@@ -828,6 +1237,58 @@ serve(async (req) => {
             (item as any).cefr_level = meta.cefr_level;
             (item as any).frequency_rank = meta.frequency_rank;
             (item as any).frequency_ipm = meta.frequency_ipm;
+
+            if (
+              meta.verification === 'verified_dictionary' &&
+              (meta.verification_version ?? 0) >= TARGET_VERIFICATION_VERSION
+            ) {
+              if (shouldForceHomonymRecheck()) {
+                (item as any)._homonym_recheck_forced = true;
+              } else {
+                (item as any).skip_source_checks = true;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const resolvedExpressionIds = plannedItems
+      .map((i) => i.expression_id)
+      .filter((id): id is string => Boolean(id));
+
+    if (resolvedExpressionIds.length > 0) {
+      const { data: expressionData } = await supabase
+        .from('expression_catalog')
+        .select('id, verification_status, verification_tier, verification_version')
+        .in('id', resolvedExpressionIds);
+
+      if (expressionData?.length) {
+        const expressionMap = new Map(
+          expressionData.map((e) => [
+            e.id,
+            {
+              verification_status: e.verification_status ?? null,
+              verification_tier: e.verification_tier ?? null,
+              verification_version: e.verification_version ?? null,
+            },
+          ])
+        );
+
+        for (const item of plannedItems) {
+          if (item.expression_id && expressionMap.has(item.expression_id)) {
+            const meta = expressionMap.get(item.expression_id)!;
+
+            if (
+              isSufficientlyVerifiedExpression(meta.verification_tier, meta.verification_status) &&
+              (meta.verification_version ?? 0) >= TARGET_VERIFICATION_VERSION
+            ) {
+              if (shouldForceHomonymRecheck()) {
+                (item as any)._homonym_recheck_forced = true;
+              } else {
+                (item as any).skip_source_checks = true;
+              }
+            }
           }
         }
       }
@@ -838,6 +1299,8 @@ serve(async (req) => {
       tokenItems,
       lexeme360NetworkItems,
       generatedExpressionCandidates,
+      skippedAlreadyVerified,
+      homonymRechecksForced,
     } = await insertItems(jobId, plannedItems);
 
     const { error: jobUpdateError } = await supabase
@@ -858,6 +1321,10 @@ serve(async (req) => {
           lexeme360_candidates_found: lexeme360Network.candidates.length,
           lexeme360_candidates_added: lexeme360Network.added,
           source_checks_per_item: SOURCES.length,
+          skipped_already_verified: skippedAlreadyVerified,
+          homonym_rechecks_forced: homonymRechecksForced,
+          homonym_recheck_probability: HOMONYM_RECHECK_PROBABILITY,
+          isolated_mode: isolatedMode,
           surface_resolver: true,
           compound_normalization: true,
           legacy_aligned_expression_parser: true,
@@ -872,6 +1339,10 @@ serve(async (req) => {
           lexeme360_root_fix: true,
           raw_token_preservation: true,
           batched_source_checks: true,
+          skip_already_verified_fix: true,
+          word_list_pos_dedup_fix: true,
+          homonym_recheck_fix: true,
+          paginated_loads_fix: true,
         },
         updated_at: new Date().toISOString(),
       })
@@ -937,6 +1408,8 @@ serve(async (req) => {
           lexeme360_roots: lexeme360Network.roots,
           lexeme360_candidates_found: lexeme360Network.candidates.length,
           lexeme360_candidates_added: lexeme360Network.added,
+          skipped_already_verified: skippedAlreadyVerified,
+          homonym_rechecks_forced: homonymRechecksForced,
         },
         orchestrator: orchestratorResult,
       },

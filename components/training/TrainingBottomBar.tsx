@@ -5,6 +5,8 @@ import { TrainingMode } from '@/services/settings';
 import { TrainingGlassButton } from './TrainingGlassButton';
 import { TrainingGradeButton } from './TrainingGradeButton';
 
+type Grade = 'Hard' | 'OK' | 'Easy';
+
 type Props = {
   mode: TrainingMode;
   isDark: boolean;
@@ -12,7 +14,7 @@ type Props = {
   savingReview: boolean;
   ui: (key: any) => string;
   onNext: () => void;
-  onGrade: (label: 'Hard' | 'OK' | 'Easy') => void;
+  onGrade: (label: Grade) => void;
 };
 
 export function TrainingBottomBar({
@@ -24,38 +26,54 @@ export function TrainingBottomBar({
   onNext,
   onGrade,
 }: Props) {
-  return (
-    <View style={s.bottomBar}>
-      {savingReview ? (
-        <Text style={s.savingText}>{ui('saving')}</Text>
-      ) : null}
+  const modeName = String(mode || '').toLowerCase();
 
-      {mode === 'flashcards' ? (
+  const isFlashcardMode =
+    modeName === 'flashcards' ||
+    modeName === 'flashcard' ||
+    modeName === 'card' ||
+    modeName === 'cards';
+
+  if (isFlashcardMode) {
+    return (
+      <View style={s.bottomBar}>
+        {savingReview ? (
+          <Text style={s.savingText}>{ui('saving')}</Text>
+        ) : null}
+
         <View style={s.gradeRow}>
           <TrainingGradeButton
             label={ui('hard')}
-            onPress={() => onGrade('Hard')}
-            disabled={savingReview}
-            isDark={isDark}
             tone="hard"
+            isDark={isDark}
+            disabled={savingReview}
+            onPress={() => onGrade('Hard')}
           />
 
           <TrainingGradeButton
             label={ui('ok')}
-            onPress={() => onGrade('OK')}
-            disabled={savingReview}
-            isDark={isDark}
             tone="ok"
+            isDark={isDark}
+            disabled={savingReview}
+            onPress={() => onGrade('OK')}
           />
 
           <TrainingGradeButton
             label={ui('easy')}
-            onPress={() => onGrade('Easy')}
-            disabled={savingReview}
-            isDark={isDark}
             tone="easy"
+            isDark={isDark}
+            disabled={savingReview}
+            onPress={() => onGrade('Easy')}
           />
         </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={s.bottomBar}>
+      {savingReview ? (
+        <Text style={s.savingText}>{ui('saving')}</Text>
       ) : null}
 
       <TrainingGlassButton
