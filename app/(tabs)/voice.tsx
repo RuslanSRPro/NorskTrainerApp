@@ -25,18 +25,7 @@ import {
 } from 'expo-file-system';
 
 import * as DocumentPicker from 'expo-document-picker';
-import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
-
-import {
-  strToU8,
-  zipSync,
-} from 'fflate';
-
-import {
-  activateKeepAwakeAsync,
-  deactivateKeepAwake,
-} from 'expo-keep-awake';
 
 import { GlassSurface } from '@/components/ui/glass/GlassSurface';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -46,775 +35,83 @@ import LectureRecorder, {
   type LectureRecorderStatus,
 } from '@/modules/lecturerecorder';
 
-import WhisperKitLocal, {
-  WHISPERKIT_DEFAULT_MODEL,
-  type WhisperProgressEvent,
-  type WhisperSegment,
-} from '@/modules/whisperkitlocal';
+import type {
+  ActiveRecording,
+  LectureItem,
+  LectureMarker,
+  LectureMarkerType,
+  LectureMetadata,
+  SavedTranscriptSegment,
+} from '@/features/audio/lectureTypes';
+
+import {
+  createChunkPlan,
+  findAudioFile,
+  formatLectureDate,
+  formatPlaybackTime,
+  formatTime,
+  getDefaultTranscription,
+  getImportedAudioExtension,
+  getLectureDirectory,
+  markerLabel,
+  normalizeMicDb,
+  readLectureMarkers,
+  readMetadata,
+  readTranscriptSegments,
+  writeLectureMarkers,
+  writeMetadata,
+} from '@/features/audio/lectureStorage';
+
+import {
+  useLectureTranslation,
+} from '@/hooks/audio/useLectureTranslation';
+
+import {
+  useLectureTranscription,
+} from '@/hooks/audio/useLectureTranscription';
+
+import {
+  useLectureExport,
+} from '@/hooks/audio/useLectureExport';
+
+import {
+  AudioActionButton,
+} from '@/components/audio/AudioActionButton';
+
+import {
+  ExportMenu,
+} from '@/components/audio/ExportMenu';
+
+import {
+  MarkerList,
+} from '@/components/audio/MarkerList';
+
+import {
+  TranscriptView,
+} from '@/components/audio/TranscriptView';
+
+import {
+  TranslationPanel,
+} from '@/components/audio/TranslationPanel';
 
 
-import OfflineTranslator, {
-  type TranslationLanguageCode,
-} from '@/modules/offlinetranslator';
-
-
-const CHUNK_SECONDS = 5 * 60;
-
-const WHISPER_KEEP_AWAKE_TAG =
-  'lecture-whisper-transcription';
-
-const TRANSLATION_KEEP_AWAKE_TAG =
-  'lecture-mlkit-translation';
-
-const TRANSLATION_CHUNK_MAX_CHARS =
-  1200;
-
-
-type TranslationTarget =
-  Extract<
-    TranslationLanguageCode,
-    'uk' | 'ru'
-  >;
-
-
-function getTranslationFileName(
-  target: TranslationTarget
-) {
-  return `translation-${target}.txt`;
-}
-
-
-function splitTextForTranslation(
-  rawText: string,
-  maxChars =
-    TRANSLATION_CHUNK_MAX_CHARS
-) {
-
-  const text =
-    rawText
-      .replace(
-        /\r\n/g,
-        '\n'
-      )
-      .replace(
-        /[ \t]+/g,
-        ' '
-      )
-      .trim();
-
-  if (!text) {
-    return [];
-  }
-
-  if (
-    text.length <=
-    maxChars
-  ) {
-    return [text];
-  }
-
-  const sentenceCandidates =
-    text.match(
-      /[^.!?…]+(?:[.!?…]+|$)/g
-    ) ??
-    [text];
-
-  const pieces: string[] = [];
-
-  for (
-    const rawSentence
-    of sentenceCandidates
-  ) {
-
-    const sentence =
-      rawSentence.trim();
-
-    if (!sentence) {
-      continue;
+const devConsole = {
+  log: (...args: unknown[]) => {
+    if (__DEV__) {
+      console.log(...args);
     }
-
-    if (
-      sentence.length <=
-      maxChars
-    ) {
-      pieces.push(
-        sentence
-      );
-      continue;
+  },
+  warn: (...args: unknown[]) => {
+    if (__DEV__) {
+      console.warn(...args);
     }
-
-    const words =
-      sentence.split(
-        /\s+/
-      );
-
-    let wordChunk =
-      '';
-
-    for (
-      const word
-      of words
-    ) {
-
-      const candidate =
-        wordChunk
-          ? `${wordChunk} ${word}`
-          : word;
-
-      if (
-        candidate.length >
-          maxChars &&
-        wordChunk
-      ) {
-        pieces.push(
-          wordChunk
-        );
-        wordChunk =
-          word;
-      } else {
-        wordChunk =
-          candidate;
-      }
+  },
+  error: (...args: unknown[]) => {
+    if (__DEV__) {
+      console.error(...args);
     }
-
-    if (wordChunk) {
-      pieces.push(
-        wordChunk
-      );
-    }
-  }
-
-  const chunks: string[] = [];
-  let current =
-    '';
-
-  for (
-    const piece
-    of pieces
-  ) {
-
-    const candidate =
-      current
-        ? `${current} ${piece}`
-        : piece;
-
-    if (
-      candidate.length >
-        maxChars &&
-      current
-    ) {
-      chunks.push(
-        current
-      );
-      current =
-        piece;
-    } else {
-      current =
-        candidate;
-    }
-  }
-
-  if (current) {
-    chunks.push(
-      current
-    );
-  }
-
-  return chunks;
-}
-
-
-type TranscriptionChunk = {
-  index: number;
-  fromSeconds: number;
-  toSeconds: number;
-  status: 'pending' | 'processing' | 'done' | 'error';
-  textFile?: string | null;
-  error?: string | null;
+  },
 };
-
-
-type LectureTranscription = {
-  /*
-   * "cloud-chunks" is kept only so old saved session.json
-   * files remain readable. New transcriptions are local.
-   */
-  mode:
-    | 'whisperkit-local'
-    | 'cloud-chunks';
-  status:
-    | 'not_started'
-    | 'pending'
-    | 'uploading'
-    | 'processing'
-    | 'done'
-    | 'error';
-  chunkSeconds: number;
-  processedUntilSeconds: number;
-  chunks: TranscriptionChunk[];
-  error?: string | null;
-};
-
-
-type LectureMarkerType =
-  | 'important'
-  | 'unclear'
-  | 'repeat'
-  | 'term';
-
-
-type LectureMarker = {
-  id: string;
-  timeMillis: number;
-  type: LectureMarkerType;
-  note: string;
-  createdAt: string;
-};
-
-
-type SavedTranscriptSegment = {
-  start: number;
-  end: number;
-  text: string;
-};
-
-
-type LectureMetadata = {
-  id?: string;
-  createdAt?: string | null;
-  durationMillis?: number;
-  language?: string;
-  audioFile?: string | null;
-  transcriptFile?: string | null;
-  transcriptReady?: boolean;
-  characters?: number;
-  audioBytes?: number;
-  source?: 'recorded' | 'imported';
-  originalFileName?: string | null;
-  transcription?: LectureTranscription;
-};
-
-
-type LectureItem = {
-  id: string;
-  createdAt: string | null;
-  durationMillis: number;
-  language: string;
-  audioUri: string;
-  audioFileName: string;
-  transcriptUri: string | null;
-  transcriptReady: boolean;
-  characters: number;
-  audioBytes: number;
-  transcription: LectureTranscription;
-  markers: LectureMarker[];
-  transcriptSegments: SavedTranscriptSegment[];
-};
-
-
-type ActiveRecording = {
-  id: string;
-  createdAt: string;
-  directory: Directory;
-  audioFile: File;
-};
-
-
-function safeFileStem(
-  value: string
-) {
-
-  return value
-    .replace(
-      /[^a-zA-Z0-9_-]+/g,
-      '-'
-    )
-    .replace(
-      /-+/g,
-      '-'
-    )
-    .replace(
-      /^-|-$/g,
-      ''
-    ) ||
-    'lecture';
-}
-
-
-function isMeaningfulTranscriptText(
-  value: string
-) {
-
-  const text =
-    String(
-      value || ''
-    ).trim();
-
-  if (!text) {
-    return false;
-  }
-
-  /*
-   * Keep a segment only if it contains at least one
-   * Unicode letter or number. This removes Whisper
-   * artefacts such as "-", "..." and other punctuation-
-   * only segments without deleting real Norwegian text.
-   */
-  return /[\p{L}\p{N}]/u.test(
-    text
-  );
-}
-
-
-function buildTimestampText(
-  segments:
-    SavedTranscriptSegment[]
-) {
-
-  return segments
-    .map(
-      segment =>
-        `${formatPlaybackTime(
-          segment.start
-        )}–${formatPlaybackTime(
-          segment.end
-        )}  ${segment.text}`
-    )
-    .join(
-      '\n\n'
-    )
-    .trim();
-}
-
-
-function normalizeMicDb(
-  rawDb: number | undefined
-) {
-
-  const db =
-    Number.isFinite(rawDb)
-      ? Number(rawDb)
-      : -160;
-
-  /*
-   * For the compact UI meter we map -60...0 dBFS
-   * to 0...1. Values below -60 are treated as silence.
-   */
-  return Math.min(
-    1,
-    Math.max(
-      0,
-      (db + 60) / 60
-    )
-  );
-}
-
-
-function formatTime(milliseconds: number) {
-  const totalSeconds = Math.max(
-    0,
-    Math.floor(milliseconds / 1000)
-  );
-
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor(
-    (totalSeconds % 3600) / 60
-  );
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return [
-      hours,
-      minutes.toString().padStart(2, '0'),
-      seconds.toString().padStart(2, '0'),
-    ].join(':');
-  }
-
-  return [
-    minutes.toString().padStart(2, '0'),
-    seconds.toString().padStart(2, '0'),
-  ].join(':');
-}
-
-
-function formatPlaybackTime(seconds: number) {
-  if (
-    !Number.isFinite(seconds) ||
-    seconds < 0
-  ) {
-    return '00:00';
-  }
-
-  return formatTime(seconds * 1000);
-}
-
-
-function formatLectureDate(value: string | null) {
-  if (!value) {
-    return 'Saved lecture';
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Saved lecture';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-}
-
-
-function getImportedAudioExtension(
-  fileName: string
-) {
-
-  const extension =
-    fileName
-      .split('.')
-      .pop()
-      ?.toLowerCase()
-      .trim() ??
-    '';
-
-  const supported =
-    new Set([
-      'm4a',
-      'mp3',
-      'wav',
-      'aac',
-      'caf',
-      'mp4',
-      'mpeg',
-      'mpga',
-    ]);
-
-  return supported.has(
-    extension
-  )
-    ? extension
-    : null;
-}
-
-
-function getLectureDirectory(id: string) {
-  return new Directory(
-    Paths.document,
-    'lectures',
-    id
-  );
-}
-
-
-function createChunkPlan(
-  durationMillis: number
-): LectureTranscription {
-
-  const totalSeconds = Math.max(
-    1,
-    Math.ceil(durationMillis / 1000)
-  );
-
-  const chunks: TranscriptionChunk[] = [];
-
-  let fromSeconds = 0;
-  let index = 0;
-
-  while (fromSeconds < totalSeconds) {
-
-    const toSeconds = Math.min(
-      fromSeconds + CHUNK_SECONDS,
-      totalSeconds
-    );
-
-    chunks.push({
-      index,
-      fromSeconds,
-      toSeconds,
-      status: 'pending',
-      textFile: null,
-      error: null,
-    });
-
-    fromSeconds = toSeconds;
-    index += 1;
-  }
-
-  return {
-    mode: 'whisperkit-local',
-    status: 'not_started',
-    chunkSeconds: CHUNK_SECONDS,
-    processedUntilSeconds: 0,
-    chunks,
-    error: null,
-  };
-}
-
-
-function getDefaultTranscription(
-  durationMillis: number
-) {
-  return createChunkPlan(durationMillis);
-}
-
-
-function readJsonArray<T>(
-  file: File
-): T[] {
-
-  if (!file.exists) {
-    return [];
-  }
-
-  try {
-    const value =
-      JSON.parse(
-        file.textSync()
-      );
-
-    return Array.isArray(value)
-      ? value as T[]
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-
-function writeJsonArray<T>(
-  file: File,
-  value: T[]
-) {
-
-  file.create({
-    overwrite: true,
-    intermediates: true,
-  });
-
-  file.write(
-    JSON.stringify(
-      value,
-      null,
-      2
-    )
-  );
-}
-
-
-function readLectureMarkers(
-  directory: Directory
-): LectureMarker[] {
-
-  const file =
-    new File(
-      directory,
-      'markers.json'
-    );
-
-  return readJsonArray<LectureMarker>(
-    file
-  )
-    .filter(
-      marker =>
-        Number.isFinite(
-          marker.timeMillis
-        ) &&
-        marker.timeMillis >= 0 &&
-        typeof marker.type ===
-          'string'
-    )
-    .sort(
-      (a, b) =>
-        a.timeMillis -
-        b.timeMillis
-    );
-}
-
-
-function writeLectureMarkers(
-  directory: Directory,
-  markers: LectureMarker[]
-) {
-
-  writeJsonArray(
-    new File(
-      directory,
-      'markers.json'
-    ),
-    markers
-  );
-}
-
-
-function readTranscriptSegments(
-  directory: Directory
-): SavedTranscriptSegment[] {
-
-  const file =
-    new File(
-      directory,
-      'transcript-segments.json'
-    );
-
-  return readJsonArray<SavedTranscriptSegment>(
-    file
-  )
-    .map(
-      segment => ({
-        start:
-          Number(
-            segment.start
-          ),
-        end:
-          Number(
-            segment.end
-          ),
-        text:
-          String(
-            segment.text || ''
-          ).trim(),
-      })
-    )
-    .filter(
-      segment =>
-        Number.isFinite(
-          segment.start
-        ) &&
-        Number.isFinite(
-          segment.end
-        ) &&
-        segment.start >= 0 &&
-        segment.end >=
-          segment.start &&
-        isMeaningfulTranscriptText(
-          segment.text
-        )
-    )
-    .sort(
-      (a, b) =>
-        a.start -
-        b.start
-    );
-}
-
-
-function markerLabel(
-  type: LectureMarkerType
-) {
-
-  switch (type) {
-
-  case 'important':
-    return '⭐ Important';
-
-  case 'unclear':
-    return '❓ Unclear';
-
-  case 'repeat':
-    return '🔁 Repeat';
-
-  case 'term':
-    return '🆕 New term';
-
-  default:
-    return '⭐ Important';
-  }
-}
-
-
-function readMetadata(
-  directory: Directory
-): LectureMetadata {
-
-  const metadataFile =
-    new File(
-      directory,
-      'session.json'
-    );
-
-  if (!metadataFile.exists) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(
-      metadataFile.textSync()
-    ) as LectureMetadata;
-  } catch {
-    return {};
-  }
-}
-
-
-function writeMetadata(
-  directory: Directory,
-  metadata: LectureMetadata
-) {
-
-  const metadataFile =
-    new File(
-      directory,
-      'session.json'
-    );
-
-  metadataFile.create({
-    overwrite: true,
-    intermediates: true,
-  });
-
-  metadataFile.write(
-    JSON.stringify(
-      metadata,
-      null,
-      2
-    )
-  );
-}
-
-
-function findAudioFile(
-  directory: Directory,
-  metadata: LectureMetadata
-) {
-
-  const candidates = [
-    metadata.audioFile,
-    'audio.m4a',
-    'audio.mp3',
-    'audio.wav',
-    'audio.aac',
-    'audio.caf',
-    'audio.mp4',
-    'audio.mpeg',
-    'audio.mpga',
-  ].filter(
-    (value): value is string =>
-      !!value
-  );
-
-  for (const name of candidates) {
-
-    const file =
-      new File(
-        directory,
-        name
-      );
-
-    if (file.exists) {
-      return {
-        file,
-        name,
-      };
-    }
-  }
-
-  return null;
-}
 
 
 export default function VoiceScreen() {
@@ -912,7 +209,7 @@ export default function VoiceScreen() {
               LectureRecorder
                 .getStatus();
 
-            console.log(
+            devConsole.log(
               'LECTURE APP STATE',
               {
                 nextState,
@@ -922,7 +219,7 @@ export default function VoiceScreen() {
 
           } catch (error) {
 
-            console.warn(
+            devConsole.warn(
               'Could not read native lecture recorder status:',
               error
             );
@@ -1036,7 +333,7 @@ export default function VoiceScreen() {
 
         } catch (error) {
 
-          console.warn(
+          devConsole.warn(
             'Could not poll lecture recorder:',
             error
           );
@@ -1122,36 +419,6 @@ export default function VoiceScreen() {
     useState('');
 
   const [
-    translationTarget,
-    setTranslationTarget,
-  ] =
-    useState<TranslationTarget>(
-      'uk'
-    );
-
-  const [
-    translatingLectureId,
-    setTranslatingLectureId,
-  ] =
-    useState<string | null>(
-      null
-    );
-
-  const [
-    openedTranslation,
-    setOpenedTranslation,
-  ] =
-    useState('');
-
-  const [
-    translationError,
-    setTranslationError,
-  ] =
-    useState<string | null>(
-      null
-    );
-
-  const [
     playbackError,
     setPlaybackError,
   ] =
@@ -1188,20 +455,50 @@ export default function VoiceScreen() {
     );
 
   const [
-    exportLectureId,
-    setExportLectureId,
+    transcriptUpdatedLectureId,
+    setTranscriptUpdatedLectureId,
   ] =
     useState<string | null>(
       null
     );
 
   const [
-    exportingLectureId,
-    setExportingLectureId,
+    transcriptUpdatedFlashLectureId,
+    setTranscriptUpdatedFlashLectureId,
   ] =
     useState<string | null>(
       null
     );
+
+  const transcriptUpdatedFlashTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+
+  const transcriptUpdatedStatusTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+
+  useEffect(() => {
+    return () => {
+      if (
+        transcriptUpdatedFlashTimerRef.current
+      ) {
+        clearTimeout(
+          transcriptUpdatedFlashTimerRef.current
+        );
+      }
+
+      if (
+        transcriptUpdatedStatusTimerRef.current
+      ) {
+        clearTimeout(
+          transcriptUpdatedStatusTimerRef.current
+        );
+      }
+    };
+  }, []);
 
   /*
    * Prevent Start and Stop from overlapping when
@@ -1210,29 +507,12 @@ export default function VoiceScreen() {
   const recordingActionPendingRef =
     useRef(false);
 
-  const [
-    transcribingLectureId,
-    setTranscribingLectureId,
-  ] =
-    useState<string | null>(null);
-
-  const [
-    whisperStage,
-    setWhisperStage,
-  ] =
-    useState<string>('');
-
-  const [
-    liveTranscript,
-    setLiveTranscript,
-  ] =
-    useState('');
-
-  const [
-    transcriptionError,
-    setTranscriptionError,
-  ] =
-    useState<string | null>(null);
+  const processingLockRef =
+    useRef<
+      'transcription' |
+      'translation' |
+      null
+    >(null);
 
 
   const loadLectures = () => {
@@ -1400,7 +680,7 @@ export default function VoiceScreen() {
 
     } catch (error) {
 
-      console.error(
+      devConsole.error(
         'Could not load saved lectures:',
         error
       );
@@ -1408,42 +688,151 @@ export default function VoiceScreen() {
   };
 
 
+
+
+  const translation =
+    useLectureTranslation({
+      openedLectureId,
+      openedTranscript,
+      processingLockRef,
+    });
+
+
+  const transcription =
+    useLectureTranscription({
+      processingLockRef,
+      loadLectures,
+      onTranslationsInvalidated:
+        translation.clearTranslationState,
+      onTranscriptReady:
+        ({
+          lecture,
+          text,
+          segments,
+          isRetranscription,
+        }) => {
+          setOpenedLectureId(
+            lecture.id
+          );
+
+          setOpenedTranscript(
+            text
+          );
+
+          setOpenedTranscriptSegments(
+            segments
+          );
+
+          translation
+            .clearTranslationState();
+
+          if (
+            isRetranscription
+          ) {
+            setTranscriptUpdatedLectureId(
+              lecture.id
+            );
+
+            setTranscriptUpdatedFlashLectureId(
+              lecture.id
+            );
+
+            if (
+              transcriptUpdatedFlashTimerRef.current
+            ) {
+              clearTimeout(
+                transcriptUpdatedFlashTimerRef.current
+              );
+            }
+
+            if (
+              transcriptUpdatedStatusTimerRef.current
+            ) {
+              clearTimeout(
+                transcriptUpdatedStatusTimerRef.current
+              );
+            }
+
+            transcriptUpdatedFlashTimerRef.current =
+              setTimeout(
+                () => {
+                  setTranscriptUpdatedFlashLectureId(
+                    current =>
+                      current ===
+                        lecture.id
+                        ? null
+                        : current
+                  );
+                },
+                3000
+              );
+
+            transcriptUpdatedStatusTimerRef.current =
+              setTimeout(
+                () => {
+                  setTranscriptUpdatedLectureId(
+                    current =>
+                      current ===
+                        lecture.id
+                        ? null
+                        : current
+                  );
+                },
+                60000
+              );
+          }
+        },
+    });
+
+
+  const lectureExport =
+    useLectureExport();
+
+
+  const {
+    translationTarget,
+    translatingLectureId,
+    openedTranslation,
+    translationError,
+    clearTranslationState,
+    loadSavedTranslation,
+    handleSelectTranslationTarget,
+    handleTranslateTranscript,
+  } =
+    translation;
+
+
+  const {
+    transcribingLectureId,
+    retranscribingLectureId,
+    whisperStage,
+    liveTranscript,
+    transcriptionError,
+    handleCreateTranscript,
+    confirmRetranscribe,
+  } =
+    transcription;
+
+
+  const {
+    exportLectureId,
+    exportingLectureId,
+    setExportLectureId,
+    handleExportLecture,
+  } =
+    lectureExport;
+
+
+  const isLectureProcessing =
+    !!(
+      transcribingLectureId ||
+      translatingLectureId
+    );
+
+
   useEffect(() => {
     loadLectures();
   }, []);
-
-  useEffect(() => {
-
-    const subscription =
-      WhisperKitLocal.addListener(
-        'onProgress',
-        (
-          event:
-            WhisperProgressEvent
-        ) => {
-
-          setWhisperStage(
-            event.stage
-          );
-
-          if (
-            event.text &&
-            event.text.trim()
-          ) {
-
-            setLiveTranscript(
-              event.text.trim()
-            );
-          }
-        }
-      );
-
-    return () => {
-      subscription.remove();
-    };
-
-  }, []);
-
 
   const clearPlaybackLoadTimers =
     () => {
@@ -1547,7 +936,7 @@ export default function VoiceScreen() {
           )
           .catch(
             error => {
-              console.error(
+              devConsole.error(
                 'Playback timestamp seek error:',
                 error
               );
@@ -1572,7 +961,7 @@ export default function VoiceScreen() {
 
     } catch (error) {
 
-      console.error(
+      devConsole.error(
         'Playback start after load error:',
         error
       );
@@ -1649,7 +1038,7 @@ export default function VoiceScreen() {
         LectureRecorder.getStatus();
 
       if (__DEV__) {
-        console.log(
+        devConsole.log(
           attemptNumber === 1
             ? 'LECTURE VERIFIED START'
             : 'LECTURE VERIFIED START AFTER RETRY',
@@ -1732,8 +1121,7 @@ export default function VoiceScreen() {
       try {
 
         if (
-          transcribingLectureId ||
-          translatingLectureId
+          isLectureProcessing
         ) {
 
           Alert.alert(
@@ -1858,7 +1246,7 @@ export default function VoiceScreen() {
           ) {
 
             if (__DEV__) {
-              console.warn(
+              devConsole.warn(
                 'LECTURE FIRST START LOST SESSION — retrying once'
               );
             }
@@ -1965,7 +1353,7 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Lecture recording start error:',
           error
         );
@@ -2058,7 +1446,7 @@ export default function VoiceScreen() {
               next
             );
           } catch (error) {
-            console.error(
+            devConsole.error(
               'Could not save lecture marker:',
               error
             );
@@ -2100,7 +1488,7 @@ export default function VoiceScreen() {
 
 
         if (__DEV__) {
-          console.log(
+          devConsole.log(
             'LECTURE BEFORE STOP',
             beforeStop
           );
@@ -2132,7 +1520,7 @@ export default function VoiceScreen() {
 
 
         if (__DEV__) {
-          console.log(
+          devConsole.log(
             'LECTURE FINAL RESULT',
             {
               ...result,
@@ -2270,7 +1658,7 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Save native recording error:',
           error
         );
@@ -2316,8 +1704,7 @@ export default function VoiceScreen() {
 
 
       if (
-        transcribingLectureId ||
-        translatingLectureId
+        isLectureProcessing
       ) {
 
         Alert.alert(
@@ -2523,7 +1910,7 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Audio import error:',
           error
         );
@@ -2543,6 +1930,14 @@ export default function VoiceScreen() {
     async (
       lecture: LectureItem
     ) => {
+
+      if (
+        transcribingLectureId ||
+        processingLockRef.current ===
+          'transcription'
+      ) {
+        return;
+      }
 
       try {
 
@@ -2708,7 +2103,7 @@ export default function VoiceScreen() {
 
                 } catch (error) {
 
-                  console.error(
+                  devConsole.error(
                     'Automatic playback reload error:',
                     error
                   );
@@ -2756,7 +2151,7 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Could not play lecture:',
           error
         );
@@ -2788,6 +2183,14 @@ export default function VoiceScreen() {
       seconds: number,
       autoplay = true
     ) => {
+
+      if (
+        transcribingLectureId ||
+        processingLockRef.current ===
+          'transcription'
+      ) {
+        return;
+      }
 
       const safeSeconds =
         Math.max(
@@ -2836,7 +2239,7 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Could not seek lecture to timestamp:',
           error
         );
@@ -2854,6 +2257,14 @@ export default function VoiceScreen() {
     async (
       deltaSeconds: number
     ) => {
+
+      if (
+        transcribingLectureId ||
+        processingLockRef.current ===
+          'transcription'
+      ) {
+        return;
+      }
 
       try {
 
@@ -2880,7 +2291,7 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Playback seek error:',
           error
         );
@@ -2892,6 +2303,14 @@ export default function VoiceScreen() {
     async (
       fraction: number
     ) => {
+
+      if (
+        transcribingLectureId ||
+        processingLockRef.current ===
+          'transcription'
+      ) {
+        return;
+      }
 
       try {
 
@@ -2918,63 +2337,11 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Playback seek error:',
           error
         );
       }
-    };
-
-
-  const loadSavedTranslation =
-    (
-      lecture: LectureItem,
-      target:
-        TranslationTarget
-    ) => {
-
-      try {
-
-        const directory =
-          getLectureDirectory(
-            lecture.id
-          );
-
-        const translationFile =
-          new File(
-            directory,
-            getTranslationFileName(
-              target
-            )
-          );
-
-        if (
-          translationFile.exists
-        ) {
-
-          const translation =
-            translationFile
-              .textSync()
-              .trim();
-
-          setOpenedTranslation(
-            translation
-          );
-
-          return;
-        }
-
-      } catch (error) {
-
-        console.warn(
-          'Could not load saved translation:',
-          error
-        );
-      }
-
-      setOpenedTranslation(
-        ''
-      );
     };
 
 
@@ -2996,16 +2363,10 @@ export default function VoiceScreen() {
           ''
         );
 
-        setOpenedTranslation(
-          ''
-        );
+        clearTranslationState();
 
         setOpenedTranscriptSegments(
           []
-        );
-
-        setTranslationError(
-          null
         );
 
         return;
@@ -3045,10 +2406,6 @@ export default function VoiceScreen() {
           )
         );
 
-        setTranslationError(
-          null
-        );
-
         loadSavedTranslation(
           lecture,
           translationTarget
@@ -3056,7 +2413,7 @@ export default function VoiceScreen() {
 
       } catch (error) {
 
-        console.error(
+        devConsole.error(
           'Transcript open error:',
           error
         );
@@ -3069,1154 +2426,6 @@ export default function VoiceScreen() {
     };
 
 
-  const handleSelectTranslationTarget =
-    (
-      lecture: LectureItem,
-      target:
-        TranslationTarget
-    ) => {
-
-      setTranslationTarget(
-        target
-      );
-
-      setTranslationError(
-        null
-      );
-
-      loadSavedTranslation(
-        lecture,
-        target
-      );
-    };
-
-
-  const handleTranslateTranscript =
-    async (
-      lecture: LectureItem
-    ) => {
-
-      if (
-        translatingLectureId ||
-        transcribingLectureId
-      ) {
-        return;
-      }
-
-      try {
-
-        setTranslatingLectureId(
-          lecture.id
-        );
-
-        setTranslationError(
-          null
-        );
-
-        await activateKeepAwakeAsync(
-          TRANSLATION_KEEP_AWAKE_TAG
-        );
-
-        let sourceText =
-          openedLectureId ===
-            lecture.id
-            ? openedTranscript
-            : '';
-
-        if (
-          !sourceText &&
-          lecture.transcriptUri
-        ) {
-
-          const transcriptFile =
-            new File(
-              lecture.transcriptUri
-            );
-
-          sourceText =
-            transcriptFile
-              .textSync()
-              .trim();
-        }
-
-        if (!sourceText) {
-          throw new Error(
-            'The Norwegian transcript is empty.'
-          );
-        }
-
-        const chunks =
-          splitTextForTranslation(
-            sourceText
-          );
-
-        if (
-          chunks.length ===
-          0
-        ) {
-          throw new Error(
-            'There is no text to translate.'
-          );
-        }
-
-        /*
-         * Freeze the selected target before async model
-         * download/translation work begins.
-         */
-        const target =
-          translationTarget;
-
-
-        const result =
-          await OfflineTranslator
-            .translateChunks(
-              chunks,
-              'no',
-              target
-            );
-
-        const translations =
-          result.translations.map(
-            value =>
-              String(
-                value || ''
-              ).trim()
-          );
-
-
-        if (
-          translations.length !==
-            chunks.length ||
-          translations.some(
-            value =>
-              !value
-          )
-        ) {
-          throw new Error(
-            'ML Kit returned an incomplete translation.'
-          );
-        }
-
-
-        const translatedText =
-          translations
-            .join(
-              '\n\n'
-            )
-            .trim();
-
-
-        if (!translatedText) {
-          throw new Error(
-            'ML Kit returned an empty translation.'
-          );
-        }
-
-        const directory =
-          getLectureDirectory(
-            lecture.id
-          );
-
-        const translationFile =
-          new File(
-            directory,
-            getTranslationFileName(
-              target
-            )
-          );
-
-        translationFile.create({
-          overwrite: true,
-          intermediates: true,
-        });
-
-        translationFile.write(
-          translatedText
-        );
-
-        setOpenedLectureId(
-          lecture.id
-        );
-
-        setOpenedTranscript(
-          sourceText
-        );
-
-        setOpenedTranslation(
-          translatedText
-        );
-
-      } catch (error) {
-
-        console.error(
-          'ML Kit translation error:',
-          error
-        );
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : String(error);
-
-        setTranslationError(
-          message
-        );
-
-        Alert.alert(
-          'Translation error',
-          message
-        );
-
-      } finally {
-
-        setTranslatingLectureId(
-          null
-        );
-
-        try {
-          await deactivateKeepAwake(
-            TRANSLATION_KEEP_AWAKE_TAG
-          );
-        } catch {
-          // Do not hide a successful translation.
-        }
-      }
-    };
-
-
-  const handleCreateTranscript =
-    async (
-      lecture: LectureItem
-    ) => {
-
-      if (
-        transcribingLectureId ||
-        translatingLectureId
-      ) {
-        return;
-      }
-
-      try {
-
-        setTranscribingLectureId(
-          lecture.id
-        );
-
-
-        /*
-         * WhisperKit is local foreground work. Keep the
-         * screen awake so iOS does not suspend the app
-         * in the middle of a long transcription.
-         */
-        await activateKeepAwakeAsync(
-          WHISPER_KEEP_AWAKE_TAG
-        );
-
-        setTranscriptionError(
-          null
-        );
-
-        setLiveTranscript(
-          ''
-        );
-
-        setWhisperStage(
-          'preparing-model'
-        );
-
-
-        const directory =
-          getLectureDirectory(
-            lecture.id
-          );
-
-        const metadata =
-          readMetadata(
-            directory
-          );
-
-        const baseTranscription =
-          metadata.transcription ??
-          createChunkPlan(
-            lecture.durationMillis
-          );
-
-        const transcription:
-          LectureTranscription = {
-            ...baseTranscription,
-            mode:
-              'whisperkit-local',
-            status:
-              'processing',
-            error:
-              null,
-            chunks:
-              baseTranscription.chunks.map(
-                chunk => ({
-                  ...chunk,
-                })
-              ),
-          };
-
-        writeMetadata(
-          directory,
-          {
-            ...metadata,
-            id: lecture.id,
-            createdAt:
-              lecture.createdAt,
-            durationMillis:
-              lecture.durationMillis,
-            language:
-              lecture.language,
-            audioFile:
-              lecture.audioFileName,
-            transcription,
-          }
-        );
-
-        loadLectures();
-
-
-        /*
-         * Never send a missing or obviously invalid
-         * recording into WhisperKit. A retry is only
-         * useful for a valid audio file.
-         */
-        const transcriptionAudio =
-          new File(
-            lecture.audioUri
-          );
-
-        const transcriptionBytes =
-          transcriptionAudio.size ??
-          0;
-
-
-        if (
-          !transcriptionAudio.exists ||
-          transcriptionBytes <
-            4096 ||
-          lecture.durationMillis <
-            500
-        ) {
-          throw new Error(
-            'The audio recording is missing or invalid.'
-          );
-        }
-
-
-        /*
-         * On the first run WhisperKit downloads
-         * the local Core ML model to the iPhone.
-         * Subsequent transcriptions reuse it and
-         * can work offline.
-         */
-
-        await WhisperKitLocal
-          .prepareModel(
-            WHISPERKIT_DEFAULT_MODEL
-          );
-
-
-        setWhisperStage(
-          'transcribing'
-        );
-
-
-        let result =
-          await WhisperKitLocal
-            .transcribe(
-              lecture.audioUri,
-              'no',
-              WHISPERKIT_DEFAULT_MODEL
-            );
-
-
-        let finalText =
-          String(
-            result.text || ''
-          ).trim();
-
-
-        /*
-         * On the first transcription after a cold
-         * model start WhisperKit can occasionally
-         * finish without returning text.
-         *
-         * Retry ONCE automatically. The model is
-         * already loaded at this point, so the
-         * second pass is normally much faster.
-         */
-        if (!finalText) {
-
-          setWhisperStage(
-            'retrying'
-          );
-
-          await new Promise(
-            resolve =>
-              setTimeout(
-                resolve,
-                600
-              )
-          );
-
-
-          result =
-            await WhisperKitLocal
-              .transcribe(
-                lecture.audioUri,
-                'no',
-                WHISPERKIT_DEFAULT_MODEL
-              );
-
-
-          finalText =
-            String(
-              result.text || ''
-            ).trim();
-        }
-
-
-        if (!finalText) {
-          throw new Error(
-            'WhisperKit returned an empty transcript after two attempts.'
-          );
-        }
-
-
-        /*
-         * A successful new transcription invalidates all
-         * translations derived from the previous transcript.
-         *
-         * Delete them before replacing transcript.txt so a
-         * new Norwegian transcript can never be paired with
-         * an older Ukrainian/Russian translation.
-         */
-        for (
-          const target
-          of ['uk', 'ru'] as const
-        ) {
-
-          const oldTranslation =
-            new File(
-              directory,
-              getTranslationFileName(
-                target
-              )
-            );
-
-          if (
-            oldTranslation.exists
-          ) {
-            oldTranslation.delete();
-          }
-        }
-
-
-        setOpenedTranslation(
-          ''
-        );
-
-
-        /*
-         * IMPORTANT:
-         *
-         * result.text and result.segments are not always
-         * equally complete. WhisperKit can occasionally
-         * return a fuller plain transcript while timestamp
-         * segments begin later in the audio.
-         *
-         * Never rebuild transcript.txt from segments. The
-         * raw result.text remains authoritative for the
-         * complete transcript. Segments are a separate
-         * timestamp/navigation layer.
-         */
-        const rawWhisperText =
-          finalText;
-
-
-        const rawTranscriptSegments =
-          (result.segments ?? [])
-            .map(
-              (
-                segment:
-                  WhisperSegment
-              ) => ({
-                start:
-                  Number(
-                    segment.start
-                  ),
-                end:
-                  Number(
-                    segment.end
-                  ),
-                text:
-                  String(
-                    segment.text || ''
-                  ).trim(),
-                noSpeechProb:
-                  Number(
-                    segment.noSpeechProb
-                  ),
-                avgLogProb:
-                  Number(
-                    segment.avgLogProb
-                  ),
-              })
-            )
-            .filter(
-              segment =>
-                Number.isFinite(
-                  segment.start
-                ) &&
-                Number.isFinite(
-                  segment.end
-                ) &&
-                segment.start >=
-                  0 &&
-                segment.end >=
-                  segment.start
-            );
-
-
-        const transcriptSegments =
-          rawTranscriptSegments
-            .filter(
-              segment =>
-                isMeaningfulTranscriptText(
-                  segment.text
-                )
-            );
-
-
-        const transcriptSegmentsFile =
-          new File(
-            directory,
-            'transcript-segments.json'
-          );
-
-        writeJsonArray(
-          transcriptSegmentsFile,
-          transcriptSegments
-        );
-
-
-        /*
-         * Keep a compact raw Whisper snapshot while this
-         * feature is being validated. If text and segments
-         * disagree again, the exported lecture tells us
-         * whether the loss happened inside WhisperKit or
-         * later in our JS processing.
-         */
-        const whisperDebugFile =
-          new File(
-            directory,
-            'whisper-debug.json'
-          );
-
-        whisperDebugFile.create({
-          overwrite: true,
-          intermediates: true,
-        });
-
-        whisperDebugFile.write(
-          JSON.stringify(
-            {
-              createdAt:
-                new Date().toISOString(),
-              audioDurationMillis:
-                lecture.durationMillis,
-              rawText:
-                rawWhisperText,
-              rawSegments:
-                rawTranscriptSegments,
-              cleanedSegments:
-                transcriptSegments,
-              audioLoadingMode:
-                result.audioLoadingMode ??
-                'unknown',
-              chunkingStrategy:
-                result.chunkingStrategy ??
-                'unknown',
-            },
-            null,
-            2
-          )
-        );
-
-
-        /*
-         * Keep the complete plain transcript exactly from
-         * WhisperKit even if the timestamp layer is partial.
-         */
-        finalText =
-          rawWhisperText;
-
-
-        const transcriptFile =
-          new File(
-            directory,
-            'transcript.txt'
-          );
-
-        transcriptFile.create({
-          overwrite: true,
-          intermediates: true,
-        });
-
-        transcriptFile.write(
-          finalText
-        );
-
-
-        const doneTranscription:
-          LectureTranscription = {
-            ...transcription,
-            mode:
-              'whisperkit-local',
-            status:
-              'done',
-            processedUntilSeconds:
-              Math.ceil(
-                lecture.durationMillis /
-                1000
-              ),
-            error:
-              null,
-            chunks:
-              transcription.chunks.map(
-                chunk => ({
-                  ...chunk,
-                  status:
-                    'done',
-                  error:
-                    null,
-                })
-              ),
-          };
-
-
-        writeMetadata(
-          directory,
-          {
-            ...metadata,
-            id: lecture.id,
-            createdAt:
-              lecture.createdAt,
-            durationMillis:
-              lecture.durationMillis,
-            language:
-              lecture.language,
-            audioFile:
-              lecture.audioFileName,
-            transcriptFile:
-              'transcript.txt',
-            transcriptReady:
-              true,
-            characters:
-              finalText.length,
-            transcription:
-              doneTranscription,
-          }
-        );
-
-
-        setOpenedLectureId(
-          lecture.id
-        );
-
-        setOpenedTranscript(
-          finalText
-        );
-
-        setOpenedTranscriptSegments(
-          transcriptSegments
-        );
-
-        setOpenedTranslation(
-          ''
-        );
-
-        setTranslationError(
-          null
-        );
-
-        setLiveTranscript(
-          finalText
-        );
-
-        setWhisperStage(
-          'done'
-        );
-
-        loadLectures();
-
-      } catch (error) {
-
-        console.error(
-          'WhisperKit transcription error:',
-          error
-        );
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : String(error);
-
-        setTranscriptionError(
-          message
-        );
-
-        setWhisperStage(
-          'error'
-        );
-
-        Alert.alert(
-          'WhisperKit transcription error',
-          message
-        );
-
-
-        try {
-
-          const directory =
-            getLectureDirectory(
-              lecture.id
-            );
-
-          const metadata =
-            readMetadata(
-              directory
-            );
-
-          const baseTranscription =
-            metadata.transcription ??
-            createChunkPlan(
-              lecture.durationMillis
-            );
-
-          const transcription:
-            LectureTranscription = {
-              ...baseTranscription,
-              mode:
-                'whisperkit-local',
-              status:
-                'error',
-              error:
-                message,
-              chunks:
-                baseTranscription.chunks.map(
-                  chunk => ({
-                    ...chunk,
-                  })
-                ),
-            };
-
-          writeMetadata(
-            directory,
-            {
-              ...metadata,
-              transcription,
-            }
-          );
-
-          loadLectures();
-
-        } catch {
-          // Keep the original audio safe even if
-          // status persistence also fails.
-        }
-
-      } finally {
-
-        try {
-
-          await deactivateKeepAwake(
-            WHISPER_KEEP_AWAKE_TAG
-          );
-
-        } catch {
-          // Ignore Keep Awake cleanup errors.
-        }
-
-
-        setTranscribingLectureId(
-          null
-        );
-      }
-    };
-
-
-  const shareLocalFile =
-    async (
-      file: File,
-      unavailableMessage:
-        string
-    ) => {
-
-      if (!file.exists) {
-        throw new Error(
-          unavailableMessage
-        );
-      }
-
-      const sharingAvailable =
-        await Sharing
-          .isAvailableAsync();
-
-      if (!sharingAvailable) {
-        throw new Error(
-          'Sharing is not available on this device.'
-        );
-      }
-
-      await Sharing.shareAsync(
-        file.uri
-      );
-    };
-
-
-  const handleExportLecture =
-    async (
-      lecture: LectureItem,
-      kind:
-        | 'audio'
-        | 'transcript'
-        | 'ukrainian'
-        | 'timestamps'
-        | 'zip'
-    ) => {
-
-      if (
-        exportingLectureId
-      ) {
-        return;
-      }
-
-
-      try {
-
-        setExportingLectureId(
-          lecture.id
-        );
-
-
-        const directory =
-          getLectureDirectory(
-            lecture.id
-          );
-
-        const stem =
-          safeFileStem(
-            lecture.id
-          );
-
-
-        if (
-          kind ===
-            'audio'
-        ) {
-
-          await shareLocalFile(
-            new File(
-              lecture.audioUri
-            ),
-            'The audio file is missing.'
-          );
-
-          return;
-        }
-
-
-        if (
-          kind ===
-            'transcript'
-        ) {
-
-          const transcriptFile =
-            new File(
-              directory,
-              'transcript.txt'
-            );
-
-          await shareLocalFile(
-            transcriptFile,
-            'Create a transcript first.'
-          );
-
-          return;
-        }
-
-
-        if (
-          kind ===
-            'ukrainian'
-        ) {
-
-          const ukrainianFile =
-            new File(
-              directory,
-              getTranslationFileName(
-                'uk'
-              )
-            );
-
-          await shareLocalFile(
-            ukrainianFile,
-            'Create the Ukrainian translation first.'
-          );
-
-          return;
-        }
-
-
-        if (
-          kind ===
-            'timestamps'
-        ) {
-
-          const segments =
-            lecture.transcriptSegments.length >
-              0
-              ? lecture.transcriptSegments
-              : readTranscriptSegments(
-                  directory
-                );
-
-
-          if (
-            segments.length ===
-              0
-          ) {
-            throw new Error(
-              'Create or recreate the transcript with timestamps first.'
-            );
-          }
-
-
-          const timestampFile =
-            new File(
-              Paths.cache,
-              `${stem}-timestamps.txt`
-            );
-
-          timestampFile.create({
-            overwrite: true,
-            intermediates: true,
-          });
-
-          timestampFile.write(
-            buildTimestampText(
-              segments
-            )
-          );
-
-
-          await shareLocalFile(
-            timestampFile,
-            'The timestamp text could not be created.'
-          );
-
-          return;
-        }
-
-
-        /*
-         * Full local package:
-         * - M4A
-         * - transcript
-         * - timestamp text + JSON segments
-         * - Ukrainian/Russian translation when available
-         * - recording markers
-         * - session metadata
-         *
-         * M4A is already compressed, so level 0 avoids
-         * wasting CPU and keeps ZIP creation predictable.
-         */
-        const zipEntries:
-          Record<
-            string,
-            Uint8Array
-          > = {};
-
-
-        const audioFile =
-          new File(
-            lecture.audioUri
-          );
-
-        if (!audioFile.exists) {
-          throw new Error(
-            'The audio file is missing.'
-          );
-        }
-
-        zipEntries[
-          lecture.audioFileName
-        ] =
-          audioFile.bytesSync();
-
-
-        const transcriptFile =
-          new File(
-            directory,
-            'transcript.txt'
-          );
-
-        if (
-          transcriptFile.exists
-        ) {
-          zipEntries[
-            'transcript.txt'
-          ] =
-            strToU8(
-              transcriptFile
-                .textSync()
-            );
-        }
-
-
-        const segments =
-          readTranscriptSegments(
-            directory
-          );
-
-        if (
-          segments.length >
-            0
-        ) {
-
-          zipEntries[
-            'transcript-timestamps.txt'
-          ] =
-            strToU8(
-              buildTimestampText(
-                segments
-              )
-            );
-
-          const segmentsFile =
-            new File(
-              directory,
-              'transcript-segments.json'
-            );
-
-          if (
-            segmentsFile.exists
-          ) {
-            zipEntries[
-              'transcript-segments.json'
-            ] =
-              segmentsFile.bytesSync();
-          }
-        }
-
-
-        for (
-          const target
-          of ['uk', 'ru'] as const
-        ) {
-
-          const translationFile =
-            new File(
-              directory,
-              getTranslationFileName(
-                target
-              )
-            );
-
-          if (
-            translationFile.exists
-          ) {
-            zipEntries[
-              getTranslationFileName(
-                target
-              )
-            ] =
-              translationFile.bytesSync();
-          }
-        }
-
-
-        for (
-          const fileName
-          of [
-            'markers.json',
-            'session.json',
-            'whisper-debug.json',
-          ]
-        ) {
-
-          const sourceFile =
-            new File(
-              directory,
-              fileName
-            );
-
-          if (
-            sourceFile.exists
-          ) {
-            zipEntries[
-              fileName
-            ] =
-              sourceFile.bytesSync();
-          }
-        }
-
-
-        const zipped =
-          zipSync(
-            zipEntries,
-            {
-              level: 0,
-            }
-          );
-
-
-        const zipFile =
-          new File(
-            Paths.cache,
-            `${stem}-complete.zip`
-          );
-
-        zipFile.create({
-          overwrite: true,
-          intermediates: true,
-        });
-
-        zipFile.write(
-          zipped
-        );
-
-
-        await shareLocalFile(
-          zipFile,
-          'The ZIP package could not be created.'
-        );
-
-      } catch (error) {
-
-        console.error(
-          'Lecture export error:',
-          error
-        );
-
-        Alert.alert(
-          'Export error',
-          error instanceof Error
-            ? error.message
-            : 'The lecture could not be exported.'
-        );
-
-      } finally {
-
-        setExportingLectureId(
-          null
-        );
-      }
-    };
 
 
   const handleDeleteLecture =
@@ -4296,7 +2505,7 @@ export default function VoiceScreen() {
 
                 } catch (error) {
 
-                  console.error(
+                  devConsole.error(
                     'Delete lecture error:',
                     error
                   );
@@ -4787,10 +2996,7 @@ export default function VoiceScreen() {
               : 'Start lecture recording'
           }
           disabled={
-            !!(
-              transcribingLectureId ||
-              translatingLectureId
-            ) &&
+            isLectureProcessing &&
             status !== 'recording'
           }
           onPress={
@@ -4807,10 +3013,7 @@ export default function VoiceScreen() {
                   ? '#C94B4B'
                   : T.accent,
               opacity:
-                (
-                  transcribingLectureId ||
-                  translatingLectureId
-                ) &&
+                isLectureProcessing &&
                 status !== 'recording'
                   ? 0.55
                   : 1,
@@ -4841,8 +3044,7 @@ export default function VoiceScreen() {
           disabled={
             status ===
               'recording' ||
-            !!transcribingLectureId ||
-            !!translatingLectureId
+            isLectureProcessing
           }
           onPress={
             handleImportAudio
@@ -4855,8 +3057,7 @@ export default function VoiceScreen() {
               opacity:
                 status ===
                   'recording' ||
-                transcribingLectureId ||
-                translatingLectureId
+                isLectureProcessing
                   ? 0.45
                   : 1,
             },
@@ -5132,6 +3333,9 @@ export default function VoiceScreen() {
                         <>
 
                           <Pressable
+                            disabled={
+                              !!transcribingLectureId
+                            }
                             onLayout={event => {
                               playbackSeekBarWidthRef.current =
                                 event.nativeEvent.layout.width;
@@ -5161,6 +3365,10 @@ export default function VoiceScreen() {
                                 backgroundColor:
                                   T.textSecondary +
                                   '33',
+                                opacity:
+                                  transcribingLectureId
+                                    ? 0.45
+                                    : 1,
                               },
                             ]}
                           >
@@ -5197,6 +3405,11 @@ export default function VoiceScreen() {
                           >
 
                             <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel="Go back 15 seconds"
+                              disabled={
+                                !!transcribingLectureId
+                              }
                               onPress={() =>
                                 void handleSeekRelative(
                                   -15
@@ -5207,6 +3420,10 @@ export default function VoiceScreen() {
                                 {
                                   borderColor:
                                     T.accent,
+                                  opacity:
+                                    transcribingLectureId
+                                      ? 0.45
+                                      : 1,
                                 },
                               ]}
                             >
@@ -5229,6 +3446,11 @@ export default function VoiceScreen() {
 
 
                             <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel="Go forward 15 seconds"
+                              disabled={
+                                !!transcribingLectureId
+                              }
                               onPress={() =>
                                 void handleSeekRelative(
                                   15
@@ -5239,6 +3461,10 @@ export default function VoiceScreen() {
                                 {
                                   borderColor:
                                     T.accent,
+                                  opacity:
+                                    transcribingLectureId
+                                      ? 0.45
+                                      : 1,
                                 },
                               ]}
                             >
@@ -5268,88 +3494,29 @@ export default function VoiceScreen() {
                   )}
 
 
-                  {lecture.markers.length >
-                    0 && (
-
-                    <View
-                      style={
-                        styles.savedMarkersBox
-                      }
-                    >
-
-                      <Text
-                        style={[
-                          styles.savedMarkersTitle,
-                          {
-                            color:
-                              T.textSecondary,
-                            fontSize:
-                              F.base - 2,
-                          },
-                        ]}
-                      >
-                        Marked moments
-                      </Text>
-
-
-                      <View
-                        style={
-                          styles.savedMarkersWrap
-                        }
-                      >
-
-                        {lecture.markers.map(
-                          marker => (
-
-                            <Pressable
-                              key={
-                                marker.id
-                              }
-                              onPress={() =>
-                                void handleSeekLectureTo(
-                                  lecture,
-                                  marker.timeMillis /
-                                    1000,
-                                  true
-                                )
-                              }
-                              style={[
-                                styles.savedMarkerButton,
-                                {
-                                  borderColor:
-                                    T.accent,
-                                },
-                              ]}
-                            >
-
-                              <Text
-                                style={[
-                                  styles.savedMarkerText,
-                                  {
-                                    color:
-                                      T.accent,
-                                    fontSize:
-                                      F.base - 3,
-                                  },
-                                ]}
-                              >
-                                {markerLabel(
-                                  marker.type
-                                )}
-                                {' · '}
-                                {formatTime(
-                                  marker.timeMillis
-                                )}
-                              </Text>
-
-                            </Pressable>
-                          )
-                        )}
-
-                      </View>
-
-                    </View>
-                  )}
+                  <MarkerList
+                    markers={
+                      lecture.markers
+                    }
+                    accent={
+                      T.accent
+                    }
+                    textSecondary={
+                      T.textSecondary
+                    }
+                    fontBase={
+                      F.base
+                    }
+                    onSeek={
+                      milliseconds =>
+                        void handleSeekLectureTo(
+                          lecture,
+                          milliseconds /
+                            1000,
+                          true
+                        )
+                    }
+                  />
 
 
                   <View
@@ -5358,30 +3525,31 @@ export default function VoiceScreen() {
                     }
                   >
 
-                    <Pressable
-                      accessibilityRole="button"
+                    <AudioActionButton
+                      half
+                      accent={
+                        T.accent
+                      }
+                      fontSize={
+                        F.base - 1
+                      }
+                      disabled={
+                        isLoading ||
+                        !!transcribingLectureId
+                      }
                       accessibilityLabel={
                         isPlaying
                           ? 'Pause lecture'
                           : 'Play lecture'
                       }
-                      disabled={
+                      label={
                         isLoading
+                          ? '… Loading'
+                          : isPlaying
+                            ? '⏸ Pause'
+                            : '▶ Play'
                       }
-                      hitSlop={{
-                        top: 8,
-                        bottom: 8,
-                        left: 6,
-                        right: 6,
-                      }}
-                      pressRetentionOffset={{
-                        top: 20,
-                        bottom: 20,
-                        left: 20,
-                        right: 20,
-                      }}
                       onPress={() => {
-
                         void Haptics
                           .selectionAsync();
 
@@ -5389,58 +3557,19 @@ export default function VoiceScreen() {
                           lecture
                         );
                       }}
-                      style={({
-                        pressed,
-                      }) => [
-                        styles.smallActionButton,
-                        styles.halfActionButton,
-                        {
-                          borderColor:
-                            T.accent,
-                          backgroundColor:
-                            pressed
-                              ? T.accent +
-                                '14'
-                              : 'transparent',
-                          opacity:
-                            pressed
-                              ? 0.62
-                              : 1,
-                          transform: [
-                            {
-                              scale:
-                                pressed
-                                  ? 0.97
-                                  : 1,
-                            },
-                          ],
-                        },
-                      ]}
-                    >
+                    />
 
-                      <Text
-                        style={[
-                          styles.smallActionText,
-                          {
-                            color:
-                              T.accent,
-                            fontSize:
-                              F.base - 1,
-                          },
-                        ]}
-                      >
-                        {isLoading
-                          ? '… Loading'
-                          : isPlaying
-                            ? '⏸ Pause'
-                            : '▶ Play'}
-                      </Text>
-
-                    </Pressable>
-
-
-                    <Pressable
-                      accessibilityRole="button"
+                    <AudioActionButton
+                      half
+                      accent={
+                        T.accent
+                      }
+                      fontSize={
+                        F.base - 1
+                      }
+                      disabled={
+                        isLectureProcessing
+                      }
                       accessibilityLabel={
                         lecture.transcriptReady
                           ? (
@@ -5450,126 +3579,65 @@ export default function VoiceScreen() {
                           )
                           : 'Create lecture transcript'
                       }
-                      disabled={
-                        !!(
-                          transcribingLectureId ||
-                          translatingLectureId
-                        )
-                      }
-                      hitSlop={{
-                        top: 8,
-                        bottom: 8,
-                        left: 6,
-                        right: 6,
-                      }}
-                      pressRetentionOffset={{
-                        top: 20,
-                        bottom: 20,
-                        left: 20,
-                        right: 20,
-                      }}
-                      onPress={() => {
-
-                        void Haptics
-                          .selectionAsync();
-
-                        if (
-                          lecture.transcriptReady
-                        ) {
-
-                          handleOpenTranscript(
-                            lecture
-                          );
-
-                        } else {
-
-                          handleCreateTranscript(
-                            lecture
-                          );
-                        }
-                      }}
-                      style={({
-                        pressed,
-                      }) => [
-                        styles.smallActionButton,
-                        styles.halfActionButton,
-                        {
-                          borderColor:
-                            T.accent,
-                          backgroundColor:
-                            pressed
-                              ? T.accent +
-                                '14'
-                              : 'transparent',
-                          opacity:
-                            pressed
-                              ? 0.62
-                              : 1,
-                          transform: [
-                            {
-                              scale:
-                                pressed
-                                  ? 0.97
-                                  : 1,
-                            },
-                          ],
-                        },
-                      ]}
-                    >
-
-                      <Text
-                        style={[
-                          styles.smallActionText,
-                          {
-                            color:
-                              T.accent,
-                            fontSize:
-                              F.base - 1,
-                          },
-                        ]}
-                      >
-                        {lecture.transcriptReady
+                      label={
+                        lecture.transcriptReady
                           ? (
                             isTranscriptOpen
                               ? '📄 Hide text'
                               : '📄 Transcript'
                           )
                           : (
-                            transcribingLectureId === lecture.id
+                            transcribingLectureId ===
+                              lecture.id
                               ? '… Transcribing'
                               : 'Create transcript'
-                          )}
-                      </Text>
+                          )
+                      }
+                      onPress={() => {
+                        void Haptics
+                          .selectionAsync();
 
-                    </Pressable>
+                        if (
+                          lecture.transcriptReady
+                        ) {
+                          handleOpenTranscript(
+                            lecture
+                          );
+                        } else {
+                          void handleCreateTranscript(
+                            lecture
+                          );
+                        }
+                      }}
+                    />
 
-
-                    <Pressable
-                      accessibilityRole="button"
+                    <AudioActionButton
+                      accent={
+                        T.accent
+                      }
+                      fontSize={
+                        F.base - 1
+                      }
+                      disabled={
+                        exportingLectureId ===
+                          lecture.id
+                      }
                       accessibilityLabel={
                         exportLectureId ===
                           lecture.id
                           ? 'Close lecture export menu'
                           : 'Share or export lecture'
                       }
-                      disabled={
+                      label={
                         exportingLectureId ===
                           lecture.id
+                          ? '… Exporting'
+                          : exportLectureId ===
+                              lecture.id
+                            ? '✕ Export'
+                            : '↗ Share / Export'
                       }
-                      hitSlop={{
-                        top: 8,
-                        bottom: 8,
-                        left: 6,
-                        right: 6,
-                      }}
-                      pressRetentionOffset={{
-                        top: 20,
-                        bottom: 20,
-                        left: 20,
-                        right: 20,
-                      }}
                       onPress={() => {
-
                         void Haptics
                           .selectionAsync();
 
@@ -5581,161 +3649,35 @@ export default function VoiceScreen() {
                               : lecture.id
                         );
                       }}
-                      style={({
-                        pressed,
-                      }) => [
-                        styles.smallActionButton,
-                        styles.fullActionButton,
-                        {
-                          borderColor:
-                            T.accent,
-                          backgroundColor:
-                            pressed
-                              ? T.accent +
-                                '14'
-                              : 'transparent',
-                          opacity:
-                            pressed
-                              ? 0.62
-                              : 1,
-                          transform: [
-                            {
-                              scale:
-                                pressed
-                                  ? 0.97
-                                  : 1,
-                            },
-                          ],
-                        },
-                      ]}
-                    >
-
-                      <Text
-                        style={[
-                          styles.smallActionText,
-                          {
-                            color:
-                              T.accent,
-                            fontSize:
-                              F.base - 1,
-                          },
-                        ]}
-                      >
-                        {exportingLectureId ===
-                          lecture.id
-                          ? '… Exporting'
-                          : exportLectureId ===
-                              lecture.id
-                            ? '✕ Export'
-                            : '↗ Share / Export'}
-                      </Text>
-
-                    </Pressable>
+                    />
 
                   </View>
-
 
                   {exportLectureId ===
                     lecture.id && (
 
-                    <View
-                      style={
-                        styles.exportBox
+                    <ExportMenu
+                      accent={
+                        T.accent
                       }
-                    >
-
-                      <Text
-                        style={[
-                          styles.exportTitle,
-                          {
-                            color:
-                              T.textSecondary,
-                            fontSize:
-                              F.base - 2,
-                          },
-                        ]}
-                      >
-                        Export this lecture
-                      </Text>
-
-
-                      {(
-                        [
-                          [
-                            'audio',
-                            '🎧 M4A audio',
-                          ],
-                          [
-                            'transcript',
-                            '📄 Transcript',
-                          ],
-                          [
-                            'ukrainian',
-                            '🇺🇦 Ukrainian translation',
-                          ],
-                          [
-                            'timestamps',
-                            '⏱ Text with timestamps',
-                          ],
-                          [
-                            'zip',
-                            '📦 Complete ZIP',
-                          ],
-                        ] as const
-                      ).map(
-                        (
-                          [
-                            kind,
-                            label,
-                          ]
-                        ) => (
-
-                          <Pressable
-                            key={
-                              kind
-                            }
-                            accessibilityRole="button"
-                            accessibilityLabel={
-                              label
-                            }
-                            disabled={
-                              exportingLectureId ===
-                                lecture.id
-                            }
-                            onPress={() =>
-                              void handleExportLecture(
-                                lecture,
-                                kind
-                              )
-                            }
-                            style={[
-                              styles.exportOption,
-                              {
-                                borderColor:
-                                  T.accent,
-                              },
-                            ]}
-                          >
-
-                            <Text
-                              style={[
-                                styles.exportOptionText,
-                                {
-                                  color:
-                                    T.accent,
-                                  fontSize:
-                                    F.base - 2,
-                                },
-                              ]}
-                            >
-                              {label}
-                            </Text>
-
-                          </Pressable>
-                        )
-                      )}
-
-                    </View>
+                      textSecondary={
+                        T.textSecondary
+                      }
+                      fontBase={
+                        F.base
+                      }
+                      disabled={
+                        exportingLectureId ===
+                          lecture.id
+                      }
+                      onExport={
+                        kind =>
+                          void handleExportLecture(
+                            lecture,
+                            kind
+                          )
+                      }
+                    />
                   )}
 
 
@@ -5847,13 +3789,28 @@ export default function VoiceScreen() {
                           },
                         ]}
                       >
-                        {whisperStage ===
-                          'preparing-model'
-                          ? 'First use may download the Whisper model. Keep the app open and connected to the internet.'
-                          : 'Processing locally. Long lectures may take several minutes.'}
+                        {retranscribingLectureId ===
+                          lecture.id
+                          ? (
+                            whisperStage ===
+                              'preparing-model'
+                              ? 'Re-transcribing… preparing the offline Whisper model. The existing transcript will stay visible until the new version is ready.'
+                              : whisperStage ===
+                                  'retrying'
+                                ? 'Re-transcribing… no text detected on the first pass, retrying once.'
+                                : 'Re-transcribing locally on this iPhone… The existing transcript will stay visible until the replacement is complete.'
+                          )
+                          : (
+                            whisperStage ===
+                              'preparing-model'
+                              ? 'First use may download the Whisper model. Keep the app open and connected to the internet.'
+                              : 'Processing locally. Long lectures may take several minutes.'
+                          )}
                       </Text>
 
-                      {!!liveTranscript && (
+                      {retranscribingLectureId !==
+                        lecture.id &&
+                        !!liveTranscript && (
 
                         <Text
                           selectable
@@ -5912,349 +3869,217 @@ export default function VoiceScreen() {
                       ]}
                     >
 
-                      {openedTranscriptSegments.length >
-                        0
-                        ? (
+                      {transcriptUpdatedFlashLectureId ===
+                        lecture.id ? (
 
-                          <View
-                            style={
-                              styles.transcriptSegmentsList
-                            }
-                          >
+                        <Text
+                          accessibilityRole="text"
+                          style={[
+                            styles.transcriptionStatus,
+                            {
+                              color:
+                                T.accent,
+                              fontSize:
+                                F.base - 1,
+                              fontWeight:
+                                '800',
+                              marginBottom:
+                                10,
+                            },
+                          ]}
+                        >
+                          ✓ Transcript updated
+                        </Text>
 
-                            {openedTranscriptSegments.map(
-                              (
-                                segment,
-                                index
-                              ) => {
+                      ) : transcriptUpdatedLectureId ===
+                          lecture.id ? (
 
-                                const isActiveSegment =
-                                  isCurrent &&
-                                  playerStatus.isLoaded &&
-                                  playerStatus.currentTime >=
-                                    segment.start &&
-                                  playerStatus.currentTime <
-                                    Math.max(
-                                      segment.end,
-                                      segment.start +
-                                        0.1
-                                    );
+                        <Text
+                          accessibilityRole="text"
+                          style={[
+                            styles.transcriptionStatus,
+                            {
+                              color:
+                                T.textSecondary,
+                              fontSize:
+                                F.base - 2,
+                              marginBottom:
+                                10,
+                            },
+                          ]}
+                        >
+                          Updated just now
+                        </Text>
 
-
-                                return (
-
-                                  <Pressable
-                                    key={
-                                      `${segment.start}-${index}`
-                                    }
-                                    onPress={() =>
-                                      void handleSeekLectureTo(
-                                        lecture,
-                                        segment.start,
-                                        true
-                                      )
-                                    }
-                                    style={[
-                                      styles.transcriptSegmentRow,
-                                      {
-                                        backgroundColor:
-                                          isActiveSegment
-                                            ? T.accent +
-                                              '18'
-                                            : 'transparent',
-                                      },
-                                    ]}
-                                  >
-
-                                    <Text
-                                      style={[
-                                        styles.transcriptTimestamp,
-                                        {
-                                          color:
-                                            T.accent,
-                                          fontSize:
-                                            F.base - 3,
-                                        },
-                                      ]}
-                                    >
-                                      {formatPlaybackTime(
-                                        segment.start
-                                      )}
-                                    </Text>
+                      ) : null}
 
 
-                                    <Text
-                                      selectable
-                                      style={[
-                                        styles.transcriptSegmentText,
-                                        {
-                                          color:
-                                            T.textSecondary,
-                                          fontSize:
-                                            F.base,
-                                        },
-                                      ]}
-                                    >
-                                      {segment.text}
-                                    </Text>
-
-                                  </Pressable>
-                                );
-                              }
-                            )}
-
-                          </View>
-
-                        )
-                        : (
-
-                          <Text
-                            selectable
-                            style={[
-                              styles.savedTranscriptText,
-                              {
-                                color:
-                                  T.textSecondary,
-                                fontSize:
-                                  F.base,
-                              },
-                            ]}
-                          >
-                            {openedTranscript}
-                          </Text>
-                        )}
+                      <TranscriptView
+                        segments={
+                          openedTranscriptSegments
+                        }
+                        fallbackText={
+                          openedTranscript
+                        }
+                        isCurrent={
+                          isCurrent
+                        }
+                        isLoaded={
+                          playerStatus.isLoaded
+                        }
+                        currentTime={
+                          playerStatus.currentTime
+                        }
+                        accent={
+                          T.accent
+                        }
+                        textSecondary={
+                          T.textSecondary
+                        }
+                        fontBase={
+                          F.base
+                        }
+                        onSeek={
+                          seconds =>
+                            void handleSeekLectureTo(
+                              lecture,
+                              seconds,
+                              true
+                            )
+                        }
+                      />
 
 
                       <View
                         style={
-                          styles.translationSection
+                          styles.retranscribeRow
                         }
                       >
-
-                        <Text
-                          style={[
-                            styles.translationTitle,
-                            {
-                              color:
-                                T.textSecondary,
-                              fontSize:
-                                F.base,
-                            },
-                          ]}
-                        >
-                          Quick translation
-                        </Text>
-
-
-                        <View
-                          style={
-                            styles.translationLanguageRow
-                          }
-                        >
-
-                          <Pressable
-                            disabled={
-                              !!(
-                                translatingLectureId ||
-                                transcribingLectureId
-                              )
-                            }
-                            onPress={() =>
-                              handleSelectTranslationTarget(
-                                lecture,
-                                'uk'
-                              )
-                            }
-                            style={[
-                              styles.translationLanguageButton,
-                              {
-                                borderColor:
-                                  T.accent,
-                                backgroundColor:
-                                  translationTarget ===
-                                    'uk'
-                                    ? T.accent
-                                    : 'transparent',
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.translationLanguageText,
-                                {
-                                  color:
-                                    translationTarget ===
-                                      'uk'
-                                      ? '#FFFFFF'
-                                      : T.accent,
-                                  fontSize:
-                                    F.base - 2,
-                                },
-                              ]}
-                            >
-                              Українська
-                            </Text>
-                          </Pressable>
-
-
-                          <Pressable
-                            disabled={
-                              !!(
-                                translatingLectureId ||
-                                transcribingLectureId
-                              )
-                            }
-                            onPress={() =>
-                              handleSelectTranslationTarget(
-                                lecture,
-                                'ru'
-                              )
-                            }
-                            style={[
-                              styles.translationLanguageButton,
-                              {
-                                borderColor:
-                                  T.accent,
-                                backgroundColor:
-                                  translationTarget ===
-                                    'ru'
-                                    ? T.accent
-                                    : 'transparent',
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.translationLanguageText,
-                                {
-                                  color:
-                                    translationTarget ===
-                                      'ru'
-                                      ? '#FFFFFF'
-                                      : T.accent,
-                                  fontSize:
-                                    F.base - 2,
-                                },
-                              ]}
-                            >
-                              Русский
-                            </Text>
-                          </Pressable>
-
-                        </View>
-
-
                         <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Re-transcribe lecture"
                           disabled={
-                            !!(
-                              translatingLectureId ||
-                              transcribingLectureId
-                            )
+                            isLectureProcessing
                           }
                           onPress={() =>
-                            void handleTranslateTranscript(
-                              lecture
+                            confirmRetranscribe(
+                              lecture,
+                              async () => {
+                                setTranscriptUpdatedLectureId(
+                                  null
+                                );
+
+                                setTranscriptUpdatedFlashLectureId(
+                                  null
+                                );
+
+                                if (
+                                  transcriptUpdatedFlashTimerRef.current
+                                ) {
+                                  clearTimeout(
+                                    transcriptUpdatedFlashTimerRef.current
+                                  );
+                                }
+
+                                if (
+                                  transcriptUpdatedStatusTimerRef.current
+                                ) {
+                                  clearTimeout(
+                                    transcriptUpdatedStatusTimerRef.current
+                                  );
+                                }
+
+                                clearPlaybackLoadTimers();
+
+                                pendingPlaybackIdRef.current =
+                                  null;
+
+                                pendingPlaybackUriRef.current =
+                                  null;
+
+                                pendingPlaybackSeekRef.current =
+                                  null;
+
+                                setLoadingLectureId(
+                                  null
+                                );
+
+                                if (
+                                  playerStatus.playing
+                                ) {
+                                  player.pause();
+                                }
+                              }
                             )
                           }
                           style={[
-                            styles.translateButton,
+                            styles.retranscribeButton,
                             {
                               borderColor:
                                 T.accent,
+                              opacity:
+                                isLectureProcessing
+                                  ? 0.45
+                                  : 1,
                             },
                           ]}
                         >
                           <Text
                             style={[
-                              styles.translateButtonText,
+                              styles.retranscribeText,
                               {
                                 color:
                                   T.accent,
-                                fontSize:
-                                  F.base - 1,
-                              },
-                            ]}
-                          >
-                            {translatingLectureId ===
-                              lecture.id
-                              ? '… Translating on this iPhone'
-                              : openedTranslation
-                                ? 'Translate again with Google'
-                                : 'Translate with Google'}
-                          </Text>
-                        </Pressable>
-
-
-                        <Text
-                          style={[
-                            styles.translationInfo,
-                            {
-                              color:
-                                T.textSecondary,
-                              fontSize:
-                                F.base - 3,
-                            },
-                          ]}
-                        >
-                          On-device after the language model is downloaded. First use requires Wi-Fi.
-                        </Text>
-
-
-                        {!!translationError && (
-                          <Text
-                            style={[
-                              styles.translationError,
-                              {
-                                color:
-                                  T.textSecondary,
                                 fontSize:
                                   F.base - 2,
                               },
                             ]}
                           >
-                            {translationError}
+                            ↻ Re-transcribe
                           </Text>
-                        )}
-
-
-                        {!!openedTranslation && (
-                          <View
-                            style={
-                              styles.translationResult
-                            }
-                          >
-                            <Text
-                              selectable
-                              style={[
-                                styles.translationText,
-                                {
-                                  color:
-                                    T.textSecondary,
-                                  fontSize:
-                                    F.base,
-                                },
-                              ]}
-                            >
-                              {openedTranslation}
-                            </Text>
-
-                            <Text
-                              style={[
-                                styles.translationAttribution,
-                                {
-                                  color:
-                                    T.textSecondary,
-                                  fontSize:
-                                    F.base - 3,
-                                },
-                              ]}
-                            >
-                              Automatic translation powered by Google Translate
-                            </Text>
-                          </View>
-                        )}
-
+                        </Pressable>
                       </View>
+
+                      <TranslationPanel
+                        target={
+                          translationTarget
+                        }
+                        translating={
+                          translatingLectureId ===
+                            lecture.id
+                        }
+                        processing={
+                          isLectureProcessing
+                        }
+                        translatedText={
+                          openedTranslation
+                        }
+                        error={
+                          translationError
+                        }
+                        accent={
+                          T.accent
+                        }
+                        textSecondary={
+                          T.textSecondary
+                        }
+                        fontBase={
+                          F.base
+                        }
+                        onTarget={
+                          target =>
+                            handleSelectTranslationTarget(
+                              lecture,
+                              target
+                            )
+                        }
+                        onTranslate={
+                          () =>
+                            void handleTranslateTranscript(
+                              lecture
+                            )
+                        }
+                      />
 
                     </View>
                   )}
@@ -6567,59 +4392,14 @@ const styles =
       textAlign: 'center',
     },
 
-    savedMarkersBox: {
-      marginTop: 12,
-    },
 
-    savedMarkersTitle: {
-      fontWeight: '900',
-      marginBottom: 7,
-    },
 
-    savedMarkersWrap: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 7,
-    },
 
-    savedMarkerButton: {
-      borderWidth: 1,
-      borderRadius: 999,
-      minHeight: 32,
-      paddingHorizontal: 9,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
 
-    savedMarkerText: {
-      fontWeight: '800',
-    },
 
-    exportBox: {
-      marginTop: 10,
-      padding: 10,
-      borderRadius: 13,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(128,128,128,0.35)',
-      gap: 7,
-    },
 
-    exportTitle: {
-      fontWeight: '900',
-      marginBottom: 2,
-    },
 
-    exportOption: {
-      minHeight: 38,
-      borderWidth: 1,
-      borderRadius: 11,
-      justifyContent: 'center',
-      paddingHorizontal: 11,
-    },
 
-    exportOptionText: {
-      fontWeight: '800',
-    },
 
     lectureActions: {
       flexDirection: 'row',
@@ -6628,30 +4408,9 @@ const styles =
       marginTop: 14,
     },
 
-    smallActionButton: {
-      minHeight: 56,
-      borderWidth: 1.5,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
 
-    halfActionButton: {
-      flexGrow: 1,
-      flexBasis: '46%',
-    },
 
-    fullActionButton: {
-      width: '100%',
-    },
 
-    smallActionText: {
-      fontWeight: '900',
-      textAlign: 'center',
-      lineHeight: 21,
-    },
 
     transcriptionBox: {
       marginTop: 12,
@@ -6681,108 +4440,41 @@ const styles =
         StyleSheet.hairlineWidth,
     },
 
-    transcriptSegmentsList: {
-      gap: 3,
-    },
 
-    transcriptSegmentRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 10,
-      paddingVertical: 8,
-      paddingHorizontal: 8,
-      borderRadius: 10,
-    },
 
-    transcriptTimestamp: {
-      minWidth: 44,
-      fontWeight: '900',
-      paddingTop: 2,
-    },
 
-    transcriptSegmentText: {
-      flex: 1,
-      lineHeight: 24,
-      fontWeight: '500',
-    },
 
     savedTranscriptText: {
       lineHeight: 24,
       fontWeight: '500',
     },
 
-    translationSection: {
-      marginTop: 18,
-      paddingTop: 16,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: 'rgba(128,128,128,0.35)',
+
+
+
+
+
+
+
+
+
+
+
+
+    retranscribeRow: {
+      marginTop: 14,
+      alignItems: 'flex-start',
     },
 
-    translationTitle: {
-      fontWeight: '900',
-      marginBottom: 10,
-    },
-
-    translationLanguageRow: {
-      flexDirection: 'row',
-      gap: 10,
-      marginBottom: 10,
-    },
-
-    translationLanguageButton: {
-      flex: 1,
+    retranscribeButton: {
       minHeight: 38,
       borderWidth: 1,
       borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 8,
-    },
-
-    translationLanguageText: {
-      fontWeight: '800',
-      textAlign: 'center',
-    },
-
-    translateButton: {
-      minHeight: 42,
-      borderWidth: 1.5,
-      borderRadius: 13,
-      alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 12,
-      paddingVertical: 9,
     },
 
-    translateButtonText: {
-      fontWeight: '900',
-      textAlign: 'center',
-    },
-
-    translationInfo: {
-      marginTop: 8,
-      lineHeight: 17,
-      fontWeight: '600',
-    },
-
-    translationError: {
-      marginTop: 10,
-      lineHeight: 19,
-      fontWeight: '700',
-    },
-
-    translationResult: {
-      marginTop: 16,
-    },
-
-    translationText: {
-      lineHeight: 24,
-      fontWeight: '500',
-    },
-
-    translationAttribution: {
-      marginTop: 12,
-      lineHeight: 17,
-      fontWeight: '600',
+    retranscribeText: {
+      fontWeight: '800',
     },
   });
