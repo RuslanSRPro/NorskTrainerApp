@@ -28,3 +28,15 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/get-job-status/deno.json"
 entrypoint = "./functions/get-job-status/index.ts"
+
+[functions.job-completion-auditor]
+enabled = true
+verify_jwt = true
+import_map = "./functions/import_map.json"
+entrypoint = "./functions/job-completion-auditor/index.ts"
+
+[functions.pipeline-supervisor]
+enabled = true
+verify_jwt = true
+import_map = "./functions/import_map.json"
+entrypoint = "./functions/pipeline-supervisor/index.ts"
