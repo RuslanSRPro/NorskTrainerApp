@@ -28,13 +28,13 @@
 
 ## Изменяемый существующий файл
 
-- `supabase/config.toml` — добавлена только секция `completion-contract-shadow` с `verify_jwt = false`. Авторизация выполняется внутри функции через `@supabase/server` и именованный современный ключ `secret:completion-shadow`.
+- `supabase/config.toml` — добавлена только секция `completion-contract-shadow` с `verify_jwt = false`. Авторизация выполняется внутри функции через `@supabase/server` и именованный современный ключ `secret:completionshadow`.
 
 ## Безопасный порядок
 
 1. Распаковать ZIP в корень `NorskTrainerApp`.
 2. Выполнить `git status --short` и убедиться, что четыре основных файла выше не изменены.
-3. До применения миграции создать в Supabase именованный secret key `completion-shadow` формата `sb_secret_...`.
+3. До деплоя Edge Function создать в Supabase именованный secret key `completionshadow` формата `sb_secret_...`.
 4. Отдельно проверить и применить миграцию `20260829181722_completion_contract_snapshot_v1.sql`.
 5. Запустить pgTAP-тест `supabase/tests/completion_contract_snapshot_v1.test.sql`.
 6. Только после успешного SQL-теста развернуть `completion-contract-shadow` с `verify_jwt=false`.

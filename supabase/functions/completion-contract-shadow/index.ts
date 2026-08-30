@@ -114,7 +114,7 @@ function errorStatus(message: string): number {
 
 Deno.serve(
   withSupabase<Database>(
-    { auth: "secret:completion-shadow", cors: "disabled" },
+    { auth: "secret:completionshadow", cors: "disabled" },
     async (request, context) => {
       if (request.method !== "POST") {
         return json({ error: "METHOD_NOT_ALLOWED" }, 405);
