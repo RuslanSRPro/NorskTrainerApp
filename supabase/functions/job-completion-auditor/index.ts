@@ -1,5 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  observeCompletionShadow,
+} from '../_shared/completion-contract/v1/shadow-observer.ts';
+import type {
+  SnapshotRpcResult,
+} from '../_shared/completion-contract/v1/runtime.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -107,6 +113,50 @@ function safeStringify(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function hasInternalServiceAuthorization(request: Request): boolean {
+  return request.headers.get('authorization')?.trim() ===
+    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
+}
+
+async function runCompletionContractShadow(jobId: string) {
+  return await observeCompletionShadow({
+    job_id: jobId,
+    fetch_page: async ({
+      job_id,
+      cursor,
+      limit,
+      expected_snapshot_token,
+    }) => {
+      const { data, error } = await supabase.rpc(
+        'get_completion_evidence_snapshot_v1',
+        {
+          p_job_id: job_id,
+          p_cursor: cursor,
+          p_limit: limit,
+          p_expected_snapshot_token: expected_snapshot_token,
+        },
+      );
+
+      if (error) {
+        throw new Error(`COMPLETION_SNAPSHOT_FAILED:${safeStringify(error)}`);
+      }
+
+      return data as unknown as SnapshotRpcResult;
+    },
+    persist_summary: async (field, summary) => {
+      const { error } = await supabase.rpc('append_job_summary_field', {
+        p_job_id: jobId,
+        p_field: field,
+        p_value: summary,
+      });
+
+      if (error) {
+        throw new Error(`COMPLETION_SHADOW_PERSIST_FAILED:${safeStringify(error)}`);
+      }
+    },
+  });
 }
 
 async function callAiEnrichmentWorker(
@@ -244,7 +294,7 @@ type PageItem = {
   normalized_lemma: string | null;
   surface_form: string | null;
   match_type: string | null;
-  lexemes: { pos: string | null } | null;
+  lexemes: { pos: string | null } | Array<{ pos: string | null }> | null;
 };
 
 serve(async (req) => {
@@ -267,6 +317,46 @@ serve(async (req) => {
     }
 
     const jobId = jobIdRaw;
+
+    // Package 3B: отдельный post-terminal режим наблюдения. Он читает
+    // immutable snapshot всех entities, оценивает completion-contract/v1
+    // и пишет только диагностическую сводку в jobs.summary. Он НЕ вызывает
+    // AI/heal, НЕ меняет job status/supervisor stage и НЕ участвует в
+    // legacy-решении о завершении. Режим без `mode` полностью сохраняет
+    // прежний audit/heal API для совместимости с текущим supervisor.
+    const mode = body.mode === 'contract_shadow' ? 'contract_shadow' : 'legacy';
+
+    if (mode === 'contract_shadow') {
+      if (!hasInternalServiceAuthorization(req)) {
+        return jsonResponse({
+          ok: false,
+          job_id: jobId,
+          mode,
+          error: 'INTERNAL_SERVICE_AUTH_REQUIRED',
+        }, 403);
+      }
+
+      try {
+        const observation = await runCompletionContractShadow(jobId);
+
+        return jsonResponse({
+          ok: true,
+          job_id: jobId,
+          mode,
+          ...observation,
+        });
+      } catch (shadowError) {
+        return jsonResponse({
+          ok: false,
+          job_id: jobId,
+          mode,
+          shadow_mode: true,
+          enforcement_applied: false,
+          stage: 'completion_contract_shadow',
+          error: safeStringify(shadowError),
+        }, 500);
+      }
+    }
 
     // heal по умолчанию false — вызов без heal:true только отчитывается,
     // не меняя БД. Явное соответствие комментарию в шапке файла.
@@ -323,7 +413,7 @@ serve(async (req) => {
     // Отфильтровываем items, которые ещё не промоушены ни в lexeme, ни в
     // expression_catalog — им ещё рано проверять полноту перевода, это
     // отдельная (более ранняя) стадия пайплайна.
-    const eligibleItems = (items ?? []).filter((item: PageItem) => {
+    const eligibleItems: PageItem[] = (items ?? []).filter((item: PageItem) => {
       const isExpression = item.match_type === 'expression' && item.expression_id;
       const isLexeme = item.match_type === 'token' && item.lexeme_id;
       return isExpression || isLexeme;
@@ -422,7 +512,10 @@ serve(async (req) => {
       const sourceItem = eligibleItems.find(
         (i) => i.match_type === 'token' && i.lexeme_id === w.id,
       );
-      const lexemePos = sourceItem?.lexemes?.pos ?? null;
+      const lexemeRelation = sourceItem?.lexemes;
+      const lexemePos = Array.isArray(lexemeRelation)
+        ? (lexemeRelation[0]?.pos ?? null)
+        : (lexemeRelation?.pos ?? null);
       const formsOk = await hasRequiredForms(w.id, lexemePos);
 
       if (!formsOk) {

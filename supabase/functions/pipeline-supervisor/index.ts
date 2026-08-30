@@ -644,6 +644,47 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         await updateJobStatus(jobId, 'completed', {
           supervisor_completed_at: new Date().toISOString(),
         });
+
+        // Package 3B shadow observation is deliberately post-terminal:
+        // get_completion_evidence_snapshot_v1 rejects non-terminal jobs.
+        // Persist the legacy terminal decision first, then ask the auditor
+        // to record completion-contract/v1 diagnostics. A shadow failure is
+        // observable but never changes the legacy status or stage.
+        await saveState(state);
+
+        const contractShadowResult = await callWorker(
+          'job-completion-auditor',
+          {
+            job_id: jobId,
+            mode: 'contract_shadow',
+          },
+        );
+
+        if (!contractShadowResult.ok) {
+          console.error(
+            'pipeline-supervisor: completion contract shadow failed',
+            jobId,
+            safeStringify(
+              contractShadowResult.network_error ?? contractShadowResult.data,
+            ),
+          );
+        }
+
+        return {
+          job_id: jobId,
+          stage: state.stage,
+          step: 'job-completion-auditor',
+          classification: 'success',
+          items_checked: result.data?.items_checked,
+          items_still_incomplete_after_heal:
+            result.data?.items_still_incomplete_after_heal,
+          has_more: false,
+          contract_shadow: {
+            attempted: true,
+            recorded: contractShadowResult.ok,
+            detail: contractShadowResult.data,
+          },
+        };
       }
     }
 
