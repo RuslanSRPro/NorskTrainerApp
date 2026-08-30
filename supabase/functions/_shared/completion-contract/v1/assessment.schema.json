@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://norsktrainer.app/schemas/completion-contract/v1/assessment.schema.json",
+  "title": "NorskTrainer completion contract entity assessment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "evaluator_version",
+    "snapshot_version",
+    "snapshot_token",
+    "entity_key",
+    "entity_kind",
+    "entity_id",
+    "lemma",
+    "pos",
+    "item_ids",
+    "execution_state",
+    "quality_stage",
+    "is_learning_lexeme",
+    "paradigm_type",
+    "capabilities",
+    "blockers",
+    "warnings",
+    "evidence_refs",
+    "evaluated_at"
+  ],
+  "properties": {
+    "contract_version": { "const": "completion-contract/v1" },
+    "evaluator_version": { "const": "1.0.0" },
+    "snapshot_version": { "const": "completion-evidence-snapshot/v1" },
+    "snapshot_token": { "type": "string", "minLength": 1 },
+    "entity_key": {
+      "type": "string",
+      "pattern": "^(lexeme|expression):[0-9a-fA-F-]{36}$"
+    },
+    "entity_kind": { "enum": ["lexeme", "expression"] },
+    "entity_id": { "type": "string", "format": "uuid" },
+    "lemma": { "type": "string", "minLength": 1 },
+    "pos": { "type": ["string", "null"] },
+    "item_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "format": "uuid" }
+    },
+    "execution_state": {
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "needs_manual_review"
+      ]
+    },
+    "quality_stage": {
+      "enum": ["ready", "provisional", "needs_review", "blocked"]
+    },
+    "is_learning_lexeme": { "type": "boolean" },
+    "paradigm_type": {
+      "type": ["string", "null"],
+      "enum": [
+        "regular",
+        "irregular",
+        "suppletive",
+        "defective",
+        "indeclinable",
+        "uncountable",
+        "plural_only",
+        "unknown",
+        null
+      ]
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analysis_ready",
+        "dictionary_ready_uk",
+        "dictionary_ready_en",
+        "training_ready_uk",
+        "training_ready_en",
+        "lexeme360_ready"
+      ],
+      "properties": {
+        "analysis_ready": { "$ref": "#/$defs/capability" },
+        "dictionary_ready_uk": { "$ref": "#/$defs/capability" },
+        "dictionary_ready_en": { "$ref": "#/$defs/capability" },
+        "training_ready_uk": { "$ref": "#/$defs/capability" },
+        "training_ready_en": { "$ref": "#/$defs/capability" },
+        "lexeme360_ready": { "$ref": "#/$defs/capability" }
+      }
+    },
+    "blockers": { "type": "array", "items": { "$ref": "#/$defs/issue" } },
+    "warnings": { "type": "array", "items": { "$ref": "#/$defs/issue" } },
+    "evidence_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string" }
+    },
+    "evaluated_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "issue_codes", "evidence_refs"],
+      "properties": {
+        "status": {
+          "enum": ["ready", "provisional", "blocked", "not_applicable"]
+        },
+        "issue_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "capability", "locale", "detail"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "severity": {
+          "enum": ["blocking", "review", "provisional", "warning"]
+        },
+        "capability": {
+          "type": ["string", "null"],
+          "enum": [
+            "analysis_ready",
+            "dictionary_ready_uk",
+            "dictionary_ready_en",
+            "training_ready_uk",
+            "training_ready_en",
+            "lexeme360_ready",
+            null
+          ]
+        },
+        "locale": { "type": ["string", "null"], "enum": ["uk", "en", null] },
+        "detail": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
