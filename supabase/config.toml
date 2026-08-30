@@ -16,3 +16,15 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/completion-contract-shadow/deno.json"
 entrypoint = "./functions/completion-contract-shadow/index.ts"
+
+[functions.analyze-text]
+enabled = true
+verify_jwt = true
+import_map = "./functions/analyze-text/deno.json"
+entrypoint = "./functions/analyze-text/index.ts"
+
+[functions.get-job-status]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-job-status/deno.json"
+entrypoint = "./functions/get-job-status/index.ts"

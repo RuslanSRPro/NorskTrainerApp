@@ -1290,25 +1290,68 @@ export async function addPreviewWordViaAppsScript(_preview: any) {
 // Public: job progress polling (for the ⏳/✅ icon on the reading screen)
 // ============================================================
 
-// ДОБАВЛЕНО (05.08.2026): get_job_progress — уже существующая продовая
-// RPC-функция (SECURITY DEFINER, возвращает jsonb). done_items/total_items/
-// progress_percent считаются по items и достигают 100% сразу после
-// promotion — РАНЬШЕ, чем реально завершатся все enrichment-цепочки
-// (подтверждено на живых данных 04-05.08.2026). Поэтому "готово ли ВСЁ"
-// определяет не этот percent, а getJobStatus() ниже.
-export async function getJobProgress(jobId: string): Promise<any> {
-  const { data, error } = await supabase.rpc('get_job_progress', {
-    p_job_id: jobId,
-  });
-  if (error) throw new Error(error.message);
-  return data;
+interface JobStatusContractResponse {
+  ok: boolean;
+  status: 'processing' | 'completed' | 'needs_manual_review';
+  ready: boolean;
+  execution_state:
+    | 'pending'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'needs_manual_review';
+  quality_state:
+    | 'ready'
+    | 'provisional'
+    | 'needs_review'
+    | 'blocked'
+    | null;
+  learner_ready: boolean;
+  summary: any;
+  progress: any;
+  chain_progress?: Array<{
+    chain_index: number;
+    chain_key: string;
+    display_label: string;
+    done_count: number;
+    total_count: number;
+    is_current: boolean;
+    is_complete: boolean;
+  }>;
+  quality?: any;
+  items?: any[];
 }
 
-// ДОБАВЛЕНО (05.08.2026): get_job_chain_progress — разбивка по 10
-// enrichment-цепочкам. ВАЖНО: enrichment_offsets сбрасывается в {} как
-// только job переходит из 'enrichment' в 'audit'/'done' — то есть после
-// реального завершения все строки покажут done_count=0. UI должен
-// использовать эту функцию только ПОКА job не completed.
+async function invokeJobStatus(
+  jobId: string,
+  includeChainProgress = false,
+): Promise<JobStatusContractResponse> {
+  const { data, error } = await supabase.functions.invoke(
+    'get-job-status',
+    {
+      body: {
+        job_id: jobId,
+        include_chain_progress: includeChainProgress,
+      },
+    },
+  );
+  if (error) {
+    throw new Error(error.message || 'get-job-status failed');
+  }
+  if (!data?.ok) {
+    throw new Error(data?.error || 'get-job-status returned not ok');
+  }
+  return data as JobStatusContractResponse;
+}
+
+// Progress is read through the owner-checked Edge Function. The mobile
+// client no longer calls privileged/direct database RPCs.
+export async function getJobProgress(jobId: string): Promise<any> {
+  const response = await invokeJobStatus(jobId);
+  return response.progress;
+}
+
+// Chain progress follows the same ownership boundary.
 export async function getJobChainProgress(jobId: string): Promise<Array<{
   chain_index: number;
   chain_key: string;
@@ -1318,27 +1361,17 @@ export async function getJobChainProgress(jobId: string): Promise<Array<{
   is_current: boolean;
   is_complete: boolean;
 }>> {
-  const { data, error } = await supabase.rpc('get_job_chain_progress', {
-    p_job_id: jobId,
-  });
-  if (error) throw new Error(error.message);
-  return data || [];
+  const response = await invokeJobStatus(jobId, true);
+  return response.chain_progress || [];
 }
 
-// ДОБАВЛЕНО (05.08.2026): единственный надёжный сигнал полного
-// завершения — status='completed' на lexeme_processing_jobs выставляется
-// только когда pipeline-supervisor реально доходит до stage='done'.
-export async function getJobStatus(jobId: string): Promise<{
-  status: string;
-  summary: any;
-} | null> {
-  const { data, error } = await supabase
-    .from('lexeme_processing_jobs')
-    .select('status, summary')
-    .eq('id', jobId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data;
+// Execution and linguistic quality are separate. Compatibility field
+// status becomes completed only when the completion contract says the
+// result is learner-ready.
+export async function getJobStatus(
+  jobId: string,
+): Promise<JobStatusContractResponse> {
+  return invokeJobStatus(jobId);
 }
 
 export async function getLearningWords() {

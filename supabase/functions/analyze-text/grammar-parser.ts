@@ -75,7 +75,7 @@ export type VerbMaps = {
 };
 
 export type SurfaceResolution = {
-  lexeme_id: string;
+  lexeme_id: string | null;
   lemma: string;
   pos: string;
   form_type: string;
@@ -100,6 +100,7 @@ export type PlannedItem = {
     | 'exact_expression'
     | 'compound_normalized'
     | 'token'
+    | 'candidate_generator'
     | 'lexeme360_network_candidate';
   compound_normalized?: string | null;
   network_root_lemma?: string | null;

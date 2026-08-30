@@ -2,6 +2,7 @@
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withSupabase } from '@supabase/server';
 import {
   normalize,
   normalizeExpression,
@@ -18,6 +19,10 @@ import {
 import { generateExpressionCandidates } from './candidate-generator.ts';
 import { resolveExpressions } from './expression-resolver.ts';
 import { resolveCandidatesAgainstCatalog } from './candidate-catalog-bridge.ts';
+
+declare const EdgeRuntime: {
+  waitUntil(promise: Promise<unknown>): void;
+};
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY =
@@ -1120,14 +1125,17 @@ async function triggerOrchestrator(jobId: string) {
   return payload;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders,
-    });
-  }
-
+serve(withSupabase({ auth: 'user' }, async (req, context) => {
   try {
+    const authenticatedUserId = context.userClaims?.id?.trim() ?? '';
+
+    if (!authenticatedUserId) {
+      return Response.json(
+        { ok: false, error: 'Unauthorized' },
+        { status: 401, headers: corsHeaders },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const text = String(body.text || '').trim();
 
@@ -1156,7 +1164,9 @@ serve(async (req) => {
       'create_empty_text_analysis_job',
       {
         p_text: text,
-        p_user_id: body.user_id ?? null,
+        // Ownership is derived only from the verified session JWT.
+        // A caller-supplied user_id must never be trusted.
+        p_user_id: authenticatedUserId,
         p_ingestion_version: INGESTION_VERSION,
       },
     );
@@ -1442,4 +1452,4 @@ serve(async (req) => {
       },
     );
   }
-});
+}));

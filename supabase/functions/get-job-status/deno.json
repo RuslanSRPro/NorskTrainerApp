@@ -4,5 +4,7 @@
   "imports": {
     "@supabase/server": "npm:@supabase/server@1.4.1"
   },
-  "lib": ["deno.window"]
+  "compilerOptions": {
+    "strict": true
+  }
 }

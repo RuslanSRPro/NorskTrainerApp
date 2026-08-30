@@ -1,225 +1,364 @@
-// supabase/functions/get-job-status/index.ts
-// Polling endpoint for analyze-text background jobs.
-//
-// ПРАВКА: isReady теперь вычисляется из public.get_job_progress(job_id)
-// (view job_progress_v), а не из lexeme_processing_jobs.status —
-// это поле не обновляется синхронно с реальным состоянием
-// lexeme_processing_items / lexeme_source_checks, из-за чего клиент
-// мог получать status='pending' бесконечно, даже когда items реально
-// уже done. Легковесный ответ теперь всегда содержит progress —
-// клиент может рисовать прогресс-бар даже до готовности.
-//
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withSupabase } from "@supabase/server";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+import {
+  evaluateJobCompletion,
+  type SnapshotRpcResult,
+} from "../_shared/completion-contract/v1/runtime.ts";
+import type {
+  ExecutionState,
+} from "../_shared/completion-contract/v1/contract.ts";
+import { ownsJob } from "../_shared/job-status-policy.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+interface StatusRequest {
+  job_id?: unknown;
+  include_chain_progress?: unknown;
+}
 
-  try {
-    const url = new URL(req.url);
-    // ФИКС: некоторые упрощённые "Test function" интерфейсы (Supabase
-    // Dashboard) не дают способа указать query-параметр для GET-запроса —
-    // только Request Body. Добавлен fallback: если job_id нет в URL,
-    // пробуем прочитать его из тела запроса (как raw "job_id=..." или JSON).
-    let jobId = url.searchParams.get('job_id');
+interface JobRow {
+  id: string;
+  user_id: string | null;
+  status: string | null;
+  total_items: number | null;
+  done_items: number | null;
+  partial_items: number | null;
+  failed_items: number | null;
+  skipped_items: number | null;
+  summary: unknown;
+  created_at: string;
+  updated_at: string;
+}
 
-    if (!jobId) {
-      try {
-        const rawBody = await req.text();
+interface ProgressRow {
+  status?: string | null;
+  ready_for_promotion?: boolean | null;
+  [key: string]: unknown;
+}
 
-        if (rawBody) {
-          // Пробуем как JSON: { "job_id": "..." }
-          try {
-            const parsed = JSON.parse(rawBody);
-            if (parsed?.job_id) jobId = String(parsed.job_id);
-          } catch {
-            // Не JSON — пробуем как "job_id=..." (form-urlencoded/raw text)
-            const match = rawBody.match(/job_id\s*=\s*["']?([0-9a-fA-F-]{36})["']?/);
-            if (match) jobId = match[1];
-          }
-        }
-      } catch {
-        // тело не читается — оставляем jobId как null, ниже вернём 400
-      }
-    }
+function json(body: unknown, status = 200): Response {
+  return Response.json(body, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
 
-    if (!jobId) {
-      return Response.json(
-        { ok: false, error: 'job_id query param is required' },
-        { status: 400, headers: corsHeaders },
-      );
-    }
-
-    // 1. Job row (для created_at/summary — метаданные, не для проверки готовности)
-    const { data: job, error: jobError } = await supabase
-      .from('lexeme_processing_jobs')
-      .select(`
-        id, status, total_items, done_items,
-        partial_items, failed_items, skipped_items,
-        summary, created_at, updated_at
-      `)
-      .eq('id', jobId)
-      .single();
-
-    if (jobError) throw jobError;
-
-    // 2. Реальный прогресс — единственный источник правды для готовности.
-    const { data: progressData, error: progressError } = await supabase
-      .rpc('get_job_progress', { p_job_id: jobId });
-
-    if (progressError) throw progressError;
-
-    const progress = progressData ?? {
-      job_id: jobId,
-      total_items: 0,
-      done_items: 0,
-      pending_items: 0,
-      failed_items: 0,
-      stuck_items: 0,
-      pending_checks: 0,
-      progress_ratio: 0,
-      progress_percent: 0,
-      ready_for_promotion: false,
-      has_stuck_items: false,
-      status: 'not_started',
+async function readRequest(request: Request): Promise<{
+  jobId: string;
+  includeChainProgress: boolean;
+}> {
+  if (request.method === "GET") {
+    const url = new URL(request.url);
+    return {
+      jobId: (url.searchParams.get("job_id") ?? "").trim(),
+      includeChainProgress:
+        url.searchParams.get("include_chain_progress") === "true",
     };
+  }
+  if (request.method !== "POST") throw new Error("METHOD_NOT_ALLOWED");
 
-    const isReady = progress.ready_for_promotion === true;
-    let autoResumed = false;
+  let input: StatusRequest;
+  try {
+    input = await request.json() as StatusRequest;
+  } catch {
+    throw new Error("INVALID_JSON");
+  }
+  return {
+    jobId: typeof input.job_id === "string" ? input.job_id.trim() : "",
+    includeChainProgress: input.include_chain_progress === true,
+  };
+}
 
-    if (!isReady && job.status !== 'done') {
-      try {
-        const { data: shouldResume, error: resumeClaimError } = await supabase.rpc(
-          'claim_job_resume',
-          { p_job_id: jobId, p_stale_seconds: 90 },
-        );
+function errorStatus(message: string): number {
+  if (message.includes("METHOD_NOT_ALLOWED")) return 405;
+  if (
+    message.includes("JOB_ID_REQUIRED") ||
+    message.includes("INVALID_JSON") ||
+    message.includes("INTEGER_RANGE")
+  ) return 400;
+  if (message.includes("JOB_NOT_FOUND")) return 404;
+  if (message.includes("SNAPSHOT_CHANGED")) return 409;
+  return 500;
+}
 
-        if (resumeClaimError) {
-          console.error('get-job-status: claim_job_resume failed', jobId, resumeClaimError);
-        } else if (shouldResume === true) {
-          console.log('get-job-status: auto-resuming stalled job', jobId);
-          autoResumed = true;
+function inferExecutionState(
+  job: JobRow,
+  progress: ProgressRow,
+): ExecutionState {
+  const jobStatus = String(job.status ?? "").toLowerCase();
+  const progressStatus = String(progress.status ?? "").toLowerCase();
 
-          EdgeRuntime.waitUntil(
-            fetch(`${SUPABASE_URL}/functions/v1/job-orchestrator`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ job_id: jobId }),
-            }).catch((resumeError) => {
-              console.error('get-job-status: auto-resume fetch failed', jobId, resumeError);
-            }),
-          );
-        }
-      } catch (resumeException) {
-        console.error('get-job-status: auto-resume threw', jobId, resumeException);
-      }
+  if (jobStatus === "failed" || progressStatus === "failed") return "failed";
+  if (
+    jobStatus === "needs_manual_review" ||
+    progressStatus === "needs_manual_review"
+  ) {
+    return "needs_manual_review";
+  }
+  if (
+    progress.ready_for_promotion === true ||
+    ["ready", "done", "completed"].includes(progressStatus) ||
+    ["done", "completed"].includes(jobStatus)
+  ) {
+    return "completed";
+  }
+  if (["processing", "running", "in_progress"].includes(progressStatus)) {
+    return "running";
+  }
+  if (["pending", "queued", "not_started"].includes(jobStatus)) {
+    return "pending";
+  }
+  return "running";
+}
+
+function publicJob(job: JobRow): Omit<JobRow, "user_id"> {
+  const { user_id: _owner, ...safeJob } = job;
+  return safeJob;
+}
+
+async function loadLearnerItems(
+  admin: any,
+  jobId: string,
+): Promise<unknown[]> {
+  const { data: items, error: itemsError } = await admin
+    .from("lexeme_processing_items")
+    .select(`
+      id, raw_input, normalized_input, normalized_lemma,
+      surface_form, pos, match_type, expression_id, lexeme_id,
+      status, current_stage, result_summary
+    `)
+    .eq("job_id", jobId)
+    .order("created_at", { ascending: true });
+  if (itemsError) throw new Error(`ITEMS_READ_FAILED:${itemsError.message}`);
+
+  const lexemeIds = [
+    ...new Set(
+      (items ?? []).map((item: any) => item.lexeme_id).filter(Boolean),
+    ),
+  ] as string[];
+  const lexemeMap = new Map<string, any>();
+  const translationMap = new Map<string, { uk: string; en: string }>();
+
+  if (lexemeIds.length > 0) {
+    const { data: lexemes, error: lexemeError } = await admin
+      .from("lexemes")
+      .select("id, lemma, pos, cefr_level, frequency_rank, frequency_ipm")
+      .in("id", lexemeIds);
+    if (lexemeError) {
+      throw new Error(`LEXEMES_READ_FAILED:${lexemeError.message}`);
     }
+    for (const lexeme of lexemes ?? []) lexemeMap.set(lexeme.id, lexeme);
 
-    // 3. Если не готово — лёгкий ответ с прогрессом, без items.
-    if (!isReady) {
-      return Response.json(
-        {
-          ok: true,
-          ready: false,
-          auto_resumed: autoResumed,
-          job,
-          progress,
-        },
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    const { data: translations, error: translationError } = await admin
+      .from("entity_translations")
+      .select("lexeme_id, language_code, translation")
+      .in("lexeme_id", lexemeIds)
+      .eq("source", "lexin")
+      .eq("translation_type", "primary")
+      .eq("sense_rank", 1)
+      .eq("translation_rank", 1);
+    if (translationError) {
+      throw new Error(
+        `TRANSLATIONS_READ_FAILED:${translationError.message}`,
       );
     }
-
-    // 4. Готово — подтягиваем полные items с переводами + CEFR.
-    const { data: items, error: itemsError } = await supabase
-      .from('lexeme_processing_items')
-      .select(`
-        id, raw_input, normalized_input, normalized_lemma,
-        surface_form, pos, match_type, expression_id, lexeme_id,
-        status, current_stage, result_summary
-      `)
-      .eq('job_id', jobId)
-      .order('created_at', { ascending: true });
-
-    if (itemsError) throw itemsError;
-
-    const lexemeIds = (items ?? [])
-      .map((i) => i.lexeme_id)
-      .filter((id): id is string => Boolean(id));
-
-    let lexemeMap = new Map<string, any>();
-    if (lexemeIds.length > 0) {
-      const { data: lexemeData } = await supabase
-        .from('lexemes')
-        .select('id, lemma, pos, cefr_level, frequency_rank, frequency_ipm')
-        .in('id', lexemeIds);
-      lexemeMap = new Map((lexemeData ?? []).map((l) => [l.id, l]));
-    }
-
-    let translationMap = new Map<string, { uk: string; en: string }>();
-    if (lexemeIds.length > 0) {
-      const { data: translations } = await supabase
-        .from('entity_translations')
-        .select('lexeme_id, language_code, translation')
-        .in('lexeme_id', lexemeIds)
-        .eq('source', 'lexin')
-        .eq('translation_type', 'primary')
-        .eq('sense_rank', 1)
-        .eq('translation_rank', 1);
-
-      for (const t of translations ?? []) {
-        if (!translationMap.has(t.lexeme_id)) {
-          translationMap.set(t.lexeme_id, { uk: '', en: '' });
-        }
-        const entry = translationMap.get(t.lexeme_id)!;
-        if (t.language_code === 'uk') entry.uk = t.translation;
-        if (t.language_code === 'en') entry.en = t.translation;
+    for (const translation of translations ?? []) {
+      if (!translationMap.has(translation.lexeme_id)) {
+        translationMap.set(translation.lexeme_id, { uk: "", en: "" });
+      }
+      const entry = translationMap.get(translation.lexeme_id)!;
+      if (translation.language_code === "uk") {
+        entry.uk = translation.translation;
+      }
+      if (translation.language_code === "en") {
+        entry.en = translation.translation;
       }
     }
-
-    const enrichedItems = (items ?? []).map((item) => {
-      const lexeme = item.lexeme_id ? lexemeMap.get(item.lexeme_id) : null;
-      const translation = item.lexeme_id ? translationMap.get(item.lexeme_id) : null;
-      return {
-        ...item,
-        cefr_level: lexeme?.cefr_level ?? null,
-        frequency_rank: lexeme?.frequency_rank ?? null,
-        frequency_ipm: lexeme?.frequency_ipm ?? null,
-        translation_uk: translation?.uk ?? null,
-        translation_en: translation?.en ?? null,
-      };
-    });
-
-    return Response.json(
-      {
-        ok: true,
-        ready: true,
-        job,
-        progress,
-        items: enrichedItems,
-      },
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
-  } catch (error) {
-    return Response.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
   }
-});
+
+  return (items ?? []).map((item: any) => {
+    const lexeme = item.lexeme_id ? lexemeMap.get(item.lexeme_id) : null;
+    const translation = item.lexeme_id
+      ? translationMap.get(item.lexeme_id)
+      : null;
+    return {
+      ...item,
+      cefr_level: lexeme?.cefr_level ?? null,
+      frequency_rank: lexeme?.frequency_rank ?? null,
+      frequency_ipm: lexeme?.frequency_ipm ?? null,
+      translation_uk: translation?.uk || null,
+      translation_en: translation?.en || null,
+    };
+  });
+}
+
+Deno.serve(
+  withSupabase(
+    { auth: "user" },
+    async (request, context) => {
+      try {
+        const { jobId, includeChainProgress } = await readRequest(request);
+        if (!UUID_PATTERN.test(jobId)) throw new Error("JOB_ID_REQUIRED");
+
+        const userId = context.userClaims?.id?.trim() ?? "";
+        if (!userId) return json({ ok: false, error: "UNAUTHORIZED" }, 401);
+        // Generated Database types do not cover these internal tables/RPCs.
+        // The response shapes are checked explicitly in this handler.
+        const admin: any = context.supabaseAdmin;
+
+        const { data: jobData, error: jobError } = await admin
+          .from("lexeme_processing_jobs")
+          .select(`
+            id, user_id, status, total_items, done_items,
+            partial_items, failed_items, skipped_items,
+            summary, created_at, updated_at
+          `)
+          .eq("id", jobId)
+          .maybeSingle();
+        if (jobError) throw new Error(`JOB_READ_FAILED:${jobError.message}`);
+
+        const job = jobData as JobRow | null;
+        // A 404 for both missing and foreign jobs prevents job-id enumeration.
+        // Historical NULL-owned jobs are intentionally not exposed.
+        if (!job || !ownsJob(job.user_id, userId)) {
+          throw new Error("JOB_NOT_FOUND");
+        }
+
+        const { data: progressData, error: progressError } = await admin.rpc(
+          "get_job_progress",
+          {
+            p_job_id: jobId,
+          },
+        );
+        if (progressError) {
+          throw new Error(`PROGRESS_READ_FAILED:${progressError.message}`);
+        }
+        const progress = (progressData ?? {}) as ProgressRow;
+        const inferredExecutionState = inferExecutionState(job, progress);
+
+        let chainProgress: unknown[] | undefined;
+        if (includeChainProgress) {
+          const { data, error } = await admin.rpc(
+            "get_job_chain_progress",
+            { p_job_id: jobId },
+          );
+          if (error) {
+            throw new Error(`CHAIN_PROGRESS_READ_FAILED:${error.message}`);
+          }
+          chainProgress = Array.isArray(data) ? data : [];
+        }
+
+        if (
+          inferredExecutionState !== "completed" &&
+          inferredExecutionState !== "needs_manual_review"
+        ) {
+          const status = inferredExecutionState === "failed"
+            ? "needs_manual_review"
+            : "processing";
+          return json({
+            ok: true,
+            status,
+            ready: false,
+            execution_state: inferredExecutionState,
+            quality_state: inferredExecutionState === "failed"
+              ? "blocked"
+              : null,
+            learner_ready: false,
+            job: publicJob(job),
+            summary: job.summary,
+            progress,
+            chain_progress: chainProgress,
+          });
+        }
+
+        let completion;
+        try {
+          completion = await evaluateJobCompletion(
+            async ({
+              job_id,
+              cursor,
+              limit,
+              expected_snapshot_token,
+            }) => {
+              const { data, error } = await admin.rpc(
+                "get_completion_evidence_snapshot_v1",
+                {
+                  p_job_id: job_id,
+                  p_cursor: cursor,
+                  p_limit: limit,
+                  p_expected_snapshot_token: expected_snapshot_token,
+                },
+              );
+              if (error) {
+                throw new Error(`SNAPSHOT_RPC_FAILED:${error.message}`);
+              }
+              return data as SnapshotRpcResult;
+            },
+            jobId,
+          );
+        } catch (error) {
+          const message = error instanceof Error
+            ? error.message
+            : String(error);
+          if (message.includes("TERMINAL_JOB_REQUIRED")) {
+            return json({
+              ok: true,
+              status: "processing",
+              ready: false,
+              execution_state: "running",
+              quality_state: null,
+              learner_ready: false,
+              job: publicJob(job),
+              summary: job.summary,
+              progress,
+              chain_progress: chainProgress,
+            });
+          }
+          throw error;
+        }
+
+        const report = {
+          ...completion.report,
+          assessments: undefined,
+        };
+        const response: Record<string, unknown> = {
+          ok: true,
+          status: completion.learner_ready
+            ? "completed"
+            : "needs_manual_review",
+          ready: completion.learner_ready,
+          execution_state: completion.execution_state,
+          quality_state: completion.quality_state,
+          learner_ready: completion.learner_ready,
+          job: publicJob(job),
+          summary: job.summary,
+          progress,
+          chain_progress: chainProgress,
+          quality: {
+            snapshot_token: completion.report.snapshot_token,
+            source_counts: completion.source_counts,
+            unresolved_items: completion.unresolved_items,
+            unresolved_items_block_completion:
+              completion.unresolved_items_block_completion,
+            report,
+          },
+        };
+
+        if (completion.learner_ready) {
+          response.items = await loadLearnerItems(admin, jobId);
+        }
+        return json(response);
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : "UNKNOWN_ERROR";
+        console.error("get-job-status", { message });
+        return json({ ok: false, error: message }, errorStatus(message));
+      }
+    },
+  ),
+);
