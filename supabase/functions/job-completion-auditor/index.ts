@@ -1,6 +1,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
+  evaluateCompletionEnforcement,
+} from '../_shared/completion-contract/v1/enforcement.ts';
+import {
   observeCompletionShadow,
 } from '../_shared/completion-contract/v1/shadow-observer.ts';
 import type {
@@ -154,6 +157,47 @@ async function runCompletionContractShadow(jobId: string) {
 
       if (error) {
         throw new Error(`COMPLETION_SHADOW_PERSIST_FAILED:${safeStringify(error)}`);
+      }
+    },
+  });
+}
+
+async function runCompletionContractEnforcement(jobId: string) {
+  return await evaluateCompletionEnforcement({
+    job_id: jobId,
+    fetch_page: async ({
+      job_id,
+      cursor,
+      limit,
+      expected_snapshot_token,
+    }) => {
+      const { data, error } = await supabase.rpc(
+        'get_completion_evidence_snapshot_v1',
+        {
+          p_job_id: job_id,
+          p_cursor: cursor,
+          p_limit: limit,
+          p_expected_snapshot_token: expected_snapshot_token,
+        },
+      );
+
+      if (error) {
+        throw new Error(`COMPLETION_SNAPSHOT_FAILED:${safeStringify(error)}`);
+      }
+
+      return data as unknown as SnapshotRpcResult;
+    },
+    persist_summary: async (field, summary) => {
+      const { error } = await supabase.rpc('append_job_summary_field', {
+        p_job_id: jobId,
+        p_field: field,
+        p_value: summary,
+      });
+
+      if (error) {
+        throw new Error(
+          `COMPLETION_ENFORCEMENT_PERSIST_FAILED:${safeStringify(error)}`,
+        );
       }
     },
   });
@@ -324,9 +368,16 @@ serve(async (req) => {
     // AI/heal, НЕ меняет job status/supervisor stage и НЕ участвует в
     // legacy-решении о завершении. Режим без `mode` полностью сохраняет
     // прежний audit/heal API для совместимости с текущим supervisor.
-    const mode = body.mode === 'contract_shadow' ? 'contract_shadow' : 'legacy';
+    // Package 3C добавляет отдельную оценку enforcement. Auditor только
+    // вычисляет решение и сохраняет компактную сводку; статус job и stage
+    // остаются исключительной ответственностью pipeline-supervisor.
+    const mode = body.mode === 'contract_shadow'
+      ? 'contract_shadow'
+      : body.mode === 'contract_enforce'
+      ? 'contract_enforce'
+      : 'legacy';
 
-    if (mode === 'contract_shadow') {
+    if (mode === 'contract_shadow' || mode === 'contract_enforce') {
       if (!hasInternalServiceAuthorization(req)) {
         return jsonResponse({
           ok: false,
@@ -337,7 +388,9 @@ serve(async (req) => {
       }
 
       try {
-        const observation = await runCompletionContractShadow(jobId);
+        const observation = mode === 'contract_shadow'
+          ? await runCompletionContractShadow(jobId)
+          : await runCompletionContractEnforcement(jobId);
 
         return jsonResponse({
           ok: true,
@@ -345,15 +398,17 @@ serve(async (req) => {
           mode,
           ...observation,
         });
-      } catch (shadowError) {
+      } catch (contractError) {
         return jsonResponse({
           ok: false,
           job_id: jobId,
           mode,
-          shadow_mode: true,
+          shadow_mode: mode === 'contract_shadow',
           enforcement_applied: false,
-          stage: 'completion_contract_shadow',
-          error: safeStringify(shadowError),
+          stage: mode === 'contract_shadow'
+            ? 'completion_contract_shadow'
+            : 'completion_contract_enforcement',
+          error: safeStringify(contractError),
         }, 500);
       }
     }

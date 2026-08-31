@@ -1,8 +1,23 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  buildCompletionEnforcementFailureSummary,
+  COMPLETION_ENFORCEMENT_CANARY_JOB_IDS_ENV,
+  COMPLETION_ENFORCEMENT_MODE_ENV,
+  COMPLETION_ENFORCEMENT_SUMMARY_FIELD,
+  resolveCompletionEnforcementRollout,
+  type CompletionEnforcementRollout,
+  type CompletionEnforcementSummary,
+} from '../_shared/completion-contract/v1/enforcement.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const COMPLETION_ENFORCEMENT_MODE = Deno.env.get(
+  COMPLETION_ENFORCEMENT_MODE_ENV,
+);
+const COMPLETION_ENFORCEMENT_CANARY_JOB_IDS = Deno.env.get(
+  COMPLETION_ENFORCEMENT_CANARY_JOB_IDS_ENV,
+);
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -97,6 +112,44 @@ type SupervisorState = {
   audit_offset: number;
   last_error: string | null;
 };
+
+type AppliedCompletionEnforcementSummary = Omit<
+  CompletionEnforcementSummary,
+  'enforcement_applied'
+> & {
+  enforcement_applied: true;
+  rollout_mode: CompletionEnforcementRollout['mode'];
+  enforced_status: 'completed' | 'needs_manual_review';
+  enforced_at: string;
+};
+
+function isCompletionEnforcementSummary(
+  value: unknown,
+): value is CompletionEnforcementSummary {
+  if (!value || typeof value !== 'object') return false;
+  const summary = value as Record<string, unknown>;
+  return summary.shadow_mode === false &&
+    summary.enforcement_applied === false &&
+    (summary.decision === 'allow_completed' ||
+      summary.decision === 'needs_manual_review') &&
+    typeof summary.learner_ready === 'boolean' &&
+    typeof summary.snapshot_token === 'string' &&
+    typeof summary.contract_version === 'string';
+}
+
+function applyCompletionEnforcementSummary(
+  summary: CompletionEnforcementSummary,
+  rollout: CompletionEnforcementRollout,
+  status: AppliedCompletionEnforcementSummary['enforced_status'],
+): AppliedCompletionEnforcementSummary {
+  return {
+    ...summary,
+    enforcement_applied: true,
+    rollout_mode: rollout.mode,
+    enforced_status: status,
+    enforced_at: new Date().toISOString(),
+  };
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
@@ -276,7 +329,7 @@ async function loadState(jobId: string): Promise<SupervisorState> {
   };
 }
 
-async function saveState(state: SupervisorState): Promise<void> {
+async function saveState(state: SupervisorState): Promise<boolean> {
   const { error } = await supabase.from('pipeline_supervisor_state').upsert({
     job_id: state.job_id,
     stage: state.stage,
@@ -289,10 +342,17 @@ async function saveState(state: SupervisorState): Promise<void> {
 
   if (error) {
     console.error('pipeline-supervisor: failed to save state', state.job_id, safeStringify(error));
+    return false;
   }
+
+  return true;
 }
 
-async function updateJobStatus(jobId: string, status: string, summaryPatch?: Record<string, unknown>): Promise<void> {
+async function updateJobStatus(
+  jobId: string,
+  status: string,
+  summaryPatch?: Record<string, unknown>,
+): Promise<boolean> {
   const payload: Record<string, unknown> = {
     status,
     updated_at: new Date().toISOString(),
@@ -318,7 +378,10 @@ async function updateJobStatus(jobId: string, status: string, summaryPatch?: Rec
 
   if (error) {
     console.error('pipeline-supervisor: failed to update job status', jobId, status, safeStringify(error));
+    return false;
   }
+
+  return true;
 }
 
 async function checkEnrichmentPending(jobId: string): Promise<boolean> {
@@ -362,6 +425,137 @@ async function releaseJob(jobId: string): Promise<void> {
   if (error) {
     console.error('pipeline-supervisor: release failed', jobId, safeStringify(error));
   }
+}
+
+async function finalizeWithCompletionEnforcement(
+  jobId: string,
+  state: SupervisorState,
+  rollout: CompletionEnforcementRollout,
+  legacyAuditResult: WorkerCallResult,
+): Promise<Record<string, unknown>> {
+  // Snapshot RPC accepts only terminal jobs. During enforcement the DB job is
+  // provisionally terminal, while supervisor state deliberately stays on
+  // `audit`. Package 3A read-side still refuses to expose `completed` unless
+  // the same completion contract evaluates learner_ready=true.
+  const terminalPrepared = await updateJobStatus(jobId, 'completed');
+
+  if (!terminalPrepared) {
+    state.last_error = 'completion contract gate could not prepare terminal snapshot';
+    await saveState(state);
+    return {
+      job_id: jobId,
+      stage: state.stage,
+      step: 'completion-contract-enforcement',
+      classification: 'retryable_error',
+      enforcement_applied: false,
+      reason: state.last_error,
+    };
+  }
+
+  const contractResult = await callWorker('job-completion-auditor', {
+    job_id: jobId,
+    mode: 'contract_enforce',
+  });
+  const rawSummary = contractResult.data?.summary;
+
+  if (!contractResult.ok || !isCompletionEnforcementSummary(rawSummary)) {
+    const error = safeStringify(
+      contractResult.network_error ?? contractResult.data ??
+        'INVALID_COMPLETION_ENFORCEMENT_RESPONSE',
+    );
+    const failureSummary = buildCompletionEnforcementFailureSummary(
+      error,
+      rollout.mode,
+    );
+    const statusUpdated = await updateJobStatus(jobId, 'needs_manual_review', {
+      [COMPLETION_ENFORCEMENT_SUMMARY_FIELD]: failureSummary,
+      supervisor_last_error: error,
+    });
+
+    if (statusUpdated) {
+      state.stage = 'needs_manual_review';
+      state.last_error = error;
+      await saveState(state);
+    } else {
+      state.last_error = `completion contract failed closed, but status update failed: ${error}`;
+      await saveState(state);
+    }
+
+    return {
+      job_id: jobId,
+      stage: state.stage,
+      step: 'completion-contract-enforcement',
+      classification: statusUpdated
+        ? 'blocked_manual_review'
+        : 'retryable_error',
+      enforcement_applied: statusUpdated,
+      reason: 'contract_evaluation_failed',
+      detail: contractResult.data,
+    };
+  }
+
+  const allowCompleted = rawSummary.decision === 'allow_completed' &&
+    rawSummary.learner_ready === true;
+  const enforcedStatus = allowCompleted
+    ? 'completed' as const
+    : 'needs_manual_review' as const;
+  const appliedSummary = applyCompletionEnforcementSummary(
+    rawSummary,
+    rollout,
+    enforcedStatus,
+  );
+  const statusUpdated = await updateJobStatus(jobId, enforcedStatus, {
+    [COMPLETION_ENFORCEMENT_SUMMARY_FIELD]: appliedSummary,
+    ...(allowCompleted
+      ? {
+        supervisor_completed_at: new Date().toISOString(),
+        supervisor_last_error: null,
+      }
+      : {
+        supervisor_last_error:
+          `completion contract blocked completion: ${rawSummary.decision_reason}`,
+      }),
+  });
+
+  if (!statusUpdated) {
+    state.last_error =
+      `completion contract decision could not update job status: ${enforcedStatus}`;
+    await saveState(state);
+    return {
+      job_id: jobId,
+      stage: state.stage,
+      step: 'completion-contract-enforcement',
+      classification: 'retryable_error',
+      enforcement_applied: false,
+      decision: rawSummary.decision,
+      reason: state.last_error,
+    };
+  }
+
+  state.stage = allowCompleted ? 'done' : 'needs_manual_review';
+  state.last_error = allowCompleted
+    ? null
+    : `completion contract blocked completion: ${rawSummary.decision_reason}`;
+  const stateSaved = await saveState(state);
+
+  return {
+    job_id: jobId,
+    stage: state.stage,
+    step: 'completion-contract-enforcement',
+    classification: allowCompleted ? 'success' : 'blocked_manual_review',
+    items_checked: legacyAuditResult.data?.items_checked,
+    items_still_incomplete_after_heal:
+      legacyAuditResult.data?.items_still_incomplete_after_heal,
+    has_more: false,
+    enforcement_applied: true,
+    rollout_mode: rollout.mode,
+    rollout_reason: rollout.reason,
+    decision: rawSummary.decision,
+    decision_reason: rawSummary.decision_reason,
+    learner_ready: rawSummary.learner_ready,
+    state_saved: stateSaved,
+    contract_enforcement: appliedSummary,
+  };
 }
 
 async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
@@ -638,6 +832,21 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         state.audit_offset = 0;
         state.last_error = '__second_pass_incomplete__';
       } else {
+        const enforcementRollout = resolveCompletionEnforcementRollout(
+          jobId,
+          COMPLETION_ENFORCEMENT_MODE,
+          COMPLETION_ENFORCEMENT_CANARY_JOB_IDS,
+        );
+
+        if (enforcementRollout.enforce) {
+          return await finalizeWithCompletionEnforcement(
+            jobId,
+            state,
+            enforcementRollout,
+            result,
+          );
+        }
+
         state.stage = 'done';
         state.last_error = null;
 
