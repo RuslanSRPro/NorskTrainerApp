@@ -65,6 +65,28 @@ test("unresolved items fail closed even when the entity is ready", async () => {
   assert.equal(evaluation.unresolved_items_block_completion, true);
 });
 
+test("intentional function-word exclusions do not block readiness", async () => {
+  const snapshot = result(baseSnapshot(), {
+    counts: {
+      total_items: 3,
+      total_entities: 1,
+      unresolved_items: 0,
+      excluded_items: 2,
+    },
+    unresolved_items: [],
+    excluded_items: [
+      { item_id: "excluded:jeg", admission_reason: "function_word_pronoun" },
+      { item_id: "excluded:det", admission_reason: "function_word_pronoun" },
+    ],
+  });
+  const evaluation = await evaluateJobCompletion(async () => snapshot, JOB_ID);
+
+  assert.equal(evaluation.quality_state, "ready");
+  assert.equal(evaluation.learner_ready, true);
+  assert.equal(evaluation.unresolved_items_block_completion, false);
+  assert.equal(evaluation.source_counts.excluded_items, 2);
+});
+
 test("AI-only translations stay provisional", async () => {
   const snapshot = structuredClone(baseSnapshot());
   snapshot.translations = snapshot.translations.map((translation) => ({

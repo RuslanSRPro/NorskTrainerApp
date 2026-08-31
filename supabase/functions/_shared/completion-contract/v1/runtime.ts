@@ -17,8 +17,10 @@ export interface SnapshotRpcResult {
     total_items: number;
     total_entities: number;
     unresolved_items: number;
+    excluded_items?: number;
   };
   unresolved_items: unknown[];
+  excluded_items?: unknown[];
   page: {
     cursor: string | null;
     next_cursor: string | null;

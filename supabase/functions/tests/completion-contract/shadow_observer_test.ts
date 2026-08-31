@@ -22,11 +22,16 @@ function readySnapshot(): SnapshotRpcResult {
     captured_at: entity.captured_at,
     execution_state: "completed",
     counts: {
-      total_items: 1,
+      total_items: 3,
       total_entities: 1,
       unresolved_items: 0,
+      excluded_items: 2,
     },
     unresolved_items: [],
+    excluded_items: [
+      { item_id: "excluded:jeg", admission_reason: "function_word_pronoun" },
+      { item_id: "excluded:det", admission_reason: "function_word_pronoun" },
+    ],
     page: {
       cursor: null,
       next_cursor: null,
@@ -58,6 +63,7 @@ test("terminal shadow persists one non-enforcing diagnostic summary", async () =
   assert.equal(observation.summary.execution_state, "completed");
   assert.equal(observation.summary.quality_state, "ready");
   assert.equal(observation.summary.learner_ready, true);
+  assert.equal(observation.summary.source_counts.excluded_items, 2);
   assert.equal(observation.summary.observed_at, "2026-08-30T15:00:00.000Z");
   assert.equal(writes.length, 1);
   assert.equal(writes[0].field, COMPLETION_SHADOW_SUMMARY_FIELD);
