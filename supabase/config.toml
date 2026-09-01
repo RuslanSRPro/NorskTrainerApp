@@ -40,3 +40,12 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/import_map.json"
 entrypoint = "./functions/pipeline-supervisor/index.ts"
+
+# D10 source-only shadow. This entry prepares local configuration only; the
+# function is not part of the current pipeline and must not be deployed before
+# the D09 gate described in docs/architecture/authoritative-morphology-v2.md.
+[functions.forms-enrichment-v2-shadow]
+enabled = true
+verify_jwt = true
+import_map = "./functions/forms-enrichment-v2-shadow/deno.json"
+entrypoint = "./functions/forms-enrichment-v2-shadow/index.ts"
