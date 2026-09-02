@@ -781,3 +781,37 @@ export function projectLegacyStructureIntoCanonicalGraphV11(
     diagnostics,
   };
 }
+
+// ---------------------------------------------------------------------------
+// v1.43 phrase ownership boundary.
+// Native canonical_phrase_candidate_lattice_v1 owns Phrase graph facts.
+// Legacy Phrase remains available in raw/comparator outputs but is no longer
+// projected into the canonical graph. Other legacy structural layers remain
+// temporary compatibility producers until their own canonical capabilities land.
+// ---------------------------------------------------------------------------
+export function projectLegacyNonPhraseStructureIntoCanonicalGraphV143(
+  graph: CanonicalLanguageGraphV1,
+  legacyAnalysis: J,
+  surface: CanonicalSurfaceDocumentV1,
+  sentenceIndex: number,
+  sqlMap: SqlStructuralCompatibilityMapV1,
+): LegacyGraphProjectionV11 {
+  const diagnostics: LegacyGraphAdapterDiagnosticV11[] = [];
+  const ctx: AdapterContextV11 = { surface, sentenceIndex, sqlMap, diagnostics };
+
+  const patches: GraphPatchV1[] = [
+    mwePatchFromLegacyV11(legacyAnalysis, ctx),
+    predicatePatchFromLegacyV11(legacyAnalysis, ctx),
+    clausePatchFromLegacyV11(legacyAnalysis, ctx),
+    attachmentPatchFromLegacyV11(legacyAnalysis, ctx),
+    dependencyPatchFromLegacyV11(legacyAnalysis, ctx),
+  ];
+
+  return {
+    graph: patches.reduce(
+      (current, patch) => applyGraphPatchV1(current, patch),
+      graph,
+    ),
+    diagnostics,
+  };
+}

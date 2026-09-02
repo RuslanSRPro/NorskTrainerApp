@@ -15,7 +15,7 @@ import {
   type CanonicalSurfaceCandidateBatchRowV1,
 } from '../_shared/nlp/canonical-candidate-lattice-v1.ts';
 import {
-  projectLegacyStructureIntoCanonicalGraphV11,
+  projectLegacyNonPhraseStructureIntoCanonicalGraphV143,
 } from '../_shared/nlp/legacy-language-graph-adapter-v1.ts';
 import {
   buildCanonicalPhraseCandidateLatticePatchV1,
@@ -299,7 +299,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
     );
   }
 
-  const projection = projectLegacyStructureIntoCanonicalGraphV11(
+  const projection = projectLegacyNonPhraseStructureIntoCanonicalGraphV143(
     graph,
     sqlAnalysis as J,
     surface,
