@@ -34,16 +34,17 @@ The persistence flag has no effect unless shadow is also enabled.
 
 ## Migration-history gate
 
-Do not apply D10 until `supabase migration list` shows exact Local/Remote
-equality. Never use migration repair and never delete, rename, or overwrite an
-existing migration. Create the real D10 filename with:
+Local/Remote history reached exact equality on 2026-09-02 without repair,
+deletion, renaming, or overwriting any existing migration. The reviewed D10
+migration is:
 
-```powershell
-npx supabase migration new authoritative_morphology_v2
+```text
+supabase/migrations/20260902083000_authoritative_morphology_v2.sql
 ```
 
-Copy the reviewed pending SQL into that generated file, run dry-run, and apply
-only the generated migration after pgTAP succeeds.
+Run `npx supabase db push --dry-run` again immediately before applying. It must
+offer only this D10 migration. Apply it only after the versioned pgTAP suite
+`supabase/tests/authoritative_morphology_v2.test.sql` succeeds.
 
 ## Cleanup gate
 

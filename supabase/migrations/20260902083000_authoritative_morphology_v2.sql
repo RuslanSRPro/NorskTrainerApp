@@ -1,6 +1,5 @@
 -- D10 / AUTHORITATIVE MORPHOLOGY V2
--- PENDING ONLY. Promote with `supabase migration new` after Local/Remote
--- migration history is identical. Do not rename an already-applied migration.
+-- Canonical Bokmål-only morphology storage and application projection.
 
 create schema if not exists private;
 

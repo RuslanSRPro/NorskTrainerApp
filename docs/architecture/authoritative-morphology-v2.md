@@ -2,11 +2,14 @@
 
 ## Status
 
-Source parsing is complete. Production hardening and cutover controls are
-staged on `d10/canonical-cutover`.
+Source parsing, production hardening, and cutover controls are complete.
+The reviewed database contract is staged as
+`supabase/migrations/20260902083000_authoritative_morphology_v2.sql` with its
+pgTAP suite under `supabase/tests/`.
 
-This package is intentionally **not deployed**. Its SQL remains under
-`supabase/pending/`; no D10 file exists under `supabase/migrations/`.
+This package is intentionally **not deployed or applied**. The pending copies
+remain as review provenance until the versioned migration passes dry-run and
+the production rollout reaches the schema gate.
 
 ## Goal
 
@@ -179,9 +182,9 @@ the presence of source forms in the canonical morphology snapshot.
 - always reports `mode=shadow`, `sourceOnly=true`, and `persisted=false`;
 - has no Supabase client and performs no database writes.
 
-## Pending storage contract
+## Versioned storage contract
 
-`supabase/pending/authoritative_morphology_v2.pending.sql` defines four
+`supabase/migrations/20260902083000_authoritative_morphology_v2.sql` defines four
 private source/audit tables and one public read projection:
 
 1. immutable lookup snapshots;
@@ -232,10 +235,11 @@ observation, not a reason to make unit tests depend on the network.
 ## Safe cutover order
 
 1. Make Local/Remote migration history identical without repair, deletion,
-   renaming, or overwriting old migrations.
-2. Create a real migration with `supabase migration new`; copy and review the
-   pending SQL. Do not rename the pending file into `migrations/` manually.
-3. Apply only in a disposable/local database and run the pending pgTAP test.
+   renaming, or overwriting old migrations. Completed on 2026-09-02.
+2. Create and review the versioned migration. Completed as
+   `20260902083000_authoritative_morphology_v2.sql`.
+3. Run dry-run, validate the versioned pgTAP suite, and apply only after both
+   checks pass.
 4. Deploy the JWT-protected V2 worker, keeping both D10 flags false.
 5. Enable backend shadow only and compare V1/V2 coverage and errors.
 6. Enable V2 persistence while the app still reads legacy; verify atomic
