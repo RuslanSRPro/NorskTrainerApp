@@ -241,7 +241,11 @@ observation, not a reason to make unit tests depend on the network.
 3. Run dry-run, validate the versioned pgTAP suite, and apply only after both
    checks pass.
 4. Deploy the JWT-protected V2 worker, keeping both D10 flags false.
-5. Enable backend shadow only and compare V1/V2 coverage and errors.
+5. Enable backend shadow only for explicit job UUIDs with
+   `D10_FORMS_V2_SHADOW_ENABLED=true` and
+   `D10_FORMS_V2_CANARY_JOB_IDS=<comma-separated UUIDs>`, then compare V1/V2
+   coverage and errors. A missing, malformed, empty, or larger-than-500
+   allowlist fails closed.
 6. Enable V2 persistence while the app still reads legacy; verify atomic
    replacement and bounded storage.
 7. Switch app and text analysis to V2, then convert all remaining readers.

@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isD10FormsV2CanaryEnabled } from '../_shared/authoritative-morphology-v2/rollout.ts';
 
 // ============================================================================
 // job-enrichment-batch-worker (v3)
@@ -1008,8 +1009,11 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
     return { ...EMPTY_RESULT, processed: rawItems.length, has_more: hasMore, next_offset: hasMore ? offset + limit : null, total: count ?? null };
   }
 
-  const v2ShadowEnabled =
-    Deno.env.get('D10_FORMS_V2_SHADOW_ENABLED') === 'true';
+  const v2ShadowEnabled = isD10FormsV2CanaryEnabled(
+    jobId,
+    Deno.env.get('D10_FORMS_V2_SHADOW_ENABLED'),
+    Deno.env.get('D10_FORMS_V2_CANARY_JOB_IDS'),
+  );
   const v2PersistEnabled =
     Deno.env.get('D10_FORMS_V2_PERSIST_ENABLED') === 'true';
   const legacyPromise = callWorkerJson(

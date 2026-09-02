@@ -4,6 +4,7 @@ export {
   hasInternalServiceAuthorization,
   isD10PersistenceEnabled,
 } from "./internal-authorization.ts";
+export { isD10FormsV2CanaryEnabled } from "./rollout.ts";
 export {
   buildParadigmIdentity,
   normalizeNorwegian,

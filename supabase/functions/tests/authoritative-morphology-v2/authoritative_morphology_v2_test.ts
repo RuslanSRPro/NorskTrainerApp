@@ -4,6 +4,7 @@ import {
   buildParadigmIdentity,
   type FormPreferenceProvider,
   hasInternalServiceAuthorization,
+  isD10FormsV2CanaryEnabled,
   isD10PersistenceEnabled,
   OrdbokeneClient,
   parseOrdbokeneArticles,
@@ -398,4 +399,29 @@ Deno.test("18 persistence requires the explicit exact rollout flag", () => {
   assertEquals(isD10PersistenceEnabled("false"), false);
   assertEquals(isD10PersistenceEnabled("TRUE"), false);
   assertEquals(isD10PersistenceEnabled("true"), true);
+});
+
+Deno.test("19 D10 shadow is restricted to an explicit job UUID allowlist", () => {
+  const jobId = "123e4567-e89b-42d3-a456-426614174000";
+  const otherJobId = "123e4567-e89b-42d3-a456-426614174001";
+
+  assertEquals(isD10FormsV2CanaryEnabled(jobId, undefined, jobId), false);
+  assertEquals(isD10FormsV2CanaryEnabled(jobId, "true", undefined), false);
+  assertEquals(isD10FormsV2CanaryEnabled(jobId, "true", "not-a-uuid"), false);
+  assertEquals(isD10FormsV2CanaryEnabled(jobId, "true", otherJobId), false);
+  assertEquals(
+    isD10FormsV2CanaryEnabled(jobId, "true", ` ${otherJobId}, ${jobId} `),
+    true,
+  );
+});
+
+Deno.test("20 D10 canary fails closed above the 500-job rollout ceiling", () => {
+  const jobId = "123e4567-e89b-42d3-a456-426614174000";
+  const ids = Array.from(
+    { length: 501 },
+    (_, index) => `123e4567-e89b-42d3-a456-${String(index).padStart(12, "0")}`,
+  );
+  ids[0] = jobId;
+
+  assertEquals(isD10FormsV2CanaryEnabled(jobId, "true", ids.join(",")), false);
 });
