@@ -237,6 +237,24 @@ Fixtures were refreshed from the live official JSON on 2026-09-01:
 Tests are offline and deterministic; live-source drift is a separate shadow
 observation, not a reason to make unit tests depend on the network.
 
+### Production shadow gate — 2026-09-02
+
+The DPAPI-authenticated, read-only production shadow resolved the live source
+as follows, with `persisted=false` for every request:
+
+| Query | POS | Dictionary | Article | Primary preterite | Alternative preterite |
+| --- | --- | --- | ---: | --- | --- |
+| `gape` | verb | BM | 19072 | `gapte` | `gapa` |
+| `håpe` | verb | BM | 25496 | `håpet`, `håpte` | `håpa` |
+| `få` | verb | BM | 18820 | `fikk` | — |
+| `få` | determiner | BM | 18819 | n/a | n/a |
+| `få` | adjective | BM | none (`not_found`) | n/a | n/a |
+| `få` | adjective | NN | 23679 | n/a | n/a |
+
+This confirms source identity separation by dictionary/article/POS, explicit
+NN opt-in, and no NN leakage into the BM default. All D10 storage tables
+remained empty after the gate.
+
 ## Safe cutover order
 
 1. Make Local/Remote migration history identical without repair, deletion,

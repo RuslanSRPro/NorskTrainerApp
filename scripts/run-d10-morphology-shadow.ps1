@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-  [string]$LookupWord = 'håpe',
+  # ASCII-only source keeps the default correct in Windows PowerShell 5.1,
+  # which may decode a UTF-8 script without BOM as Windows-1252.
+  [string]$LookupWord = "h$([char]0x00E5)pe",
 
   [ValidateSet('verb', 'noun', 'adjective', 'determiner')]
   [string]$LookupPos = 'verb',
