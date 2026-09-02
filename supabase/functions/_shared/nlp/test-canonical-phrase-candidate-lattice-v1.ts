@@ -80,6 +80,34 @@ const NP_RULE: CanonicalPhraseRuntimeRuleV1 = {
   sourceSections: ['3.3'],
 };
 
+const PP_RIGHT_RULE: CanonicalPhraseRuntimeRuleV1 = {
+  ruleId: 'test-rule-pp-right',
+  ruleCode: 'test_rt_v143.prepositional_phrase.adjacent_right_pp',
+  runtimeFamily: 'prepositional_phrase',
+  executionPhase: 'phrase_build',
+  patternType: 'phrase_pattern',
+  constraintStrength: 'default',
+  pattern: {
+    bindings: {
+      head: {
+        scope: 'sentence',
+        entity: 'candidate',
+        cardinality: 'one_or_more',
+        where: { op: 'eq', left: { ref: 'head.pos' }, right: 'preposition' },
+      },
+    },
+    head_ref: 'head',
+    phrase_type: 'PP',
+    build_strategy: 'head_plus_adjacent_right_dependent',
+    allowed_right_dependents: ['PP'],
+  },
+  sourceCandidateCodes: [
+    'preposition.phrase.head',
+    'prepositional_phrase.complement.normal_position',
+    'prepositional_phrase.complement.pp_allowed',
+  ],
+  sourceSections: ['6.1', '6.2.2', '6.2.2.2'],
+};
 function tokenBySurface(graph: CanonicalLanguageGraphV1, surface: string, occurrence = 0): LanguageGraphNodeV1 {
   const matches = graph.nodes.filter((n) => n.type === 'token' && n.features.surface === surface);
   const node = matches[occurrence];
@@ -193,6 +221,71 @@ Deno.test('v1.43 optional lexical-class evidence enables article+AP+noun without
   assert(nps.some((n) => n.span?.tokenIds?.length === 3), 'article+AP+noun candidate missing');
 });
 
+Deno.test('v1.43 PP: preposition POS candidate creates head-only candidate PP', () => {
+  const graph = buildGraph('fra', [
+    { surface: 'fra', pos: 'preposition' },
+  ]);
+  const patch = buildCanonicalPhraseCandidateLatticePatchV1(graph, [PP_RIGHT_RULE]);
+  const pps = (patch.nodes ?? []).filter((n) => n.type === 'phrase' && n.subtype === 'PP');
+  assert(pps.length === 1, `PP count=${pps.length}`);
+  assert(pps[0].span?.tokenIds?.length === 1, 'head-only PP expected');
+  assert(pps[0].status === 'candidate', 'PP must remain candidate');
+});
+
+Deno.test('v1.43 PP nested right expansion: adjacent PP becomes structural alternative on later pass', () => {
+  const graph = buildGraph('fra under', [
+    { surface: 'fra', pos: 'preposition' },
+    { surface: 'under', pos: 'preposition' },
+  ]);
+  const patch = buildCanonicalPhraseCandidateLatticePatchV1(graph, [PP_RIGHT_RULE]);
+  const pps = (patch.nodes ?? []).filter((n) => n.type === 'phrase' && n.subtype === 'PP');
+  const fra = tokenBySurface(graph, 'fra');
+  const fraPps = pps.filter((n) => n.features.headTokenId === fra.id);
+
+  assert(pps.length === 3, `PP count=${pps.length}`);
+  assert(fraPps.length === 2, `fra PP alternatives=${fraPps.length}`);
+  assert(fraPps.some((n) => n.span?.tokenIds?.length === 1), 'head-only outer PP missing');
+  assert(fraPps.some((n) => n.span?.tokenIds?.length === 2), 'nested right PP alternative missing');
+  assert(fraPps.every((n) => n.status === 'candidate'), 'nested PP alternatives must remain candidate');
+
+  const alt = (patch.alternativeSets ?? []).find((a) =>
+    a.memberIds.some((id) => fraPps.some((n) => n.id === id))
+  );
+  assert(alt?.memberIds.length === 2, `outer PP alt members=${alt?.memberIds.length}`);
+  assert(alt?.status === 'open', 'outer PP alternatives must remain open');
+});
+
+Deno.test('v1.43 PP bounded multi-pass: nested PP requires a later pass and never crosses punctuation', () => {
+  const adjacent = buildGraph('fra under', [
+    { surface: 'fra', pos: 'preposition' },
+    { surface: 'under', pos: 'preposition' },
+  ]);
+
+  const onePass = buildCanonicalPhraseCandidateLatticePatchV1(
+    adjacent,
+    [PP_RIGHT_RULE],
+    [],
+    [],
+    { maxPasses: 1 },
+  );
+  assert(
+    (onePass.nodes ?? []).filter((n) => n.type === 'phrase' && n.subtype === 'PP').length === 2,
+    'one pass must contain only the two head-only PP candidates',
+  );
+
+  const punctuated = buildGraph('fra, under', [
+    { surface: 'fra', pos: 'preposition' },
+    { surface: 'under', pos: 'preposition' },
+  ]);
+  const punctuatedPatch = buildCanonicalPhraseCandidateLatticePatchV1(
+    punctuated,
+    [PP_RIGHT_RULE],
+  );
+  const punctuatedPps = (punctuatedPatch.nodes ?? []).filter(
+    (n) => n.type === 'phrase' && n.subtype === 'PP'
+  );
+  assert(punctuatedPps.length === 2, `punctuation-crossing PP generated: ${punctuatedPps.length}`);
+});
 Deno.test('v1.43 sentence boundary: left expansion never crosses sentences', () => {
   const graph = buildGraph('stor. bil', [
     { surface: 'stor', pos: 'adjective' },

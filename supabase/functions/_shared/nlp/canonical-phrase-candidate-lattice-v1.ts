@@ -58,6 +58,7 @@ export type CanonicalPhraseRuntimeRuleV1 = {
     build_strategy?: string;
     max_left_tokens?: number;
     allowed_left_dependents?: string[];
+    allowed_right_dependents?: string[];
     [key: string]: unknown;
   };
   actions?: unknown[];
@@ -490,6 +491,32 @@ function leftExpansions(
   return out;
 }
 
+function adjacentRightExpansions(
+  head: TokenInfo,
+  units: DependentUnit[],
+  allowedLabels: Set<string>,
+): DependentUnit[][] {
+  const out: DependentUnit[][] = [[]];
+  if (allowedLabels.size === 0) return out;
+
+  const nextIndex = head.sentenceTokenIndex + 1;
+  const candidates = units
+    .filter((unit) =>
+      unit.sentenceIndex === head.sentenceIndex &&
+      unit.startIndex === nextIndex &&
+      allowedLabels.has(unit.label)
+    )
+    .sort((a, b) =>
+      a.endIndex - b.endIndex ||
+      a.id.localeCompare(b.id)
+    );
+
+  for (const unit of candidates) {
+    out.push([unit]);
+  }
+
+  return out;
+}
 function ruleProvenance(rule: CanonicalPhraseRuntimeRuleV1): LanguageGraphProvenanceV1[] {
   const runtimeId = `prov:${CANONICAL_PHRASE_CANDIDATE_LATTICE_PRODUCER_V1}:runtime_rule:${idPart(rule.ruleCode)}`;
   const out: LanguageGraphProvenanceV1[] = [{
@@ -814,7 +841,8 @@ export function buildCanonicalPhraseCandidateLatticePatchV1(
       const type = phraseType(rule);
       if (!headPos || !type) continue;
       const strategy = stringValue(rule.pattern.build_strategy) ?? 'head_only';
-      const allowed = new Set((rule.pattern.allowed_left_dependents ?? []).map((x) => x.trim()).filter(Boolean));
+      const allowedLeft = new Set((rule.pattern.allowed_left_dependents ?? []).map((x) => x.trim()).filter(Boolean));
+      const allowedRight = new Set((rule.pattern.allowed_right_dependents ?? []).map((x) => x.trim()).filter(Boolean));
       const maxLeftTokens = Math.max(0, Math.floor(rule.pattern.max_left_tokens ?? 0));
 
       for (const posCandidate of pos) {
@@ -825,7 +853,9 @@ export function buildCanonicalPhraseCandidateLatticePatchV1(
         // Every supported head gets a head-only phrase candidate. A richer
         // strategy adds structural alternatives; it never suppresses the base.
         const variants = strategy === 'head_plus_left_dependents'
-          ? leftExpansions(head, units, allowed, maxLeftTokens)
+          ? leftExpansions(head, units, allowedLeft, maxLeftTokens)
+          : strategy === 'head_plus_adjacent_right_dependent'
+          ? adjacentRightExpansions(head, units, allowedRight)
           : [[]];
 
         for (const dependentUnits of variants) {
