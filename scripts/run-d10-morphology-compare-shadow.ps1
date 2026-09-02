@@ -97,6 +97,7 @@ try {
 
   [pscustomobject]@{
     ok = $response.ok
+    comparisonOk = $response.comparisonOk
     jobId = $response.jobId
     jobStatus = $response.jobStatus
     persisted = $response.persisted
@@ -105,6 +106,8 @@ try {
     hasMore = $response.hasMore
     nextOffset = $response.nextOffset
     workerStatus = $response.workerStatus
+    processed = $response.result.processed
+    failed = $response.result.failed
   } | Format-List
 
   @($response.result.results) | ForEach-Object {
@@ -127,6 +130,21 @@ catch {
   Write-Host 'D10 COMPARISON SHADOW REQUEST FAILED' -ForegroundColor Red
   Write-Host $_.Exception.Message
   if ($_.ErrorDetails.Message) { Write-Host $_.ErrorDetails.Message }
+  elseif ($_.Exception.Response) {
+    $errorStream = $_.Exception.Response.GetResponseStream()
+    if ($errorStream) {
+      $errorReader = New-Object System.IO.StreamReader($errorStream)
+      try {
+        $errorBody = $errorReader.ReadToEnd()
+        if (-not [string]::IsNullOrWhiteSpace($errorBody)) {
+          Write-Host $errorBody
+        }
+      }
+      finally {
+        $errorReader.Dispose()
+      }
+    }
+  }
   throw
 }
 finally {

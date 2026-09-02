@@ -42,6 +42,9 @@ job, selects at most 25 job-scoped lexemes, and calls the internal V2 worker
 with the literal `persist:false`. It returns bounded V1/V2 differences without
 publishing a snapshot or changing legacy completion accounting. Page through a
 larger job with `offset`/`nextOffset`; do not raise the per-request limit.
+Source ambiguity, `not_found`, and V1/V2 differences are returned as an HTTP
+200 audit result with `comparisonOk=false`. HTTP 502 is reserved for a failed
+or invalid internal-worker response.
 
 ## Migration-history gate
 

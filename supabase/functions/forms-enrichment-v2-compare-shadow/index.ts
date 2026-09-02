@@ -1,4 +1,5 @@
 import { withSupabase } from "@supabase/server";
+import { classifyWorkerOutcome } from "./contract.ts";
 
 const FUNCTION_NAME = "forms-enrichment-v2-compare-shadow";
 const WORKER_NAME = "forms-enrichment-v2-worker";
@@ -99,7 +100,8 @@ Deno.serve(withSupabase(
 
       const workerResult = await callComparisonWorker(eligibleIds);
       return json({
-        ok: workerResult.ok,
+        ok: workerResult.requestOk,
+        comparisonOk: workerResult.comparisonOk,
         function: FUNCTION_NAME,
         mode: "comparison_shadow",
         jobId: input.jobId,
@@ -113,7 +115,7 @@ Deno.serve(withSupabase(
         nextOffset: hasMore ? input.offset + input.limit : null,
         workerStatus: workerResult.status,
         result: workerResult.data,
-      }, workerResult.ok ? 200 : 502);
+      }, workerResult.requestOk ? 200 : 502);
     } catch (error) {
       return json({
         ok: false,
@@ -147,16 +149,26 @@ async function callComparisonWorker(lexemeIds: string[]) {
     );
     const text = await response.text();
     let data: unknown;
+    let validJson = true;
     try {
       data = JSON.parse(text);
     } catch {
-      data = { error: "INVALID_WORKER_RESPONSE", body: text.slice(0, 500) };
+      validJson = false;
+      data = {
+        ok: false,
+        error: "INVALID_WORKER_RESPONSE",
+        body: text.slice(0, 500),
+      };
     }
-    const dataOk = !isRecord(data) || data.ok !== false;
-    return { ok: response.ok && dataOk, status: response.status, data };
+    return {
+      ...classifyWorkerOutcome(response.ok, validJson, data),
+      status: response.status,
+      data,
+    };
   } catch (error) {
     return {
-      ok: false,
+      requestOk: false,
+      comparisonOk: false,
       status: 0,
       data: { error: `WORKER_CALL_FAILED:${compactError(error)}` },
     };
