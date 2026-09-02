@@ -1,4 +1,4 @@
-// Norsk Trainer — Canonical Language Graph Core V1
+// Norsk Trainer вЂ” Canonical Language Graph Core V1
 // One graph, multiple producers. No Norwegian grammar rules are defined here.
 
 import type { CanonicalSurfaceDocumentV1, SurfaceTokenV1, SurfaceSentenceV1 } from './canonical-surface-boundary-v1.ts';
@@ -248,25 +248,43 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 
 // Producers do not replace the graph. They submit patches. A later conflict
 // resolver may reject/supersede candidates, but raw source evidence is kept.
-export function applyGraphPatchV1(graph: CanonicalLanguageGraphV1, patch: GraphPatchV1): CanonicalLanguageGraphV1 {
+export function applyGraphPatchV1(
+  graph: CanonicalLanguageGraphV1,
+  patch: GraphPatchV1,
+): CanonicalLanguageGraphV1 {
   const before = graph.nodes.length + graph.edges.length;
+
   const next: CanonicalLanguageGraphV1 = {
     ...graph,
     nodes: uniqueById([...graph.nodes, ...(patch.nodes ?? [])]),
     edges: uniqueById([...graph.edges, ...(patch.edges ?? [])]),
     evidence: uniqueById([...graph.evidence, ...(patch.evidence ?? [])]),
     provenance: uniqueById([...graph.provenance, ...(patch.provenance ?? [])]),
-    alternativeSets: uniqueById([...graph.alternativeSets, ...(patch.alternativeSets ?? [])]),
-    constraintTrace: uniqueById([...graph.constraintTrace, ...(patch.constraintTrace ?? [])]),
+    alternativeSets: uniqueById([
+      ...graph.alternativeSets,
+      ...(patch.alternativeSets ?? []),
+    ]),
+    constraintTrace: uniqueById([
+      ...graph.constraintTrace,
+      ...(patch.constraintTrace ?? []),
+    ]),
     producerState: { ...graph.producerState },
   };
+
   const after = next.nodes.length + next.edges.length;
+  const previous = graph.producerState[patch.producer];
+  const factsAdded = Math.max(0, after - before);
+  const factsRejected =
+    (patch.nodes ?? []).filter((x) => x.status === 'rejected').length +
+    (patch.edges ?? []).filter((x) => x.status === 'rejected').length;
+
   next.producerState[patch.producer] = {
     version: patch.producerVersion,
     status: 'ran',
-    factsAdded: Math.max(0, after - before),
-    factsRejected: (patch.nodes ?? []).filter(x => x.status === 'rejected').length + (patch.edges ?? []).filter(x => x.status === 'rejected').length,
+    factsAdded: (previous?.factsAdded ?? 0) + factsAdded,
+    factsRejected: (previous?.factsRejected ?? 0) + factsRejected,
   };
+
   return next;
 }
 
