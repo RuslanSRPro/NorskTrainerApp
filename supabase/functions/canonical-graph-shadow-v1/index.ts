@@ -9,10 +9,16 @@ import {
   toSqlStructuralRpcTokensV1,
 } from '../_shared/nlp/sql-structural-compatibility-map-v1.ts';
 import {
-  projectLegacyAnalysisIntoCanonicalGraphV11,
+  buildCanonicalCandidateLatticePatchV1,
+  summarizeCanonicalCandidateLatticePatchV1,
+  type CanonicalMorphRegistryEntryV1,
+  type CanonicalSurfaceCandidateBatchRowV1,
+} from '../_shared/nlp/canonical-candidate-lattice-v1.ts';
+import {
+  projectLegacyStructureIntoCanonicalGraphV11,
 } from '../_shared/nlp/legacy-language-graph-adapter-v1.ts';
 
-const VERSION='canonical-graph-runtime-binding-v1.40.1';
+const VERSION='canonical-candidate-lattice-v1.41';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type'};
 type J=Record<string,any>;
 
@@ -50,7 +56,44 @@ function dependencyPatch(sentenceModel:J,map:LegacyCompatibilityMapV1):GraphPatc
 
 async function runSentence(url:string,key:string,surface:any,map:LegacyCompatibilityMapV1,lexical:AnalysisToken[],selectionMargin:number){const grammar=await callInternal<J>(url,key,'grammar-pattern-engine',{tokens:lexical.map(t=>({index:t.index,surface:t.surface,normalized_surface:t.normalized_surface,token_role:t.token_role,candidates:t.candidates})),dryRun:false});const finalTokens=Array.isArray(grammar.tokens)?grammar.tokens:lexical;const constructions=arr(grammar.constructions);const cr=await callInternal<J>(url,key,'construction-resolution-engine',{constructions,includeTrace:false,strictValidation:true});const resolved=arr(cr.resolved_constructions);const pb=await callInternal<J>(url,key,'predicate-builder',{text:surface.sentences[map.sentenceIndex].text,tokens:finalTokens,constructions:resolved,construction_model:obj(cr.construction_model),selectionMargin});let sm=obj(pb.sentence_model);const ce=await callInternal<J>(url,key,'clause-pattern-engine',{sentence_model:sm});const clauses=arr(ce.clauses);const de=await callInternal<J>(url,key,'dependency-engine',{sentence_model:sm,clauses,dryRun:false,includeTrace:false,strictValidation:false,allowStructuralFallback:true});sm=obj(de.sentence_model);return{lexicalTokens:finalTokens,sentenceModel:sm,engines:{grammar:grammar.engine_version??null,construction:cr.engine_version??null,predicate:pb.builder_version??pb.predicate_builder_version??null,clause:ce.engine_version??null,dependency:de.engine_version??null},raw:{grammarSummary:grammar.summary??{},constructionSummary:cr.summary??{},clauseSummary:ce.summary??{},dependencySummary:de.summary??{}}}}
 
-Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({ok:false,version:VERSION,error:'Method not allowed'},405);try{const body=await req.json();if(typeof body?.text!=='string'||!body.text.length)return json({ok:false,version:VERSION,error:'Body must contain text'},400);const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');if(!url||!key)throw new Error('Missing Supabase runtime env');const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});const [abbr,roles]=await Promise.all([abbreviationFacts(supabase),tokenRoles(supabase)]);const surface=buildCanonicalSurfaceDocumentV1(body.text,abbr);let graph:CanonicalLanguageGraphV1=createCanonicalLanguageGraphV1(surface);const sentenceRuns:any[]=[];const bindingErrors:string[]=[];const structuralReleaseCode =
+Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({ok:false,version:VERSION,error:'Method not allowed'},405);try{const body=await req.json();if(typeof body?.text!=='string'||!body.text.length)return json({ok:false,version:VERSION,error:'Body must contain text'},400);const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');if(!url||!key)throw new Error('Missing Supabase runtime env');const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});const [abbr,roles]=await Promise.all([abbreviationFacts(supabase),tokenRoles(supabase)]);const surface=buildCanonicalSurfaceDocumentV1(body.text,abbr);let graph:CanonicalLanguageGraphV1=createCanonicalLanguageGraphV1(surface);const sentenceRuns:any[]=[];const bindingErrors:string[]=[];const candidateSurfaces = [
+  ...new Set(
+    surface.tokens
+      .filter((t) => t.kind === 'word')
+      .map((t) => t.normalizedSurface),
+  ),
+];
+
+const [candidateBatchResult, morphRegistryResult] = await Promise.all([
+  supabase.rpc('canonical_surface_candidate_batch_v1', {
+    p_surfaces: candidateSurfaces,
+  }),
+  supabase.rpc('canonical_morph_registry_snapshot_v1'),
+]);
+
+if (candidateBatchResult.error) {
+  throw new Error(
+    `canonical_surface_candidate_batch_v1:${candidateBatchResult.error.message}`,
+  );
+}
+if (morphRegistryResult.error) {
+  throw new Error(
+    `canonical_morph_registry_snapshot_v1:${morphRegistryResult.error.message}`,
+  );
+}
+
+const candidatePatch = buildCanonicalCandidateLatticePatchV1(
+  surface,
+  (candidateBatchResult.data ?? []) as CanonicalSurfaceCandidateBatchRowV1[],
+  (Array.isArray(morphRegistryResult.data)
+    ? morphRegistryResult.data
+    : []) as CanonicalMorphRegistryEntryV1[],
+);
+graph = applyGraphPatchV1(graph, candidatePatch);
+const candidateLatticeSummary =
+  summarizeCanonicalCandidateLatticePatchV1(candidatePatch);
+
+const structuralReleaseCode =
   typeof body.structuralReleaseCode === 'string' &&
   body.structuralReleaseCode.trim()
     ? body.structuralReleaseCode.trim()
@@ -73,10 +116,9 @@ for (let i = 0; i < surface.sentences.length; i++) {
     ),
   );
 
-  // Preserve source lexical candidates from the existing Edge path.
-  // Structural facts are projected only from the SQL bridge.
+  // Legacy lexical resolution is comparator input only in v1.41.
+  // Canonical lexical/POS/morph facts come only from canonical_candidate_lattice_v1.
   const lexical = await resolveTokens(supabase, edgeMap, roles);
-  graph = applyGraphPatchV1(graph, lexicalPatch(lexical, edgeMap));
 
   const { data: sqlAnalysis, error: sqlError } = await supabase.rpc(
     'run_canonical_legacy_compatibility_v140',
@@ -102,7 +144,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
     );
   }
 
-  const projection = projectLegacyAnalysisIntoCanonicalGraphV11(
+  const projection = projectLegacyStructureIntoCanonicalGraphV11(
     graph,
     sqlAnalysis as J,
     surface,
@@ -174,7 +216,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
     edgeComparator,
   });
 }
-const graphErrors=assertCanonicalLanguageGraphV1(graph);const spanErrors=surface.tokens.filter((t:any)=>surface.text.slice(t.startUtf16,t.endUtf16)!==t.surface).map((t:any)=>`surface_span:${t.id}`);const crossSentenceEdges=graph.edges.filter(e=>{const s=graph.nodes.find(n=>n.id===e.sourceId),t=graph.nodes.find(n=>n.id===e.targetId);const si=(s?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.sourceId)?.sentenceIndex;const ti=(t?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.targetId)?.sentenceIndex;return si!=null&&ti!=null&&si!==ti}).map(e=>e.id);const errors=[...bindingErrors,...graphErrors,...spanErrors,...crossSentenceEdges.map(x=>`cross_sentence_edge:${x}`)];return json({ok:errors.length===0,version:VERSION,shadow_only:true,production_replacement:false,grammar_activation:false,surface,language_graph:graph,sentence_runs:sentenceRuns,invariants:{errors,passed:errors.length===0,no_retokenization:true,global_activation:false}})}catch(e){console.error('[V1.40 SHADOW]',e);return json({ok:false,version:VERSION,shadow_only:true,error:e instanceof Error?e.message:String(e)},500)}});
+const graphErrors=assertCanonicalLanguageGraphV1(graph);const spanErrors=surface.tokens.filter((t:any)=>surface.text.slice(t.startUtf16,t.endUtf16)!==t.surface).map((t:any)=>`surface_span:${t.id}`);const crossSentenceEdges=graph.edges.filter(e=>{const s=graph.nodes.find(n=>n.id===e.sourceId),t=graph.nodes.find(n=>n.id===e.targetId);const si=(s?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.sourceId)?.sentenceIndex;const ti=(t?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.targetId)?.sentenceIndex;return si!=null&&ti!=null&&si!==ti}).map(e=>e.id);const errors=[...bindingErrors,...graphErrors,...spanErrors,...crossSentenceEdges.map(x=>`cross_sentence_edge:${x}`)];return json({ok:errors.length===0,version:VERSION,shadow_only:true,production_replacement:false,grammar_activation:false,surface,language_graph:graph,candidate_lattice:candidateLatticeSummary,sentence_runs:sentenceRuns,invariants:{errors,passed:errors.length===0,no_retokenization:true,global_activation:false}})}catch(e){console.error('[V1.41 SHADOW]',e);return json({ok:false,version:VERSION,shadow_only:true,error:e instanceof Error?e.message:String(e)},500)}});
 
 
 

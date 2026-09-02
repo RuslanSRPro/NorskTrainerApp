@@ -748,3 +748,36 @@ export function projectLegacyAnalysisIntoCanonicalGraphV11(
     diagnostics,
   };
 }
+
+// ---------------------------------------------------------------------------
+// v1.41 compatibility boundary.
+// Canonical lexical/POS/morph candidate layers are now native graph facts.
+// Legacy runtime remains available only for structural shadow/comparator facts.
+// ---------------------------------------------------------------------------
+export function projectLegacyStructureIntoCanonicalGraphV11(
+  graph: CanonicalLanguageGraphV1,
+  legacyAnalysis: J,
+  surface: CanonicalSurfaceDocumentV1,
+  sentenceIndex: number,
+  sqlMap: SqlStructuralCompatibilityMapV1,
+): LegacyGraphProjectionV11 {
+  const diagnostics: LegacyGraphAdapterDiagnosticV11[] = [];
+  const ctx: AdapterContextV11 = { surface, sentenceIndex, sqlMap, diagnostics };
+
+  const patches: GraphPatchV1[] = [
+    phrasePatchFromLegacyV11(legacyAnalysis, ctx),
+    mwePatchFromLegacyV11(legacyAnalysis, ctx),
+    predicatePatchFromLegacyV11(legacyAnalysis, ctx),
+    clausePatchFromLegacyV11(legacyAnalysis, ctx),
+    attachmentPatchFromLegacyV11(legacyAnalysis, ctx),
+    dependencyPatchFromLegacyV11(legacyAnalysis, ctx),
+  ];
+
+  return {
+    graph: patches.reduce(
+      (current, patch) => applyGraphPatchV1(current, patch),
+      graph,
+    ),
+    diagnostics,
+  };
+}
