@@ -7,6 +7,7 @@ import {
   type ResolveRequest,
   type ResolveResult,
 } from "./types.ts";
+import { BokmalWrittenFormSelectionPolicy } from "./selection.ts";
 
 export class NoFormPreferenceProvider implements FormPreferenceProvider {
   readonly providerVersion = "none/v1";
@@ -26,7 +27,7 @@ export async function resolveAuthoritativeMorphology(args: {
     new NoFormPreferenceProvider();
   const lookup = await client.lookup(
     args.request.query,
-    args.request.dictionaries ?? ["bm", "nn"],
+    args.request.dictionaries ?? ["bm"],
   );
 
   let paradigms = parseOrdbokeneArticles(lookup.articles);
@@ -52,6 +53,12 @@ export async function resolveAuthoritativeMorphology(args: {
     paradigms,
     writesPerformed: false,
   };
+}
+
+export function buildAuthoritativeDisplayGroups(
+  paradigms: readonly AuthoritativeParadigm[],
+) {
+  return new BokmalWrittenFormSelectionPolicy().select(paradigms);
 }
 
 async function annotatePreferences(

@@ -37,6 +37,7 @@ import { supabase } from '@/services/supabase';
 import { t, AppLanguage } from '@/services/i18n';
 import { useSettingsStore } from '@/store/settingsStore';
 import { addLexemeToLearningFromSupabase } from '@/services/api';
+import { fetchFormsMap } from '@/services/formReadModel';
 import {
   Lexeme360Carousel,
   type Lexeme360CarouselItem,
@@ -171,6 +172,9 @@ type Lexeme360Data = {
   definitions: DefinitionRow[];
   examples: ExampleRow[];
   grammar: GrammarForms;
+  formAlternatives?: Record<string, string[]>;
+  hasFormAlternatives?: boolean;
+  regularityMarker?: 'regular' | 'irregular' | 'suppletive' | 'unknown';
   relations: RelatedItem[];
   // ФИКС: исходный lexemeId, с которым открыли Lexeme360 — может
   // отличаться от `id`, если открытая лексема сама оказалась выражением
@@ -428,7 +432,8 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     }
   }
 
-  // 1. Core lexeme + morphology.
+  // 1. Core lexeme. Morphology is loaded through the single configured
+  // read model below; nested legacy tables are intentionally not embedded.
   const { data, error } = await supabase
     .from('lexemes')
     .select(`
@@ -437,15 +442,14 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       pos,
       cefr_level,
       frequency_rank,
-      frequency_ipm,
-      verb_forms ( infinitiv, presens, preteritum, perfektum, gruppe ),
-      noun_forms ( ubest_entall, best_entall, ubest_flertall, best_flertall, official_gender ),
-      adjective_forms ( positiv, intetkjonn, flertall, komparativ, superlativ )
+      frequency_ipm
     `)
     .eq('id', effectiveId)
     .single();
 
   if (error || !data) return null;
+
+  const forms = (await fetchFormsMap([effectiveId])).get(effectiveId);
 
   const lemma = normalizeText((data as any).lemma);
 
@@ -746,9 +750,9 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
 
   relations = dedupeRelationsByLemma([...relations, ...candidateRelations]);
 
-  const vf = (data as any).verb_forms?.[0] ?? {};
-  const nf = (data as any).noun_forms?.[0] ?? {};
-  const af = (data as any).adjective_forms?.[0] ?? {};
+  const vf = forms?.verb_forms ?? {};
+  const nf = forms?.noun_forms ?? {};
+  const af = forms?.adjective_forms ?? {};
 
   return {
     id: (data as any).id,
@@ -764,6 +768,9 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     definitions,
     examples,
     grammar: { ...vf, ...nf, ...af },
+    formAlternatives: forms?.form_alternatives ?? {},
+    hasFormAlternatives: forms?.has_form_alternatives ?? false,
+    regularityMarker: forms?.regularity_marker ?? 'unknown',
     relations,
     requestedId: lexemeId,
   };

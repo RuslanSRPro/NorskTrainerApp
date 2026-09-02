@@ -1,11 +1,11 @@
-# D10 — Authoritative Morphology V2 (source-only)
+# D10 — Authoritative Morphology V2
 
 ## Status
 
-Recovered implementation, isolated on `d10/source-only-recovery`.
+Source parsing is complete. Production hardening and cutover controls are
+staged on `d10/canonical-cutover`.
 
-This package is intentionally **not deployed** and **not connected** to the
-current enrichment or text-analysis pipeline. Its SQL remains under
+This package is intentionally **not deployed**. Its SQL remains under
 `supabase/pending/`; no D10 file exists under `supabase/migrations/`.
 
 ## Goal
@@ -30,16 +30,21 @@ References:
 
 ## Isolation boundary
 
-The following existing components are unchanged:
+The following production behavior remains unchanged until flags are enabled:
 
 - `supabase/functions/forms-enrichment-worker/index.ts`;
-- `job-enrichment-batch-worker` and every caller of the current forms worker;
-- application reads from `lexeme_form_variants`;
+- `forms-enrichment-worker` remains the completion-accounted producer;
+- `job-enrichment-batch-worker` calls V2 only with
+  `D10_FORMS_V2_SHADOW_ENABLED=true`;
+- V2 persistence additionally requires `D10_FORMS_V2_PERSIST_ENABLED=true`;
+- the application remains on legacy unless
+  `EXPO_PUBLIC_FORMS_READ_MODEL=v2`;
+- text analysis remains on legacy unless `D10_FORMS_READ_MODEL=v2`;
 - Grammar KB, its graph, compiler, runtime release, and phase routing;
 - all production functions and database objects.
 
-The new code is reachable only through an explicitly invoked shadow endpoint.
-The endpoint performs no database writes.
+No request combines legacy and V2 rows. A V2 read failure returns no forms for
+that read; it never silently falls back to legacy.
 
 ### Relationship to existing Morphological Disambiguation V1
 
@@ -115,6 +120,17 @@ All official variants survive unchanged. In the current golden data this
 includes `gapa`/`gapte` and `håpa`/`håpet`/`håpte`. The source layer does not
 reinterpret `-a`, `-et`, `-te`, `sa`, or `la`.
 
+`BokmalWrittenFormSelectionPolicy` is a separate display contract. For a
+Bokmål verb group where official written non-`-a` variants coexist, it keeps
+the `-et`/`-te` values in the ordered primary array and the official `-a`
+value in the alternative array. If only `-a` exists, it stays primary. The
+short irregular forms `sa` and `la` are never classified by suffix alone.
+
+Evidence is explicit: Ordbøkene supplies every value; Språkrådet's 2025-05-07
+guidance documents register tendencies for Bokmål `-a` endings; and the app's
+moderate-written default is a versioned product policy, not a claim that an
+official alternative is incorrect.
+
 ## Pedagogical preference and irregularity
 
 Source truth and product presentation are separate contracts.
@@ -165,15 +181,20 @@ the presence of source forms in the canonical morphology snapshot.
 
 ## Pending storage contract
 
-`supabase/pending/authoritative_morphology_v2.pending.sql` defines three
-service-role-only tables:
+`supabase/pending/authoritative_morphology_v2.pending.sql` defines four
+private source/audit tables and one public read projection:
 
 1. immutable lookup snapshots;
 2. source paradigms inside a snapshot;
-3. exact forms inside a paradigm.
+3. exact forms inside a paradigm;
+4. bounded V1/V2 comparison evidence;
+5. `public.lexeme_form_display_v2`, containing ordered primary and alternative
+   arrays for authenticated application reads.
 
-RLS is enabled and forced. `anon` and `authenticated` receive no table or RPC
-privileges. Every foreign-key column has an index.
+RLS is enabled and forced. `anon` cannot read the projection; authenticated
+users can only select it. Private tables have no direct client or service-role
+grants. The guarded publisher RPC is service-role-only. Every foreign-key
+column has an index.
 
 Snapshot construction and publication are separate:
 
@@ -193,9 +214,9 @@ The finalizer rejects snapshots when:
 - there are no paradigms;
 - any paradigm has no forms.
 
-It then takes a per-query transaction advisory lock and atomically switches the
-active snapshot. The read view joins only the active, complete, ready snapshot;
-therefore stale paradigms from the previous release cannot remain active.
+The publisher takes a per-lexeme transaction advisory lock and atomically
+switches the active snapshot together with the canonical projection; therefore
+stale paradigms from the previous release cannot remain visible.
 
 ## Golden corpus
 
@@ -210,19 +231,17 @@ observation, not a reason to make unit tests depend on the network.
 
 ## Safe cutover order
 
-1. Close D09, including controlled rollout and its explicit `all` decision.
-2. Re-read the current Grammar KB/graph and implement a versioned preference
-   provider without altering source forms.
-3. Create a real migration with `supabase migration new`; copy and review the
+1. Make Local/Remote migration history identical without repair, deletion,
+   renaming, or overwriting old migrations.
+2. Create a real migration with `supabase migration new`; copy and review the
    pending SQL. Do not rename the pending file into `migrations/` manually.
-4. Apply only in a disposable/local database and run the pending pgTAP test.
-5. Deploy only `forms-enrichment-v2-shadow` with JWT verification enabled.
-6. Compare v1 and v2 for coverage, source errors, homonym separation, paradigm
-   completeness, and storage growth.
-7. Persist v2 snapshots in shadow and verify atomic replacement.
-8. Add one application read adapter behind a feature flag; do not dual-write.
-9. Canary read cutover, then broaden only after learner-facing review.
-10. Remove old bridges/tables only in a later, separately approved cleanup
-    after all readers have moved to the canonical source.
+3. Apply only in a disposable/local database and run the pending pgTAP test.
+4. Deploy the JWT-protected V2 worker, keeping both D10 flags false.
+5. Enable backend shadow only and compare V1/V2 coverage and errors.
+6. Enable V2 persistence while the app still reads legacy; verify atomic
+   replacement and bounded storage.
+7. Switch app and text analysis to V2, then convert all remaining readers.
+8. Remove bridges and legacy tables only after the dependency audit returns
+   zero, in a separate approved destructive migration.
 
 No full refresh or lexical rerun belongs to this package.

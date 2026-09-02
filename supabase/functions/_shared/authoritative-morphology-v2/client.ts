@@ -35,7 +35,7 @@ export class OrdbokeneClient {
 
   async lookup(
     query: string,
-    dictionaries: readonly DictionaryCode[] = ["bm", "nn"],
+    dictionaries: readonly DictionaryCode[] = ["bm"],
   ): Promise<OrdbokeneLookup> {
     const normalizedQuery = normalizeNorwegian(query);
     if (!normalizedQuery) throw new Error("Ordbokene lookup query is empty");

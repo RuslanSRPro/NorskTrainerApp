@@ -432,6 +432,10 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
 }
 
 async function loadVerbMaps(): Promise<VerbMaps> {
+  if (Deno.env.get('D10_FORMS_READ_MODEL') === 'v2') {
+    return await loadVerbMapsV2();
+  }
+
   // ФИКС (22.08.2026): пагинировано превентивно через fetchAllRows() —
   // 404 строки на момент фикса, безопасно СЕЙЧАС, но растёт с каждой
   // сессией обогащения словаря и рано или поздно пересечёт тот же лимит
@@ -472,6 +476,62 @@ async function loadVerbMaps(): Promise<VerbMaps> {
     presensToInfinitiv,
     perfektumToInfinitiv,
   };
+}
+
+async function loadVerbMapsV2(): Promise<VerbMaps> {
+  const data = await fetchAllRows(async (from, to) => {
+    return await supabase
+      .from('lexeme_form_display_v2')
+      .select('lexeme_id, lemma, form_key, primary_values')
+      .eq('dictionary_code', 'bm')
+      .eq('pos', 'verb')
+      .in('form_key', ['infinitive', 'present', 'past_participle'])
+      .order('lexeme_id', { ascending: true })
+      .order('display_order', { ascending: true })
+      .range(from, to);
+  });
+
+  const byLexeme = new Map<string, {
+    lemma: string;
+    infinitives: string[];
+    presents: string[];
+    participles: string[];
+  }>();
+
+  for (const row of data as any[]) {
+    const id = String(row.lexeme_id ?? '');
+    if (!id) continue;
+    const entry = byLexeme.get(id) ?? {
+      lemma: normalize(row.lemma ?? ''),
+      infinitives: [],
+      presents: [],
+      participles: [],
+    };
+    const values = Array.isArray(row.primary_values)
+      ? row.primary_values
+        .map((value: unknown) => normalize(String(value)))
+        .filter(Boolean)
+      : [];
+    if (row.form_key === 'infinitive') entry.infinitives.push(...values);
+    if (row.form_key === 'present') entry.presents.push(...values);
+    if (row.form_key === 'past_participle') entry.participles.push(...values);
+    byLexeme.set(id, entry);
+  }
+
+  const presensToInfinitiv = new Map<string, string>();
+  const perfektumToInfinitiv = new Map<string, string>();
+  for (const entry of byLexeme.values()) {
+    const infinitiv = entry.infinitives[0] || entry.lemma;
+    if (!infinitiv) continue;
+    for (const present of entry.presents) {
+      presensToInfinitiv.set(present, infinitiv);
+    }
+    for (const participle of entry.participles) {
+      perfektumToInfinitiv.set(participle, infinitiv);
+    }
+  }
+
+  return { presensToInfinitiv, perfektumToInfinitiv };
 }
 
 

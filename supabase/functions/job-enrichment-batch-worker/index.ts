@@ -279,6 +279,15 @@ type ChainResult = {
   next_offset: number | null;
   total: number | null;
   errors?: Record<string, unknown>[];
+  forms_v2_shadow?: {
+    enabled: boolean;
+    ok: boolean;
+    persisted: boolean;
+    status: number;
+    processed: number;
+    failed: number;
+    error?: string;
+  };
 };
 
 const EMPTY_RESULT: ChainResult = {
@@ -999,7 +1008,21 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
     return { ...EMPTY_RESULT, processed: rawItems.length, has_more: hasMore, next_offset: hasMore ? offset + limit : null, total: count ?? null };
   }
 
-  const result = await callWorkerJson('forms-enrichment-worker', { lexemeIds: eligibleIds, dryRun: false });
+  const v2ShadowEnabled =
+    Deno.env.get('D10_FORMS_V2_SHADOW_ENABLED') === 'true';
+  const v2PersistEnabled =
+    Deno.env.get('D10_FORMS_V2_PERSIST_ENABLED') === 'true';
+  const legacyPromise = callWorkerJson(
+    'forms-enrichment-worker',
+    { lexemeIds: eligibleIds, dryRun: false },
+  );
+  const v2Promise = v2ShadowEnabled
+    ? callWorkerJson('forms-enrichment-v2-worker', {
+      lexemeIds: eligibleIds,
+      persist: v2PersistEnabled,
+    })
+    : Promise.resolve(null);
+  const [result, v2Result] = await Promise.all([legacyPromise, v2Promise]);
 
   const stats = result.ok
     ? {
@@ -1019,7 +1042,25 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
         errors: [{ stage: 'forms_batch_call', error: safeStringify(result.data) }],
       };
 
-  return buildResult(rawItems.length, stats, count, offset, limit);
+  const chainResult = buildResult(rawItems.length, stats, count, offset, limit);
+  if (!v2ShadowEnabled || !v2Result) return chainResult;
+
+  return {
+    ...chainResult,
+    // V2 is observation-only at this stage. Its errors are visible but never
+    // alter legacy completion/retry accounting.
+    forms_v2_shadow: {
+      enabled: true,
+      ok: v2Result.ok,
+      persisted: v2PersistEnabled && v2Result.ok,
+      status: v2Result.status,
+      processed: Number(v2Result.data?.processed ?? 0),
+      failed: Number(v2Result.data?.failed ?? 0),
+      error: v2Result.ok
+        ? undefined
+        : safeStringify(v2Result.data?.error ?? 'V2 shadow failed').slice(0, 500),
+    },
+  };
 }
 
 // ----------------------------------------------------------------------------

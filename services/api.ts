@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getCurrentUserId } from '@/store/authStore';
+import { fetchFormsMap, type FormsBundle } from './formReadModel';
 
 // ============================================================
 // LEXEME SELECT
@@ -11,11 +12,10 @@ import { getCurrentUserId } from '@/store/authStore';
 // w.relations_count === undefined и иконка режима 360° никогда не
 // показывалась в тренировке, независимо от того, сколько реальных связей
 // было в expression_catalog/lexeme_relations.
-// FIX: verb_forms(...) / noun_forms(...) / adjective_forms(...) as embedded
-// relations were removed - those tables do not exist in the current schema.
-// Forms now come from a direct, separate read of lexeme_form_variants
-// (see fetchFormVariantsMap below) instead of a sync bridge, per the
-// production decision to avoid a second, potentially-stale data layer.
+// Legacy embedded form relations were removed from this lexeme query.
+// Forms come from the single configured adapter in formReadModel.ts.
+// V2 reads only canonical lexeme_form_display_v2; legacy remains an explicit
+// temporary mode and is never mixed into a V2 request.
 const LEXEME_SELECT = `
   id, lemma, pos, display_form,
   dictionary_status, dictionary_exclusion_reason, is_learning_lexeme,
@@ -28,103 +28,6 @@ const LEXEME_SELECT = `
     expression_subtype
   )
 `;
-
-// ============================================================
-// Direct read from lexeme_form_variants - no bridge table.
-// Different sources wrote form_key under different naming
-// conventions (norwegian vs english terms); this normalizes them
-// into one canonical set consumed by mapLexemeRow / getAllForms().
-// past_perfect ("hadde X") is deliberately NOT aliased to perfektum
-// ("har X") - different tense, would silently give a wrong form.
-// ============================================================
-
-const FORM_KEY_ALIASES: Record<string, string> = {
-  infinitiv: 'infinitiv',
-  infinitive: 'infinitiv',
-  presens: 'presens',
-  present: 'presens',
-  preteritum: 'preteritum',
-  past: 'preteritum',
-  perfektum: 'perfektum',
-  present_perfect: 'perfektum',
-  imperative: 'imperative',
-  positiv: 'positiv',
-  intetkjonn: 'intetkjonn',
-  flertall: 'flertall',
-  komparativ: 'komparativ',
-  superlativ: 'superlativ',
-  best_superlativ: 'best_superlativ',
-  ubest_entall: 'ubest_entall',
-  best_entall: 'best_entall',
-  ubest_flertall: 'ubest_flertall',
-  best_flertall: 'best_flertall',
-};
-
-const VERB_FORM_KEYS = new Set(['infinitiv', 'presens', 'preteritum', 'perfektum', 'imperative']);
-const ADJECTIVE_FORM_KEYS = new Set(['positiv', 'intetkjonn', 'flertall', 'komparativ', 'superlativ', 'best_superlativ']);
-const NOUN_FORM_KEYS = new Set(['ubest_entall', 'best_entall', 'ubest_flertall', 'best_flertall']);
-
-type FormsBundle = {
-  verb_forms: Record<string, string>;
-  noun_forms: Record<string, string>;
-  adjective_forms: Record<string, string>;
-};
-
-async function fetchFormVariantsMap(
-  lexemeIds: string[],
-): Promise<Map<string, FormsBundle>> {
-  const result = new Map<string, FormsBundle>();
-  if (lexemeIds.length === 0) return result;
-
-  const { data, error } = await supabase
-    .from('lexeme_form_variants')
-    .select('lexeme_id, form_key, value, is_primary, verification_status')
-    .in('lexeme_id', lexemeIds);
-
-  if (error) {
-    console.error('fetchFormVariantsMap failed:', error.message);
-    return result;
-  }
-
-  // Group rows by lexeme_id, then pick one value per canonical form_key -
-  // prefer is_primary=true, fall back to the first row encountered.
-  const grouped = new Map<string, any[]>();
-  for (const row of data || []) {
-    if (!row.lexeme_id || !row.form_key) continue;
-    const list = grouped.get(row.lexeme_id) || [];
-    list.push(row);
-    grouped.set(row.lexeme_id, list);
-  }
-
-  for (const [lexemeId, rows] of grouped.entries()) {
-    const chosen: Record<string, { value: string; isPrimary: boolean }> = {};
-
-    for (const row of rows) {
-      const canonical = FORM_KEY_ALIASES[row.form_key];
-      if (!canonical) continue;
-
-      const existing = chosen[canonical];
-      // Prefer primary; if neither/both are primary, keep the first seen.
-      if (!existing || (row.is_primary && !existing.isPrimary)) {
-        chosen[canonical] = { value: row.value, isPrimary: !!row.is_primary };
-      }
-    }
-
-    const verb_forms: Record<string, string> = {};
-    const noun_forms: Record<string, string> = {};
-    const adjective_forms: Record<string, string> = {};
-
-    for (const [key, { value }] of Object.entries(chosen)) {
-      if (VERB_FORM_KEYS.has(key)) verb_forms[key] = value;
-      else if (ADJECTIVE_FORM_KEYS.has(key)) adjective_forms[key] = value;
-      else if (NOUN_FORM_KEYS.has(key)) noun_forms[key] = value;
-    }
-
-    result.set(lexemeId, { verb_forms, noun_forms, adjective_forms });
-  }
-
-  return result;
-}
 
 // ============================================================
 // Types
@@ -236,16 +139,20 @@ function mapLexemeRow(item: any, forms?: FormsBundle) {
     verb_forms:       forms?.verb_forms      || null,
     noun_forms:       forms?.noun_forms      || null,
     adjective_forms:  forms?.adjective_forms || null,
+    form_primary: forms?.form_primary || {},
+    form_alternatives: forms?.form_alternatives || {},
+    has_form_alternatives: forms?.has_form_alternatives || false,
+    regularity_marker: forms?.regularity_marker || 'unknown',
+    forms_read_model: forms?.forms_read_model || null,
   };
 }
 
-// FIX: now async - fetches lexeme_form_variants for the whole batch in one
-// query (not per-row), then maps rows with their matching forms bundle.
+// Fetch morphology once for the batch through exactly one configured model.
 async function mapLexemeRows(rows: any[]) {
   const validRows = (rows || []).filter(Boolean);
   const lexemeIds = validRows.map((r) => r.id).filter(Boolean);
 
-  const formsMap = await fetchFormVariantsMap(lexemeIds);
+  const formsMap = await fetchFormsMap(lexemeIds);
 
   return validRows
     .map((row) => mapLexemeRow(row, formsMap.get(row.id)))

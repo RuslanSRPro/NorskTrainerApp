@@ -1,5 +1,6 @@
 import {
   type AuthoritativeParadigm,
+  BokmalWrittenFormSelectionPolicy,
   buildParadigmIdentity,
   type FormPreferenceProvider,
   OrdbokeneClient,
@@ -40,7 +41,7 @@ function json(value: unknown, status = 200): Response {
   });
 }
 
-Deno.test("01 exact lookup requests scope=e for Bokmål and Nynorsk", async () => {
+Deno.test("01 exact lookup defaults to scope=e and Bokmål only", async () => {
   const seen: string[] = [];
   const client = new OrdbokeneClient({
     fetchImpl: (input) => {
@@ -53,7 +54,20 @@ Deno.test("01 exact lookup requests scope=e for Bokmål and Nynorsk", async () =
   await client.lookup("få");
   const first = new URL(seen[0]);
   assertEquals(first.searchParams.get("scope"), "e");
-  assertEquals(first.searchParams.get("dict"), "bm,nn");
+  assertEquals(first.searchParams.get("dict"), "bm");
+});
+
+Deno.test("01b Nynorsk is available only when explicitly requested", async () => {
+  const seen: string[] = [];
+  const client = new OrdbokeneClient({
+    fetchImpl: (input) => {
+      seen.push(String(input));
+      return Promise.resolve(json({ articles: { nn: [] } }));
+    },
+  });
+
+  await client.lookup("få", ["nn"]);
+  assertEquals(new URL(seen[0]).searchParams.get("dict"), "nn");
 });
 
 Deno.test("02 empty exact lookup falls back to scope=i", async () => {
@@ -284,4 +298,78 @@ Deno.test("12 preference provider annotates but cannot create source forms", asy
   });
   assertEquals(result.paradigms[0].forms, before);
   assertEquals(result.paradigms[0].preference?.regularity, "suppletive");
+});
+
+Deno.test("13 written policy keeps håpet/håpte primary and håpa alternative", () => {
+  const groups = new BokmalWrittenFormSelectionPolicy().select(
+    parseOrdbokeneArticles([HOPE_BM]),
+  );
+  const preterite = groups.find((group) => group.formKey === "preterite");
+  assert(preterite);
+  assertEquals(preterite.primary.map((form) => form.value), ["håpet", "håpte"]);
+  assertEquals(preterite.alternatives.map((form) => form.value), ["håpa"]);
+  assert(preterite.alternatives[0].evidenceIds.length === 3);
+});
+
+Deno.test("14 same-POS articles never merge into one display group", () => {
+  const secondArticle = { ...HOPE_BM, articleId: "99999" };
+  const groups = new BokmalWrittenFormSelectionPolicy().select(
+    parseOrdbokeneArticles([HOPE_BM, secondArticle]),
+  ).filter((group) => group.formKey === "preterite");
+
+  assertEquals(groups.length, 2);
+  assertEquals(new Set(groups.map((group) => group.articleId)).size, 2);
+});
+
+Deno.test("15 sa/la are not classified as regular -a alternatives", () => {
+  const paradigms = parseOrdbokeneArticles([FA_BM_VERB]).map((paradigm) => ({
+    ...paradigm,
+    forms: [
+      {
+        formKey: "preterite",
+        value: "sa",
+        normalizedValue: "sa",
+        tags: ["Past"],
+        sourceOrdinal: 0,
+      },
+      {
+        formKey: "preterite",
+        value: "sagde",
+        normalizedValue: "sagde",
+        tags: ["Past"],
+        sourceOrdinal: 1,
+      },
+      {
+        formKey: "past_participle",
+        value: "la",
+        normalizedValue: "la",
+        tags: ["<PerfPart>"],
+        sourceOrdinal: 2,
+      },
+      {
+        formKey: "past_participle",
+        value: "lagt",
+        normalizedValue: "lagt",
+        tags: ["<PerfPart>"],
+        sourceOrdinal: 3,
+      },
+    ],
+  }));
+  const groups = new BokmalWrittenFormSelectionPolicy().select(paradigms);
+
+  assert(groups.every((group) => group.alternatives.length === 0));
+});
+
+Deno.test("16 policy never creates values absent from Ordbøkene paradigms", () => {
+  const paradigms = parseOrdbokeneArticles([GAPE_BM, HOPE_BM]);
+  const sourceValues = new Set(
+    paradigms.flatMap((paradigm) => paradigm.forms.map((form) => form.value)),
+  );
+  const selectedValues = new BokmalWrittenFormSelectionPolicy().select(
+    paradigms,
+  )
+    .flatMap((group) => [...group.primary, ...group.alternatives])
+    .map((form) => form.value);
+
+  assert(selectedValues.every((value) => sourceValues.has(value)));
 });

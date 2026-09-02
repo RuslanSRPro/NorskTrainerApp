@@ -1,4 +1,5 @@
 import {
+  buildAuthoritativeDisplayGroups,
   type DictionaryCode,
   type MorphologyPos,
   OrdbokeneClient,
@@ -36,6 +37,7 @@ Deno.serve(async (request: Request) => {
       request: body,
       client: new OrdbokeneClient(),
     });
+    const displayGroups = buildAuthoritativeDisplayGroups(result.paradigms);
 
     return json({
       ok: result.status === "resolved" || result.status === "partial",
@@ -44,6 +46,7 @@ Deno.serve(async (request: Request) => {
       sourceOnly: true,
       persisted: false,
       result,
+      displayGroups,
     }, result.status === "source_error" ? 502 : 200);
   } catch (error) {
     return json({

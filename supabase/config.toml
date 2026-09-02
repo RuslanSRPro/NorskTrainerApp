@@ -49,3 +49,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/forms-enrichment-v2-shadow/deno.json"
 entrypoint = "./functions/forms-enrichment-v2-shadow/index.ts"
+
+[functions.forms-enrichment-v2-worker]
+enabled = true
+verify_jwt = true
+import_map = "./functions/forms-enrichment-v2-worker/deno.json"
+entrypoint = "./functions/forms-enrichment-v2-worker/index.ts"

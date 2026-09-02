@@ -263,10 +263,18 @@ async function hasRequiredForms(lexemeId: string, pos: string | null | undefined
     return true; // формы не нужны для этой части речи — не блокируем на этом
   }
 
-  const { count, error } = await supabase
-    .from('lexeme_form_variants')
-    .select('id', { count: 'exact', head: true })
-    .eq('lexeme_id', lexemeId);
+  const useV2 = Deno.env.get('D10_FORMS_READ_MODEL') === 'v2';
+  const query = useV2
+    ? supabase
+      .from('lexeme_form_display_v2')
+      .select('lexeme_id', { count: 'exact', head: true })
+      .eq('dictionary_code', 'bm')
+      .eq('lexeme_id', lexemeId)
+    : supabase
+      .from('lexeme_form_variants')
+      .select('id', { count: 'exact', head: true })
+      .eq('lexeme_id', lexemeId);
+  const { count, error } = await query;
 
   if (error) {
     // Сбой самой проверки — не считаем это "формы есть", но и не роняем

@@ -17,6 +17,8 @@ export type RegularityMarker =
   | "suppletive"
   | "unknown";
 
+export type FormDisplayTier = "primary" | "alternative";
+
 export type ArticleReference = {
   dictionaryCode: DictionaryCode;
   articleId: string;
@@ -83,6 +85,34 @@ export interface FormPreferenceProvider {
   getPreference(
     paradigm: Readonly<AuthoritativeParadigm>,
   ): Promise<ParadigmPreference | null>;
+}
+
+export type SelectedSourceForm = SourceForm & {
+  tier: FormDisplayTier;
+  paradigmIdentity: string;
+  paradigmId: string;
+  evidenceIds: string[];
+};
+
+export type FormDisplayGroup = {
+  dictionaryCode: DictionaryCode;
+  articleId: string;
+  pos: MorphologyPos;
+  lemma: string;
+  formKey: string;
+  primary: SelectedSourceForm[];
+  alternatives: SelectedSourceForm[];
+  regularityMarker: RegularityMarker;
+  evidenceIds: string[];
+  policyVersion: string;
+};
+
+export interface FormSelectionPolicy {
+  readonly policyVersion: string;
+
+  select(
+    paradigms: readonly AuthoritativeParadigm[],
+  ): FormDisplayGroup[];
 }
 
 export type ResolveRequest = {
