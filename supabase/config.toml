@@ -46,7 +46,7 @@ entrypoint = "./functions/pipeline-supervisor/index.ts"
 # the D09 gate described in docs/architecture/authoritative-morphology-v2.md.
 [functions.forms-enrichment-v2-shadow]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/forms-enrichment-v2-shadow/deno.json"
 entrypoint = "./functions/forms-enrichment-v2-shadow/index.ts"
 

@@ -1,3 +1,4 @@
+import { withSupabase } from "@supabase/server";
 import {
   buildAuthoritativeDisplayGroups,
   type DictionaryCode,
@@ -14,51 +15,46 @@ const ALLOWED_POS = new Set<MorphologyPos>([
   "determiner",
 ]);
 
-Deno.serve(async (request: Request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders() });
-  }
+Deno.serve(withSupabase(
+  { auth: "secret:completionshadow", cors: "disabled" },
+  async (request: Request) => {
+    if (request.method === "OPTIONS") {
+      return new Response("ok", { headers: corsHeaders() });
+    }
 
-  if (request.method !== "POST") {
-    return json({ ok: false, error: "Method not allowed" }, 405);
-  }
+    if (request.method !== "POST") {
+      return json({ ok: false, error: "Method not allowed" }, 405);
+    }
 
-  // Production must also keep verify_jwt=true in config.toml. This local
-  // fail-closed check prevents accidental unauthenticated execution when the
-  // handler is served outside the Supabase gateway.
-  const authorization = request.headers.get("authorization") ?? "";
-  if (!/^Bearer\s+\S+$/i.test(authorization)) {
-    return json({ ok: false, error: "Missing bearer JWT" }, 401);
-  }
+    try {
+      const body = await readBody(request);
+      const result = await resolveAuthoritativeMorphology({
+        request: body,
+        client: new OrdbokeneClient(),
+      });
+      const displayGroups = buildAuthoritativeDisplayGroups(result.paradigms);
 
-  try {
-    const body = await readBody(request);
-    const result = await resolveAuthoritativeMorphology({
-      request: body,
-      client: new OrdbokeneClient(),
-    });
-    const displayGroups = buildAuthoritativeDisplayGroups(result.paradigms);
-
-    return json({
-      ok: result.status === "resolved" || result.status === "partial",
-      function: FUNCTION_NAME,
-      mode: "shadow",
-      sourceOnly: true,
-      persisted: false,
-      result,
-      displayGroups,
-    }, result.status === "source_error" ? 502 : 200);
-  } catch (error) {
-    return json({
-      ok: false,
-      function: FUNCTION_NAME,
-      mode: "shadow",
-      sourceOnly: true,
-      persisted: false,
-      error: error instanceof Error ? error.message : String(error),
-    }, 400);
-  }
-});
+      return json({
+        ok: result.status === "resolved" || result.status === "partial",
+        function: FUNCTION_NAME,
+        mode: "shadow",
+        sourceOnly: true,
+        persisted: false,
+        result,
+        displayGroups,
+      }, result.status === "source_error" ? 502 : 200);
+    } catch (error) {
+      return json({
+        ok: false,
+        function: FUNCTION_NAME,
+        mode: "shadow",
+        sourceOnly: true,
+        persisted: false,
+        error: error instanceof Error ? error.message : String(error),
+      }, 400);
+    }
+  },
+));
 
 async function readBody(request: Request): Promise<{
   query: string;

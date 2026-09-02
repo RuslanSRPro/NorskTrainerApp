@@ -175,8 +175,13 @@ the presence of source forms in the canonical morphology snapshot.
 
 `forms-enrichment-v2-shadow`:
 
-- is explicitly configured with `verify_jwt = true`;
-- also fails closed on a missing bearer header when served locally;
+- is explicitly configured with `verify_jwt = false` because modern
+  `sb_secret_` keys are not JWTs;
+- authenticates inside the handler through `@supabase/server` with the named
+  `secret:completionshadow` key supplied only in the `apikey` header;
+- has a DPAPI-aware operator runner at
+  `scripts/run-d10-morphology-shadow.ps1`; the decrypted key exists only in
+  the PowerShell process and is never written or printed;
 - accepts `query`, optional `pos`, and optional `dictionaries`;
 - fetches Ordbøkene live and returns parsed paradigms;
 - always reports `mode=shadow`, `sourceOnly=true`, and `persisted=false`;
