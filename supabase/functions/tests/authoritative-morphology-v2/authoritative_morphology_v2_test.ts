@@ -2,12 +2,15 @@ import {
   type AuthoritativeParadigm,
   BokmalWrittenFormSelectionPolicy,
   buildParadigmIdentity,
+  compareAuthoritativeAndLegacyForms,
+  type FormDisplayGroup,
   type FormPreferenceProvider,
   hasInternalServiceAuthorization,
   isD10FormsV2CanaryEnabled,
   isD10PersistenceEnabled,
   OrdbokeneClient,
   parseOrdbokeneArticles,
+  resolveArticleProjection,
   resolveAuthoritativeMorphology,
 } from "../../_shared/authoritative-morphology-v2/mod.ts";
 import {
@@ -42,6 +45,39 @@ function json(value: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+function displayGroup(
+  formKey: string,
+  primaryValues: string[],
+  alternativeValues: string[] = [],
+  articleId = "test-article",
+): FormDisplayGroup {
+  const selected = (value: string, tier: "primary" | "alternative") => ({
+    formKey,
+    value,
+    normalizedValue: value.normalize("NFC").toLocaleLowerCase("nb-NO"),
+    tags: [],
+    sourceOrdinal: 0,
+    tier,
+    paradigmIdentity: `bm|${articleId}|verb|test`,
+    paradigmId: "test",
+    evidenceIds: ["ordbokene:official-form"],
+  });
+  return {
+    dictionaryCode: "bm",
+    articleId,
+    pos: "verb",
+    lemma: "test",
+    formKey,
+    primary: primaryValues.map((value) => selected(value, "primary")),
+    alternatives: alternativeValues.map((value) =>
+      selected(value, "alternative")
+    ),
+    regularityMarker: "unknown",
+    evidenceIds: ["ordbokene:official-form"],
+    policyVersion: "test/v1",
+  };
 }
 
 Deno.test("01 exact lookup defaults to scope=e and Bokmål only", async () => {
@@ -424,4 +460,89 @@ Deno.test("20 D10 canary fails closed above the 500-job rollout ceiling", () => 
   ids[0] = jobId;
 
   assertEquals(isD10FormsV2CanaryEnabled(jobId, "true", ids.join(",")), false);
+});
+
+Deno.test("21 comparison normalizes legacy noun keys before coverage", () => {
+  const groups = [
+    displayGroup("noun_singular_indefinite", ["ramme"]),
+    displayGroup("noun_singular_definite", ["rammen", "ramma"]),
+    displayGroup("noun_plural_indefinite", ["rammer"]),
+    displayGroup("noun_plural_definite", ["rammene"]),
+  ];
+  const comparison = compareAuthoritativeAndLegacyForms(groups, [
+    { form_key: "singular_indefinite", form_type: "", value: "ramme" },
+    { form_key: "singular_definite", form_type: "", value: "rammen" },
+    { form_key: "singular_definite", form_type: "", value: "ramma" },
+    { form_key: "plural_indefinite", form_type: "", value: "rammer" },
+    { form_key: "plural_definite", form_type: "", value: "rammene" },
+  ]);
+
+  assertEquals(comparison.matches, true);
+  assertEquals(comparison.v2Count, 5);
+  assertEquals(comparison.comparableLegacyCount, 5);
+  assertEquals(comparison.onlyV2, []);
+  assertEquals(comparison.onlyLegacy, []);
+});
+
+Deno.test("22 comparison reports derived legacy phrases as intentional exclusions", () => {
+  const groups = [
+    displayGroup("preterite", ["rammet"], ["ramma"]),
+    displayGroup("past_participle", ["rammet"], ["ramma"]),
+  ];
+  const comparison = compareAuthoritativeAndLegacyForms(groups, [
+    { form_key: "past", form_type: "", value: "rammet" },
+    { form_key: "past", form_type: "", value: "ramma" },
+    { form_key: "past_participle", form_type: "", value: "rammet" },
+    { form_key: "past_participle", form_type: "", value: "ramma" },
+    { form_key: "present_perfect", form_type: "", value: "har rammet" },
+    { form_key: "present_perfect", form_type: "", value: "har ramma" },
+    { form_key: "past_perfect", form_type: "", value: "hadde rammet" },
+    { form_key: "past_perfect", form_type: "", value: "hadde ramma" },
+  ]);
+
+  assertEquals(comparison.matches, true);
+  assertEquals(comparison.legacyCount, 8);
+  assertEquals(comparison.comparableLegacyCount, 4);
+  assertEquals(comparison.intentionalLegacyExclusions.length, 4);
+  assert(
+    comparison.intentionalLegacyExclusions.every((item) =>
+      item.reason === "derived_compound_tense"
+    ),
+  );
+});
+
+Deno.test("23 identical same-POS articles resolve only for shadow projection", () => {
+  const groups = new BokmalWrittenFormSelectionPolicy().select(
+    parseOrdbokeneArticles([HOPE_BM, { ...HOPE_BM, articleId: "99999" }]),
+  );
+  const resolution = resolveArticleProjection(groups);
+
+  assertEquals(resolution.status, "equivalent_source_articles");
+  assertEquals(resolution.articleIds, ["25496", "99999"]);
+  assertEquals(resolution.publishable, false);
+  assertEquals(resolution.primaryCount > 0, true);
+});
+
+Deno.test("24 differing same-POS articles remain ambiguous", () => {
+  const paradigms = parseOrdbokeneArticles([
+    HOPE_BM,
+    { ...HOPE_BM, articleId: "99999" },
+  ]).map((paradigm) =>
+    paradigm.articleId !== "99999" ? paradigm : {
+      ...paradigm,
+      forms: paradigm.forms.map((form) =>
+        form.value === "håpte"
+          ? { ...form, value: "håpte-x", normalizedValue: "håpte-x" }
+          : form
+      ),
+    }
+  );
+  const resolution = resolveArticleProjection(
+    new BokmalWrittenFormSelectionPolicy().select(paradigms),
+  );
+
+  assertEquals(resolution.status, "ambiguous_source_articles");
+  assertEquals(resolution.publishable, false);
+  assertEquals(resolution.primaryCount, 0);
+  assertEquals(resolution.alternativeCount, 0);
 });

@@ -1,12 +1,14 @@
-import { createClient } from "npm:@supabase/supabase-js@2.105.4";
+import { createClient } from "@supabase/supabase-js";
 import {
   buildAuthoritativeDisplayGroups,
-  type FormDisplayGroup,
+  compareAuthoritativeAndLegacyForms,
   hasInternalServiceAuthorization,
   isD10PersistenceEnabled,
+  type LegacyMorphologyRow,
   type MorphologyPos,
   normalizeNorwegian,
   OrdbokeneClient,
+  resolveArticleProjection,
   resolveAuthoritativeMorphology,
 } from "../_shared/authoritative-morphology-v2/mod.ts";
 
@@ -27,11 +29,8 @@ type LexemeRow = {
   pos: MorphologyPos;
 };
 
-type LegacyRow = {
+type LegacyRow = LegacyMorphologyRow & {
   lexeme_id: string;
-  form_key: string | null;
-  form_type: string;
-  value: string;
 };
 
 type RequestBody = {
@@ -84,7 +83,7 @@ Deno.serve(async (request: Request) => {
         pos: body.lookupPos!,
       }, []);
       return json({
-        ok: result.status === "resolved",
+        ok: isShadowResolvedStatus(result.status),
         worker: FUNCTION_NAME,
         mode: "manual",
         persisted: false,
@@ -120,7 +119,10 @@ Deno.serve(async (request: Request) => {
           lexeme,
           legacyRows.filter((row) => row.lexeme_id === lexeme.id),
         );
-        if (body.persist && result.status === "resolved") {
+        if (
+          body.persist && result.status === "resolved" &&
+          result.articleProjection.publishable
+        ) {
           const { error } = await supabase.rpc(
             "publish_authoritative_morphology_snapshot_v2",
             {
@@ -140,6 +142,14 @@ Deno.serve(async (request: Request) => {
           }
           return { ...compactResult(result), persisted: true };
         }
+        if (body.persist && isShadowResolvedStatus(result.status)) {
+          return {
+            ...compactResult(result),
+            status: "persistence_blocked_source_identity",
+            persisted: false,
+            error: "MULTI_ARTICLE_PROVENANCE_SCHEMA_REQUIRED",
+          };
+        }
         return { ...compactResult(result), persisted: false };
       },
     );
@@ -148,7 +158,7 @@ Deno.serve(async (request: Request) => {
       (id) => !lexemes.some((lexeme) => lexeme.id === id),
     );
     const failed = results.filter((result) =>
-      result.status !== "resolved"
+      !isShadowResolvedStatus(result.status)
     ).length +
       missingIds.length;
 
@@ -180,19 +190,17 @@ async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
     client: new OrdbokeneClient(),
   });
   const displayGroups = buildAuthoritativeDisplayGroups(resolution.paradigms);
-  const relevantArticles = new Set(
-    resolution.paradigms
-      .filter((paradigm) =>
-        paradigm.dictionaryCode === "bm" && paradigm.pos === lexeme.pos
-      )
-      .map((paradigm) => paradigm.articleId),
-  );
+  const articleProjection = resolveArticleProjection(displayGroups);
 
   let status = resolution.status as string;
-  if (resolution.status === "resolved" && relevantArticles.size !== 1) {
-    status = relevantArticles.size > 1
-      ? "ambiguous_source_articles"
-      : "not_found";
+  if (resolution.status === "resolved") {
+    if (articleProjection.status === "no_source_article") {
+      status = "not_found";
+    } else if (articleProjection.status === "equivalent_source_articles") {
+      status = "resolved_equivalent_source_articles";
+    } else if (articleProjection.status === "ambiguous_source_articles") {
+      status = "ambiguous_source_articles";
+    }
   }
   if (
     resolution.lookup.requestedDictionaries.some((dictionary) =>
@@ -209,42 +217,20 @@ async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
     status = "source_lemma_mismatch";
   }
 
-  const comparison = compareForms(displayGroups, legacyRows);
+  const comparison = compareAuthoritativeAndLegacyForms(
+    displayGroups,
+    legacyRows,
+  );
   return {
     lexemeId: lexeme.id,
     lemma: lexeme.lemma,
     pos: lexeme.pos,
     status,
-    articleIds: [...relevantArticles],
+    articleIds: articleProjection.articleIds,
+    articleProjection,
     displayGroups,
     comparison,
     resolution,
-  };
-}
-
-function compareForms(groups: FormDisplayGroup[], legacyRows: LegacyRow[]) {
-  const v2 = new Set(
-    groups.flatMap((group) => [...group.primary, ...group.alternatives])
-      .map((form) => `${form.formKey}|${form.normalizedValue}`),
-  );
-  const legacy = new Set(
-    legacyRows
-      .filter((row) => (row.form_key || row.form_type) && row.value)
-      .map((row) =>
-        `${normalizeLegacyKey(row.form_key || row.form_type)}|${
-          normalizeNorwegian(row.value)
-        }`
-      ),
-  );
-  return {
-    matches: setEquals(v2, legacy),
-    v2Count: v2.size,
-    legacyCount: legacy.size,
-    onlyV2: [...v2].filter((value) => !legacy.has(value)).sort().slice(0, 20),
-    onlyLegacy: [...legacy].filter((value) => !v2.has(value)).sort().slice(
-      0,
-      20,
-    ),
   };
 }
 
@@ -255,14 +241,9 @@ function compactResult(result: Awaited<ReturnType<typeof resolveOne>>) {
     pos: result.pos,
     status: result.status,
     articleIds: result.articleIds,
-    primaryCount: result.displayGroups.reduce(
-      (sum, group) => sum + group.primary.length,
-      0,
-    ),
-    alternativeCount: result.displayGroups.reduce(
-      (sum, group) => sum + group.alternatives.length,
-      0,
-    ),
+    articleProjection: result.articleProjection,
+    primaryCount: result.articleProjection.primaryCount,
+    alternativeCount: result.articleProjection.alternativeCount,
     comparison: result.comparison,
   };
 }
@@ -297,18 +278,6 @@ function parsePos(value: unknown): MorphologyPos | undefined {
     : undefined;
 }
 
-function normalizeLegacyKey(value: string): string {
-  const aliases: Record<string, string> = {
-    infinitiv: "infinitive",
-    presens: "present",
-    preteritum: "preterite",
-    past: "preterite",
-    perfektum: "past_participle",
-    present_perfect: "past_participle",
-  };
-  return aliases[value] ?? value;
-}
-
 function cleanLookupWord(value: string): string {
   return value.trim().replace(/^å\s+/i, "").replace(/^(en|ei|et)\s+/i, "");
 }
@@ -319,9 +288,9 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-function setEquals<T>(left: Set<T>, right: Set<T>): boolean {
-  return left.size === right.size &&
-    [...left].every((value) => right.has(value));
+function isShadowResolvedStatus(status: string): boolean {
+  return status === "resolved" ||
+    status === "resolved_equivalent_source_articles";
 }
 
 async function mapWithConcurrency<T, R>(

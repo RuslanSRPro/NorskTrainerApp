@@ -1,6 +1,17 @@
 export { OrdbokeneClient } from "./client.ts";
 export type { OrdbokeneClientOptions } from "./client.ts";
 export {
+  type ArticleProjectionResolution,
+  type ArticleProjectionStatus,
+  resolveArticleProjection,
+} from "./article-resolution.ts";
+export {
+  canonicalLegacyKey,
+  compareAuthoritativeAndLegacyForms,
+  type IntentionalLegacyExclusion,
+  type LegacyMorphologyRow,
+} from "./comparison.ts";
+export {
   hasInternalServiceAuthorization,
   isD10PersistenceEnabled,
 } from "./internal-authorization.ts";

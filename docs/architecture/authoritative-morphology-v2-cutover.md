@@ -46,6 +46,21 @@ Source ambiguity, `not_found`, and V1/V2 differences are returned as an HTTP
 200 audit result with `comparisonOk=false`. HTTP 502 is reserved for a failed
 or invalid internal-worker response.
 
+The comparison normalizes V1 technical aliases to V2 form keys before testing
+coverage. Legacy `present_perfect`/`past_perfect` phrases and `needs_review`
+pseudo-forms are reported under `intentionalLegacyExclusions`; they are not
+treated as missing Ordbøkene forms.
+
+Several exact articles may represent different senses with the same POS. The
+resolver never picks the first article and never merges their source
+identities. If all learner-facing form keys, values, and primary/alternative
+tiers are identical, shadow comparison reports
+`resolved_equivalent_source_articles` and the shared projection counts once.
+It remains `publishable=false`: the current V2 table has one `article_id`, so
+persistence is blocked until a versioned schema can retain every contributing
+article ID. Any difference between article projections remains
+`ambiguous_source_articles`.
+
 ## Migration-history gate
 
 Local/Remote history reached exact equality on 2026-09-02 without repair,

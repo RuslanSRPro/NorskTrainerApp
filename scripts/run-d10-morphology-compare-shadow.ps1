@@ -115,12 +115,16 @@ try {
       lemma = $_.lemma
       pos = $_.pos
       status = $_.status
+      articleResolution = $_.articleProjection.status
+      publishable = $_.articleProjection.publishable
       articles = ($_.articleIds -join ', ')
       primary = $_.primaryCount
       alternatives = $_.alternativeCount
       matchesLegacy = $_.comparison.matches
       v2Count = $_.comparison.v2Count
       legacyCount = $_.comparison.legacyCount
+      comparableLegacy = $_.comparison.comparableLegacyCount
+      intentionalExclusions = @($_.comparison.intentionalLegacyExclusions).Count
       onlyV2 = ($_.comparison.onlyV2 -join '; ')
       onlyLegacy = ($_.comparison.onlyLegacy -join '; ')
     }
