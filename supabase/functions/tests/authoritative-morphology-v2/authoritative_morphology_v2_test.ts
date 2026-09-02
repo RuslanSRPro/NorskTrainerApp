@@ -3,6 +3,8 @@ import {
   BokmalWrittenFormSelectionPolicy,
   buildParadigmIdentity,
   type FormPreferenceProvider,
+  hasInternalServiceAuthorization,
+  isD10PersistenceEnabled,
   OrdbokeneClient,
   parseOrdbokeneArticles,
   resolveAuthoritativeMorphology,
@@ -372,4 +374,28 @@ Deno.test("16 policy never creates values absent from Ordbøkene paradigms", () 
     .map((form) => form.value);
 
   assert(selectedValues.every((value) => sourceValues.has(value)));
+});
+
+Deno.test("17 worker authorization accepts only the exact internal credential", () => {
+  const secret = "service-role-test-secret";
+  assertEquals(hasInternalServiceAuthorization(null, secret), false);
+  assertEquals(
+    hasInternalServiceAuthorization("Bearer user-jwt", secret),
+    false,
+  );
+  assertEquals(
+    hasInternalServiceAuthorization(`Bearer ${secret}`, secret),
+    true,
+  );
+  assertEquals(
+    hasInternalServiceAuthorization(`Bearer ${secret}-suffix`, secret),
+    false,
+  );
+});
+
+Deno.test("18 persistence requires the explicit exact rollout flag", () => {
+  assertEquals(isD10PersistenceEnabled(undefined), false);
+  assertEquals(isD10PersistenceEnabled("false"), false);
+  assertEquals(isD10PersistenceEnabled("TRUE"), false);
+  assertEquals(isD10PersistenceEnabled("true"), true);
 });

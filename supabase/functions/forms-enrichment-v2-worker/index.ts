@@ -2,6 +2,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.105.4";
 import {
   buildAuthoritativeDisplayGroups,
   type FormDisplayGroup,
+  hasInternalServiceAuthorization,
+  isD10PersistenceEnabled,
   type MorphologyPos,
   normalizeNorwegian,
   OrdbokeneClient,
@@ -46,14 +48,30 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") {
     return json({ ok: false, error: "Method not allowed" }, 405);
   }
-  if (!/^Bearer\s+\S+$/i.test(request.headers.get("authorization") ?? "")) {
-    return json({ ok: false, error: "Missing bearer JWT" }, 401);
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!serviceRoleKey) {
+    return json({ ok: false, error: "MISSING_SUPABASE_SERVICE_ROLE_KEY" }, 500);
+  }
+  if (
+    !hasInternalServiceAuthorization(
+      request.headers.get("authorization"),
+      serviceRoleKey,
+    )
+  ) {
+    return json({ ok: false, error: "INTERNAL_SERVICE_AUTH_REQUIRED" }, 403);
   }
 
   try {
     const body = await readBody(request);
+    if (
+      body.persist &&
+      !isD10PersistenceEnabled(
+        Deno.env.get("D10_FORMS_V2_PERSIST_ENABLED"),
+      )
+    ) {
+      return json({ ok: false, error: "D10_PERSISTENCE_DISABLED" }, 403);
+    }
     const supabaseUrl = requiredEnv("SUPABASE_URL");
-    const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });

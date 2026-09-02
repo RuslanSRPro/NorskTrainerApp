@@ -1,6 +1,10 @@
 export { OrdbokeneClient } from "./client.ts";
 export type { OrdbokeneClientOptions } from "./client.ts";
 export {
+  hasInternalServiceAuthorization,
+  isD10PersistenceEnabled,
+} from "./internal-authorization.ts";
+export {
   buildParadigmIdentity,
   normalizeNorwegian,
   parseOrdbokeneArticles,

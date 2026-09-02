@@ -31,6 +31,10 @@
 | `D10_FORMS_READ_MODEL` | `legacy` | Selects the analyze-text verb-map source |
 
 The persistence flag has no effect unless shadow is also enabled.
+The V2 worker also enforces this flag internally: `persist:true` is rejected
+unless `D10_FORMS_V2_PERSIST_ENABLED` is exactly `true`. All worker requests
+must carry the exact internal service-role bearer credential; an ordinary
+authenticated user JWT is rejected before any database access.
 
 ## Migration-history gate
 
