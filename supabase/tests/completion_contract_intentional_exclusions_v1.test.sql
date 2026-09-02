@@ -1,5 +1,8 @@
 begin;
 
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, public, pg_catalog;
+
 select plan(14);
 
 insert into public.lexeme_processing_jobs (id, input_type, input_text, status)
@@ -92,7 +95,7 @@ values
     'unknown',
     'done',
     'admission_gate',
-    null
+    '{}'::jsonb
   );
 
 insert into public.pipeline_supervisor_state (job_id, stage)
@@ -112,11 +115,11 @@ where id in (
   '00000000-0000-4000-8000-000000001204'
 );
 
-select like(
+select matches(
   pg_get_functiondef(
     'public.get_completion_evidence_snapshot_v1(uuid,text,integer,text)'::regprocedure
   ),
-  '%rule_type%function_word%',
+  'rule_type.*function_word',
   'snapshot requires an explicit function_word admission rule'
 );
 

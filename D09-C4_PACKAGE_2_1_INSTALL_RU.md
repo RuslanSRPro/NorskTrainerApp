@@ -100,9 +100,14 @@ git push origin feature/vision-home-ui
 ```powershell
 npx supabase db push
 
-npx supabase test db --linked `
+npx supabase test db `
   supabase/tests/completion_contract_intentional_exclusions_v1.test.sql
 ```
+
+`supabase test db` запускает локальную тестовую БД и требует Docker Desktop.
+Если Docker недоступен, этот же SQL-файл можно выполнить на linked database
+через SQL Editor: тест сам открывает транзакцию, временно подключает pgTAP и
+завершается `rollback`, поэтому fixture-данные не сохраняются.
 
 После migration повторить snapshot canary job:
 
