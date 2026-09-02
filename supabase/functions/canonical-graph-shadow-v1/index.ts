@@ -17,8 +17,11 @@ import {
 import {
   projectLegacyStructureIntoCanonicalGraphV11,
 } from '../_shared/nlp/legacy-language-graph-adapter-v1.ts';
+import {
+  buildCanonicalConstraintPropagationPatchV1,
+} from '../_shared/nlp/canonical-constraint-propagation-v1.ts';
 
-const VERSION='canonical-candidate-lattice-v1.41';
+const VERSION='canonical-constraint-propagation-v1.42';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type'};
 type J=Record<string,any>;
 
@@ -92,6 +95,73 @@ const candidatePatch = buildCanonicalCandidateLatticePatchV1(
 graph = applyGraphPatchV1(graph, candidatePatch);
 const candidateLatticeSummary =
   summarizeCanonicalCandidateLatticePatchV1(candidatePatch);
+
+// v1.42 first shadow binding: load the selected runtime release for observability,
+// but activate no runtime fact family until a family has a native canonical graph
+// capability and an explicit activation wave. Current v1.37 facts are structural
+// (clause/valency/MWE) and must not prune the v1.41 lexical/POS/morph lattice.
+const constraintReleaseCode =
+  typeof body.constraintReleaseCode === 'string' && body.constraintReleaseCode.trim()
+    ? body.constraintReleaseCode.trim()
+    : typeof body.structuralReleaseCode === 'string' && body.structuralReleaseCode.trim()
+    ? body.structuralReleaseCode.trim()
+    : 'runtime-structural-v1.37';
+
+const { data: constraintReleaseRows, error: constraintReleaseError } = await supabase
+  .from('grammar_runtime_releases')
+  .select('id,code,status')
+  .eq('code', constraintReleaseCode)
+  .limit(1);
+
+if (constraintReleaseError) {
+  throw new Error(`constraint_release:${constraintReleaseError.message}`);
+}
+const constraintRelease = arr(constraintReleaseRows)[0];
+if (!constraintRelease?.id) {
+  throw new Error(`constraint_release:not_found:${constraintReleaseCode}`);
+}
+
+const { data: runtimeConstraintFacts, error: runtimeConstraintFactsError } = await supabase
+  .from('grammar_runtime_constraint_facts_v1')
+  .select('constraint_code,fact_family,subject_type,relation,object_type,polarity,strength')
+  .eq('release_id', constraintRelease.id)
+  .eq('is_enabled', true)
+  .order('constraint_code');
+
+if (runtimeConstraintFactsError) {
+  throw new Error(`runtime_constraint_facts:${runtimeConstraintFactsError.message}`);
+}
+
+const loadedRuntimeConstraintFacts = arr(runtimeConstraintFacts);
+const deferredFactFamilies = [
+  ...new Set(
+    loadedRuntimeConstraintFacts
+      .map((x: any) => String(x?.fact_family ?? '').trim())
+      .filter(Boolean),
+  ),
+].sort();
+
+const constraintPropagation = buildCanonicalConstraintPropagationPatchV1(
+  graph,
+  () => [],
+  {
+    maxIterations: 8,
+    availableCapabilities: ['canonical_candidate_lattice_v1'],
+    minimumResolutionStrength: 'strong',
+  },
+);
+graph = applyGraphPatchV1(graph, constraintPropagation.patch);
+
+const constraintPropagationSummary = {
+  release_code: constraintReleaseCode,
+  release_status: constraintRelease.status ?? null,
+  runtime_facts_loaded: loadedRuntimeConstraintFacts.length,
+  activated_runtime_fact_families: [] as string[],
+  deferred_runtime_facts: loadedRuntimeConstraintFacts.length,
+  deferred_fact_families: deferredFactFamilies,
+  reason: 'no_v142_compatible_runtime_fact_family_activated',
+  propagation: constraintPropagation.summary,
+};
 
 const structuralReleaseCode =
   typeof body.structuralReleaseCode === 'string' &&
@@ -216,7 +286,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
     edgeComparator,
   });
 }
-const graphErrors=assertCanonicalLanguageGraphV1(graph);const spanErrors=surface.tokens.filter((t:any)=>surface.text.slice(t.startUtf16,t.endUtf16)!==t.surface).map((t:any)=>`surface_span:${t.id}`);const crossSentenceEdges=graph.edges.filter(e=>{const s=graph.nodes.find(n=>n.id===e.sourceId),t=graph.nodes.find(n=>n.id===e.targetId);const si=(s?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.sourceId)?.sentenceIndex;const ti=(t?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.targetId)?.sentenceIndex;return si!=null&&ti!=null&&si!==ti}).map(e=>e.id);const errors=[...bindingErrors,...graphErrors,...spanErrors,...crossSentenceEdges.map(x=>`cross_sentence_edge:${x}`)];return json({ok:errors.length===0,version:VERSION,shadow_only:true,production_replacement:false,grammar_activation:false,surface,language_graph:graph,candidate_lattice:candidateLatticeSummary,sentence_runs:sentenceRuns,invariants:{errors,passed:errors.length===0,no_retokenization:true,global_activation:false}})}catch(e){console.error('[V1.41 SHADOW]',e);return json({ok:false,version:VERSION,shadow_only:true,error:e instanceof Error?e.message:String(e)},500)}});
+const graphErrors=assertCanonicalLanguageGraphV1(graph);const spanErrors=surface.tokens.filter((t:any)=>surface.text.slice(t.startUtf16,t.endUtf16)!==t.surface).map((t:any)=>`surface_span:${t.id}`);const crossSentenceEdges=graph.edges.filter(e=>{const s=graph.nodes.find(n=>n.id===e.sourceId),t=graph.nodes.find(n=>n.id===e.targetId);const si=(s?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.sourceId)?.sentenceIndex;const ti=(t?.features as any)?.sentenceIndex??surface.tokens.find(x=>x.id===e.targetId)?.sentenceIndex;return si!=null&&ti!=null&&si!==ti}).map(e=>e.id);const errors=[...bindingErrors,...graphErrors,...spanErrors,...crossSentenceEdges.map(x=>`cross_sentence_edge:${x}`)];return json({ok:errors.length===0,version:VERSION,shadow_only:true,production_replacement:false,grammar_activation:false,surface,language_graph:graph,candidate_lattice:candidateLatticeSummary,constraint_propagation:constraintPropagationSummary,sentence_runs:sentenceRuns,invariants:{errors,passed:errors.length===0,no_retokenization:true,global_activation:false}})}catch(e){console.error('[V1.42 SHADOW]',e);return json({ok:false,version:VERSION,shadow_only:true,error:e instanceof Error?e.message:String(e)},500)}});
 
 
 
