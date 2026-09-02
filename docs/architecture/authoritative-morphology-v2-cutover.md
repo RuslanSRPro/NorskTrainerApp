@@ -36,6 +36,13 @@ unless `D10_FORMS_V2_PERSIST_ENABLED` is exactly `true`. All worker requests
 must carry the exact internal service-role bearer credential; an ordinary
 authenticated user JWT is rejected before any database access.
 
+`forms-enrichment-v2-compare-shadow` is the operator-facing comparison gate.
+It accepts only the named modern `completionshadow` secret, requires a terminal
+job, selects at most 25 job-scoped lexemes, and calls the internal V2 worker
+with the literal `persist:false`. It returns bounded V1/V2 differences without
+publishing a snapshot or changing legacy completion accounting. Page through a
+larger job with `offset`/`nextOffset`; do not raise the per-request limit.
+
 ## Migration-history gate
 
 Local/Remote history reached exact equality on 2026-09-02 without repair,
