@@ -101,12 +101,18 @@ const candidatePatch = buildCanonicalCandidateLatticePatchV1(
 graph = applyGraphPatchV1(graph, candidatePatch);
 const candidateLatticeSummary =
   summarizeCanonicalCandidateLatticePatchV1(candidatePatch);
-// v1.43 NP/AP native phrase shadow binding.
+// v1.43 NP/AP/PP native phrase shadow binding.
 // Runtime IR is loaded through a read-only allowlisted snapshot. Compiled rules
 // remain inactive in grammar_rules; canonical shadow interprets them only as
 // source-backed candidate-generation knowledge. Phrase facts remain candidates.
 const { data: phraseRuntimeSnapshotData, error: phraseRuntimeSnapshotError } =
-  await supabase.rpc('canonical_phrase_runtime_snapshot_v1');
+  await supabase.rpc('canonical_phrase_runtime_snapshot_v1', {
+    p_manifest_codes: [
+      'ir.structural.adjective_phrase.adjective_head',
+      'ir.structural.noun_phrase.noun_head',
+      'ir.structural.prepositional_phrase.preposition_head_pp_complement',
+    ],
+  });
 
 if (phraseRuntimeSnapshotError) {
   throw new Error(
@@ -125,9 +131,9 @@ const phraseRuntimeRows = arr(
   phraseRuntimeSnapshot.rows,
 ) as CanonicalPhraseRuntimeRuleRowV1[];
 
-if (Number(phraseRuntimeSnapshot.row_count ?? -1) !== 2) {
+if (Number(phraseRuntimeSnapshot.row_count ?? -1) !== 3) {
   throw new Error(
-    `canonical_phrase_runtime_snapshot_v1:expected_2_rows:${String(phraseRuntimeSnapshot.row_count ?? '')}`,
+    `canonical_phrase_runtime_snapshot_v1:expected_3_rows:${String(phraseRuntimeSnapshot.row_count ?? '')}`,
   );
 }
 
@@ -138,7 +144,7 @@ if (phraseRuntimeRows.some((row: any) => row?.is_active === true)) {
 const phraseRuntimeRules = normalizeCanonicalPhraseRuntimeRuleRowsV1(
   phraseRuntimeRows,
 );
-if (phraseRuntimeRules.length !== 2) {
+if (phraseRuntimeRules.length !== 3) {
   throw new Error(
     `canonical_phrase_runtime_snapshot_v1:normalized_rule_count:${phraseRuntimeRules.length}`,
   );
@@ -151,6 +157,7 @@ const phraseManifestCodes = phraseRuntimeRules
 const expectedPhraseManifestCodes = [
   'ir.structural.adjective_phrase.adjective_head',
   'ir.structural.noun_phrase.noun_head',
+  'ir.structural.prepositional_phrase.preposition_head_pp_complement',
 ].sort();
 if (JSON.stringify(phraseManifestCodes) !== JSON.stringify(expectedPhraseManifestCodes)) {
   throw new Error(
