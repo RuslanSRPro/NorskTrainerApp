@@ -413,3 +413,193 @@ Deno.test('v1.43 Runtime IR binding: exact live NP/AP snapshot preserves manifes
   assert((npEvidence.payload.sourceRefs as Array<{ bindingLevel?: string }>).some((ref) => ref.bindingLevel === 'manifest'), 'NP evidence lost manifest-level provenance');
   assert((npEvidence.payload.sourceRefs as Array<{ bindingLevel?: string }>).some((ref) => ref.bindingLevel === 'rule'), 'NP evidence lost rule-level provenance');
 });
+const VP_MORPH_HEAD_RULE: CanonicalPhraseRuntimeRuleV1 = {
+  ruleId: 'rule-v144-vp-morph-head',
+  ruleCode: 'test_rt_v144.verb_phrase.finite_head',
+  runtimeFamily: 'verb_phrase',
+  executionPhase: 'phrase_build',
+  patternType: 'phrase_pattern',
+  constraintStrength: 'categorical',
+  pattern: {
+    bindings: {
+      finite: {
+        scope: 'sentence',
+        entity: 'candidate',
+        cardinality: 'one_or_more',
+        where: {
+          op: 'has_feature',
+          left: { ref: 'finite.morph' },
+          right: 'VerbForm=Fin',
+        },
+      },
+    },
+    head_ref: 'finite',
+    condition: { op: 'exists', left: { ref: 'finite.id' } },
+    phrase_type: 'VP',
+    build_strategy: 'head_only',
+    runtime_ir_version: '1.0',
+  },
+  sourceCandidateCodes: ['verb.phrase.head.finite'],
+  ruleSourceCandidateCodes: ['verb.phrase.head.finite'],
+  manifestSourceCandidateCodes: [
+    'verb.phrase.head.finite',
+    'verb.phrase.simple_compound',
+    'grammar.foundations.phrase.type_from_head',
+  ],
+  sourceSections: ['7.1'],
+};
+
+function graphWithMorphFeature(
+  graph: CanonicalLanguageGraphV1,
+  surface: string,
+  canonicalFeatures: Record<string, unknown>,
+): CanonicalLanguageGraphV1 {
+  const token = tokenBySurface(graph, surface);
+  const featureTag = Object.entries(canonicalFeatures)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${String(v)}`)
+    .join('+');
+
+  const morph: LanguageGraphNodeV1 = {
+    id: `morph:test:${token.id}:${featureTag}`,
+    type: 'morph_reading',
+    subtype: 'verb',
+    status: 'candidate',
+    span: token.span,
+    features: {
+      lexicalReadingId: `lexread:test:${token.id}`,
+      lemma: null,
+      pos: 'verb',
+      formKey: 'test',
+      canonicalFeatures,
+      formScope: 'token',
+    },
+    producer: 'canonical_candidate_lattice_v1',
+    evidenceIds: [],
+    provenanceIds: [],
+  };
+
+  return {
+    ...graph,
+    nodes: [...graph.nodes, morph],
+  };
+}
+
+Deno.test('v1.44 A1: generic has_feature morph binding creates VP only for matching canonical morph feature', () => {
+  const base = buildGraph('har', [{ surface: 'har', pos: 'verb' }]);
+  const graph = graphWithMorphFeature(base, 'har', {
+    VerbForm: 'Fin',
+    Tense: 'Pres',
+  });
+
+  const patch = buildCanonicalPhraseCandidateLatticePatchV1(
+    graph,
+    [VP_MORPH_HEAD_RULE],
+  );
+
+  const vp = (patch.nodes ?? []).filter(
+    (n) => n.type === 'phrase' && n.subtype === 'VP',
+  );
+
+  assert(vp.length === 1, `VP count=${vp.length}`);
+  assert(vp[0].status === 'candidate', 'VP must remain candidate');
+  assert(
+    typeof vp[0].features.headMorphReadingId === 'string',
+    'VP must preserve morph-reading head evidence',
+  );
+  assert(
+    vp[0].features.headMorphFeature === 'VerbForm=Fin',
+    `headMorphFeature=${String(vp[0].features.headMorphFeature)}`,
+  );
+
+  const alt = (patch.alternativeSets ?? []).find((a) =>
+    a.memberIds.includes(vp[0].id)
+  );
+  assert(alt?.status === 'open', 'VP alternative must remain open');
+});
+
+Deno.test('v1.44 A1: non-matching morph feature does not create finite VP', () => {
+  const base = buildGraph('skrive', [{ surface: 'skrive', pos: 'verb' }]);
+  const graph = graphWithMorphFeature(base, 'skrive', {
+    VerbForm: 'Inf',
+  });
+
+  const patch = buildCanonicalPhraseCandidateLatticePatchV1(
+    graph,
+    [VP_MORPH_HEAD_RULE],
+  );
+
+  const vp = (patch.nodes ?? []).filter(
+    (n) => n.type === 'phrase' && n.subtype === 'VP',
+  );
+
+  assert(vp.length === 0, `unexpected VP count=${vp.length}`);
+});
+
+Deno.test('v1.44 A1: Runtime IR normalizer accepts generic morph-feature head binding', () => {
+  const rules = normalizeCanonicalPhraseRuntimeRuleRowsV1([
+    {
+      rule_id: 'rule-v144-normalize',
+      rule_code: 'test_rt_v144.normalize.finite_head',
+      runtime_family: 'verb_phrase',
+      execution_phase: 'phrase_build',
+      pattern_type: 'phrase_pattern',
+      constraint_strength: 'categorical',
+      pattern: {
+        bindings: {
+          finite: {
+            scope: 'sentence',
+            entity: 'candidate',
+            cardinality: 'one_or_more',
+            where: {
+              op: 'has_feature',
+              left: { ref: 'finite.morph' },
+              right: 'VerbForm=Fin',
+            },
+          },
+        },
+        head_ref: 'finite',
+        phrase_type: 'VP',
+        build_strategy: 'head_only',
+      },
+    },
+  ]);
+
+  assert(rules.length === 1, `normalized morph rules=${rules.length}`);
+  assert(
+    rules[0].pattern.head_ref === 'finite',
+    `head_ref=${String(rules[0].pattern.head_ref)}`,
+  );
+});
+
+Deno.test('v1.44 A1: unsupported richer build strategy never silently falls back to head_only', () => {
+  const base = buildGraph('har', [{ surface: 'har', pos: 'verb' }]);
+  const graph = graphWithMorphFeature(base, 'har', {
+    VerbForm: 'Fin',
+    Tense: 'Pres',
+  });
+
+  const unsupported: CanonicalPhraseRuntimeRuleV1 = {
+    ...VP_MORPH_HEAD_RULE,
+    ruleId: 'rule-v144-unsupported',
+    ruleCode: 'test_rt_v144.unsupported.verb_chain',
+    pattern: {
+      ...VP_MORPH_HEAD_RULE.pattern,
+      build_strategy: 'finite_head_plus_following_nonfinite',
+    },
+  };
+
+  const patch = buildCanonicalPhraseCandidateLatticePatchV1(
+    graph,
+    [unsupported],
+  );
+
+  const vp = (patch.nodes ?? []).filter(
+    (n) => n.type === 'phrase' && n.subtype === 'VP',
+  );
+
+  assert(
+    vp.length === 0,
+    `unsupported strategy produced ${vp.length} silent fallback VP candidates`,
+  );
+});

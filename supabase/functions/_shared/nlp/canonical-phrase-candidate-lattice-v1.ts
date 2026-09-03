@@ -56,6 +56,9 @@ export type CanonicalPhraseRuntimeRuleV1 = {
     condition?: unknown;
     phrase_type?: string;
     build_strategy?: string;
+    dependent_ref?: string;
+    max_gap?: number;
+    transparent_lexical_classes?: string[];
     max_left_tokens?: number;
     allowed_left_dependents?: string[];
     allowed_right_dependents?: string[];
@@ -150,6 +153,32 @@ type PosCandidate = {
   pos: string;
 };
 
+type MorphFeatureConstraint = {
+  key: string;
+  value: string;
+};
+
+type HeadBindingSpec =
+  | {
+      headRef: string;
+      kind: 'pos';
+      pos: string;
+    }
+  | {
+      headRef: string;
+      kind: 'morph_features';
+      features: MorphFeatureConstraint[];
+    };
+
+type PhraseHeadCandidate = {
+  node: LanguageGraphNodeV1;
+  tokenId: string;
+  pos?: string;
+  bindingRef: string;
+  bindingKind: HeadBindingSpec['kind'];
+  featureConstraints?: MorphFeatureConstraint[];
+};
+
 type DependentUnit = {
   id: string;
   label: string;
@@ -171,6 +200,12 @@ type PhraseBuild = {
 
 const DEFAULT_MAX_PASSES = 4;
 const DEFAULT_MAX_CANDIDATES_PER_SENTENCE = 512;
+
+const SUPPORTED_PHRASE_BUILD_STRATEGIES = new Set([
+  'head_only',
+  'head_plus_left_dependents',
+  'head_plus_adjacent_right_dependent',
+]);
 
 function asRecord(value: unknown): Json {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -247,7 +282,7 @@ export function canonicalPhraseRuntimeRuleFromRowV1(
   const patternType = stringValue(row.pattern_type);
   const pattern = asRecord(row.pattern);
   if (!ruleId || !ruleCode || patternType !== 'phrase_pattern') return undefined;
-  if (!stringValue(pattern.phrase_type) || !expectedHeadPos({
+  if (!stringValue(pattern.phrase_type) || !headBindingSpec({
     ruleId,
     ruleCode,
     patternType: 'phrase_pattern',
@@ -367,16 +402,164 @@ function posCandidates(
   return out.sort((a, b) => a.node.id.localeCompare(b.node.id));
 }
 
-function expectedHeadPos(rule: CanonicalPhraseRuntimeRuleV1): string | undefined {
+function featureAssignment(
+  value: unknown,
+): { key: string; value: string } | undefined {
+  const raw = stringValue(value);
+  if (!raw) return undefined;
+
+  const separator = raw.indexOf('=');
+  if (separator <= 0 || separator >= raw.length - 1) return undefined;
+
+  const key = raw.slice(0, separator).trim();
+  const featureValue = raw.slice(separator + 1).trim();
+  if (!key || !featureValue) return undefined;
+
+  return { key, value: featureValue };
+}
+
+function morphFeatureConstraint(
+  expression: unknown,
+  bindingRef: string,
+): MorphFeatureConstraint | undefined {
+  const item = asRecord(expression);
+  if (normalizedLabel(item.op) !== 'has_feature') return undefined;
+
+  const left = asRecord(item.left);
+  if (stringValue(left.ref) !== `${bindingRef}.morph`) return undefined;
+
+  return featureAssignment(item.right);
+}
+
+function bindingSpecForRef(
+  rule: CanonicalPhraseRuntimeRuleV1,
+  bindingRef: string,
+): HeadBindingSpec | undefined {
   const bindings = asRecord(rule.pattern.bindings);
-  const head = asRecord(bindings.head);
-  const where = asRecord(head.where);
-  if (normalizedLabel(where.op) !== 'eq') return undefined;
+  const binding = asRecord(bindings[bindingRef]);
+  const where = asRecord(binding.where);
+
+  const all = Array.isArray(where.all) ? where.all : undefined;
+  if (all) {
+    if (all.length === 0) return undefined;
+
+    const features = all.map((expression) =>
+      morphFeatureConstraint(expression, bindingRef)
+    );
+
+    if (features.some((feature) => !feature)) return undefined;
+
+    return {
+      headRef: bindingRef,
+      kind: 'morph_features',
+      features: features as MorphFeatureConstraint[],
+    };
+  }
+
+  const op = normalizedLabel(where.op);
   const left = asRecord(where.left);
   const ref = stringValue(left.ref);
-  const right = normalizedLabel(where.right);
-  if (!ref || !right || !ref.endsWith('.pos')) return undefined;
-  return right;
+
+  if (!ref) return undefined;
+
+  if (op === 'eq' && ref === `${bindingRef}.pos`) {
+    const pos = normalizedLabel(where.right);
+    if (!pos) return undefined;
+
+    return {
+      headRef: bindingRef,
+      kind: 'pos',
+      pos,
+    };
+  }
+
+  if (op === 'has_feature' && ref === `${bindingRef}.morph`) {
+    const feature = featureAssignment(where.right);
+    if (!feature) return undefined;
+
+    return {
+      headRef: bindingRef,
+      kind: 'morph_features',
+      features: [feature],
+    };
+  }
+
+  return undefined;
+}
+
+function headBindingSpec(
+  rule: CanonicalPhraseRuntimeRuleV1,
+): HeadBindingSpec | undefined {
+  const headRef = stringValue(rule.pattern.head_ref) ?? 'head';
+  return bindingSpecForRef(rule, headRef);
+}
+
+function phraseHeadCandidates(
+  graph: CanonicalLanguageGraphV1,
+  tokens: Map<string, TokenInfo>,
+  spec: HeadBindingSpec,
+): PhraseHeadCandidate[] {
+  if (spec.kind === 'pos') {
+    return posCandidates(graph, tokens)
+      .filter((candidate) => candidate.pos === spec.pos)
+      .map((candidate) => ({
+        node: candidate.node,
+        tokenId: candidate.tokenId,
+        pos: candidate.pos,
+        bindingRef: spec.headRef,
+        bindingKind: spec.kind,
+      }));
+  }
+
+  const out: PhraseHeadCandidate[] = [];
+
+  for (const node of graph.nodes) {
+    if (node.type !== 'morph_reading') continue;
+    if (node.status === 'rejected' || node.status === 'blocked') continue;
+
+    const tokenId = tokenIdFromNode(node);
+    if (!tokenId || !tokens.has(tokenId)) continue;
+
+    const canonicalFeatures = asRecord(node.features.canonicalFeatures);
+
+    const matchesAllFeatures = spec.features.every((feature) => {
+      const actual = canonicalFeatures[feature.key];
+      return actual !== undefined && String(actual) === feature.value;
+    });
+
+    if (!matchesAllFeatures) continue;
+
+    out.push({
+      node,
+      tokenId,
+      pos: normalizedLabel(node.features.pos),
+      bindingRef: spec.headRef,
+      bindingKind: spec.kind,
+      featureConstraints: spec.features.map((feature) => ({ ...feature })),
+    });
+  }
+
+  return out.sort((a, b) => a.node.id.localeCompare(b.node.id));
+}
+
+function headEvidenceFeatures(head: PhraseHeadCandidate): Json {
+  if (head.bindingKind === 'pos') {
+    return {
+      headPosCandidateId: head.node.id,
+      headPos: head.pos ?? null,
+    };
+  }
+
+  const morphFeatures = (head.featureConstraints ?? [])
+    .map((feature) => `${feature.key}=${feature.value}`);
+
+  return {
+    headMorphReadingId: head.node.id,
+    headMorphFeature: morphFeatures.length === 1 ? morphFeatures[0] : null,
+    headMorphFeatures: morphFeatures,
+    headPos: head.pos ?? null,
+    headBindingRef: head.bindingRef,
+  };
 }
 
 function phraseType(rule: CanonicalPhraseRuntimeRuleV1): string | undefined {
@@ -590,7 +773,7 @@ function ruleProvenance(rule: CanonicalPhraseRuntimeRuleV1): LanguageGraphProven
 
 function buildPhraseCandidate(
   rule: CanonicalPhraseRuntimeRuleV1,
-  pos: PosCandidate,
+  headCandidate: PhraseHeadCandidate,
   head: TokenInfo,
   dependentUnits: DependentUnit[],
   tokens: Map<string, TokenInfo>,
@@ -618,14 +801,14 @@ function buildPhraseCandidate(
     idPart(head.id),
     idPart(span.startTokenId ?? head.id),
     idPart(span.endTokenId ?? head.id),
-    idPart(pos.node.id),
+    idPart(headCandidate.node.id),
     idPart(rule.ruleCode),
     dependentUnits.map((u) => idPart(u.id)).join('+') || 'head_only',
   ].join(':');
 
   const newProvenance = ruleProvenance(rule);
   const provenanceIds = unique([
-    ...pos.node.provenanceIds,
+    ...headCandidate.node.provenanceIds,
     ...dependentUnits.flatMap((u) => u.provenanceIds),
     ...newProvenance.map((p) => p.id),
   ]);
@@ -641,8 +824,7 @@ function buildPhraseCandidate(
       phraseType: type,
       sentenceIndex: head.sentenceIndex,
       headTokenId: head.id,
-      headPosCandidateId: pos.node.id,
-      headPos: pos.pos,
+      ...headEvidenceFeatures(headCandidate),
       ruleId: rule.ruleId,
       ruleCode: rule.ruleCode,
       runtimeFamily: rule.runtimeFamily ?? null,
@@ -668,7 +850,7 @@ function buildPhraseCandidate(
     sourceId: head.id,
     targetId: candidateId,
     status: 'candidate',
-    features: { headPosCandidateId: pos.node.id },
+    features: headEvidenceFeatures(headCandidate),
     producer: CANONICAL_PHRASE_CANDIDATE_LATTICE_PRODUCER_V1,
     evidenceIds: [evidenceId],
     provenanceIds,
@@ -727,7 +909,7 @@ function buildPhraseCandidate(
       phraseType: type,
       buildStrategy: rule.pattern.build_strategy ?? null,
       constraintStrength: rule.constraintStrength ?? null,
-      headPosCandidateId: pos.node.id,
+      ...headEvidenceFeatures(headCandidate),
       sourceCandidateCodes: [...(rule.sourceCandidateCodes ?? [])],
       ruleSourceCandidateCodes: [...(rule.ruleSourceCandidateCodes ?? [])],
       manifestSourceCandidateCodes: [...(rule.manifestSourceCandidateCodes ?? [])],
@@ -788,7 +970,6 @@ export function buildCanonicalPhraseCandidateLatticePatchV1(
   const producerVersion = CANONICAL_PHRASE_CANDIDATE_LATTICE_VERSION_V1;
   const tokens = tokenMap(graph);
   const bySentence = sentenceTokens(tokens);
-  const pos = posCandidates(graph, tokens);
 
   const maxPasses = Math.max(1, Math.floor(options.maxPasses ?? DEFAULT_MAX_PASSES));
   const maxPerSentence = Math.max(
@@ -798,7 +979,7 @@ export function buildCanonicalPhraseCandidateLatticePatchV1(
 
   const phraseRules = [...rules]
     .filter((r) => r.patternType === 'phrase_pattern')
-    .filter((r) => Boolean(phraseType(r) && expectedHeadPos(r)))
+    .filter((r) => Boolean(phraseType(r) && headBindingSpec(r)))
     .sort((a, b) => {
       const aa = a.pattern.build_strategy === 'head_only' ? 0 : 1;
       const bb = b.pattern.build_strategy === 'head_only' ? 0 : 1;
@@ -837,21 +1018,26 @@ export function buildCanonicalPhraseCandidateLatticePatchV1(
     const units = [...lexicalUnits, ...phraseUnits];
 
     for (const rule of phraseRules) {
-      const headPos = expectedHeadPos(rule);
+      const binding = headBindingSpec(rule);
       const type = phraseType(rule);
-      if (!headPos || !type) continue;
+      if (!binding || !type) continue;
+
       const strategy = stringValue(rule.pattern.build_strategy) ?? 'head_only';
+      if (!SUPPORTED_PHRASE_BUILD_STRATEGIES.has(strategy)) continue;
+
+      const headCandidates = phraseHeadCandidates(graph, tokens, binding);
+
       const allowedLeft = new Set((rule.pattern.allowed_left_dependents ?? []).map((x) => x.trim()).filter(Boolean));
       const allowedRight = new Set((rule.pattern.allowed_right_dependents ?? []).map((x) => x.trim()).filter(Boolean));
       const maxLeftTokens = Math.max(0, Math.floor(rule.pattern.max_left_tokens ?? 0));
 
-      for (const posCandidate of pos) {
-        if (posCandidate.pos !== headPos) continue;
-        const head = tokens.get(posCandidate.tokenId);
+      for (const headCandidate of headCandidates) {
+        const head = tokens.get(headCandidate.tokenId);
         if (!head || !bySentence.has(head.sentenceIndex)) continue;
 
         // Every supported head gets a head-only phrase candidate. A richer
-        // strategy adds structural alternatives; it never suppresses the base.
+        // phrase strategy may add structural alternatives; construction
+        // recognition is owned by the construction layer.
         const variants = strategy === 'head_plus_left_dependents'
           ? leftExpansions(head, units, allowedLeft, maxLeftTokens)
           : strategy === 'head_plus_adjacent_right_dependent'
@@ -861,7 +1047,7 @@ export function buildCanonicalPhraseCandidateLatticePatchV1(
         for (const dependentUnits of variants) {
           const build = buildPhraseCandidate(
             rule,
-            posCandidate,
+            headCandidate,
             head,
             dependentUnits,
             tokens,
