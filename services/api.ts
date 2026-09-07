@@ -134,8 +134,8 @@ function mapLexemeRow(item: any, forms?: FormsBundle) {
     // теперь пишет их в lexemes.synonyms, запрошено выше в LEXEME_SELECT).
     // Каждый элемент: { text, resolved, target_entity_type, target_entity_id, confidence, source }.
     synonyms:           item.synonyms || [],
-    // joined form objects for getFormLabels() - now sourced directly
-    // from lexeme_form_variants via fetchFormVariantsMap, not a bridge table.
+    // Compatibility objects and complete arrays come from the single
+    // configured read model. V2 never falls back to legacy within a request.
     verb_forms:       forms?.verb_forms      || null,
     noun_forms:       forms?.noun_forms      || null,
     adjective_forms:  forms?.adjective_forms || null,
@@ -1015,7 +1015,10 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    if (data) return { found: true, item: mapLexemeRow(data) };
+    if (data) {
+      const [item] = await mapLexemeRows([data]);
+      return { found: true, item: item ?? null };
+    }
   }
 
   for (const key of keys) {
@@ -1028,7 +1031,10 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    if (data) return { found: true, item: mapLexemeRow(data) };
+    if (data) {
+      const [item] = await mapLexemeRows([data]);
+      return { found: true, item: item ?? null };
+    }
   }
 
   return { found: false, item: null };
