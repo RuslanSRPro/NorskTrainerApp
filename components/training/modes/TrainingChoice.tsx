@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { GlassSurface } from '@/components/ui/glass/GlassSurface';
+import { isIrregularMorphology } from '@/services/formPresentation';
 import { TrainingFormsList } from '../TrainingFormsList';
 
 type Props = {
@@ -40,7 +41,15 @@ export function TrainingChoice({
 }: Props) {
   return (
     <>
-      <Text style={s.word} onPress={speakCurrentTask}>
+      <Text
+        style={[
+          s.word,
+          isIrregularMorphology(current) && {
+            color: isDark ? '#FF7373' : '#C62828',
+          },
+        ]}
+        onPress={speakCurrentTask}
+      >
         {getMainWord(current)}
       </Text>
 

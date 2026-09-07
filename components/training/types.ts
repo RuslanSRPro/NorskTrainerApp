@@ -16,6 +16,9 @@ export type TrainingTask = {
 export type TrainingFormItem = {
   label: string;
   value: string;
+  formKey?: string;
+  primaryValues?: string[];
+  alternativeValues?: string[];
 };
 
 export type TrainingTone = 'hard' | 'ok' | 'easy';

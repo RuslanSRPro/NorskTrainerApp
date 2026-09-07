@@ -1,5 +1,7 @@
 import { Text, TextInput } from 'react-native';
 
+import { isIrregularMorphology } from '@/services/formPresentation';
+
 import { TrainingFormsList } from '../TrainingFormsList';
 import { TrainingGlassButton } from '../TrainingGlassButton';
 
@@ -46,7 +48,15 @@ export function TrainingFormsMode({
     <>
       <Text style={s.formLabel2}>{formLabel}</Text>
 
-      <Text style={s.word} onPress={speakCurrentTask}>
+      <Text
+        style={[
+          s.word,
+          isIrregularMorphology(current) && {
+            color: isDark ? '#FF7373' : '#C62828',
+          },
+        ]}
+        onPress={speakCurrentTask}
+      >
         {prompt}
       </Text>
 

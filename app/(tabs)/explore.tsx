@@ -18,12 +18,14 @@ import { getLearningWordsFromSupabase, saveReviewToSupabase } from '@/services/a
 import { TrainingMode } from '@/services/settings';
 import { speakNorwegian, speakNorwegianForms, stopSpeech } from '@/services/speech';
 import { AppLanguage } from '@/services/i18n';
+import { getFormTierValues } from '@/services/formPresentation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   TrainingBottomBar,
   TrainingCard,
 } from '@/components/training';
+import type { TrainingFormItem } from '@/components/training/types';
 import {
   getBucket,
   getCategoryFamily,
@@ -209,38 +211,56 @@ export default function TrainScreen() {
     return avail[Math.floor(Math.random() * avail.length)];
   }
 
-  function getAllForms(w: any) {
+  function getAllForms(w: any): TrainingFormItem[] {
     const type = String(w?.type || w?.category || w?.pos || '').toLowerCase();
     const vf: any = (!Array.isArray(w?.verb_forms) ? w?.verb_forms : w?.verb_forms?.[0]) || {};
     const nf: any = (!Array.isArray(w?.noun_forms) ? w?.noun_forms : w?.noun_forms?.[0]) || {};
     const af: any = (!Array.isArray(w?.adjective_forms) ? w?.adjective_forms : w?.adjective_forms?.[0]) || {};
+
+    const item = (
+      label: string,
+      formKey: string,
+      fallbackValue: string,
+      decorate: (value: string) => string = (value) => value,
+    ): TrainingFormItem | null => {
+      const tiers = getFormTierValues(w, formKey, fallbackValue);
+      if (!tiers.primaryValues.length) return null;
+      const primaryValues = tiers.primaryValues.map(decorate);
+      const alternativeValues = tiers.alternativeValues.map(decorate);
+      return {
+        label,
+        formKey,
+        value: primaryValues.join(' / '),
+        primaryValues,
+        alternativeValues,
+      };
+    };
 
     if (type.includes('verb')) {
       const inf = vf.infinitiv || getFormValue(w, ['infinitiv']) || w?.word || w?.lemma || '';
       const presens = vf.presens || getFormValue(w, ['presens', 'f1']) || '';
       const preteritum = vf.preteritum || getFormValue(w, ['preteritum', 'f2']) || '';
       const perfRaw = vf.perfektum || getFormValue(w, ['perfektum', 'f3']) || '';
-      const perfektum = perfRaw ? `har ${perfRaw.replace(/^har\s+/i, '')}` : '';
       return [
-        { label: 'Infinitiv', value: displayLemma(inf, w) },
-        { label: 'Presens', value: presens },
-        { label: 'Preteritum', value: preteritum },
-        { label: 'Perfektum', value: perfektum },
-      ].filter(f => f.value);
+        item('Infinitiv', 'infinitiv', inf, (value) => displayLemma(value, w)),
+        item('Presens', 'presens', presens),
+        item('Preteritum', 'preteritum', preteritum),
+        item('Perfektum', 'perfektum', perfRaw, (value) => `har ${value.replace(/^har\s+/i, '')}`),
+      ].filter(isTrainingFormItem);
     }
     if (type.includes('noun')) return [
-      { label: 'Ubest. entall', value: nf.ubest_entall || getFormValue(w, ['ubest_entall', 'indef_sg']) || w?.word || w?.lemma || '' },
-      { label: 'Bestemt entall', value: nf.best_entall || getFormValue(w, ['best_entall', 'f1']) || '' },
-      { label: 'Ubest. flt.', value: nf.ubest_flertall || getFormValue(w, ['ubest_flertall', 'f2']) || '' },
-      { label: 'Bestemt flt.', value: nf.best_flertall || getFormValue(w, ['best_flertall', 'f3']) || '' },
-    ].filter(f => f.value);
+      item('Ubest. entall', 'ubest_entall', nf.ubest_entall || getFormValue(w, ['ubest_entall', 'indef_sg']) || w?.word || w?.lemma || ''),
+      item('Bestemt entall', 'best_entall', nf.best_entall || getFormValue(w, ['best_entall', 'f1']) || ''),
+      item('Ubest. flt.', 'ubest_flertall', nf.ubest_flertall || getFormValue(w, ['ubest_flertall', 'f2']) || ''),
+      item('Bestemt flt.', 'best_flertall', nf.best_flertall || getFormValue(w, ['best_flertall', 'f3']) || ''),
+    ].filter(isTrainingFormItem);
     if (type.includes('adj')) return [
-      { label: 'Positiv', value: af.positiv || getFormValue(w, ['positiv', 'positive']) || w?.word || w?.lemma || '' },
-      { label: 'Intetkjønn', value: af.intetkjonn || getFormValue(w, ['intetkjonn', 'f1']) || '' },
-      { label: 'Flertall', value: af.flertall || getFormValue(w, ['flertall', 'f2']) || '' },
-      { label: 'Komparativ', value: af.komparativ || getFormValue(w, ['komparativ', 'f3']) || '' },
-      { label: 'Superlativ', value: af.superlativ || getFormValue(w, ['superlativ', 'f4']) || '' },
-    ].filter(f => f.value);
+      item('Positiv', 'positiv', af.positiv || getFormValue(w, ['positiv', 'positive']) || w?.word || w?.lemma || ''),
+      item('Intetkjønn', 'intetkjonn', af.intetkjonn || getFormValue(w, ['intetkjonn', 'f1']) || ''),
+      item('Flertall', 'flertall', af.flertall || getFormValue(w, ['flertall', 'f2']) || ''),
+      item('Komparativ', 'komparativ', af.komparativ || getFormValue(w, ['komparativ', 'f3']) || ''),
+      item('Superlativ', 'superlativ', af.superlativ || getFormValue(w, ['superlativ', 'f4']) || ''),
+    ].filter(isTrainingFormItem);
     return [];
   }
 
@@ -514,6 +534,12 @@ export default function TrainScreen() {
       </SafeAreaView>
     </HomeBackground>
   );
+}
+
+function isTrainingFormItem(
+  value: TrainingFormItem | null,
+): value is TrainingFormItem {
+  return value !== null;
 }
   
 
