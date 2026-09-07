@@ -120,7 +120,7 @@ Deno.serve(async (request: Request) => {
           legacyRows.filter((row) => row.lexeme_id === lexeme.id),
         );
         if (
-          body.persist && result.status === "resolved" &&
+          body.persist && isPersistenceEligibleStatus(result.status) &&
           result.articleProjection.publishable
         ) {
           const { error } = await supabase.rpc(
@@ -142,12 +142,12 @@ Deno.serve(async (request: Request) => {
           }
           return { ...compactResult(result), persisted: true };
         }
-        if (body.persist && isShadowResolvedStatus(result.status)) {
+        if (body.persist && result.status === "ambiguous_source_articles") {
           return {
             ...compactResult(result),
             status: "persistence_blocked_source_identity",
             persisted: false,
-            error: "MULTI_ARTICLE_PROVENANCE_SCHEMA_REQUIRED",
+            error: "SOURCE_ARTICLE_PROJECTIONS_DIVERGE",
           };
         }
         return { ...compactResult(result), persisted: false };
@@ -291,6 +291,10 @@ function requiredEnv(name: string): string {
 function isShadowResolvedStatus(status: string): boolean {
   return status === "resolved" ||
     status === "resolved_equivalent_source_articles";
+}
+
+function isPersistenceEligibleStatus(status: string): boolean {
+  return isShadowResolvedStatus(status);
 }
 
 async function mapWithConcurrency<T, R>(

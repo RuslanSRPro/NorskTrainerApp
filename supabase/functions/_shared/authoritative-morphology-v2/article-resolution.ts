@@ -16,9 +16,9 @@ export type ArticleProjectionResolution = {
 
 /**
  * Same-POS dictionary articles remain separate source identities. When every
- * article exposes the exact same learner-facing forms and tiers, shadow reads
- * may compare their shared projection without choosing a sense. Persistence is
- * still blocked until the schema can retain all contributing article IDs.
+ * article exposes the exact same learner-facing forms and tiers, V2.1 may
+ * publish their shared projection without choosing a source article. Every
+ * contributing article identity remains attached to the snapshot/read model.
  */
 export function resolveArticleProjection(
   groups: readonly FormDisplayGroup[],
@@ -64,9 +64,7 @@ export function resolveArticleProjection(
       ? "equivalent_source_articles"
       : "ambiguous_source_articles",
     articleIds,
-    // Current V2 persistence has one article_id per display row. Never discard
-    // the other identities just to make an equivalent projection publishable.
-    publishable: false,
+    publishable: equivalent,
     primaryCount: equivalent ? counts.primaryCount : 0,
     alternativeCount: equivalent ? counts.alternativeCount : 0,
   };

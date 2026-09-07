@@ -2,14 +2,15 @@
 
 ## Status
 
-Source parsing, production hardening, and cutover controls are complete.
-The reviewed database contract is staged as
-`supabase/migrations/20260902083000_authoritative_morphology_v2.sql` with its
-pgTAP suite under `supabase/tests/`.
+Source parsing, production hardening, and cutover controls are complete. The
+base schema `20260902083000_authoritative_morphology_v2.sql` was applied on
+2026-09-02, and the workers are deployed in read-only shadow mode. Persistence
+remains disabled and all D10 storage tables are empty.
 
-This package is intentionally **not deployed or applied**. The pending copies
-remain as review provenance until the versioned migration passes dry-run and
-the production rollout reaches the schema gate.
+Multi-article provenance is staged separately as
+`20260902181604_authoritative_morphology_v2_multi_article_provenance.sql`. It
+must pass dry-run and pgTAP before application; no worker may persist equivalent
+multi-article projections against the base V2 schema.
 
 ## Goal
 
@@ -226,6 +227,24 @@ The publisher takes a per-lexeme transaction advisory lock and atomically
 switches the active snapshot together with the canonical projection; therefore
 stale paradigms from the previous release cannot remain visible.
 
+### Equivalent source articles (V2.1)
+
+Ordbøkene can return several articles for the same lemma and POS. V2.1 does
+not choose the first article and does not merge their raw paradigms. Instead:
+
+1. each article and paradigm remains a separate private evidence identity;
+2. ordered primary and alternative projections are compared in full;
+3. only exactly equivalent projections may produce one canonical display row;
+4. `article_ids` stores every contributing article, while legacy `article_id`
+   is `NULL` for a multi-article projection;
+5. any divergent tier, value, policy, POS, lemma, or regularity marker fails
+   closed;
+6. the RPC verifies every displayed value against the raw form from the same
+   article, so a caller or AI cannot inject a form.
+
+The application still receives one canonical source model. Multiple backend
+articles are provenance, not multiple competing application answers.
+
 ## Golden corpus
 
 Fixtures were refreshed from the live official JSON on 2026-09-01:
@@ -259,12 +278,12 @@ remained empty after the gate.
 
 1. Make Local/Remote migration history identical without repair, deletion,
    renaming, or overwriting old migrations. Completed on 2026-09-02.
-2. Create and review the versioned migration. Completed as
+2. Create, review, and apply the base versioned migration. Completed as
    `20260902083000_authoritative_morphology_v2.sql`.
-3. Run dry-run, validate the versioned pgTAP suite, and apply only after both
-   checks pass.
-4. Deploy the JWT-protected V2 worker, keeping both D10 flags false.
-5. Enable backend shadow only for explicit job UUIDs with
+3. Validate V2.1 multi-article provenance transactionally, then run migration
+   dry-run and apply it only if it is the sole proposed migration.
+4. Deploy the V2.1 worker with persistence still disabled.
+5. Continue backend shadow only for explicit job UUIDs with
    `D10_FORMS_V2_SHADOW_ENABLED=true` and
    `D10_FORMS_V2_CANARY_JOB_IDS=<comma-separated UUIDs>`, then compare V1/V2
    coverage and errors. A missing, malformed, empty, or larger-than-500

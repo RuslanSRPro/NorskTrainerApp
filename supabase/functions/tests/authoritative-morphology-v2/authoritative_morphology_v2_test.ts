@@ -511,7 +511,7 @@ Deno.test("22 comparison reports derived legacy phrases as intentional exclusion
   );
 });
 
-Deno.test("23 identical same-POS articles resolve only for shadow projection", () => {
+Deno.test("23 identical same-POS articles are publishable with full provenance", () => {
   const groups = new BokmalWrittenFormSelectionPolicy().select(
     parseOrdbokeneArticles([HOPE_BM, { ...HOPE_BM, articleId: "99999" }]),
   );
@@ -519,7 +519,7 @@ Deno.test("23 identical same-POS articles resolve only for shadow projection", (
 
   assertEquals(resolution.status, "equivalent_source_articles");
   assertEquals(resolution.articleIds, ["25496", "99999"]);
-  assertEquals(resolution.publishable, false);
+  assertEquals(resolution.publishable, true);
   assertEquals(resolution.primaryCount > 0, true);
 });
 
