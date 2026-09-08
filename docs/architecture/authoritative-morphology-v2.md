@@ -3,14 +3,12 @@
 ## Status
 
 Source parsing, production hardening, and cutover controls are complete. The
-base schema `20260902083000_authoritative_morphology_v2.sql` was applied on
-2026-09-02, and the workers are deployed in read-only shadow mode. Persistence
-remains disabled and all D10 storage tables are empty.
-
-Multi-article provenance is staged separately as
-`20260902181604_authoritative_morphology_v2_multi_article_provenance.sql`. It
-must pass dry-run and pgTAP before application; no worker may persist equivalent
-multi-article projections against the base V2 schema.
+base schema `20260902083000_authoritative_morphology_v2.sql` and V2.1 migration
+`20260902181604_authoritative_morphology_v2_multi_article_provenance.sql` are
+applied. The 54-test pgTAP suite passed. One explicitly allowlisted `ramme`
+verb persistence canary completed successfully; both write flags were then
+disabled and the allowlist neutralized. General persistence and the application
+read cutover remain disabled.
 
 ## Goal
 
@@ -80,14 +78,21 @@ reported explicitly; it cannot silently produce a complete snapshot.
 
 ## Canonical identity
 
-A paradigm identity is:
+Before resolver V2.2, a paradigm identity was:
 
 ```text
 dictionary_code | article_id | POS | paradigm_id
 ```
 
-Every component is URL-encoded before concatenation. Lemma text is descriptive,
-not identity.
+Starting with resolver V2.2, the identity is:
+
+```text
+dictionary_code | article_id | normalized_lemma | POS | paradigm_id
+```
+
+Every component is URL-encoded before concatenation. The lemma dimension is
+required because an Ordbøkene article may contain several official headwords
+that reuse the same paradigm identifiers.
 
 This prevents homonym and paradigm collapse:
 
@@ -100,6 +105,11 @@ This prevents homonym and paradigm collapse:
 
 An article with several official paradigms also stays split. BM article 19072
 for `gape` contains paradigm 1 (`gapa`) and paradigm 16 (`gapte`).
+
+BM article 37729 demonstrates the additional lemma dimension: `melk` and
+`mjølk` are official co-headwords and both reuse noun paradigm IDs 564 and 760.
+Their raw source paradigms remain distinct even though the learner sees one
+compact projection for the exact lookup lemma.
 
 ## Form rules
 
@@ -129,6 +139,13 @@ Bokmål verb group where official written non-`-a` variants coexist, it keeps
 the `-et`/`-te` values in the ordered primary array and the official `-a`
 value in the alternative array. If only `-a` exists, it stays primary. The
 short irregular forms `sa` and `la` are never classified by suffix alone.
+
+For an article with official co-headwords, the exact lookup lemma supplies the
+compact primary forms. Other official headword spellings remain in the
+alternative array. For a Bokmål noun whose exact lemma has both masculine and
+feminine paradigms, the masculine card form is the compact product default and
+the feminine form remains an official alternative. This is presentation only:
+all source paradigms and provenance remain intact.
 
 Evidence is explicit: Ordbøkene supplies every value; Språkrådet's 2025-05-07
 guidance documents register tendencies for Bokmål `-a` endings; and the app's
@@ -252,6 +269,8 @@ Fixtures were refreshed from the live official JSON on 2026-09-01:
 - `få`: BM verb + determiner; NN verb + adjective;
 - `gape`, BM article 19072: paradigms 1 and 16 preserve `gapa` and `gapte`;
 - `håpe`, BM article 25496: paradigms preserve `håpa`, `håpet`, `håpte`.
+- `melk`/`mjølk`, BM article 37729: both official headwords retain distinct
+  masculine and feminine paradigms despite reused paradigm IDs 564 and 760.
 
 Tests are offline and deterministic; live-source drift is a separate shadow
 observation, not a reason to make unit tests depend on the network.
@@ -281,15 +300,16 @@ remained empty after the gate.
 2. Create, review, and apply the base versioned migration. Completed as
    `20260902083000_authoritative_morphology_v2.sql`.
 3. Validate V2.1 multi-article provenance transactionally, then run migration
-   dry-run and apply it only if it is the sole proposed migration.
-4. Deploy the V2.1 worker with persistence still disabled.
+   dry-run and apply it only if it is the sole proposed migration. Completed.
+4. Deploy the V2.1 worker with persistence still disabled. Completed.
 5. Continue backend shadow only for explicit job UUIDs with
    `D10_FORMS_V2_SHADOW_ENABLED=true` and
    `D10_FORMS_V2_CANARY_JOB_IDS=<comma-separated UUIDs>`, then compare V1/V2
    coverage and errors. A missing, malformed, empty, or larger-than-500
    allowlist fails closed.
 6. Enable V2 persistence while the app still reads legacy; verify atomic
-   replacement and bounded storage.
+   replacement and bounded storage. One isolated `ramme` canary completed;
+   broader persistence remains disabled pending the V2.2 identity/tiering gate.
 7. Switch app and text analysis to V2, then convert all remaining readers.
 8. Remove bridges and legacy tables only after the dependency audit returns
    zero, in a separate approved destructive migration.

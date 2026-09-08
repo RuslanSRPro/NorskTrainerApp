@@ -19,6 +19,7 @@ import {
   FA_CORPUS,
   GAPE_BM,
   HOPE_BM,
+  MELK_BM,
 } from "./golden-fixtures.ts";
 
 function assert(
@@ -153,23 +154,41 @@ Deno.test("03 resolver fetches every article and has no first-five cap", async (
   assertEquals(lookup.articles.length, 7);
 });
 
-Deno.test("04 identity is dictionary + article + POS + paradigm", () => {
+Deno.test("04 identity is dictionary + article + lemma + POS + paradigm", () => {
   assertEquals(
     buildParadigmIdentity({
       dictionaryCode: "nn",
       articleId: "23679",
+      lemma: "få",
       pos: "adjective",
       paradigmId: "2130",
     }),
-    "nn|23679|adjective|2130",
+    "nn|23679|f%C3%A5|adjective|2130",
   );
 });
 
 Deno.test("05 Bokmål få homonyms stay verb and determiner identities", () => {
   const paradigms = parseOrdbokeneArticles([FA_BM_VERB, FA_BM_DETERMINER]);
   assertEquals(new Set(paradigms.map((item) => item.pos)).size, 2);
-  assert(paradigms.some((item) => item.identity === "bm|18820|verb|195"));
-  assert(paradigms.some((item) => item.identity === "bm|18819|determiner|427"));
+  assert(
+    paradigms.some((item) => item.identity === "bm|18820|f%C3%A5|verb|195"),
+  );
+  assert(
+    paradigms.some((item) =>
+      item.identity === "bm|18819|f%C3%A5|determiner|427"
+    ),
+  );
+});
+
+Deno.test("05b reused paradigm IDs do not merge melk and mjølk", () => {
+  const paradigms = parseOrdbokeneArticles([MELK_BM]);
+
+  assertEquals(paradigms.length, 4);
+  assertEquals(new Set(paradigms.map((item) => item.identity)).size, 4);
+  assertEquals(
+    [...new Set(paradigms.map((item) => item.lemma))].sort(),
+    ["melk", "mjølk"],
+  );
 });
 
 Deno.test("06 Nynorsk få keeps adjective degrees separate from verbs", () => {
@@ -342,12 +361,61 @@ Deno.test("12 preference provider annotates but cannot create source forms", asy
 Deno.test("13 written policy keeps håpet/håpte primary and håpa alternative", () => {
   const groups = new BokmalWrittenFormSelectionPolicy().select(
     parseOrdbokeneArticles([HOPE_BM]),
+    { normalizedQuery: "håpe" },
   );
   const preterite = groups.find((group) => group.formKey === "preterite");
   assert(preterite);
   assertEquals(preterite.primary.map((form) => form.value), ["håpet", "håpte"]);
   assertEquals(preterite.alternatives.map((form) => form.value), ["håpa"]);
   assert(preterite.alternatives[0].evidenceIds.length === 3);
+});
+
+Deno.test("13b melk card defaults stay compact without losing official variants", () => {
+  const groups = new BokmalWrittenFormSelectionPolicy().select(
+    parseOrdbokeneArticles([MELK_BM]),
+    { normalizedQuery: "melk" },
+  );
+  const values = (formKey: string, tier: "primary" | "alternatives") =>
+    groups.find((group) => group.formKey === formKey)?.[tier].map((form) =>
+      form.value
+    ) ?? [];
+
+  assertEquals(values("noun_singular_indefinite", "primary"), ["melk"]);
+  assertEquals(values("noun_singular_indefinite", "alternatives"), ["mjølk"]);
+  assertEquals(values("noun_singular_definite", "primary"), ["melken"]);
+  assertEquals(
+    values("noun_singular_definite", "alternatives"),
+    ["melka", "mjølken", "mjølka"],
+  );
+  assertEquals(values("noun_plural_indefinite", "primary"), ["melker"]);
+  assertEquals(
+    values("noun_plural_indefinite", "alternatives"),
+    ["mjølker"],
+  );
+  assertEquals(values("noun_plural_definite", "primary"), ["melkene"]);
+  assertEquals(
+    values("noun_plural_definite", "alternatives"),
+    ["mjølkene"],
+  );
+  assert(groups.every((group) => group.lemma === "melk"));
+});
+
+Deno.test("13c co-headword selection follows the exact lookup lemma", () => {
+  const groups = new BokmalWrittenFormSelectionPolicy().select(
+    parseOrdbokeneArticles([MELK_BM]),
+    { normalizedQuery: "mjølk" },
+  );
+  const definite = groups.find((group) =>
+    group.formKey === "noun_singular_definite"
+  );
+
+  assert(definite);
+  assertEquals(definite.lemma, "mjølk");
+  assertEquals(definite.primary.map((form) => form.value), ["mjølken"]);
+  assertEquals(
+    definite.alternatives.map((form) => form.value),
+    ["mjølka", "melken", "melka"],
+  );
 });
 
 Deno.test("14 same-POS articles never merge into one display group", () => {

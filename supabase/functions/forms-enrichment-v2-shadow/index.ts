@@ -32,7 +32,10 @@ Deno.serve(withSupabase(
         request: body,
         client: new OrdbokeneClient(),
       });
-      const displayGroups = buildAuthoritativeDisplayGroups(result.paradigms);
+      const displayGroups = buildAuthoritativeDisplayGroups(
+        result.paradigms,
+        result.lookup.normalizedQuery,
+      );
 
       return json({
         ok: result.status === "resolved" || result.status === "partial",

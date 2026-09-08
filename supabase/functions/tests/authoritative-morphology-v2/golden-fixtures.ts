@@ -182,6 +182,53 @@ export const HOPE_BM = article({
   ],
 });
 
+// Current Ordbøkene article 37729 contains two official headwords. Paradigm
+// identifiers 564 and 760 are reused for both, so lemma must be part of the
+// canonical paradigm identity.
+export const MELK_BM: OrdbokeneArticle = {
+  dictionaryCode: "bm",
+  articleId: "37729",
+  sourceUrl: "https://ord.uib.no/bm/article/37729.json",
+  payload: {
+    lemmas: [
+      nounLemma("melk", [
+        [564, ["NOUN", "Masc"], ["melk", "melken", "melker", "melkene"]],
+        [760, ["NOUN", "Fem"], ["melk", "melka", "melker", "melkene"]],
+      ]),
+      nounLemma("mjølk", [
+        [564, ["NOUN", "Masc"], ["mjølk", "mjølken", "mjølker", "mjølkene"]],
+        [760, ["NOUN", "Fem"], ["mjølk", "mjølka", "mjølker", "mjølkene"]],
+      ]),
+    ],
+  },
+};
+
+function nounLemma(
+  lemma: string,
+  paradigms: Array<[number, string[], [string, string, string, string]]>,
+) {
+  const formTags = [
+    ["Sing", "Ind"],
+    ["Sing", "Def"],
+    ["Plur", "Ind"],
+    ["Plur", "Def"],
+  ];
+  return {
+    lemma,
+    final_lexeme: lemma,
+    paradigm_info: paradigms.map(([paradigmId, tags, forms]) => ({
+      tags,
+      paradigm_id: paradigmId,
+      inflection_group: "NOUN_regular",
+      standardisation: "STANDARD",
+      inflection: forms.map((word_form, index) => ({
+        word_form,
+        tags: formTags[index],
+      })),
+    })),
+  };
+}
+
 export const FA_CORPUS = [
   FA_BM_VERB,
   FA_BM_DETERMINER,
