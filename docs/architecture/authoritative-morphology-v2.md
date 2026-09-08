@@ -8,7 +8,8 @@ base schema `20260902083000_authoritative_morphology_v2.sql` and V2.1 migration
 applied. The 54-test pgTAP suite passed. One explicitly allowlisted `ramme`
 verb persistence canary completed successfully; both write flags were then
 disabled and the allowlist neutralized. General persistence and the application
-read cutover remain disabled.
+read cutover remain disabled. A source-centric V2.2 storage migration and its
+pgTAP gate are staged as pending only; they have not been applied or deployed.
 
 ## Goal
 
@@ -262,6 +263,33 @@ not choose the first article and does not merge their raw paradigms. Instead:
 The application still receives one canonical source model. Multiple backend
 articles are provenance, not multiple competing application answers.
 
+### Shared source catalog (V2.2, pending)
+
+V2.2 separates immutable source evidence from lexeme-specific presentation:
+
+1. one Ordbokene payload revision is stored once per
+   dictionary/article/payload fingerprint/parser version;
+2. the revision owns its official headwords, such as `melk` and `mjølk`;
+3. each headword owns its POS/paradigm identities, so reused paradigm IDs do
+   not collide;
+4. each paradigm owns only forms present in that source payload;
+5. any number of snapshots of the canonical lexeme may reference the same
+   source revision;
+6. an authenticated alias projection maps every official headword back to the
+   canonical lexeme without creating another learner entity.
+
+For BM article 37729 this means two source headwords and four source paradigms:
+`melk` masculine/feminine and `mjølk` masculine/feminine. Publishing a
+`melk` card stores one learner projection; `mjølk` becomes its official
+headword alias. A later text occurrence of `mjølk` must resolve through that
+alias rather than create a second `public.lexemes` row.
+
+The existing per-lexeme private paradigm/form tables are not deleted or renamed
+by V2.2. Runtime dependency search found no application or Edge readers of
+those tables; all V2 consumers use `public.lexeme_form_display_v2`. The pending
+publisher therefore stops adding new duplicated raw rows there while retaining
+the old objects for a separately approved cleanup after the zero-reader gate.
+
 ## Golden corpus
 
 Fixtures were refreshed from the live official JSON on 2026-09-01:
@@ -314,4 +342,13 @@ remained empty after the gate.
 8. Remove bridges and legacy tables only after the dependency audit returns
    zero, in a separate approved destructive migration.
 
-No full refresh or lexical rerun belongs to this package.
+After the V2.2 migration and pgTAP gate pass, canonical form data is populated
+with a forms-only backfill over existing active Bokmål lexemes. It uses the
+same bounded persistence rollout (`1 → 20 → 100 → 500`) and does not rerun the
+text-analysis pipeline. A later text occurrence such as `mjølk` resolves
+through `lexeme_headword_aliases_v2` to the existing canonical `melk` lexeme.
+
+No full text refresh or lexical rerun belongs to this package. Legacy form rows
+may be removed only after the application and every backend reader use the V2
+projection and the zero-reader gate passes. Learner lexemes, progress, reviews,
+relations, and text-analysis records are never part of that cleanup.
