@@ -61,3 +61,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/forms-enrichment-v2-compare-shadow/deno.json"
 entrypoint = "./functions/forms-enrichment-v2-compare-shadow/index.ts"
+
+[functions.forms-enrichment-v2-persist-canary]
+enabled = true
+verify_jwt = false
+import_map = "./functions/forms-enrichment-v2-persist-canary/deno.json"
+entrypoint = "./functions/forms-enrichment-v2-persist-canary/index.ts"

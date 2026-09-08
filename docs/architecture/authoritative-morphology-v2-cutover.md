@@ -27,6 +27,8 @@
 | --- | --- | --- |
 | `D10_FORMS_V2_SHADOW_ENABLED` | `false` | Runs V2 beside V1 in the forms chain |
 | `D10_FORMS_V2_PERSIST_ENABLED` | `false` | Publishes complete successful V2 snapshots |
+| `D10_FORMS_V2_PERSIST_CANARY_ENABLED` | `false` | Unlocks the operator-only single-lexeme canary |
+| `D10_FORMS_V2_PERSIST_CANARY_LEXEME_IDS` | empty | Allowlist for operator-only persistence |
 | `EXPO_PUBLIC_FORMS_READ_MODEL` | `legacy` | Selects the mobile application read model |
 | `D10_FORMS_READ_MODEL` | `legacy` | Selects the analyze-text verb-map source |
 
@@ -51,29 +53,39 @@ coverage. Legacy `present_perfect`/`past_perfect` phrases and `needs_review`
 pseudo-forms are reported under `intentionalLegacyExclusions`; they are not
 treated as missing Ordbøkene forms.
 
+`forms-enrichment-v2-persist-canary` is the only operator-facing persistence
+entrypoint. It accepts exactly one lexeme UUID, requires the named modern
+`completionshadow` secret, an exact confirmation phrase, the dedicated canary
+flag, the global persistence flag, and membership in
+`D10_FORMS_V2_PERSIST_CANARY_LEXEME_IDS`. The allowlist fails closed when it is
+empty, malformed, or larger than 20 UUIDs. It calls only the V2 worker and never
+invokes or writes through the legacy producer. The operator canary also refuses
+to run while `D10_FORMS_V2_SHADOW_ENABLED=true`, preventing background jobs from
+sharing the temporary global persistence window.
+
 Several exact articles may represent different senses with the same POS. The
 resolver never picks the first article and never merges their source
 identities. If all learner-facing form keys, values, and primary/alternative
 tiers are identical, shadow comparison reports
 `resolved_equivalent_source_articles` and the shared projection counts once.
-It remains `publishable=false`: the current V2 table has one `article_id`, so
-persistence is blocked until a versioned schema can retain every contributing
-article ID. Any difference between article projections remains
-`ambiguous_source_articles`.
+V2.1 publishes that projection while retaining every contributing article ID;
+it never chooses an arbitrary primary article. Any difference between article
+projections remains `ambiguous_source_articles` and fails closed.
 
 ## Migration-history gate
 
 Local/Remote history reached exact equality on 2026-09-02 without repair,
 deletion, renaming, or overwriting any existing migration. The reviewed D10
-migration is:
+migrations are:
 
 ```text
 supabase/migrations/20260902083000_authoritative_morphology_v2.sql
+supabase/migrations/20260902181604_authoritative_morphology_v2_multi_article_provenance.sql
 ```
 
-Run `npx supabase db push --dry-run` again immediately before applying. It must
-offer only this D10 migration. Apply it only after the versioned pgTAP suite
-`supabase/tests/authoritative_morphology_v2.test.sql` succeeds.
+V2.1 was applied only after Local/Remote history matched, a dry-run offered no
+other migration, and the 54-test versioned pgTAP suite
+`supabase/tests/authoritative_morphology_v2.test.sql` succeeded.
 
 ## Cleanup gate
 
