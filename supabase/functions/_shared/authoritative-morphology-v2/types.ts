@@ -1,5 +1,5 @@
 export const AUTHORITATIVE_MORPHOLOGY_VERSION =
-  "authoritative-morphology/v2" as const;
+  "authoritative-morphology/v2.2" as const;
 
 export type DictionaryCode = "bm" | "nn";
 
@@ -107,11 +107,16 @@ export type FormDisplayGroup = {
   policyVersion: string;
 };
 
+export type FormSelectionContext = {
+  normalizedQuery?: string;
+};
+
 export interface FormSelectionPolicy {
   readonly policyVersion: string;
 
   select(
     paradigms: readonly AuthoritativeParadigm[],
+    context?: FormSelectionContext,
   ): FormDisplayGroup[];
 }
 

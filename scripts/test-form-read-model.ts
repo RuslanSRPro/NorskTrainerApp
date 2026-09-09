@@ -50,19 +50,11 @@ async function run(): Promise<void> {
     },
     {
       lexeme_id: 'milk',
-      form_key: 'noun_singular_definite_masculine',
+      form_key: 'noun_singular_definite',
       primary_values: ['melken'],
-      alternative_values: [],
+      alternative_values: ['melka', 'mjølken', 'mjølka'],
       regularity_marker: 'regular',
       display_order: 1,
-    },
-    {
-      lexeme_id: 'milk',
-      form_key: 'noun_singular_definite_feminine',
-      primary_values: ['melka'],
-      alternative_values: [],
-      regularity_marker: 'regular',
-      display_order: 2,
     },
     {
       lexeme_id: 'good',
@@ -100,8 +92,13 @@ async function run(): Promise<void> {
   );
   assertArrayEqual(
     v2.get('milk')?.form_primary.best_entall ?? [],
-    ['melken', 'melka'],
-    'Gender-tagged noun forms must merge without losing an official variant',
+    ['melken'],
+    'Compact noun default must contain only the selected primary form',
+  );
+  assertArrayEqual(
+    v2.get('milk')?.form_alternatives.best_entall ?? [],
+    ['melka', 'mjølken', 'mjølka'],
+    'Every other official noun variant must survive in alternatives',
   );
   assertEqual(
     v2.get('milk')?.noun_forms.best_entall,
@@ -160,7 +157,7 @@ async function run(): Promise<void> {
     'Pagination ranges must be consecutive and inclusive',
   );
 
-  console.log('D10 form read model: 17 passed / 0 failed');
+  console.log('D10 form read model: 18 passed / 0 failed');
 }
 
 function legacyRow(

@@ -189,7 +189,10 @@ async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
     request: { query, pos: lexeme.pos, dictionaries: ["bm"] },
     client: new OrdbokeneClient(),
   });
-  const displayGroups = buildAuthoritativeDisplayGroups(resolution.paradigms);
+  const displayGroups = buildAuthoritativeDisplayGroups(
+    resolution.paradigms,
+    resolution.lookup.normalizedQuery,
+  );
   const articleProjection = resolveArticleProjection(displayGroups);
 
   let status = resolution.status as string;
@@ -210,8 +213,9 @@ async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
     status = "dictionary_scope_error";
   }
   if (
-    resolution.paradigms.some((paradigm) =>
-      normalizeNorwegian(paradigm.lemma) !== resolution.lookup.normalizedQuery
+    resolution.paradigms.length > 0 &&
+    !resolution.paradigms.some((paradigm) =>
+      normalizeNorwegian(paradigm.lemma) === resolution.lookup.normalizedQuery
     )
   ) {
     status = "source_lemma_mismatch";

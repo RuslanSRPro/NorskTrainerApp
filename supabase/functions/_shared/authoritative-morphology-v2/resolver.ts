@@ -57,8 +57,11 @@ export async function resolveAuthoritativeMorphology(args: {
 
 export function buildAuthoritativeDisplayGroups(
   paradigms: readonly AuthoritativeParadigm[],
+  normalizedQuery?: string,
 ) {
-  return new BokmalWrittenFormSelectionPolicy().select(paradigms);
+  return new BokmalWrittenFormSelectionPolicy().select(paradigms, {
+    normalizedQuery,
+  });
 }
 
 async function annotatePreferences(

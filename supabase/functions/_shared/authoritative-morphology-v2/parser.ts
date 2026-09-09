@@ -22,12 +22,14 @@ export function normalizeNorwegian(value: string): string {
 export function buildParadigmIdentity(args: {
   dictionaryCode: DictionaryCode;
   articleId: string;
+  lemma: string;
   pos: MorphologyPos;
   paradigmId: string;
 }): string {
   return [
     args.dictionaryCode,
     args.articleId,
+    normalizeNorwegian(args.lemma),
     args.pos,
     args.paradigmId,
   ].map((part) => encodeURIComponent(part)).join("|");
@@ -55,6 +57,7 @@ export function parseOrdbokeneArticles(
         const identity = buildParadigmIdentity({
           dictionaryCode: article.dictionaryCode,
           articleId: article.articleId,
+          lemma: lemmaValue,
           pos,
           paradigmId,
         });
