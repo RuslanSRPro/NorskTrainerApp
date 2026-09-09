@@ -77,7 +77,8 @@ export function classifyPersistWorkerOutcome(
     ? body.missingLexemeIds
     : [];
   const eligibleStatus = result?.status === "resolved" ||
-    result?.status === "resolved_equivalent_source_articles";
+    result?.status === "resolved_equivalent_source_articles" ||
+    result?.status === "resolved_bound_source_article";
 
   return {
     requestOk,

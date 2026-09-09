@@ -1,6 +1,12 @@
 export { OrdbokeneClient } from "./client.ts";
 export type { OrdbokeneClientOptions } from "./client.ts";
 export {
+  applyAuthoritativeArticleBindings,
+  ARTICLE_BINDING_PROVIDER_VERSION,
+  type AppliedArticleBinding,
+  type AuthoritativeArticleBinding,
+} from "./article-binding.ts";
+export {
   type ArticleProjectionResolution,
   type ArticleProjectionStatus,
   resolveArticleProjection,

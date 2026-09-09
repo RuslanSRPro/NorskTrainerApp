@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import {
+  applyAuthoritativeArticleBindings,
+  type AuthoritativeArticleBinding,
   buildAuthoritativeDisplayGroups,
   compareAuthoritativeAndLegacyForms,
   hasInternalServiceAuthorization,
@@ -31,6 +33,16 @@ type LexemeRow = {
 
 type LegacyRow = LegacyMorphologyRow & {
   lexeme_id: string;
+};
+
+type ArticleBindingRow = {
+  lexeme_id: string;
+  dictionary_code: "bm";
+  article_id: number | string;
+  normalized_lemma: string;
+  pos: MorphologyPos;
+  evidence_ids: string[];
+  provider_version: string;
 };
 
 type RequestBody = {
@@ -111,6 +123,17 @@ Deno.serve(async (request: Request) => {
     }
 
     const legacyRows = (legacyData ?? []) as LegacyRow[];
+    let bindingRows: ArticleBindingRow[] = [];
+    if (lexemes.length > 0) {
+      const { data: bindingData, error: bindingError } = await supabase.rpc(
+        "get_authoritative_morphology_article_bindings_v2",
+        { p_lexeme_ids: lexemes.map((lexeme) => lexeme.id) },
+      );
+      if (bindingError) {
+        throw new Error(`ARTICLE_BINDING_LOAD_FAILED:${bindingError.message}`);
+      }
+      bindingRows = (bindingData ?? []) as ArticleBindingRow[];
+    }
     const results = await mapWithConcurrency(
       lexemes,
       CONCURRENCY,
@@ -118,6 +141,9 @@ Deno.serve(async (request: Request) => {
         const result = await resolveOne(
           lexeme,
           legacyRows.filter((row) => row.lexeme_id === lexeme.id),
+          bindingRows.filter((row) => row.lexeme_id === lexeme.id).map(
+            toArticleBinding,
+          ),
         );
         if (
           body.persist && isPersistenceEligibleStatus(result.status) &&
@@ -183,17 +209,46 @@ Deno.serve(async (request: Request) => {
   }
 });
 
-async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
+async function resolveOne(
+  lexeme: LexemeRow,
+  legacyRows: LegacyRow[],
+  articleBindings: AuthoritativeArticleBinding[] = [],
+) {
   const query = cleanLookupWord(lexeme.display_form || lexeme.lemma);
   const resolution = await resolveAuthoritativeMorphology({
     request: { query, pos: lexeme.pos, dictionaries: ["bm"] },
     client: new OrdbokeneClient(),
   });
-  const displayGroups = buildAuthoritativeDisplayGroups(
+  let displayGroups = buildAuthoritativeDisplayGroups(
     resolution.paradigms,
     resolution.lookup.normalizedQuery,
   );
-  const articleProjection = resolveArticleProjection(displayGroups);
+  const unboundProjection = resolveArticleProjection(displayGroups);
+  const appliedBinding = articleBindings.length > 0
+    ? applyAuthoritativeArticleBindings(
+      resolution,
+      displayGroups,
+      articleBindings,
+    )
+    : null;
+  const effectiveResolution = appliedBinding?.resolution ?? resolution;
+  displayGroups = appliedBinding?.displayGroups ?? displayGroups;
+  const articleProjection = appliedBinding
+    ? {
+      ...resolveArticleProjection(displayGroups),
+      status: "bound_source_article" as const,
+      bindingEvidenceIds: appliedBinding.evidenceIds,
+      bindingProviderVersion: appliedBinding.providerVersion,
+    }
+    : articleBindings.length > 0
+    ? {
+      ...unboundProjection,
+      status: "invalid_article_binding" as const,
+      publishable: false,
+      primaryCount: 0,
+      alternativeCount: 0,
+    }
+    : unboundProjection;
 
   let status = resolution.status as string;
   if (resolution.status === "resolved") {
@@ -201,6 +256,10 @@ async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
       status = "not_found";
     } else if (articleProjection.status === "equivalent_source_articles") {
       status = "resolved_equivalent_source_articles";
+    } else if (articleProjection.status === "bound_source_article") {
+      status = "resolved_bound_source_article";
+    } else if (articleProjection.status === "invalid_article_binding") {
+      status = "invalid_article_binding";
     } else if (articleProjection.status === "ambiguous_source_articles") {
       status = "ambiguous_source_articles";
     }
@@ -213,9 +272,10 @@ async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
     status = "dictionary_scope_error";
   }
   if (
-    resolution.paradigms.length > 0 &&
-    !resolution.paradigms.some((paradigm) =>
-      normalizeNorwegian(paradigm.lemma) === resolution.lookup.normalizedQuery
+    effectiveResolution.paradigms.length > 0 &&
+    !effectiveResolution.paradigms.some((paradigm) =>
+      normalizeNorwegian(paradigm.lemma) ===
+        effectiveResolution.lookup.normalizedQuery
     )
   ) {
     status = "source_lemma_mismatch";
@@ -234,7 +294,7 @@ async function resolveOne(lexeme: LexemeRow, legacyRows: LegacyRow[]) {
     articleProjection,
     displayGroups,
     comparison,
-    resolution,
+    resolution: effectiveResolution,
   };
 }
 
@@ -294,7 +354,19 @@ function requiredEnv(name: string): string {
 
 function isShadowResolvedStatus(status: string): boolean {
   return status === "resolved" ||
-    status === "resolved_equivalent_source_articles";
+    status === "resolved_equivalent_source_articles" ||
+    status === "resolved_bound_source_article";
+}
+
+function toArticleBinding(row: ArticleBindingRow): AuthoritativeArticleBinding {
+  return {
+    dictionaryCode: row.dictionary_code,
+    articleId: String(row.article_id),
+    normalizedLemma: row.normalized_lemma,
+    pos: row.pos,
+    evidenceIds: row.evidence_ids,
+    providerVersion: row.provider_version,
+  };
 }
 
 function isPersistenceEligibleStatus(status: string): boolean {

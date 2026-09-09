@@ -3,8 +3,10 @@ import type { FormDisplayGroup } from "./types.ts";
 export type ArticleProjectionStatus =
   | "no_source_article"
   | "single_source_article"
+  | "bound_source_article"
   | "equivalent_source_articles"
-  | "ambiguous_source_articles";
+  | "ambiguous_source_articles"
+  | "invalid_article_binding";
 
 export type ArticleProjectionResolution = {
   status: ArticleProjectionStatus;
@@ -12,6 +14,8 @@ export type ArticleProjectionResolution = {
   publishable: boolean;
   primaryCount: number;
   alternativeCount: number;
+  bindingEvidenceIds?: string[];
+  bindingProviderVersion?: string;
 };
 
 /**

@@ -1,4 +1,6 @@
 import {
+  applyAuthoritativeArticleBindings,
+  ARTICLE_BINDING_PROVIDER_VERSION,
   type AuthoritativeParadigm,
   BokmalWrittenFormSelectionPolicy,
   buildParadigmIdentity,
@@ -12,6 +14,7 @@ import {
   parseOrdbokeneArticles,
   resolveArticleProjection,
   resolveAuthoritativeMorphology,
+  type ResolveResult,
 } from "../../_shared/authoritative-morphology-v2/mod.ts";
 import {
   FA_BM_DETERMINER,
@@ -614,3 +617,174 @@ Deno.test("24 differing same-POS articles remain ambiguous", () => {
   assertEquals(resolution.primaryCount, 0);
   assertEquals(resolution.alternativeCount, 0);
 });
+
+Deno.test("25 explicit evidence binding selects være article 69211", () => {
+  const fixture = sameLemmaDifferentArticleFixture();
+  const applied = applyAuthoritativeArticleBindings(
+    fixture.resolution,
+    fixture.displayGroups,
+    [{
+      dictionaryCode: "bm",
+      articleId: "69211",
+      normalizedLemma: "være",
+      pos: "verb",
+      evidenceIds: ["manual:lexeme-semantic-binding:vaere-be"],
+      providerVersion: ARTICLE_BINDING_PROVIDER_VERSION,
+    }],
+  );
+
+  assert(applied);
+  assertEquals(applied.articleIds, ["69211"]);
+  assertEquals(
+    [...new Set(applied.resolution.paradigms.map((item) => item.articleId))],
+    ["69211"],
+  );
+  assertEquals(
+    [...new Set(applied.displayGroups.map((item) => item.articleId))],
+    ["69211"],
+  );
+  assertEquals(
+    applied.displayGroups.find((item) => item.formKey === "preterite")
+      ?.primary.map((item) => item.value),
+    ["var"],
+  );
+});
+
+Deno.test("26 absent article binding never falls back to the first article", () => {
+  const fixture = sameLemmaDifferentArticleFixture();
+  assertEquals(
+    applyAuthoritativeArticleBindings(
+      fixture.resolution,
+      fixture.displayGroups,
+      [],
+    ),
+    null,
+  );
+  assertEquals(
+    resolveArticleProjection(fixture.displayGroups).status,
+    "ambiguous_source_articles",
+  );
+});
+
+Deno.test("27 binding to an unfetched article fails closed", () => {
+  const fixture = sameLemmaDifferentArticleFixture();
+  assertEquals(
+    applyAuthoritativeArticleBindings(
+      fixture.resolution,
+      fixture.displayGroups,
+      [{
+        dictionaryCode: "bm",
+        articleId: "99999",
+        normalizedLemma: "være",
+        pos: "verb",
+        evidenceIds: ["manual:test"],
+        providerVersion: ARTICLE_BINDING_PROVIDER_VERSION,
+      }],
+    ),
+    null,
+  );
+});
+
+Deno.test("28 binding dimensions must match lemma and POS", () => {
+  const fixture = sameLemmaDifferentArticleFixture();
+  assertEquals(
+    applyAuthoritativeArticleBindings(
+      fixture.resolution,
+      fixture.displayGroups,
+      [{
+        dictionaryCode: "bm",
+        articleId: "69211",
+        normalizedLemma: "være",
+        pos: "noun",
+        evidenceIds: ["manual:test"],
+        providerVersion: ARTICLE_BINDING_PROVIDER_VERSION,
+      }],
+    ),
+    null,
+  );
+});
+
+function sameLemmaDifferentArticleFixture(): {
+  resolution: ResolveResult;
+  displayGroups: FormDisplayGroup[];
+} {
+  const makeParadigm = (
+    articleId: string,
+    present: string,
+    preterite: string,
+  ): AuthoritativeParadigm => ({
+    identity: `bm|${articleId}|v%C3%A6re|verb|1`,
+    source: "Ordbokene",
+    dictionaryCode: "bm",
+    dictionaryName: "Bokmålsordboka",
+    articleId,
+    articleUrl: `https://ord.uib.no/bm/article/${articleId}.json`,
+    articleVersion: "fixture-v1",
+    pos: "verb",
+    paradigmId: "1",
+    lemma: "være",
+    paradigmTags: ["VERB"],
+    inflectionGroup: "VERB_fixture",
+    standardisation: "STANDARD",
+    forms: [
+      {
+        formKey: "infinitive",
+        value: "være",
+        normalizedValue: "være",
+        tags: ["Inf"],
+        sourceOrdinal: 0,
+      },
+      {
+        formKey: "present",
+        value: present,
+        normalizedValue: present,
+        tags: ["Pres"],
+        sourceOrdinal: 1,
+      },
+      {
+        formKey: "preterite",
+        value: preterite,
+        normalizedValue: preterite,
+        tags: ["Past"],
+        sourceOrdinal: 2,
+      },
+    ],
+    preference: null,
+  });
+  const paradigms = [
+    makeParadigm("69211", "er", "var"),
+    makeParadigm("69212", "værer", "været"),
+  ];
+  const articles = paradigms.map((paradigm) => ({
+    dictionaryCode: "bm" as const,
+    articleId: paradigm.articleId,
+    sourceUrl: paradigm.articleUrl,
+    payload: { lemmas: [{ final_lexeme: "være" }] },
+  }));
+  const resolution: ResolveResult = {
+    version: "authoritative-morphology/v2.2",
+    status: "resolved",
+    requestedPos: "verb",
+    lookup: {
+      query: "være",
+      normalizedQuery: "være",
+      requestedDictionaries: ["bm"],
+      scopeUsed: "e",
+      articleReferences: articles.map(({ dictionaryCode, articleId }) => ({
+        dictionaryCode,
+        articleId,
+      })),
+      articles,
+      errors: [],
+      checkedAt: "2026-09-09T00:00:00.000Z",
+    },
+    paradigms,
+    writesPerformed: false,
+  };
+  return {
+    resolution,
+    displayGroups: new BokmalWrittenFormSelectionPolicy().select(paradigms, {
+      normalizedQuery: "være",
+    }),
+  };
+}
