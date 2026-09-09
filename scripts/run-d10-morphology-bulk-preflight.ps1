@@ -9,7 +9,10 @@ param(
   [ValidateRange(1, 5)]
   [int]$RetryCount = 3,
 
-  [switch]$IncludeCovered,
+  [string]$CandidatesPath = (
+    Join-Path ([Environment]::GetFolderPath('UserProfile')) `
+      'Downloads\d10-supported-lexemes.csv'
+  ),
 
   [string]$OutputDirectory = (
     Join-Path ([Environment]::GetFolderPath('UserProfile')) `
@@ -22,7 +25,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$RestPageSize = 1000
 $SupportedPos = @('verb', 'noun', 'adjective', 'determiner')
 
 function Get-D10ShadowSecret {
@@ -82,33 +84,6 @@ function Get-D10ShadowSecret {
     }
     $plainSecret = $null
     $encryptedSecret = $null
-  }
-}
-
-function Invoke-D10PagedRest {
-  param(
-    [string]$Resource,
-    [string]$Query,
-    [hashtable]$Headers
-  )
-
-  $rows = @()
-  $offset = 0
-  while ($true) {
-    $uri = "$($SupabaseUrl.TrimEnd('/'))/rest/v1/$Resource" +
-      "?$Query&limit=$RestPageSize&offset=$offset"
-    $page = @(
-      Invoke-RestMethod `
-        -Uri $uri `
-        -Method Get `
-        -Headers $Headers `
-        -TimeoutSec 60
-    )
-    $rows += $page
-    if ($page.Count -lt $RestPageSize) {
-      return $rows
-    }
-    $offset += $RestPageSize
   }
 }
 
@@ -308,26 +283,32 @@ $csvPath = Join-Path $OutputDirectory 'results.csv'
 try {
   New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 
-  Write-Host '=== LOAD SUPPORTED LEARNING LEXEMES ==='
-  $lexemes = @(
-    Invoke-D10PagedRest `
-      -Resource 'lexemes' `
-      -Query 'select=id,lemma,pos&is_learning_lexeme=eq.true&pos=in.(verb,noun,adjective,determiner)&order=id.asc' `
-      -Headers $headers
-  )
+  Write-Host '=== LOAD EXPORTED SUPPORTED LEARNING LEXEMES ==='
+  if (-not (Test-Path -LiteralPath $CandidatesPath -PathType Leaf)) {
+    throw "Candidates CSV was not found: $CandidatesPath"
+  }
+  $lexemes = @(Import-Csv -LiteralPath $CandidatesPath)
+  if ($lexemes.Count -eq 0) {
+    throw 'Candidates CSV is empty.'
+  }
 
-  Write-Host '=== LOAD EXISTING BM V2 DISPLAY COVERAGE ==='
-  $displayRows = @(
-    Invoke-D10PagedRest `
-      -Resource 'lexeme_form_display_v2' `
-      -Query 'select=lexeme_id&dictionary_code=eq.bm&order=lexeme_id.asc' `
-      -Headers $headers
-  )
-  $covered = [Collections.Generic.HashSet[string]]::new(
+  $uniqueLexemeIds = [Collections.Generic.HashSet[string]]::new(
     [StringComparer]::OrdinalIgnoreCase
   )
-  foreach ($row in $displayRows) {
-    [void]$covered.Add([string]$row.lexeme_id)
+  foreach ($lexeme in $lexemes) {
+    $parsedId = [Guid]::Empty
+    if (-not [Guid]::TryParse([string]$lexeme.id, [ref]$parsedId)) {
+      throw "Invalid lexeme UUID in candidates CSV: $($lexeme.id)"
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$lexeme.lemma)) {
+      throw "Empty lemma in candidates CSV: $($lexeme.id)"
+    }
+    if ($SupportedPos -notcontains [string]$lexeme.pos) {
+      throw "Unsupported POS in candidates CSV: $($lexeme.pos)"
+    }
+    if (-not $uniqueLexemeIds.Add([string]$lexeme.id)) {
+      throw "Duplicate lexeme UUID in candidates CSV: $($lexeme.id)"
+    }
   }
 
   $completed = [Collections.Generic.HashSet[string]]::new(
@@ -350,15 +331,7 @@ try {
     }
   }
 
-  $missing = @(
-    $lexemes |
-      Where-Object {
-        $SupportedPos -contains [string]$_.pos -and
-        -not $covered.Contains([string]$_.id)
-      } |
-      Sort-Object -Property id
-  )
-  $targets = if ($IncludeCovered) { @($lexemes) } else { @($missing) }
+  $targets = @($lexemes | Sort-Object -Property id)
   $pending = @(
     $targets | Where-Object { -not $completed.Contains([string]$_.id) }
   )
@@ -367,8 +340,6 @@ try {
   }
 
   Write-Host "Supported lexemes: $($lexemes.Count)"
-  Write-Host "Already covered:  $($covered.Count)"
-  Write-Host "Missing V2:       $($missing.Count)"
   Write-Host "Target lexemes:   $($targets.Count)"
   Write-Host "Checkpoint rows:  $($checkpointRows.Count)"
   Write-Host "This run:         $($pending.Count)"
@@ -430,9 +401,7 @@ try {
     sourceOnly = $true
     persisted = $false
     supportedLexemes = $lexemes.Count
-    coveredBeforePreflight = $covered.Count
-    missingBeforePreflight = $missing.Count
-    includesCoveredLexemes = [bool]$IncludeCovered
+    candidatesPath = $CandidatesPath
     targetLexemes = $targets.Count
     checkpointRows = $checkpointRows.Count
     completedTargets = $completedTargetCount
