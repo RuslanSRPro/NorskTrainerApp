@@ -156,49 +156,43 @@ for each row execute function
   private.enforce_authoritative_snapshot_article_binding_v2();
 
 -- Existing learner lexeme: å være = the copular/existential verb in BM 69211.
-insert into private.authoritative_morphology_article_bindings_v2 (
-  lexeme_id,
-  dictionary_code,
-  article_id,
-  normalized_lemma,
-  pos,
-  evidence_ids,
-  provider_version,
-  evidence
-)
-select
-  lexeme.id,
-  'bm',
-  69211,
-  'være',
-  'verb',
-  array[
-    'ordbokene:bm:69211',
-    'manual:lexeme-semantic-binding:vaere-be'
-  ]::text[],
-  'authoritative-article-binding/v1',
-  jsonb_build_object(
-    'decision', 'copular_existential_vaere',
-    'rejectedHomographArticleIds', jsonb_build_array(69212),
-    'reason', 'same lemma and POS but divergent meaning and paradigm'
-  )
-from public.lexemes as lexeme
-where lexeme.id = 'd3fdd671-8fd2-43bf-b399-dd140ce0e704'::uuid
-  and lexeme.pos = 'verb'
-  and lower(btrim(regexp_replace(coalesce(lexeme.display_form, lexeme.lemma),
-    '^(å|en|ei|et)[[:space:]]+', '', 'i'))) = 'være';
-
+-- The row trigger is the single authority for lemma/POS validation. ROW_COUNT
+-- verifies this exact INSERT without relying on a later RLS-visible SELECT.
 do $block$
+declare
+  v_inserted_count integer;
 begin
-  if not exists (
-    select 1
-    from private.authoritative_morphology_article_bindings_v2
-    where lexeme_id = 'd3fdd671-8fd2-43bf-b399-dd140ce0e704'::uuid
-      and dictionary_code = 'bm'
-      and article_id = 69211
-      and pos = 'verb'
-      and is_active
-  ) then
+  insert into private.authoritative_morphology_article_bindings_v2 (
+    lexeme_id,
+    dictionary_code,
+    article_id,
+    normalized_lemma,
+    pos,
+    evidence_ids,
+    provider_version,
+    evidence
+  )
+  select
+    lexeme.id,
+    'bm',
+    69211,
+    'være',
+    'verb',
+    array[
+      'ordbokene:bm:69211',
+      'manual:lexeme-semantic-binding:vaere-be'
+    ]::text[],
+    'authoritative-article-binding/v1',
+    jsonb_build_object(
+      'decision', 'copular_existential_vaere',
+      'rejectedHomographArticleIds', jsonb_build_array(69212),
+      'reason', 'same lemma and POS but divergent meaning and paradigm'
+    )
+  from public.lexemes as lexeme
+  where lexeme.id = 'd3fdd671-8fd2-43bf-b399-dd140ce0e704'::uuid;
+
+  get diagnostics v_inserted_count = row_count;
+  if v_inserted_count <> 1 then
     raise exception using errcode = '55000', message = 'VAERE_ARTICLE_BINDING_NOT_CREATED';
   end if;
 end;
