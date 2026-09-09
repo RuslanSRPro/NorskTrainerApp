@@ -1,4 +1,4 @@
-export type FormsReadModel = 'legacy' | 'v2';
+export type FormsReadModel = 'v2';
 
 export type FormsBundle = {
   verb_forms: Record<string, string>;
@@ -9,18 +9,6 @@ export type FormsBundle = {
   has_form_alternatives: boolean;
   regularity_marker: 'regular' | 'irregular' | 'suppletive' | 'unknown';
   forms_read_model: FormsReadModel;
-};
-
-export type LegacyFormRow = {
-  id: string;
-  lexeme_id: string;
-  form_key: string | null;
-  value: string;
-  normalized_value: string | null;
-  is_primary: boolean | null;
-  variant_rank: number | null;
-  source_priority: number | null;
-  verification_status: string | null;
 };
 
 export type V2FormRow = {
@@ -133,46 +121,6 @@ export function buildV2Bundles(rows: V2FormRow[]): Map<string, FormsBundle> {
   return result;
 }
 
-export function buildLegacyBundles(
-  rows: LegacyFormRow[],
-): Map<string, FormsBundle> {
-  const grouped = new Map<string, LegacyFormRow[]>();
-  for (const row of rows) {
-    if (!row.lexeme_id || !row.form_key || !row.value) continue;
-    const key = `${row.lexeme_id}|${canonicalFormKey(row.form_key) ?? ''}`;
-    if (key.endsWith('|')) continue;
-    const list = grouped.get(key) ?? [];
-    list.push(row);
-    grouped.set(key, list);
-  }
-
-  const result = new Map<string, FormsBundle>();
-  for (const rowsForKey of grouped.values()) {
-    rowsForKey.sort(compareLegacyRows);
-    const first = rowsForKey[0];
-    const canonical = canonicalFormKey(first.form_key ?? '');
-    if (!canonical) continue;
-    const bundle = result.get(first.lexeme_id) ?? emptyBundle('legacy');
-    const primary = uniqueStrings(
-      rowsForKey.filter((row) => row.is_primary === true).map((row) => row.value),
-    );
-    const selectedPrimary = primary.length > 0 ? primary : [first.value];
-    const alternatives = uniqueStrings(
-      rowsForKey
-        .filter((row) => !selectedPrimary.includes(row.value))
-        .map((row) => row.value),
-    );
-
-    bundle.form_primary[canonical] = selectedPrimary;
-    bundle.form_alternatives[canonical] = alternatives;
-    bundle.has_form_alternatives ||= alternatives.length > 0;
-    setCompatibilityValue(bundle, canonical, selectedPrimary[0]);
-    result.set(first.lexeme_id, bundle);
-  }
-
-  return result;
-}
-
 export function chunkValues<T>(values: T[], size: number): T[][] {
   if (!Number.isInteger(size) || size < 1) {
     throw new Error('Chunk size must be a positive integer');
@@ -201,17 +149,6 @@ export async function collectPagedRows<T>(
     if (page.length < pageSize) return rows;
     from += pageSize;
   }
-}
-
-function compareLegacyRows(left: LegacyFormRow, right: LegacyFormRow): number {
-  return booleanRank(right.is_primary) - booleanRank(left.is_primary) ||
-    verificationRank(left.verification_status) -
-      verificationRank(right.verification_status) ||
-    nullableNumber(left.variant_rank) - nullableNumber(right.variant_rank) ||
-    nullableNumber(left.source_priority) - nullableNumber(right.source_priority) ||
-    String(left.normalized_value ?? left.value).localeCompare(
-      String(right.normalized_value ?? right.value),
-    ) || left.id.localeCompare(right.id);
 }
 
 function emptyBundle(readModel: FormsReadModel): FormsBundle {
@@ -260,17 +197,6 @@ function canonicalFormKey(sourceKey: string): string | undefined {
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
-}
-
-function booleanRank(value: boolean | null): number {
-  return value === true ? 2 : value === false ? 1 : 0;
-}
-
-function verificationRank(value: string | null): number {
-  if (value === 'source_verified' || value === 'multi_source_verified') return 0;
-  if (value === 'candidate') return 1;
-  if (value === 'needs_review') return 2;
-  return 3;
 }
 
 function nullableNumber(value: number | null): number {

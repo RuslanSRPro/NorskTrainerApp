@@ -192,19 +192,21 @@ export default function TrainScreen() {
 
   function getFormTask(w: any) {
     const type = String(w?.type || w?.category || w?.pos || '').toLowerCase();
+    const answer = (formKey: string, fallbackValue: string) =>
+      getFormTierValues(w, formKey, fallbackValue).primaryValues.join(' / ');
     const forms = type.includes('verb') ? [
-      { label: 'Presens', value: getFormValue(w, ['presens', 'f1']) },
-      { label: 'Preteritum', value: getFormValue(w, ['preteritum', 'f2']) },
-      { label: 'Perfektum', value: getFormValue(w, ['perfektum', 'f3']) },
+      { label: 'Presens', value: answer('presens', getFormValue(w, ['presens', 'f1'])) },
+      { label: 'Preteritum', value: answer('preteritum', getFormValue(w, ['preteritum', 'f2'])) },
+      { label: 'Perfektum', value: answer('perfektum', getFormValue(w, ['perfektum', 'f3'])) },
     ] : type.includes('noun') ? [
-      { label: 'Bestemt entall', value: getFormValue(w, ['best_entall', 'f1']) },
-      { label: 'Ubest. flertall', value: getFormValue(w, ['ubest_flertall', 'f2']) },
-      { label: 'Bestemt flertall', value: getFormValue(w, ['best_flertall', 'f3']) },
+      { label: 'Bestemt entall', value: answer('best_entall', getFormValue(w, ['best_entall', 'f1'])) },
+      { label: 'Ubest. flertall', value: answer('ubest_flertall', getFormValue(w, ['ubest_flertall', 'f2'])) },
+      { label: 'Bestemt flertall', value: answer('best_flertall', getFormValue(w, ['best_flertall', 'f3'])) },
     ] : type.includes('adj') ? [
-      { label: 'Intetkjønn', value: getFormValue(w, ['intetkjonn', 'f1']) },
-      { label: 'Flertall', value: getFormValue(w, ['flertall', 'f2']) },
-      { label: 'Komparativ', value: getFormValue(w, ['komparativ', 'f3']) },
-      { label: 'Superlativ', value: getFormValue(w, ['superlativ', 'f4']) },
+      { label: 'Intetkjønn', value: answer('intetkjonn', getFormValue(w, ['intetkjonn', 'f1'])) },
+      { label: 'Flertall', value: answer('flertall', getFormValue(w, ['flertall', 'f2'])) },
+      { label: 'Komparativ', value: answer('komparativ', getFormValue(w, ['komparativ', 'f3'])) },
+      { label: 'Superlativ', value: answer('superlativ', getFormValue(w, ['superlativ', 'f4'])) },
     ] : [];
     const avail = forms.filter(f => f.value);
     if (!avail.length) return null;

@@ -1,12 +1,10 @@
 import { supabase } from './supabase';
 import {
-  buildLegacyBundles,
   buildV2Bundles,
   chunkValues,
   collectPagedRows,
   type FormsBundle,
   type FormsReadModel,
-  type LegacyFormRow,
   type V2FormRow,
 } from './formReadModelCore';
 
@@ -16,7 +14,7 @@ const FORM_QUERY_ID_BATCH_SIZE = 100;
 const FORM_QUERY_PAGE_SIZE = 1000;
 
 export function configuredFormsReadModel(): FormsReadModel {
-  return process.env.EXPO_PUBLIC_FORMS_READ_MODEL === 'v2' ? 'v2' : 'legacy';
+  return 'v2';
 }
 
 export async function fetchFormsMap(
@@ -25,9 +23,7 @@ export async function fetchFormsMap(
   const ids = [...new Set(lexemeIds.filter(Boolean))];
   if (ids.length === 0) return new Map();
 
-  return configuredFormsReadModel() === 'v2'
-    ? await fetchV2FormsMap(ids)
-    : await fetchLegacyFormsMap(ids);
+  return await fetchV2FormsMap(ids);
 }
 
 async function fetchV2FormsMap(
@@ -60,40 +56,4 @@ async function fetchV2FormsMap(
   }
 
   return buildV2Bundles(rows);
-}
-
-async function fetchLegacyFormsMap(
-  lexemeIds: string[],
-): Promise<Map<string, FormsBundle>> {
-  const rows: LegacyFormRow[] = [];
-
-  for (const idBatch of chunkValues(lexemeIds, FORM_QUERY_ID_BATCH_SIZE)) {
-    const batchRows = await collectPagedRows<LegacyFormRow>(async (from, to) => {
-      const { data, error } = await supabase
-        .from('lexeme_form_variants')
-        .select(
-          'id, lexeme_id, form_key, value, normalized_value, is_primary, variant_rank, source_priority, verification_status',
-        )
-        .in('lexeme_id', idBatch)
-        // PostgreSQL row order is undefined without ORDER BY. These
-        // tie-breakers keep legacy behavior deterministic until its readers
-        // are retired.
-        .order('lexeme_id', { ascending: true })
-        .order('form_key', { ascending: true })
-        .order('is_primary', { ascending: false, nullsFirst: false })
-        .order('variant_rank', { ascending: true, nullsFirst: false })
-        .order('source_priority', { ascending: true, nullsFirst: false })
-        .order('normalized_value', { ascending: true, nullsFirst: false })
-        .order('id', { ascending: true })
-        .range(from, to);
-
-      if (error) {
-        throw new Error(`fetchLegacyFormsMap failed: ${error.message}`);
-      }
-      return (data ?? []) as LegacyFormRow[];
-    }, FORM_QUERY_PAGE_SIZE);
-    rows.push(...batchRows);
-  }
-
-  return buildLegacyBundles(rows);
 }

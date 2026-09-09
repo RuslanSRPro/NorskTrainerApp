@@ -21,6 +21,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { SynonymsBadge } from "@/components/SynonymsBadge";
 import { Lexeme360, Lexeme360Sheet } from "@/components/Lexeme360";
+import { FormVariantsPopover } from "@/components/training/FormVariantsPopover";
+import { getFormTierValues, isIrregularMorphology } from "@/services/formPresentation";
 import { t } from "@/services/i18n";
 import { resolveVerification } from "@/services/verification";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -170,15 +172,20 @@ function getVerificationDotColor(item: any){if(!hasVerificationData(item))return
 function VerificationMiniDot({item}:{item:any}){const c=getVerificationDotColor(item);if(!c)return null;return <View style={[s.miniDot,{backgroundColor:c}]}/>;}
 
 function getFormLabels(word: any):{label:string;value:string}[]{
-  const forms:{label:string;value:string}[]=[];
   const pos=(word?.pos||word?.type||word?.category||"").toLowerCase();
-  if(word?.noun_forms){const nf=word.noun_forms;["ubest_entall","best_entall","ubest_flertall","best_flertall"].forEach(k=>{if(nf[k])forms.push({label:k.replace("_"," "),value:nf[k]});});return forms;}
-  if(word?.verb_forms){const vf=word.verb_forms;["infinitiv","presens","preteritum","perfektum"].forEach(k=>{if(vf[k])forms.push({label:k,value:vf[k]});});return forms;}
-  if(word?.adjective_forms){const af=word.adjective_forms;["positiv","intetkjonn","flertall"].forEach(k=>{if(af[k])forms.push({label:k,value:af[k]});});return forms;}
   const isV=pos.includes("verb"),isN=pos.includes("noun")||pos.includes("subst"),isA=pos.includes("adj");
-  const fLabels=isV?["infinitiv","presens","preteritum","perfektum"]:isN?["ub. ent.","best. ent.","ub. flt.","best. flt."]:isA?["positiv","intetkjønn","flertall"]:["f1","f2","f3","f4","f5"];
-  ["f1","f2","f3","f4","f5"].forEach((k,i)=>{if(word?.[k])forms.push({label:fLabels[i]||k,value:word[k]});});
-  return forms;
+  const definitions=isV?[
+    ["infinitiv","infinitiv"],["presens","presens"],["preteritum","preteritum"],["perfektum","perfektum"],
+  ]:isN?[
+    ["ubest_entall","ub. ent."],["best_entall","best. ent."],["ubest_flertall","ub. flt."],["best_flertall","best. flt."],
+  ]:isA?[
+    ["positiv","positiv"],["intetkjonn","intetkjønn"],["flertall","flertall"],["komparativ","komparativ"],["superlativ","superlativ"],["best_superlativ","best. superlativ"],
+  ]:[];
+  return definitions.flatMap(([formKey,label])=>{
+    const fallback=word?.verb_forms?.[formKey]||word?.noun_forms?.[formKey]||word?.adjective_forms?.[formKey]||"";
+    const values=getFormTierValues(word,formKey,fallback).primaryValues;
+    return values.length?[{label,value:values.join(" / ")}]:[];
+  });
 }
 
 function normalizeToken(v:string){return String(v||"").toLowerCase().replace(/[.,!?;:()"«»]/g,"").replace(/^å\s+/i,"").replace(/^(en|ei|et)\s+/i,"").trim();}
@@ -212,7 +219,7 @@ async function boostReadingHits(items:AnalysisItem[],user:string){
 }
 
 export default function ReadingScreen() {
-  const { theme, fonts } = useTheme();
+  const { theme, fonts, themeName } = useTheme();
   const { preferred_user, app_language } = useSettingsStore();
   const lang = normalizeAppLanguage(app_language);
   const tr = useMemo(()=>makeReadingTranslator(lang),[lang]);
@@ -534,7 +541,7 @@ export default function ReadingScreen() {
           </View>
           {previewWord?(<View style={[s.previewBox,{backgroundColor:T.cardAlt}]}>
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+3}]}>{tr("word_preview_title")}</Text>
-            <Text style={[s.modalWord,{color:T.textPrimary,fontSize:F.word}]}>{previewWord.word}</Text>
+            <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord.word}</Text>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord.type||previewWord.category||""}{previewWord.gender?` · ${previewWord.gender}`:""}</Text>
             <View style={s.formsBox}>{getFormLabels(previewWord).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
@@ -689,7 +696,7 @@ export default function ReadingScreen() {
         {visible:!!previewWord,onClose:()=>{stopSpeech();setPreviewWord(null);},content:(
           <>
             <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("word_preview_modal")}</Text>
-            <Text style={[s.modalWord,{color:T.textPrimary,fontSize:F.word}]}>{previewWord?.word||previewWord?.lemma||wordQuery}</Text>
+            <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord?.word||previewWord?.lemma||wordQuery}</Text>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
             <View style={s.formsBox}>{getFormLabels(previewWord||{}).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
@@ -702,7 +709,7 @@ export default function ReadingScreen() {
         )},
         {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},content:(
           <>
-            <Text style={[s.modalWord,{color:T.textPrimary,fontSize:F.word}]}>{selectedWord?.lemma||selectedWord?.word}</Text>
+            <Text style={[s.modalWord,{color:isIrregularMorphology(selectedWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{selectedWord?.lemma||selectedWord?.word}</Text>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
@@ -717,6 +724,12 @@ export default function ReadingScreen() {
                   synonyms={selectedWord?.synonyms}
                   lemma={selectedWord?.lemma||selectedWord?.word}
                   size="sm"
+                  lang={lang}
+                />
+
+                <FormVariantsPopover
+                  word={selectedWord}
+                  isDark={themeName === "dark"}
                   lang={lang}
                 />
 

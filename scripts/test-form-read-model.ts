@@ -1,9 +1,7 @@
 import {
-  buildLegacyBundles,
   buildV2Bundles,
   chunkValues,
   collectPagedRows,
-  type LegacyFormRow,
   type V2FormRow,
 } from '../services/formReadModelCore';
 
@@ -116,24 +114,6 @@ async function run(): Promise<void> {
     'Irregular marker must survive the reader',
   );
 
-  const legacyRows: LegacyFormRow[] = [
-    legacyRow('3', 'håpa', false, 3, 'source_verified'),
-    legacyRow('2', 'håpte', true, 2, 'source_verified'),
-    legacyRow('1', 'håpet', true, 1, 'source_verified'),
-  ];
-  const legacy = buildLegacyBundles(legacyRows).get('hope');
-  assert(legacy, 'Legacy bundle must exist during comparison period');
-  assertArrayEqual(
-    legacy.form_primary.preteritum,
-    ['håpet', 'håpte'],
-    'Legacy primary ordering must remain deterministic',
-  );
-  assertArrayEqual(
-    legacy.form_alternatives.preteritum,
-    ['håpa'],
-    'Legacy alternatives must remain separate',
-  );
-
   const chunks = chunkValues(
     Array.from({ length: 205 }, (_, index) => index),
     100,
@@ -157,27 +137,7 @@ async function run(): Promise<void> {
     'Pagination ranges must be consecutive and inclusive',
   );
 
-  console.log('D10 form read model: 18 passed / 0 failed');
-}
-
-function legacyRow(
-  id: string,
-  value: string,
-  isPrimary: boolean,
-  variantRank: number,
-  verificationStatus: string,
-): LegacyFormRow {
-  return {
-    id,
-    lexeme_id: 'hope',
-    form_key: 'preteritum',
-    value,
-    normalized_value: value,
-    is_primary: isPrimary,
-    variant_rank: variantRank,
-    source_priority: 1,
-    verification_status: verificationStatus,
-  };
+  console.log('D10 canonical form read model: passed');
 }
 
 run().catch((error) => {
