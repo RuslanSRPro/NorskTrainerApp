@@ -18,6 +18,7 @@ export {
   type LegacyMorphologyRow,
 } from "./comparison.ts";
 export {
+  hasInternalSecretApiKey,
   hasInternalServiceAuthorization,
   isD10PersistenceEnabled,
 } from "./internal-authorization.ts";

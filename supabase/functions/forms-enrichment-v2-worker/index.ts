@@ -4,6 +4,7 @@ import {
   type AuthoritativeArticleBinding,
   buildAuthoritativeDisplayGroups,
   compareAuthoritativeAndLegacyForms,
+  hasInternalSecretApiKey,
   hasInternalServiceAuthorization,
   isD10PersistenceEnabled,
   type LegacyMorphologyRow,
@@ -64,6 +65,10 @@ Deno.serve(async (request: Request) => {
     return json({ ok: false, error: "MISSING_SUPABASE_SERVICE_ROLE_KEY" }, 500);
   }
   if (
+    !hasInternalSecretApiKey(
+      request.headers.get("apikey"),
+      Deno.env.get("SUPABASE_SECRET_KEYS"),
+    ) &&
     !hasInternalServiceAuthorization(
       request.headers.get("authorization"),
       serviceRoleKey,

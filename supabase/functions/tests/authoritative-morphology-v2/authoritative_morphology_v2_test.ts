@@ -7,6 +7,7 @@ import {
   compareAuthoritativeAndLegacyForms,
   type FormDisplayGroup,
   type FormPreferenceProvider,
+  hasInternalSecretApiKey,
   hasInternalServiceAuthorization,
   isD10FormsV2CanaryEnabled,
   isD10PersistenceEnabled,
@@ -499,6 +500,22 @@ Deno.test("17 worker authorization accepts only the exact internal credential", 
     hasInternalServiceAuthorization(`Bearer ${secret}-suffix`, secret),
     false,
   );
+});
+
+Deno.test("17b worker authorization accepts only a configured secret API key", () => {
+  const secret = "sb_secret_worker-test-secret";
+  const otherSecret = "sb_secret_other-test-secret";
+  const keyset = JSON.stringify({ default: secret, other: otherSecret });
+
+  assertEquals(hasInternalSecretApiKey(null, keyset), false);
+  assertEquals(hasInternalSecretApiKey("sb_publishable_public", keyset), false);
+  assertEquals(hasInternalSecretApiKey("sb_secret_unknown", keyset), false);
+  assertEquals(hasInternalSecretApiKey(`${secret}-suffix`, keyset), false);
+  assertEquals(hasInternalSecretApiKey(secret, keyset), true);
+  assertEquals(hasInternalSecretApiKey(otherSecret, keyset), true);
+  assertEquals(hasInternalSecretApiKey(` ${secret} `, keyset), true);
+  assertEquals(hasInternalSecretApiKey(secret, "invalid-json"), false);
+  assertEquals(hasInternalSecretApiKey(secret, JSON.stringify([secret])), false);
 });
 
 Deno.test("18 persistence requires the explicit exact rollout flag", () => {

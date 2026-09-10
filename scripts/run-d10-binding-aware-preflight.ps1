@@ -306,7 +306,6 @@ if ($SecretKey -notmatch '^sb_secret_[A-Za-z0-9_-]+$') {
 
 $headers = @{
   apikey = $SecretKey
-  Authorization = "Bearer $SecretKey"
 }
 $results = @()
 

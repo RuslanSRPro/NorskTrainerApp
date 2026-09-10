@@ -52,7 +52,10 @@ entrypoint = "./functions/forms-enrichment-v2-shadow/index.ts"
 
 [functions.forms-enrichment-v2-worker]
 enabled = true
-verify_jwt = true
+# New sb_secret_ API keys are opaque, not JWTs. Authorization is enforced
+# inside the function against SUPABASE_SECRET_KEYS, with the legacy internal
+# service-role bearer retained only for function-to-function compatibility.
+verify_jwt = false
 import_map = "./functions/forms-enrichment-v2-worker/deno.json"
 entrypoint = "./functions/forms-enrichment-v2-worker/index.ts"
 
