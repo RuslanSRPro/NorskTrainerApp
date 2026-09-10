@@ -195,6 +195,37 @@ Deno.test("05b reused paradigm IDs do not merge melk and mjølk", () => {
   );
 });
 
+Deno.test("05c compound headword is not replaced by final lexeme", () => {
+  const paradigms = parseOrdbokeneArticles([{
+    dictionaryCode: "bm",
+    articleId: "23444",
+    sourceUrl: "https://ord.uib.no/bm/article/23444.json",
+    payload: {
+      lemmas: [{
+        lemma: "hestehov",
+        final_lexeme: "hov",
+        paradigm_info: [{
+          tags: ["NOUN", "Masc"],
+          paradigm_id: 1,
+          inflection: [
+            { word_form: "hestehov", tags: ["Sing", "Ind"] },
+            { word_form: "hestehoven", tags: ["Sing", "Def"] },
+            { word_form: "hestehover", tags: ["Plur", "Ind"] },
+            { word_form: "hestehovene", tags: ["Plur", "Def"] },
+          ],
+        }],
+      }],
+    },
+  }]);
+
+  assertEquals(paradigms.length, 1);
+  assertEquals(paradigms[0].lemma, "hestehov");
+  assertEquals(
+    paradigms[0].identity,
+    "bm|23444|hestehov|noun|1",
+  );
+});
+
 Deno.test("06 Nynorsk få keeps adjective degrees separate from verbs", () => {
   const paradigms = parseOrdbokeneArticles(FA_CORPUS);
   const adjectives = paradigms.filter((item) => item.pos === "adjective");
@@ -515,7 +546,10 @@ Deno.test("17b worker authorization accepts only a configured secret API key", (
   assertEquals(hasInternalSecretApiKey(otherSecret, keyset), true);
   assertEquals(hasInternalSecretApiKey(` ${secret} `, keyset), true);
   assertEquals(hasInternalSecretApiKey(secret, "invalid-json"), false);
-  assertEquals(hasInternalSecretApiKey(secret, JSON.stringify([secret])), false);
+  assertEquals(
+    hasInternalSecretApiKey(secret, JSON.stringify([secret])),
+    false,
+  );
 });
 
 Deno.test("18 persistence requires the explicit exact rollout flag", () => {

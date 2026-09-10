@@ -44,7 +44,10 @@ export function parseOrdbokeneArticles(
     const lemmas = asRecords(article.payload.lemmas);
 
     for (const lemma of lemmas) {
-      const lemmaValue = firstString(lemma.final_lexeme, lemma.lemma) ?? "";
+      // `lemma` is the complete dictionary headword. For compounds,
+      // Ordbøkene may expose only the final component in `final_lexeme`
+      // (for example hestehov -> hov), so it must remain a fallback.
+      const lemmaValue = firstString(lemma.lemma, lemma.final_lexeme) ?? "";
       const paradigmInfo = asRecords(lemma.paradigm_info);
 
       for (const paradigm of paradigmInfo) {
