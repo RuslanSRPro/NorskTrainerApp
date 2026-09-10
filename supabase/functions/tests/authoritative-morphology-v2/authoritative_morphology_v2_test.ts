@@ -701,6 +701,73 @@ Deno.test("25 explicit evidence binding selects være article 69211", () => {
   );
 });
 
+Deno.test("25b binding rebuilds groups after co-headword filtering", () => {
+  const paradigms = parseOrdbokeneArticles([MELK_BM]);
+  const resolution: ResolveResult = {
+    version: "authoritative-morphology/v2.2",
+    status: "resolved",
+    requestedPos: "noun",
+    lookup: {
+      query: "melk",
+      normalizedQuery: "melk",
+      requestedDictionaries: ["bm"],
+      scopeUsed: "e",
+      articleReferences: [{
+        dictionaryCode: "bm",
+        articleId: MELK_BM.articleId,
+      }],
+      articles: [MELK_BM],
+      errors: [],
+      checkedAt: "2026-09-10T00:00:00.000Z",
+    },
+    paradigms,
+    writesPerformed: false,
+  };
+
+  const initialGroups = new BokmalWrittenFormSelectionPolicy().select(
+    paradigms,
+    { normalizedQuery: "melk" },
+  );
+
+  const applied = applyAuthoritativeArticleBindings(
+    resolution,
+    initialGroups,
+    [{
+      dictionaryCode: "bm",
+      articleId: MELK_BM.articleId,
+      normalizedLemma: "melk",
+      pos: "noun",
+      evidenceIds: ["manual:test"],
+      providerVersion: ARTICLE_BINDING_PROVIDER_VERSION,
+    }],
+  );
+
+  assert(applied);
+  assertEquals(
+    [...new Set(paradigms.map((item) => item.lemma))].sort(),
+    ["melk", "mjølk"],
+  );
+  assert(
+    applied.resolution.paradigms.every((item) => item.lemma === "melk"),
+  );
+
+  const retainedIdentities = new Set(
+    applied.resolution.paradigms.map((item) => item.identity),
+  );
+  const selectedForms = applied.displayGroups.flatMap((group) => [
+    ...group.primary,
+    ...group.alternatives,
+  ]);
+
+  assert(
+    selectedForms.every((form) =>
+      retainedIdentities.has(form.paradigmIdentity)
+    ),
+  );
+  assert(
+    selectedForms.every((form) => !form.value.startsWith("mjølk")),
+  );
+});
 Deno.test("26 absent article binding never falls back to the first article", () => {
   const fixture = sameLemmaDifferentArticleFixture();
   assertEquals(

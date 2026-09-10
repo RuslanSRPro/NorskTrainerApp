@@ -1,4 +1,5 @@
 import { normalizeNorwegian } from "./parser.ts";
+import { BokmalWrittenFormSelectionPolicy } from "./selection.ts";
 import type {
   AuthoritativeParadigm,
   DictionaryCode,
@@ -34,7 +35,7 @@ export type AppliedArticleBinding = {
  */
 export function applyAuthoritativeArticleBindings(
   resolution: ResolveResult,
-  displayGroups: readonly FormDisplayGroup[],
+  _displayGroups: readonly FormDisplayGroup[],
   bindings: readonly AuthoritativeArticleBinding[],
 ): AppliedArticleBinding | null {
   if (bindings.length === 0 || !resolution.requestedPos) return null;
@@ -77,13 +78,16 @@ export function applyAuthoritativeArticleBindings(
   }
 
   const paradigms = resolution.paradigms.filter((paradigm) =>
-    matchesBinding(paradigm, articleIds, normalizedQuery, resolution.requestedPos!)
+    matchesBinding(
+      paradigm,
+      articleIds,
+      normalizedQuery,
+      resolution.requestedPos!,
+    )
   );
-  const selectedGroups = displayGroups.filter((group) =>
-    articleIds.includes(group.articleId) &&
-    group.dictionaryCode === "bm" &&
-    group.pos === resolution.requestedPos &&
-    normalizeNorwegian(group.lemma) === normalizedQuery
+  const selectedGroups = new BokmalWrittenFormSelectionPolicy().select(
+    paradigms,
+    { normalizedQuery },
   );
 
   if (
