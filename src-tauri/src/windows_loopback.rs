@@ -262,6 +262,14 @@ fn capture_system_audio_inner(
 
     let mut runtime_error: Option<String> = None;
 
+    /*
+     * Keep the growing WAV readable during Live mode.
+     * Hound flush() updates the RIFF/data lengths without closing
+     * the writer, so a concurrent Whisper snapshot can safely
+     * open the file up to the latest checkpoint.
+     */
+    let mut last_checkpoint = Instant::now();
+
     while !stop.load(Ordering::Relaxed) {
         loop {
             let frames = match capture_client.get_next_packet_size() {
@@ -297,6 +305,18 @@ fn capture_system_audio_inner(
 
         if runtime_error.is_some() {
             break;
+        }
+
+        if last_checkpoint.elapsed() >= Duration::from_millis(500) {
+            if let Err(error) = writer.flush() {
+                runtime_error = Some(format!(
+                    "Could not checkpoint Windows system audio: {error}"
+                ));
+
+                break;
+            }
+
+            last_checkpoint = Instant::now();
         }
 
         thread::sleep(Duration::from_millis(5));

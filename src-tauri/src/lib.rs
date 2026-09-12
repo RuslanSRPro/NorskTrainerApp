@@ -1,11 +1,17 @@
 mod windows_library;
+mod windows_live;
 mod windows_loopback;
 mod windows_recorder;
 mod windows_whisper;
 
 use windows_library::{
-    adopt_recording, delete_lecture, import_audio, list_lectures, rename_lecture,
-    save_lecture_markers, set_lecture_language, update_lecture_duration,
+    adopt_recording, delete_lecture, get_saved_translation, import_audio, list_lectures,
+    rename_lecture, save_lecture_markers, save_lecture_translation, set_lecture_language,
+    update_lecture_duration,
+};
+
+use windows_live::{
+    get_live_whisper_model_status, prepare_live_whisper_model, transcribe_live_snapshot,
 };
 
 use windows_loopback::{
@@ -42,6 +48,11 @@ pub fn run() {
             save_lecture_markers,
             update_lecture_duration,
             set_lecture_language,
+            save_lecture_translation,
+            get_saved_translation,
+            get_live_whisper_model_status,
+            prepare_live_whisper_model,
+            transcribe_live_snapshot,
             get_whisper_model_status,
             prepare_whisper_model,
             get_saved_transcript,
