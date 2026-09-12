@@ -1,5 +1,11 @@
+mod windows_library;
 mod windows_loopback;
 mod windows_recorder;
+
+use windows_library::{
+    adopt_recording, delete_lecture, import_audio, list_lectures, rename_lecture,
+    save_lecture_markers, set_lecture_language, update_lecture_duration,
+};
 
 use windows_loopback::{
     get_system_recording_status, start_system_recording, stop_system_recording, SystemRecorderState,
@@ -12,24 +18,25 @@ use windows_recorder::{
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        /*
-         * Existing microphone recorder is
-         * retained as a tested fallback.
-         */
+        .plugin(tauri_plugin_dialog::init())
         .manage(RecorderState::default())
-        /*
-         * Main Windows lecture recorder:
-         * WASAPI system-audio loopback.
-         */
         .manage(SystemRecorderState::default())
         .invoke_handler(tauri::generate_handler![
             start_recording,
             get_recording_status,
             stop_recording,
+            list_recordings,
             start_system_recording,
             get_system_recording_status,
             stop_system_recording,
-            list_recordings
+            list_lectures,
+            adopt_recording,
+            import_audio,
+            rename_lecture,
+            delete_lecture,
+            save_lecture_markers,
+            update_lecture_duration,
+            set_lecture_language
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

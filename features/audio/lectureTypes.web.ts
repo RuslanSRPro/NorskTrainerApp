@@ -1,0 +1,108 @@
+export type TranscriptionChunk = {
+  index: number;
+  fromSeconds: number;
+  toSeconds: number;
+  status:
+    | 'pending'
+    | 'processing'
+    | 'done'
+    | 'error';
+  textFile?: string | null;
+  error?: string | null;
+};
+
+export type LectureTranscription = {
+  mode:
+    | 'whisperkit-local'
+    | 'cloud-chunks';
+  status:
+    | 'not_started'
+    | 'pending'
+    | 'uploading'
+    | 'processing'
+    | 'done'
+    | 'error';
+  chunkSeconds: number;
+  processedUntilSeconds: number;
+  chunks: TranscriptionChunk[];
+  error?: string | null;
+};
+
+export type LectureMarkerType =
+  | 'important'
+  | 'unclear'
+  | 'repeat'
+  | 'term';
+
+export type LectureMarker = {
+  id: string;
+  timeMillis: number;
+  type: LectureMarkerType;
+  note: string;
+  createdAt: string;
+};
+
+export type SavedTranscriptSegment = {
+  start: number;
+  end: number;
+  text: string;
+  noSpeechProb?: number;
+  avgLogProb?: number;
+};
+
+export type LectureSourceLanguage =
+  | 'nb-NO'
+  | 'en';
+
+export type LectureMetadata = {
+  id?: string;
+  createdAt?: string | null;
+  durationMillis?: number;
+  language?: LectureSourceLanguage | string;
+  title?: string | null;
+  audioFile?: string | null;
+  transcriptFile?: string | null;
+  transcriptReady?: boolean;
+  characters?: number;
+  audioBytes?: number;
+  source?: 'recorded' | 'imported';
+  originalFileName?: string | null;
+  recordingState?:
+    | 'recording'
+    | 'ready'
+    | 'interrupted';
+  interruptionReason?: string | null;
+  transcription?: LectureTranscription;
+};
+
+export type LectureItem = {
+  id: string;
+  createdAt: string | null;
+  durationMillis: number;
+  language: LectureSourceLanguage;
+  title: string | null;
+  audioUri: string;
+  audioFileName: string;
+  transcriptUri: string | null;
+  transcriptReady: boolean;
+  characters: number;
+  audioBytes: number;
+  recordingState:
+    | 'recording'
+    | 'ready'
+    | 'interrupted';
+  interruptionReason: string | null;
+  transcription: LectureTranscription;
+  markers: LectureMarker[];
+  transcriptSegments: SavedTranscriptSegment[];
+};
+
+export type ActiveRecording = {
+  id: string;
+  createdAt: string;
+  language: LectureSourceLanguage;
+};
+
+export type TranslationTarget =
+  | 'uk'
+  | 'ru';
