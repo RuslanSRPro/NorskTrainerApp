@@ -10,6 +10,8 @@ export type LectureRecorderStatus = {
   bytes: number;
   levelDb?: number;
   peakDb?: number;
+  isPausedForInterruption?: boolean;
+  segmentCount?: number;
 };
 
 export type LectureRecorderResult = {
@@ -20,6 +22,8 @@ export type LectureRecorderResult = {
   bytes: number;
   levelDb?: number;
   peakDb?: number;
+  isPausedForInterruption?: boolean;
+  segmentCount?: number;
 };
 
 export type LectureAudioInfo = {
@@ -29,8 +33,42 @@ export type LectureAudioInfo = {
   bytes: number;
 };
 
+export type LectureRecordingValidation = {
+  valid: boolean;
+  playable: boolean;
+  durationMillis: number;
+  uri: string;
+  bytes: number;
+  code: string | null;
+  message: string | null;
+};
+
+export type LectureRecorderErrorEvent = {
+  code: string;
+  message: string;
+  uri: string | null;
+  bytes: number;
+  durationMillis: number;
+};
+
+export type LectureRecorderEvents = {
+  onRecorderReady(
+    event: LectureRecorderResult
+  ): void;
+
+  onRecorderStopped(
+    event: LectureRecorderResult
+  ): void;
+
+  onRecorderError(
+    event: LectureRecorderErrorEvent
+  ): void;
+};
+
 declare class LectureRecorderNativeModule
-  extends NativeModule {
+  extends NativeModule<
+    LectureRecorderEvents
+  > {
 
   start(
     destinationUri: string
@@ -47,6 +85,14 @@ declare class LectureRecorderNativeModule
   getAudioInfo(
     uri: string
   ): Promise<LectureAudioInfo>;
+
+  validateRecording(
+    uri: string
+  ): Promise<LectureRecordingValidation>;
+
+  recoverRecording(
+    destinationUri: string
+  ): Promise<LectureRecordingValidation>;
 }
 
 export default requireNativeModule<

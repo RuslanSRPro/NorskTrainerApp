@@ -25,11 +25,22 @@ import type {
 
 import {
   buildTimestampText,
+  formatLectureDate,
   getLectureDirectory,
   getTranslationFileName,
+  getTranslationSegmentsFileName,
   readTranscriptSegments,
+  readTranslationSegments,
   safeFileStem,
 } from '@/features/audio/lectureStorage';
+
+import {
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
 
 export type LectureExportKind =
   | 'audio'
@@ -39,6 +50,14 @@ export type LectureExportKind =
   | 'zip';
 
 export function useLectureExport() {
+  const { app_language } =
+    useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
   const [
     exportLectureId,
     setExportLectureId,
@@ -76,13 +95,43 @@ export function useLectureExport() {
         !sharingAvailable
       ) {
         throw new Error(
-          'Sharing is not available on this device.'
+          audioUi.sharingUnavailable
         );
       }
 
       await Sharing.shareAsync(
         file.uri
       );
+    };
+
+  const copyToCacheForShare =
+    async (
+      source:
+        File,
+      fileName:
+        string
+    ) => {
+      if (!source.exists) {
+        throw new Error(
+          audioUi.sourceFileMissing
+        );
+      }
+
+      const target =
+        new File(
+          Paths.cache,
+          fileName
+        );
+
+      if (target.exists) {
+        target.delete();
+      }
+
+      await source.copy(
+        target
+      );
+
+      return target;
     };
 
   const handleExportLecture =
@@ -108,20 +157,57 @@ export function useLectureExport() {
             lecture.id
           );
 
+        const fallbackDate =
+          (() => {
+            if (!lecture.createdAt) {
+              return audioUi.savedRecording;
+            }
+
+            const date =
+              new Date(
+                lecture.createdAt
+              );
+
+            return Number.isNaN(
+              date.getTime()
+            )
+              ? audioUi.savedRecording
+              : formatLectureDate(
+                  lecture.createdAt
+                );
+          })();
+
         const stem =
           safeFileStem(
-            lecture.id
+            lecture.title?.trim() ||
+            fallbackDate
           );
 
         if (
           kind ===
             'audio'
         ) {
-          await shareLocalFile(
+          const source =
             new File(
               lecture.audioUri
-            ),
-            'The audio file is missing.'
+            );
+
+          const extension =
+            lecture.audioFileName
+              .split('.')
+              .pop()
+              ?.toLowerCase() ||
+            'm4a';
+
+          const shareFile =
+            await copyToCacheForShare(
+              source,
+              `${stem}.${extension}`
+            );
+
+          await shareLocalFile(
+            shareFile,
+            audioUi.audioFileMissing
           );
           return;
         }
@@ -130,12 +216,21 @@ export function useLectureExport() {
           kind ===
             'transcript'
         ) {
-          await shareLocalFile(
+          const source =
             new File(
               directory,
               'transcript.txt'
-            ),
-            'Create a transcript first.'
+            );
+
+          const shareFile =
+            await copyToCacheForShare(
+              source,
+              `${stem}-transcript.txt`
+            );
+
+          await shareLocalFile(
+            shareFile,
+            audioUi.createTranscriptFirst
           );
           return;
         }
@@ -144,14 +239,23 @@ export function useLectureExport() {
           kind ===
             'ukrainian'
         ) {
-          await shareLocalFile(
+          const source =
             new File(
               directory,
               getTranslationFileName(
                 'uk'
               )
-            ),
-            'Create the Ukrainian translation first.'
+            );
+
+          const shareFile =
+            await copyToCacheForShare(
+              source,
+              `${stem}-ukrainian.txt`
+            );
+
+          await shareLocalFile(
+            shareFile,
+            audioUi.createUkrainianFirst
           );
           return;
         }
@@ -176,7 +280,7 @@ export function useLectureExport() {
               0
           ) {
             throw new Error(
-              'Create or recreate the transcript with timestamps first.'
+              audioUi.createTimestampsFirst
             );
           }
 
@@ -199,7 +303,7 @@ export function useLectureExport() {
 
           await shareLocalFile(
             timestampFile,
-            'The timestamp text could not be created.'
+            audioUi.timestampTextCreateFailed
           );
 
           return;
@@ -218,7 +322,7 @@ export function useLectureExport() {
 
         if (!audioFile.exists) {
           throw new Error(
-            'The audio file is missing.'
+            audioUi.audioFileMissing
           );
         }
 
@@ -303,6 +407,46 @@ export function useLectureExport() {
             ] =
               source.bytesSync();
           }
+
+          const translatedSegments =
+            readTranslationSegments(
+              directory,
+              target
+            );
+
+          if (
+            translatedSegments.length >
+              0
+          ) {
+            zipEntries[
+              `translation-${target}-timestamps.txt`
+            ] =
+              strToU8(
+                buildTimestampText(
+                  translatedSegments
+                )
+              );
+
+            const translatedSegmentsFile =
+              new File(
+                directory,
+                getTranslationSegmentsFileName(
+                  target
+                )
+              );
+
+            if (
+              translatedSegmentsFile.exists
+            ) {
+              zipEntries[
+                getTranslationSegmentsFileName(
+                  target
+                )
+              ] =
+                translatedSegmentsFile
+                  .bytesSync();
+            }
+          }
         }
 
         for (
@@ -360,7 +504,7 @@ export function useLectureExport() {
 
         await shareLocalFile(
           zipFile,
-          'The ZIP package could not be created.'
+          audioUi.zipCreateFailed
         );
 
       } catch (error) {
@@ -372,10 +516,10 @@ export function useLectureExport() {
         }
 
         Alert.alert(
-          'Export error',
+          audioUi.exportErrorTitle,
           error instanceof Error
             ? error.message
-            : 'The lecture could not be exported.'
+            : audioUi.exportFailed
         );
 
       } finally {

@@ -34,11 +34,21 @@ import {
   createChunkPlan,
   getLectureDirectory,
   getTranslationFileName,
+  getTranslationSegmentsFileName,
+  getWhisperLanguageCode,
   isMeaningfulTranscriptText,
   readMetadata,
   writeJsonArray,
   writeMetadata,
 } from '@/features/audio/lectureStorage';
+
+import {
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
 
 const KEEP_AWAKE_TAG =
   'lecture-whisper-transcription';
@@ -81,6 +91,14 @@ export function useLectureTranscription({
   onTranscriptReady,
   onTranslationsInvalidated,
 }: Params) {
+  const { app_language } =
+    useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
   const [
     transcribingLectureId,
     setTranscribingLectureId,
@@ -158,6 +176,17 @@ export function useLectureTranscription({
           boolean;
       }
     ) => {
+      if (
+        lecture.recordingState ===
+          'interrupted'
+      ) {
+        Alert.alert(
+          audioUi.recordingInterruptedTitle,
+          audioUi.recordingInterruptedCannotTranscribe
+        );
+        return;
+      }
+
       if (
         transcribingLectureId ||
         processingLockRef.current
@@ -274,7 +303,7 @@ export function useLectureTranscription({
             500
         ) {
           throw new Error(
-            'The audio recording is missing or invalid.'
+            audioUi.audioRecordingInvalid
           );
         }
 
@@ -287,11 +316,16 @@ export function useLectureTranscription({
           'transcribing'
         );
 
+        const whisperLanguage =
+          getWhisperLanguageCode(
+            lecture.language
+          );
+
         let result =
           await WhisperKitLocal
             .transcribe(
               lecture.audioUri,
-              'no',
+              whisperLanguage,
               WHISPERKIT_DEFAULT_MODEL
             );
 
@@ -317,7 +351,7 @@ export function useLectureTranscription({
             await WhisperKitLocal
               .transcribe(
                 lecture.audioUri,
-                'no',
+                whisperLanguage,
                 WHISPERKIT_DEFAULT_MODEL
               );
 
@@ -329,7 +363,7 @@ export function useLectureTranscription({
 
         if (!finalText) {
           throw new Error(
-            'WhisperKit returned an empty transcript after two attempts.'
+            audioUi.whisperEmptyAfterRetry
           );
         }
 
@@ -342,18 +376,28 @@ export function useLectureTranscription({
           const target
           of ['uk', 'ru'] as const
         ) {
-          const oldFile =
-            new File(
-              directory,
+          for (
+            const fileName
+            of [
               getTranslationFileName(
                 target
-              )
-            );
-
-          if (
-            oldFile.exists
+              ),
+              getTranslationSegmentsFileName(
+                target
+              ),
+            ]
           ) {
-            oldFile.delete();
+            const oldFile =
+              new File(
+                directory,
+                fileName
+              );
+
+            if (
+              oldFile.exists
+            ) {
+              oldFile.delete();
+            }
           }
         }
 
@@ -450,6 +494,10 @@ export function useLectureTranscription({
                   .toISOString(),
               audioDurationMillis:
                 lecture.durationMillis,
+              sourceLanguage:
+                lecture.language,
+              whisperLanguage:
+                whisperLanguage,
               rawText:
                 rawWhisperText,
               rawSegments:
@@ -588,7 +636,7 @@ export function useLectureTranscription({
         );
 
         Alert.alert(
-          'WhisperKit transcription error',
+          audioUi.transcriptionErrorTitle,
           message
         );
 
@@ -684,18 +732,18 @@ export function useLectureTranscription({
       }
 
       Alert.alert(
-        'Re-transcribe lecture?',
-        'The audio will stay unchanged. A successful new transcript will replace the old transcript and clear translations created from it.',
+        audioUi.retranscribeTitle,
+        audioUi.retranscribePrompt,
         [
           {
             text:
-              'Cancel',
+              audioUi.cancel,
             style:
               'cancel',
           },
           {
             text:
-              'Re-transcribe',
+              audioUi.retranscribeConfirm,
             onPress:
               () => {
                 void (

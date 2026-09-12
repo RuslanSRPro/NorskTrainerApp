@@ -9,50 +9,25 @@ import type {
   LectureExportKind,
 } from '@/hooks/audio/useLectureExport';
 
+import {
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
+
+
 type Props = {
-  accent:
-    string;
-  textSecondary:
-    string;
-  fontBase:
-    number;
-  disabled:
-    boolean;
-  onExport:
-    (
-      kind:
-        LectureExportKind
-    ) => void;
+  accent: string;
+  textSecondary: string;
+  fontBase: number;
+  disabled: boolean;
+  onExport: (
+    kind: LectureExportKind
+  ) => void;
 };
 
-const options:
-  Array<
-    [
-      LectureExportKind,
-      string
-    ]
-  > = [
-    [
-      'audio',
-      '🎧 M4A audio',
-    ],
-    [
-      'transcript',
-      '📄 Transcript',
-    ],
-    [
-      'ukrainian',
-      '🇺🇦 Ukrainian translation',
-    ],
-    [
-      'timestamps',
-      '⏱ Text with timestamps',
-    ],
-    [
-      'zip',
-      '📦 Complete ZIP',
-    ],
-  ];
 
 export function ExportMenu({
   accent,
@@ -61,6 +36,42 @@ export function ExportMenu({
   disabled,
   onExport,
 }: Props) {
+  const { app_language } =
+    useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
+  const options = [
+    [
+      'audio',
+      audioUi.exportAudio,
+    ],
+    [
+      'transcript',
+      audioUi.exportTranscript,
+    ],
+    [
+      'ukrainian',
+      audioUi.exportUkrainian,
+    ],
+    [
+      'timestamps',
+      audioUi.exportTimestamps,
+    ],
+    [
+      'zip',
+      audioUi.exportZip,
+    ],
+  ] as const satisfies readonly (
+    readonly [
+      LectureExportKind,
+      string,
+    ]
+  )[];
+
   return (
     <View
       style={
@@ -78,31 +89,18 @@ export function ExportMenu({
           },
         ]}
       >
-        Export this lecture
+        {audioUi.exportThisLecture}
       </Text>
 
       {options.map(
-        (
-          [
-            kind,
-            label,
-          ]
-        ) => (
+        ([kind, label]) => (
           <Pressable
-            key={
-              kind
-            }
+            key={kind}
             accessibilityRole="button"
-            accessibilityLabel={
-              label
-            }
-            disabled={
-              disabled
-            }
+            accessibilityLabel={label}
+            disabled={disabled}
             onPress={() =>
-              onExport(
-                kind
-              )
+              onExport(kind)
             }
             style={[
               styles.option,
@@ -135,6 +133,7 @@ export function ExportMenu({
     </View>
   );
 }
+
 
 const styles =
   StyleSheet.create({

@@ -26,14 +26,52 @@ private final class WhisperEventSink: @unchecked Sendable {
   }
 }
 
+private final class LiveWhisperEventSink: @unchecked Sendable {
+  weak var module: WhisperKitLocalModule?
+
+  init(module: WhisperKitLocalModule) {
+    self.module = module
+  }
+
+  func emitUpdate(
+    _ update: LiveWhisperUpdateSnapshot
+  ) {
+    module?.sendEvent(
+      "onLiveUpdate",
+      update.dictionary
+    )
+  }
+
+  func emitError(
+    _ message: String
+  ) {
+    module?.sendEvent(
+      "onLiveError",
+      ["message": message]
+    )
+  }
+}
+
 public class WhisperKitLocalModule: Module {
   private var whisperKit: WhisperKit?
   private var loadedModel: String?
 
+  /*
+   * Live is deliberately additive. The existing full-file
+   * transcribe() path is left unchanged because it is the
+   * accuracy-first path already validated for saved lectures.
+   */
+  private var liveSession: LiveWhisperSession?
+  private var livePendingProcessor: LiveFileAudioProcessor?
+
   public func definition() -> ModuleDefinition {
     Name("WhisperKitLocal")
 
-    Events("onProgress")
+    Events(
+      "onProgress",
+      "onLiveUpdate",
+      "onLiveError"
+    )
 
     AsyncFunction("prepareModel") {
       (model: String) async throws -> [String: Any] in
@@ -194,6 +232,160 @@ public class WhisperKitLocalModule: Module {
         "audioLoadingMode": "full-file",
         "chunkingStrategy": "none"
       ]
+    }
+
+    AsyncFunction("startLive") {
+      (
+        audioUri: String,
+        language: String,
+        model: String
+      ) async throws -> [String: Any] in
+
+      guard
+        self.liveSession == nil,
+        self.livePendingProcessor == nil
+      else {
+        throw NSError(
+          domain: "WhisperKitLocal",
+          code: 30,
+          userInfo: [
+            NSLocalizedDescriptionKey:
+              "A Live transcription is already running."
+          ]
+        )
+      }
+
+      let selectedModel = model.isEmpty
+        ? defaultWhisperModel
+        : model
+
+      let selectedLanguage = language.isEmpty
+        ? "no"
+        : language
+
+      let outputPath = try self.filePath(
+        from: audioUri
+      )
+
+      let outputURL = URL(
+        fileURLWithPath: outputPath
+      )
+
+      /*
+       * Step 8.2: begin microphone capture before model preparation.
+       * This preserves the first words even when Core ML needs several
+       * seconds to load on a cold Live start. AudioStreamTranscriber later
+       * attaches to the same processor and consumes the buffered samples.
+       */
+      let processor = try LiveFileAudioProcessor(
+        outputURL: outputURL
+      )
+
+      try processor.beginCapture()
+      self.livePendingProcessor = processor
+
+      do {
+        let kit = try await self.getOrCreateWhisperKit(
+          model: selectedModel
+        )
+
+        guard self.livePendingProcessor === processor else {
+          processor.stopRecording()
+          throw NSError(
+            domain: "WhisperKitLocal",
+            code: 32,
+            userInfo: [
+              NSLocalizedDescriptionKey:
+                "Live startup was cancelled."
+            ]
+          )
+        }
+
+        let sink = LiveWhisperEventSink(
+          module: self
+        )
+
+        let session = try LiveWhisperSession(
+          whisperKit: kit,
+          audioURL: outputURL,
+          language: selectedLanguage,
+          processor: processor,
+          onUpdate: { update in
+            sink.emitUpdate(update)
+          },
+          onError: { message in
+            sink.emitError(message)
+          }
+        )
+
+        self.livePendingProcessor = nil
+        self.liveSession = session
+        session.start()
+      } catch {
+        processor.stopRecording()
+        if self.livePendingProcessor === processor {
+          self.livePendingProcessor = nil
+        }
+        throw error
+      }
+
+      return [
+        "ok": true,
+        "model": selectedModel,
+        "language": selectedLanguage,
+        "audioUri": outputURL.absoluteString
+      ]
+    }
+
+    AsyncFunction("stopLive") {
+      () async throws -> [String: Any] in
+
+      guard let session = self.liveSession else {
+        throw NSError(
+          domain: "WhisperKitLocal",
+          code: 31,
+          userInfo: [
+            NSLocalizedDescriptionKey:
+              "No Live transcription is running."
+          ]
+        )
+      }
+
+      let result = await session.stop()
+      self.liveSession = nil
+
+      return result.dictionary
+    }
+
+    AsyncFunction("cancelLive") {
+      () async -> [String: Any] in
+
+      if let pending = self.livePendingProcessor {
+        pending.stopRecording()
+        self.livePendingProcessor = nil
+      }
+
+      guard let session = self.liveSession else {
+        return ["ok": true]
+      }
+
+      let result = await session.stop()
+      self.liveSession = nil
+
+      let path = try? self.filePath(
+        from: result.audioUri
+      )
+
+      if let path,
+         FileManager.default.fileExists(
+          atPath: path
+         ) {
+        try? FileManager.default.removeItem(
+          atPath: path
+        )
+      }
+
+      return ["ok": true]
     }
   }
 

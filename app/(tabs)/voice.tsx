@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  AppState,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,8 +13,6 @@ import {
 import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
 } from 'expo-audio';
 
 import {
@@ -30,10 +27,14 @@ import * as Haptics from 'expo-haptics';
 import { GlassSurface } from '@/components/ui/glass/GlassSurface';
 import { useTheme } from '@/contexts/ThemeContext';
 
-import LectureRecorder, {
-  type LectureRecorderResult,
-  type LectureRecorderStatus,
-} from '@/modules/lecturerecorder';
+import {
+  getAudioSourceLanguageLabel,
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
 
 import type {
   ActiveRecording,
@@ -41,6 +42,7 @@ import type {
   LectureMarker,
   LectureMarkerType,
   LectureMetadata,
+  LectureSourceLanguage,
   SavedTranscriptSegment,
 } from '@/features/audio/lectureTypes';
 
@@ -53,7 +55,8 @@ import {
   getDefaultTranscription,
   getImportedAudioExtension,
   getLectureDirectory,
-  markerLabel,
+  getLectureLanguageUi,
+  normalizeLectureLanguage,
   normalizeMicDb,
   readLectureMarkers,
   readMetadata,
@@ -75,6 +78,14 @@ import {
 } from '@/hooks/audio/useLectureExport';
 
 import {
+  useLectureRecorder,
+} from '@/hooks/audio/useLectureRecorder';
+
+import {
+  useLecturePlayback,
+} from '@/hooks/audio/useLecturePlayback';
+
+import {
   AudioActionButton,
 } from '@/components/audio/AudioActionButton';
 
@@ -93,6 +104,10 @@ import {
 import {
   TranslationPanel,
 } from '@/components/audio/TranslationPanel';
+
+import {
+  LiveLectureButton,
+} from '@/components/audio/LiveLectureButton';
 
 
 const devConsole = {
@@ -114,6 +129,12 @@ const devConsole = {
 };
 
 
+type LectureTextTab =
+  | 'source'
+  | 'uk'
+  | 'ru';
+
+
 export default function VoiceScreen() {
 
   const {
@@ -129,58 +150,48 @@ export default function VoiceScreen() {
     themeName === 'dark';
 
 
-  const [
-    recorderState,
-    setRecorderState,
-  ] =
-    useState<LectureRecorderStatus>({
-      isRecording: false,
-      durationMillis: 0,
-      uri: null,
-      bytes: 0,
-    });
+  const {
+    app_language,
+    loadSettings,
+  } = useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
+  const formatAudioLectureDate =
+    (
+      value: string | null
+    ) => {
+      if (!value) {
+        return audioUi.savedRecording;
+      }
+
+      const date =
+        new Date(value);
+
+      if (
+        Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        return audioUi.savedRecording;
+      }
+
+      return formatLectureDate(
+        value
+      );
+    };
+
+  useEffect(() => {
+    void loadSettings();
+  }, []);
+
 
   const activeRecordingRef =
     useRef<ActiveRecording | null>(
       null
-    );
-
-
-  /*
-   * AVAudioRecorder.currentTime can briefly report an
-   * invalid/negative value immediately after start on iOS.
-   * Use a JS wall clock for the live UI counter; the final
-   * saved duration still comes from the finalized M4A.
-   */
-  const recordingStartedAtRef =
-    useRef<number | null>(
-      null
-    );
-
-  const micSilenceStartedAtRef =
-    useRef<number | null>(
-      null
-    );
-
-  const [
-    micNoSignalWarning,
-    setMicNoSignalWarning,
-  ] =
-    useState(false);
-
-
-  const player =
-    useAudioPlayer(
-      null,
-      {
-        updateInterval: 250,
-        keepAudioSessionActive: true,
-      }
-    );
-
-  const playerStatus =
-    useAudioPlayerStatus(
-      player
     );
 
 
@@ -192,219 +203,29 @@ export default function VoiceScreen() {
     >('idle');
 
 
-  useEffect(() => {
+  const {
+    recorderState,
+    micNoSignalWarning,
+    recoverInterruptedRecordings,
+    startRecording,
+    commitStartedRecording,
+    getRecordingElapsedMillis,
+    getRecorderStatus,
+    stopRecording,
+    cancelRecording,
+    getAudioInfo,
+    resetRecorderState,
+    completeRecording,
+  } =
+    useLectureRecorder({
+      pollingActive:
+        status ===
+          'recording',
+    });
 
-    const subscription =
-      AppState.addEventListener(
-        'change',
-        nextState => {
-
-          if (!__DEV__) {
-            return;
-          }
-
-          try {
-
-            const nativeStatus =
-              LectureRecorder
-                .getStatus();
-
-            devConsole.log(
-              'LECTURE APP STATE',
-              {
-                nextState,
-                ...nativeStatus,
-              }
-            );
-
-          } catch (error) {
-
-            devConsole.warn(
-              'Could not read native lecture recorder status:',
-              error
-            );
-          }
-        }
-      );
-
-    return () => {
-      subscription.remove();
-    };
-
-  }, []);
-
-
-  useEffect(() => {
-
-    if (
-      status !==
-      'recording'
-    ) {
-      return;
-    }
-
-    const updateRecorderState =
-      () => {
-
-        try {
-
-          const nativeState =
-            LectureRecorder
-              .getStatus();
-
-          const rawNativeDuration =
-            nativeState.durationMillis;
-
-          const safeNativeDuration =
-            Number.isFinite(
-              rawNativeDuration
-            ) &&
-            rawNativeDuration >=
-              0
-              ? rawNativeDuration
-              : 0;
-
-          const wallClockDuration =
-            recordingStartedAtRef.current
-              ? Math.max(
-                  0,
-                  Date.now() -
-                    recordingStartedAtRef.current
-                )
-              : 0;
-
-          const safePeakDb =
-            Number.isFinite(
-              nativeState.peakDb
-            )
-              ? Number(
-                  nativeState.peakDb
-                )
-              : -160;
-
-
-          /*
-           * Only show "no microphone signal" after
-           * sustained near-silence. Natural pauses in speech
-           * should not flash a red warning immediately.
-           */
-          if (
-            safePeakDb <=
-              -75
-          ) {
-
-            if (
-              micSilenceStartedAtRef.current ===
-                null
-            ) {
-              micSilenceStartedAtRef.current =
-                Date.now();
-            }
-
-            if (
-              Date.now() -
-                micSilenceStartedAtRef.current >=
-                  4000
-            ) {
-              setMicNoSignalWarning(
-                true
-              );
-            }
-
-          } else {
-
-            micSilenceStartedAtRef.current =
-              null;
-
-            setMicNoSignalWarning(
-              false
-            );
-          }
-
-
-          setRecorderState({
-            ...nativeState,
-            durationMillis:
-              Math.max(
-                safeNativeDuration,
-                wallClockDuration
-              ),
-          });
-
-        } catch (error) {
-
-          devConsole.warn(
-            'Could not poll lecture recorder:',
-            error
-          );
-        }
-      };
-
-    updateRecorderState();
-
-    const timer =
-      setInterval(
-        updateRecorderState,
-        250
-      );
-
-    return () => {
-      clearInterval(
-        timer
-      );
-
-      micSilenceStartedAtRef.current =
-        null;
-
-      setMicNoSignalWarning(
-        false
-      );
-    };
-
-  }, [status]);
 
   const [lectures, setLectures] =
     useState<LectureItem[]>([]);
-
-  const [
-    playingLectureId,
-    setPlayingLectureId,
-  ] =
-    useState<string | null>(null);
-
-  const [
-    loadingLectureId,
-    setLoadingLectureId,
-  ] =
-    useState<string | null>(null);
-
-  const pendingPlaybackIdRef =
-    useRef<string | null>(null);
-
-  const pendingPlaybackUriRef =
-    useRef<string | null>(null);
-
-  const playbackSeekBarWidthRef =
-    useRef(0);
-
-  const pendingPlaybackSeekRef =
-    useRef<{
-      lectureId: string;
-      seconds: number;
-      autoplay: boolean;
-    } | null>(
-      null
-    );
-
-  const playbackRetryTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
-
-  const playbackFailTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
 
   const [
     openedLectureId,
@@ -413,16 +234,33 @@ export default function VoiceScreen() {
     useState<string | null>(null);
 
   const [
+    selectedSourceLanguage,
+    setSelectedSourceLanguage,
+  ] =
+    useState<LectureSourceLanguage>(
+      'nb-NO'
+    );
+
+
+  const [
+    liveBusy,
+    setLiveBusy,
+  ] =
+    useState(false);
+
+  const [
     openedTranscript,
     setOpenedTranscript,
   ] =
     useState('');
 
   const [
-    playbackError,
-    setPlaybackError,
+    openedTextTab,
+    setOpenedTextTab,
   ] =
-    useState<string | null>(null);
+    useState<LectureTextTab>(
+      'source'
+    );
 
   const [
     lastSavedLectureId,
@@ -624,8 +462,16 @@ export default function VoiceScreen() {
           durationMillis,
 
           language:
-            metadata.language ||
-            'nb-NO',
+            normalizeLectureLanguage(
+              metadata.language
+            ),
+
+          title:
+            typeof metadata.title ===
+              'string' &&
+            metadata.title.trim()
+              ? metadata.title.trim()
+              : null,
 
           audioUri:
             audio.file.uri,
@@ -646,6 +492,14 @@ export default function VoiceScreen() {
           audioBytes:
             metadata.audioBytes ??
             audio.file.size,
+
+          recordingState:
+            metadata.recordingState ??
+            'ready',
+
+          interruptionReason:
+            metadata.interruptionReason ??
+            null,
 
           transcription,
           markers,
@@ -694,6 +548,7 @@ export default function VoiceScreen() {
     useLectureTranslation({
       openedLectureId,
       openedTranscript,
+      openedTranscriptSegments,
       processingLockRef,
     });
 
@@ -721,6 +576,10 @@ export default function VoiceScreen() {
 
           setOpenedTranscriptSegments(
             segments
+          );
+
+          setOpenedTextTab(
+            'source'
           );
 
           translation
@@ -793,6 +652,7 @@ export default function VoiceScreen() {
     translationTarget,
     translatingLectureId,
     openedTranslation,
+    openedTranslationSegments,
     translationError,
     clearTranslationState,
     loadSavedTranslation,
@@ -815,6 +675,33 @@ export default function VoiceScreen() {
 
 
   const {
+    playerStatus,
+    playingLectureId,
+    loadingLectureId,
+    playbackError,
+    playbackSeekBarWidthRef,
+    beginRecordingTransition,
+    finishRecordingTransition,
+    pauseForRetranscription,
+    pauseIfLecturePlaying,
+    handlePlayLecture,
+    handleSeekLectureTo,
+    handleSeekRelative,
+    handleSeekFraction,
+  } =
+    useLecturePlayback({
+      isPlaybackBlocked:
+        () =>
+          !!(
+            liveBusy ||
+            transcribingLectureId ||
+            processingLockRef.current ===
+              'transcription'
+          ),
+    });
+
+
+  const {
     exportLectureId,
     exportingLectureId,
     setExportLectureId,
@@ -831,233 +718,13 @@ export default function VoiceScreen() {
 
 
   useEffect(() => {
-    loadLectures();
+    void (
+      async () => {
+        await recoverInterruptedRecordings();
+        loadLectures();
+      }
+    )();
   }, []);
-
-  const clearPlaybackLoadTimers =
-    () => {
-
-      if (
-        playbackRetryTimerRef.current
-      ) {
-        clearTimeout(
-          playbackRetryTimerRef.current
-        );
-        playbackRetryTimerRef.current =
-          null;
-      }
-
-      if (
-        playbackFailTimerRef.current
-      ) {
-        clearTimeout(
-          playbackFailTimerRef.current
-        );
-        playbackFailTimerRef.current =
-          null;
-      }
-    };
-
-
-  useEffect(() => {
-
-    const pendingId =
-      pendingPlaybackIdRef.current;
-
-    if (
-      !pendingId ||
-      playingLectureId !==
-        pendingId
-    ) {
-      return;
-    }
-
-    /*
-     * In expo-audio, replace() is synchronous but
-     * loading the new source is not. AudioStatus.duration
-     * is documented as 0 until iOS has determined it.
-     *
-     * Therefore we wait for a real loaded duration
-     * instead of guessing with an 80 ms timer.
-     */
-    if (
-      !playerStatus.isLoaded ||
-      playerStatus.duration <= 0
-    ) {
-      return;
-    }
-
-
-    clearPlaybackLoadTimers();
-
-    pendingPlaybackIdRef.current =
-      null;
-
-    pendingPlaybackUriRef.current =
-      null;
-
-    setLoadingLectureId(
-      null
-    );
-
-
-    try {
-
-      const pendingSeek =
-        pendingPlaybackSeekRef.current;
-
-      if (
-        pendingSeek &&
-        pendingSeek.lectureId ===
-          pendingId
-      ) {
-
-        pendingPlaybackSeekRef.current =
-          null;
-
-        void player
-          .seekTo(
-            Math.min(
-              playerStatus.duration,
-              Math.max(
-                0,
-                pendingSeek.seconds
-              )
-            )
-          )
-          .then(
-            () => {
-              if (
-                pendingSeek.autoplay
-              ) {
-                player.play();
-              }
-            }
-          )
-          .catch(
-            error => {
-              devConsole.error(
-                'Playback timestamp seek error:',
-                error
-              );
-
-              if (
-                pendingSeek.autoplay
-              ) {
-                try {
-                  player.play();
-                } catch {
-                  // Keep loaded audio even if seek failed.
-                }
-              }
-            }
-          );
-
-        return;
-      }
-
-
-      player.play();
-
-    } catch (error) {
-
-      devConsole.error(
-        'Playback start after load error:',
-        error
-      );
-
-      setPlaybackError(
-        'Audio loaded, but playback could not start.'
-      );
-    }
-
-  }, [
-    playerStatus.isLoaded,
-    playerStatus.duration,
-    playingLectureId,
-  ]);
-
-
-  useEffect(() => {
-
-    return () => {
-      clearPlaybackLoadTimers();
-    };
-
-  }, []);
-
-
-
-
-  type VerifiedRecordingStart = {
-    started:
-      LectureRecorderResult;
-    verified:
-      LectureRecorderStatus;
-  };
-
-
-  /*
-   * Keep the proven iOS timing workaround centralized.
-   * The delay values are intentionally unchanged in 1.0.7.
-   * Replacing them with native readiness events comes after
-   * the Whisper A/B test.
-   */
-  const attemptNativeRecordingStart =
-    async (
-      audioUri: string,
-      attemptNumber: number
-    ):
-      Promise<
-        VerifiedRecordingStart | null
-      > => {
-
-      const started =
-        await LectureRecorder.start(
-          audioUri
-        );
-
-      if (
-        !started.isRecording
-      ) {
-        return null;
-      }
-
-      recordingStartedAtRef.current =
-        Date.now();
-
-      await new Promise(
-        resolve =>
-          setTimeout(
-            resolve,
-            450
-          )
-      );
-
-      const verified =
-        LectureRecorder.getStatus();
-
-      if (__DEV__) {
-        devConsole.log(
-          attemptNumber === 1
-            ? 'LECTURE VERIFIED START'
-            : 'LECTURE VERIFIED START AFTER RETRY',
-          verified
-        );
-      }
-
-      if (
-        !verified.isRecording
-      ) {
-        return null;
-      }
-
-      return {
-        started,
-        verified,
-      };
-    };
-
 
   const resetRecordingState =
     async () => {
@@ -1065,26 +732,11 @@ export default function VoiceScreen() {
       activeRecordingRef.current =
         null;
 
-      recordingStartedAtRef.current =
-        null;
-
-      micSilenceStartedAtRef.current =
-        null;
-
-      setMicNoSignalWarning(
-        false
-      );
+      resetRecorderState();
 
       setActiveRecordingMarkers(
         []
       );
-
-      setRecorderState({
-        isRecording: false,
-        durationMillis: 0,
-        uri: null,
-        bytes: 0,
-      });
 
       setStatus(
         'idle'
@@ -1109,7 +761,8 @@ export default function VoiceScreen() {
     async () => {
 
       if (
-        recordingActionPendingRef.current
+        recordingActionPendingRef.current ||
+        liveBusy
       ) {
         return;
       }
@@ -1125,24 +778,13 @@ export default function VoiceScreen() {
         ) {
 
           Alert.alert(
-            'Processing in progress',
-            'Wait until transcription or translation finishes.'
+            audioUi.processingInProgress,
+            audioUi.waitForProcessing
           );
 
           return;
         }
 
-
-        clearPlaybackLoadTimers();
-
-        pendingPlaybackIdRef.current =
-          null;
-
-        pendingPlaybackUriRef.current =
-          null;
-
-        pendingPlaybackSeekRef.current =
-          null;
 
         /*
          * Stop active playback first.
@@ -1155,11 +797,7 @@ export default function VoiceScreen() {
          * has time to finish before LectureRecorder
          * activates its recording session.
          */
-        if (
-          playerStatus.playing
-        ) {
-          player.pause();
-        }
+        beginRecordingTransition();
 
 
         await new Promise(
@@ -1171,17 +809,7 @@ export default function VoiceScreen() {
         );
 
 
-        setPlayingLectureId(
-          null
-        );
-
-        setLoadingLectureId(
-          null
-        );
-
-        setPlaybackError(
-          null
-        );
+        finishRecordingTransition();
 
         const permission =
           await requestRecordingPermissionsAsync();
@@ -1190,8 +818,8 @@ export default function VoiceScreen() {
         if (!permission.granted) {
 
           Alert.alert(
-            'Microphone permission',
-            'Microphone access is required.'
+            audioUi.microphonePermission,
+            audioUi.microphoneRequired
           );
 
           return;
@@ -1224,80 +852,17 @@ export default function VoiceScreen() {
 
 
         /*
-         * Recording is handled by our own iOS AVAudioRecorder
-         * module. Verify each native start after the same
-         * proven 450ms interval and recover once if iOS loses
-         * the first shared audio-session activation.
+         * Native recorder lifecycle, event-first verification,
+         * the proven 450 ms fallback and one 500 ms retry are
+         * isolated in useLectureRecorder without behavior changes.
          */
-        let verifiedAttempt:
-          VerifiedRecordingStart | null =
-            null;
-
-
-        for (
-          let attemptNumber = 1;
-          attemptNumber <= 2;
-          attemptNumber += 1
-        ) {
-
-          if (
-            attemptNumber >
-              1
-          ) {
-
-            if (__DEV__) {
-              devConsole.warn(
-                'LECTURE FIRST START LOST SESSION — retrying once'
-              );
-            }
-
-            try {
-
-              await LectureRecorder.cancel();
-
-            } catch {
-              // Continue with the recovery attempt.
-            }
-
-            recordingStartedAtRef.current =
-              null;
-
-            await new Promise(
-              resolve =>
-                setTimeout(
-                  resolve,
-                  500
-                )
-            );
-          }
-
-
-          verifiedAttempt =
-            await attemptNativeRecordingStart(
-              audioFile.uri,
-              attemptNumber
-            );
-
-
-          if (
-            verifiedAttempt
-          ) {
-            break;
-          }
-        }
-
-
-        if (
-          !verifiedAttempt
-        ) {
-          throw new Error(
-            'The native recorder stopped immediately after two start attempts.'
+        const verifiedAttempt =
+          await startRecording(
+            audioFile.uri
           );
-        }
 
 
         const {
-          started,
           verified:
             verifiedStart,
         } =
@@ -1307,6 +872,8 @@ export default function VoiceScreen() {
         activeRecordingRef.current = {
           id,
           createdAt,
+          language:
+            selectedSourceLanguage,
           directory,
           audioFile,
         };
@@ -1320,31 +887,43 @@ export default function VoiceScreen() {
           []
         );
 
-
-        setRecorderState({
-          isRecording:
-            verifiedStart.isRecording,
-          durationMillis:
-            Math.max(
+        writeMetadata(
+          directory,
+          {
+            id,
+            createdAt,
+            durationMillis:
               0,
-              verifiedStart.durationMillis,
-              recordingStartedAtRef.current
-                ? Date.now() -
-                    recordingStartedAtRef.current
-                : 0
-            ),
-          uri:
-            verifiedStart.uri ??
-            started.uri,
-          bytes:
-            verifiedStart.bytes,
-        });
+            language:
+              selectedSourceLanguage,
+            audioFile:
+              'audio.m4a',
+            transcriptFile:
+              null,
+            transcriptReady:
+              false,
+            characters:
+              0,
+            audioBytes:
+              verifiedStart.bytes,
+            source:
+              'recorded',
+            originalFileName:
+              null,
+            recordingState:
+              'recording',
+            interruptionReason:
+              null,
+            transcription:
+              getDefaultTranscription(
+                0
+              ),
+          }
+        );
 
-        micSilenceStartedAtRef.current =
-          null;
 
-        setMicNoSignalWarning(
-          false
+        commitStartedRecording(
+          verifiedAttempt
         );
 
         setStatus(
@@ -1360,7 +939,7 @@ export default function VoiceScreen() {
 
 
         try {
-          await LectureRecorder.cancel();
+          await cancelRecording();
         } catch {
           // Ignore secondary cleanup errors.
         }
@@ -1370,7 +949,7 @@ export default function VoiceScreen() {
 
 
         Alert.alert(
-          'Recording error',
+          audioUi.recordingError,
           error instanceof Error
             ? error.message
             : String(error)
@@ -1394,24 +973,17 @@ export default function VoiceScreen() {
       const active =
         activeRecordingRef.current;
 
-      const startedAt =
-        recordingStartedAtRef.current;
+      const timeMillis =
+        getRecordingElapsedMillis();
 
       if (
         status !== 'recording' ||
         !active ||
-        !startedAt
+        timeMillis ===
+          null
       ) {
         return;
       }
-
-
-      const timeMillis =
-        Math.max(
-          0,
-          Date.now() -
-            startedAt
-        );
 
 
       const marker: LectureMarker = {
@@ -1478,13 +1050,13 @@ export default function VoiceScreen() {
 
         if (!active) {
           throw new Error(
-            'The active lecture recording could not be found.'
+            audioUi.activeRecordingMissing
           );
         }
 
 
         const beforeStop =
-          LectureRecorder.getStatus();
+          getRecorderStatus();
 
 
         if (__DEV__) {
@@ -1502,7 +1074,7 @@ export default function VoiceScreen() {
          * with ERR_NO_RECORDING.
          */
         const result =
-          await LectureRecorder.stop();
+          await stopRecording();
 
 
         const durationMillis =
@@ -1537,7 +1109,7 @@ export default function VoiceScreen() {
           500
         ) {
           throw new Error(
-            `Recording was too short (${durationMillis} ms).`
+            `${audioUi.recordingTooShort} (${durationMillis} ms).`
           );
         }
 
@@ -1548,7 +1120,7 @@ export default function VoiceScreen() {
             4096
         ) {
           throw new Error(
-            `The native recording file is invalid (${sourceBytes} bytes).`
+            `${audioUi.nativeRecordingInvalid} (${sourceBytes} bytes).`
           );
         }
 
@@ -1563,7 +1135,7 @@ export default function VoiceScreen() {
           active.audioFile.uri
         ) {
           throw new Error(
-            'The native recorder returned an unexpected audio path.'
+            audioUi.unexpectedAudioPath
           );
         }
 
@@ -1586,7 +1158,7 @@ export default function VoiceScreen() {
             durationMillis,
 
             language:
-              'nb-NO',
+              active.language,
 
             audioFile:
               'audio.m4a',
@@ -1609,6 +1181,12 @@ export default function VoiceScreen() {
             originalFileName:
               null,
 
+            recordingState:
+              'ready',
+
+            interruptionReason:
+              null,
+
             transcription,
           }
         );
@@ -1617,17 +1195,11 @@ export default function VoiceScreen() {
         activeRecordingRef.current =
           null;
 
-        recordingStartedAtRef.current =
-          null;
-
-        setRecorderState({
-          isRecording: false,
+        completeRecording(
           durationMillis,
-          uri:
-            sourceFile.uri,
-          bytes:
-            sourceBytes,
-        });
+          sourceFile.uri,
+          sourceBytes
+        );
 
         setLastSavedLectureId(
           active.id
@@ -1666,7 +1238,7 @@ export default function VoiceScreen() {
 
         try {
 
-          await LectureRecorder.cancel();
+          await cancelRecording();
 
         } catch {
           // Recorder may already have finished or been absent.
@@ -1677,7 +1249,7 @@ export default function VoiceScreen() {
 
 
         Alert.alert(
-          'Recording was not saved',
+          audioUi.recordingNotSaved,
           error instanceof Error
             ? error.message
             : String(error)
@@ -1708,8 +1280,8 @@ export default function VoiceScreen() {
       ) {
 
         Alert.alert(
-          'Processing in progress',
-          'Wait until transcription or translation finishes before importing another audio file.'
+          audioUi.processingInProgress,
+          audioUi.waitForProcessingBeforeImport
         );
 
         return;
@@ -1742,7 +1314,7 @@ export default function VoiceScreen() {
 
         if (!asset) {
           throw new Error(
-            'No audio file was selected.'
+            audioUi.noAudioSelected
           );
         }
 
@@ -1755,7 +1327,7 @@ export default function VoiceScreen() {
 
         if (!extension) {
           throw new Error(
-            'Unsupported audio format. Use M4A, MP3, WAV, AAC, CAF or MP4.'
+            audioUi.unsupportedAudioFormat
           );
         }
 
@@ -1777,16 +1349,15 @@ export default function VoiceScreen() {
             4096
         ) {
           throw new Error(
-            'The selected audio file is missing or invalid.'
+            audioUi.selectedAudioInvalid
           );
         }
 
 
         const info =
-          await LectureRecorder
-            .getAudioInfo(
-              sourceFile.uri
-            );
+          await getAudioInfo(
+            sourceFile.uri
+          );
 
 
         if (
@@ -1794,7 +1365,7 @@ export default function VoiceScreen() {
           500
         ) {
           throw new Error(
-            'The selected audio file has no usable duration.'
+            audioUi.selectedAudioNoDuration
           );
         }
 
@@ -1843,7 +1414,7 @@ export default function VoiceScreen() {
             4096
         ) {
           throw new Error(
-            'The imported audio copy is invalid.'
+            audioUi.importedAudioInvalid
           );
         }
 
@@ -1864,7 +1435,7 @@ export default function VoiceScreen() {
               info.durationMillis,
 
             language:
-              'nb-NO',
+              selectedSourceLanguage,
 
             audioFile:
               audioFileName,
@@ -1887,6 +1458,12 @@ export default function VoiceScreen() {
             originalFileName:
               asset.name,
 
+            recordingState:
+              'ready',
+
+            interruptionReason:
+              null,
+
             transcription,
           }
         );
@@ -1904,7 +1481,7 @@ export default function VoiceScreen() {
 
 
         Alert.alert(
-          'Audio imported',
+          audioUi.audioImported,
           `${asset.name}\n${formatTime(info.durationMillis)}`
         );
 
@@ -1917,429 +1494,10 @@ export default function VoiceScreen() {
 
 
         Alert.alert(
-          'Import failed',
+          audioUi.importFailed,
           error instanceof Error
             ? error.message
             : String(error)
-        );
-      }
-    };
-
-
-  const handlePlayLecture =
-    async (
-      lecture: LectureItem
-    ) => {
-
-      if (
-        transcribingLectureId ||
-        processingLockRef.current ===
-          'transcription'
-      ) {
-        return;
-      }
-
-      try {
-
-        setPlaybackError(
-          null
-        );
-
-
-        const audioFile =
-          new File(
-            lecture.audioUri
-          );
-
-
-        if (!audioFile.exists) {
-
-          Alert.alert(
-            'Playback error',
-            'The saved audio file does not exist.'
-          );
-
-          return;
-        }
-
-
-        const audioBytes =
-          audioFile.size ??
-          0;
-
-        if (
-          audioBytes < 4096
-        ) {
-
-          Alert.alert(
-            'Playback error',
-            `The saved audio file is empty or incomplete (${audioBytes} bytes).`
-          );
-
-          return;
-        }
-
-
-        const isCurrentLecture =
-          playingLectureId ===
-            lecture.id;
-
-        const isCurrentLoaded =
-          isCurrentLecture &&
-          playerStatus.isLoaded &&
-          playerStatus.duration >
-            0;
-
-
-        /*
-         * For a NEW source, show Loading immediately.
-         * setAudioModeAsync may take noticeable time on iOS,
-         * and previously the first tap looked ignored while
-         * this await was running.
-         */
-        if (
-          !isCurrentLoaded
-        ) {
-          setLoadingLectureId(
-            lecture.id
-          );
-        }
-
-
-        await setAudioModeAsync({
-          playsInSilentMode: true,
-          allowsRecording: false,
-          allowsBackgroundRecording: false,
-          shouldPlayInBackground: false,
-          interruptionMode: 'doNotMix',
-        });
-
-
-        if (
-          playingLectureId ===
-            lecture.id &&
-          playerStatus.playing
-        ) {
-
-          player.pause();
-          return;
-        }
-
-
-        if (
-          playingLectureId ===
-            lecture.id &&
-          playerStatus.isLoaded &&
-          playerStatus.duration > 0
-        ) {
-
-          if (
-            playerStatus.currentTime >=
-              playerStatus.duration - 0.15
-          ) {
-
-            await player.seekTo(
-              0
-            );
-          }
-
-          player.play();
-          return;
-        }
-
-
-        /*
-         * New source:
-         * never call play() after an arbitrary 80 ms.
-         * Wait for AudioStatus to report a real duration.
-         */
-
-        clearPlaybackLoadTimers();
-
-        player.pause();
-
-        pendingPlaybackIdRef.current =
-          lecture.id;
-
-        pendingPlaybackUriRef.current =
-          lecture.audioUri;
-
-        setPlayingLectureId(
-          lecture.id
-        );
-
-
-        player.replace({
-          uri:
-            lecture.audioUri,
-        });
-
-
-        /*
-         * The previous implementation often worked
-         * on the second manual tap. Reproduce that
-         * safely as one automatic reload if iOS has
-         * not resolved duration after 1.2 seconds.
-         */
-        playbackRetryTimerRef.current =
-          setTimeout(
-            () => {
-
-              if (
-                pendingPlaybackIdRef.current ===
-                  lecture.id &&
-                pendingPlaybackUriRef.current ===
-                  lecture.audioUri
-              ) {
-
-                try {
-
-                  player.pause();
-
-                  player.replace({
-                    uri:
-                      lecture.audioUri,
-                  });
-
-                } catch (error) {
-
-                  devConsole.error(
-                    'Automatic playback reload error:',
-                    error
-                  );
-                }
-              }
-
-            },
-            1200
-          );
-
-
-        playbackFailTimerRef.current =
-          setTimeout(
-            () => {
-
-              if (
-                pendingPlaybackIdRef.current ===
-                  lecture.id
-              ) {
-
-                pendingPlaybackIdRef.current =
-                  null;
-
-                pendingPlaybackUriRef.current =
-                  null;
-
-                setLoadingLectureId(
-                  null
-                );
-
-                const kb =
-                  Math.round(
-                    audioBytes /
-                    1024
-                  );
-
-                setPlaybackError(
-                  `The M4A exists (${kb} KB), but iOS could not determine its duration.`
-                );
-              }
-
-            },
-            6000
-          );
-
-      } catch (error) {
-
-        devConsole.error(
-          'Could not play lecture:',
-          error
-        );
-
-        clearPlaybackLoadTimers();
-
-        pendingPlaybackIdRef.current =
-          null;
-
-        pendingPlaybackUriRef.current =
-          null;
-
-        setLoadingLectureId(
-          null
-        );
-
-        setPlaybackError(
-          error instanceof Error
-            ? error.message
-            : 'The recording could not be loaded.'
-        );
-      }
-    };
-
-
-  const handleSeekLectureTo =
-    async (
-      lecture: LectureItem,
-      seconds: number,
-      autoplay = true
-    ) => {
-
-      if (
-        transcribingLectureId ||
-        processingLockRef.current ===
-          'transcription'
-      ) {
-        return;
-      }
-
-      const safeSeconds =
-        Math.max(
-          0,
-          seconds
-        );
-
-
-      try {
-
-        if (
-          playingLectureId ===
-            lecture.id &&
-          playerStatus.isLoaded &&
-          playerStatus.duration >
-            0
-        ) {
-
-          await player.seekTo(
-            Math.min(
-              playerStatus.duration,
-              safeSeconds
-            )
-          );
-
-          if (autoplay) {
-            player.play();
-          }
-
-          return;
-        }
-
-
-        pendingPlaybackSeekRef.current = {
-          lectureId:
-            lecture.id,
-          seconds:
-            safeSeconds,
-          autoplay,
-        };
-
-
-        await handlePlayLecture(
-          lecture
-        );
-
-      } catch (error) {
-
-        devConsole.error(
-          'Could not seek lecture to timestamp:',
-          error
-        );
-
-        setPlaybackError(
-          error instanceof Error
-            ? error.message
-            : 'Could not jump to this moment.'
-        );
-      }
-    };
-
-
-  const handleSeekRelative =
-    async (
-      deltaSeconds: number
-    ) => {
-
-      if (
-        transcribingLectureId ||
-        processingLockRef.current ===
-          'transcription'
-      ) {
-        return;
-      }
-
-      try {
-
-        if (
-          !playerStatus.isLoaded ||
-          playerStatus.duration <= 0
-        ) {
-          return;
-        }
-
-        const nextTime =
-          Math.min(
-            playerStatus.duration,
-            Math.max(
-              0,
-              playerStatus.currentTime +
-                deltaSeconds
-            )
-          );
-
-        await player.seekTo(
-          nextTime
-        );
-
-      } catch (error) {
-
-        devConsole.error(
-          'Playback seek error:',
-          error
-        );
-      }
-    };
-
-
-  const handleSeekFraction =
-    async (
-      fraction: number
-    ) => {
-
-      if (
-        transcribingLectureId ||
-        processingLockRef.current ===
-          'transcription'
-      ) {
-        return;
-      }
-
-      try {
-
-        if (
-          !playerStatus.isLoaded ||
-          playerStatus.duration <= 0
-        ) {
-          return;
-        }
-
-        const safeFraction =
-          Math.min(
-            1,
-            Math.max(
-              0,
-              fraction
-            )
-          );
-
-        await player.seekTo(
-          playerStatus.duration *
-            safeFraction
-        );
-
-      } catch (error) {
-
-        devConsole.error(
-          'Playback seek error:',
-          error
         );
       }
     };
@@ -2361,6 +1519,10 @@ export default function VoiceScreen() {
 
         setOpenedTranscript(
           ''
+        );
+
+        setOpenedTextTab(
+          'source'
         );
 
         clearTranslationState();
@@ -2398,6 +1560,10 @@ export default function VoiceScreen() {
           text
         );
 
+        setOpenedTextTab(
+          'source'
+        );
+
         setOpenedTranscriptSegments(
           readTranscriptSegments(
             getLectureDirectory(
@@ -2419,13 +1585,113 @@ export default function VoiceScreen() {
         );
 
         Alert.alert(
-          'Transcript error',
-          'The transcript could not be opened.'
+          audioUi.transcriptError,
+          audioUi.transcriptOpenFailed
         );
       }
     };
 
 
+  const handleSelectTextTab =
+    (
+      lecture: LectureItem,
+      tab: LectureTextTab
+    ) => {
+
+      if (isLectureProcessing) {
+        return;
+      }
+
+      setOpenedTextTab(
+        tab
+      );
+
+      if (
+        tab === 'uk' ||
+        tab === 'ru'
+      ) {
+        handleSelectTranslationTarget(
+          lecture,
+          tab
+        );
+      }
+    };
+
+
+
+  const handleRenameLecture =
+    (
+      lecture:
+        LectureItem
+    ) => {
+
+      Alert.prompt(
+        audioUi.renameLecture,
+        audioUi.renamePrompt,
+        [
+          {
+            text:
+              audioUi.cancel,
+            style:
+              'cancel',
+          },
+          {
+            text:
+              audioUi.save,
+            onPress:
+              (value: string | undefined) => {
+                try {
+                  const directory =
+                    getLectureDirectory(
+                      lecture.id
+                    );
+
+                  const metadata =
+                    readMetadata(
+                      directory
+                    );
+
+                  const title =
+                    String(
+                      value || ''
+                    )
+                      .trim()
+                      .slice(
+                        0,
+                        120
+                      );
+
+                  writeMetadata(
+                    directory,
+                    {
+                      ...metadata,
+                      title:
+                        title ||
+                        null,
+                    }
+                  );
+
+                  loadLectures();
+
+                } catch (error) {
+                  devConsole.error(
+                    'Rename lecture error:',
+                    error
+                  );
+
+                  Alert.alert(
+                    audioUi.renameError,
+                    audioUi.renameSaveFailed
+                  );
+                }
+              },
+          },
+        ],
+        'plain-text',
+        lecture.title ??
+          ''
+      );
+    };
 
 
   const handleDeleteLecture =
@@ -2434,19 +1700,19 @@ export default function VoiceScreen() {
     ) => {
 
       Alert.alert(
-        'Delete lecture?',
-        'This permanently deletes the audio recording and transcript from this iPhone.',
+        audioUi.deleteLecture,
+        audioUi.deletePrompt,
         [
           {
             text:
-              'Cancel',
+              audioUi.cancel,
             style:
               'cancel',
           },
 
           {
             text:
-              'Delete',
+              audioUi.delete,
             style:
               'destructive',
 
@@ -2455,17 +1721,9 @@ export default function VoiceScreen() {
 
                 try {
 
-                  if (
-                    playingLectureId ===
+                  pauseIfLecturePlaying(
                     lecture.id
-                  ) {
-
-                    player.pause();
-
-                    setPlayingLectureId(
-                      null
-                    );
-                  }
+                  );
 
 
                   const directory =
@@ -2511,8 +1769,8 @@ export default function VoiceScreen() {
                   );
 
                   Alert.alert(
-                    'Delete error',
-                    'The lecture could not be deleted.'
+                    audioUi.deleteError,
+                    audioUi.deleteFailed
                   );
                 }
               },
@@ -2545,7 +1803,7 @@ export default function VoiceScreen() {
           },
         ]}
       >
-        🎙 Lecture Capture
+        {audioUi.captureTitle}
       </Text>
 
 
@@ -2557,19 +1815,77 @@ export default function VoiceScreen() {
         }
       >
 
-        <Text
-          style={[
-            styles.language,
-            {
-              color:
-                T.textSecondary,
-              fontSize:
-                F.base,
-            },
-          ]}
+        <View
+          style={
+            styles.sourceLanguageRow
+          }
         >
-          🇳🇴 Norwegian · nb-NO
-        </Text>
+          {(
+            [
+              ['nb-NO', '🇳🇴 NO'],
+              ['en', '🇬🇧 EN'],
+            ] as const
+          ).map(
+            ([value, label]) => (
+              <Pressable
+                key={value}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  value === 'nb-NO'
+                    ? audioUi.useNorwegian
+                    : audioUi.useEnglish
+                }
+                disabled={
+                  status ===
+                    'recording' ||
+                  isLectureProcessing ||
+                  liveBusy
+                }
+                onPress={() =>
+                  setSelectedSourceLanguage(
+                    value
+                  )
+                }
+                style={[
+                  styles.sourceLanguageButton,
+                  {
+                    borderColor:
+                      T.accent,
+                    backgroundColor:
+                      selectedSourceLanguage ===
+                        value
+                        ? T.accent
+                        : 'transparent',
+                    opacity:
+                      status ===
+                        'recording' ||
+                      isLectureProcessing ||
+                      liveBusy
+                        ? 0.45
+                        : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.sourceLanguageText,
+                    {
+                      color:
+                        selectedSourceLanguage ===
+                          value
+                          ? '#FFFFFF'
+                          : T.accent,
+                      fontSize:
+                        F.base - 2,
+                    },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            )
+          )}
+        </View>
 
 
         {status ===
@@ -2586,9 +1902,7 @@ export default function VoiceScreen() {
               },
             ]}
           >
-            Record the complete lecture as one local M4A file with the native iPhone recorder.
-            You can lock your iPhone while recording.
-            You can also import an existing audio file and transcribe it locally with WhisperKit.
+            {audioUi.idleInfo}
           </Text>
         )}
 
@@ -2603,13 +1917,19 @@ export default function VoiceScreen() {
                 styles.recordingLabel,
                 {
                   color:
-                    T.accent,
+                    recorderState
+                      .isPausedForInterruption
+                      ? '#B7791F'
+                      : T.accent,
                   fontSize:
                     F.base,
                 },
               ]}
             >
-              ● RECORDING
+              {recorderState
+                .isPausedForInterruption
+                ? audioUi.pausedForCall
+                : audioUi.recording}
             </Text>
 
             <Text
@@ -2626,6 +1946,24 @@ export default function VoiceScreen() {
                   .durationMillis
               )}
             </Text>
+
+            {recorderState
+              .isPausedForInterruption && (
+
+              <Text
+                style={[
+                  styles.backgroundInfo,
+                  {
+                    color:
+                      T.textSecondary,
+                    fontSize:
+                      F.base - 1,
+                  },
+                ]}
+              >
+                {audioUi.callPauseInfo}
+              </Text>
+            )}
 
             <View
               style={
@@ -2650,7 +1988,7 @@ export default function VoiceScreen() {
                     },
                   ]}
                 >
-                  Microphone level
+                  {audioUi.microphoneLevel}
                 </Text>
 
                 <Text
@@ -2771,11 +2109,13 @@ export default function VoiceScreen() {
                       },
                     ]}
                   >
-                    ⚠ Microphone is not receiving sound
+                    {audioUi.microphoneNoSound}
                   </Text>
 
                 )
                 : (
+                  !recorderState
+                    .isPausedForInterruption &&
                   Number(
                     recorderState.levelDb ??
                     -160
@@ -2793,7 +2133,7 @@ export default function VoiceScreen() {
                         },
                       ]}
                     >
-                      Signal is quiet · move the iPhone closer if possible
+                      {audioUi.microphoneQuiet}
                     </Text>
                   )
                 )}
@@ -2811,7 +2151,7 @@ export default function VoiceScreen() {
                 },
               ]}
             >
-              Native recording continues while the iPhone is locked.
+              {audioUi.lockRecordingInfo}
             </Text>
 
           </>
@@ -2832,9 +2172,9 @@ export default function VoiceScreen() {
               },
             ]}
           >
-            ✓ Audio saved locally as M4A
+            {audioUi.audioSaved}
             {lastSavedLectureId
-              ? '\nReady for later transcription.'
+              ? `\n${audioUi.readyForLaterTranscription}`
               : ''}
           </Text>
         )}
@@ -2860,7 +2200,7 @@ export default function VoiceScreen() {
                 },
               ]}
             >
-              Mark this moment
+              {audioUi.markThisMoment}
             </Text>
 
 
@@ -2872,10 +2212,10 @@ export default function VoiceScreen() {
 
               {(
                 [
-                  ['important', '⭐ Important'],
-                  ['unclear', '❓ Unclear'],
-                  ['repeat', '🔁 Repeat'],
-                  ['term', '🆕 Term'],
+                  ['important', audioUi.markerImportant],
+                  ['unclear', audioUi.markerUnclear],
+                  ['repeat', audioUi.markerRepeat],
+                  ['term', audioUi.markerTerm],
                 ] as const
               ).map(
                 (
@@ -2953,7 +2293,7 @@ export default function VoiceScreen() {
                   },
                 ]}
               >
-                ⭐ Mark moment · {formatTime(
+                {audioUi.markMoment} · {formatTime(
                   recorderState.durationMillis
                 )}
               </Text>
@@ -2975,12 +2315,7 @@ export default function VoiceScreen() {
                   },
                 ]}
               >
-                {activeRecordingMarkers.length}
-                {' '}
-                {activeRecordingMarkers.length ===
-                  1
-                  ? 'marker saved'
-                  : 'markers saved'}
+                {audioUi.markersSaved} {activeRecordingMarkers.length}
               </Text>
             )}
 
@@ -2988,63 +2323,114 @@ export default function VoiceScreen() {
         )}
 
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            status === 'recording'
-              ? 'Stop lecture recording'
-              : 'Start lecture recording'
+        <View
+          style={
+            styles.recordingActionRow
           }
-          disabled={
-            isLectureProcessing &&
-            status !== 'recording'
-          }
-          onPress={
-            status === 'recording'
-              ? handleStop
-              : handleStart
-          }
-          style={[
-            styles.mainButton,
-            {
-              backgroundColor:
-                status ===
-                'recording'
-                  ? '#C94B4B'
-                  : T.accent,
-              opacity:
-                isLectureProcessing &&
-                status !== 'recording'
-                  ? 0.55
-                  : 1,
-            },
-          ]}
         >
-
-          <Text
-            style={
-              styles.mainButtonText
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              status === 'recording'
+                ? audioUi.stopRecording
+                : audioUi.startRecording
             }
+            disabled={
+              (
+                isLectureProcessing ||
+                liveBusy
+              ) &&
+              status !== 'recording'
+            }
+            onPress={
+              status === 'recording'
+                ? handleStop
+                : handleStart
+            }
+            style={[
+              styles.mainButton,
+              styles.recordingMainButton,
+              {
+                backgroundColor:
+                  status ===
+                  'recording'
+                    ? '#C94B4B'
+                    : T.accent,
+                opacity:
+                  (
+                    isLectureProcessing ||
+                    liveBusy
+                  ) &&
+                  status !== 'recording'
+                    ? 0.55
+                    : 1,
+              },
+            ]}
           >
-            {status === 'recording'
-              ? 'Stop recording'
-              : transcribingLectureId
-                ? 'Transcription in progress'
-                : translatingLectureId
-                  ? 'Translation in progress'
-                  : 'Start lecture'}
-          </Text>
+            <Text
+              style={
+                styles.mainButtonText
+              }
+            >
+              {status === 'recording'
+                ? audioUi.stopRecording
+                : transcribingLectureId ||
+                    translatingLectureId
+                  ? audioUi.processing
+                  : audioUi.startRecording}
+            </Text>
+          </Pressable>
 
-        </Pressable>
+          <LiveLectureButton
+            sourceLanguage={
+              selectedSourceLanguage
+            }
+            translationTarget={
+              translationTarget
+            }
+            disabled={
+              status === 'recording' ||
+              isLectureProcessing
+            }
+            beforeStart={
+              async () => {
+                beginRecordingTransition();
 
+                await new Promise(
+                  resolve =>
+                    setTimeout(
+                      resolve,
+                      350
+                    )
+                );
+
+                finishRecordingTransition();
+              }
+            }
+            loadLectures={
+              loadLectures
+            }
+            onBusyChange={
+              setLiveBusy
+            }
+            onSaved={
+              lectureId => {
+                setLastSavedLectureId(
+                  lectureId
+                );
+              }
+            }
+          />
+        </View>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Import audio file"
+          accessibilityLabel={audioUi.importAudio}
           disabled={
             status ===
               'recording' ||
-            isLectureProcessing
+            isLectureProcessing ||
+            liveBusy
           }
           onPress={
             handleImportAudio
@@ -3057,7 +2443,8 @@ export default function VoiceScreen() {
               opacity:
                 status ===
                   'recording' ||
-                isLectureProcessing
+                isLectureProcessing ||
+                liveBusy
                   ? 0.45
                   : 1,
             },
@@ -3073,7 +2460,7 @@ export default function VoiceScreen() {
               },
             ]}
           >
-            Import audio file
+            {audioUi.importAudio}
           </Text>
 
         </Pressable>
@@ -3090,7 +2477,7 @@ export default function VoiceScreen() {
             },
           ]}
         >
-          M4A, MP3, WAV, AAC, CAF or MP4
+          {audioUi.supportedFormats}
         </Text>
 
       </GlassSurface>
@@ -3113,7 +2500,7 @@ export default function VoiceScreen() {
             },
           ]}
         >
-          Saved lectures
+          {audioUi.savedLectures}
         </Text>
 
         <Text
@@ -3155,7 +2542,7 @@ export default function VoiceScreen() {
                 },
               ]}
             >
-              Your saved recordings will appear here.
+              {audioUi.emptyLibrary}
             </Text>
 
           </GlassSurface>
@@ -3182,12 +2569,21 @@ export default function VoiceScreen() {
                 openedLectureId ===
                 lecture.id;
 
+              const isInterrupted =
+                lecture.recordingState ===
+                  'interrupted';
+
               const displayedDuration =
                 isCurrent &&
                 playerStatus.duration > 0
                   ? playerStatus.duration *
                     1000
                   : lecture.durationMillis;
+
+              const lectureLanguageUi =
+                getLectureLanguageUi(
+                  lecture.language
+                );
 
 
               return (
@@ -3216,6 +2612,7 @@ export default function VoiceScreen() {
                     >
 
                       <Text
+                        numberOfLines={2}
                         style={[
                           styles.lectureDate,
                           {
@@ -3226,10 +2623,29 @@ export default function VoiceScreen() {
                           },
                         ]}
                       >
-                        {formatLectureDate(
-                          lecture.createdAt
-                        )}
+                        {lecture.title ||
+                          formatAudioLectureDate(
+                            lecture.createdAt
+                          )}
                       </Text>
+
+                      {!!lecture.title && (
+                        <Text
+                          style={[
+                            styles.lectureSubDate,
+                            {
+                              color:
+                                T.textSecondary,
+                              fontSize:
+                                F.base - 3,
+                            },
+                          ]}
+                        >
+                          {formatAudioLectureDate(
+                            lecture.createdAt
+                          )}
+                        </Text>
+                      )}
 
 
                       <Text
@@ -3243,55 +2659,99 @@ export default function VoiceScreen() {
                           },
                         ]}
                       >
-                        🇳🇴 {lecture.language}
-                        {'  ·  '}
-                        {displayedDuration > 0
-                          ? formatTime(
-                              displayedDuration
-                            )
-                          : 'Audio saved'}
-                        {'  ·  '}
-                        {lecture.audioFileName
-                          .toUpperCase()
-                          .endsWith(
-                            '.M4A'
+                        {isInterrupted
+                          ? (
+                            <>
+                              {lectureLanguageUi.flag} {lectureLanguageUi.code}
+                              {'  ·  '}
+                              {audioUi.interrupted}
+                            </>
                           )
-                          ? 'M4A'
-                          : 'WAV'}
+                          : (
+                            <>
+                              {lectureLanguageUi.flag} {lectureLanguageUi.code}
+                              {'  ·  '}
+                              {displayedDuration > 0
+                                ? formatTime(
+                                    displayedDuration
+                                  )
+                                : audioUi.audioSavedShort}
+                              {'  ·  '}
+                              {lecture.audioFileName
+                                .toUpperCase()
+                                .endsWith(
+                                  '.M4A'
+                                )
+                                ? 'M4A'
+                                : 'WAV'}
+                            </>
+                          )}
                       </Text>
 
                     </View>
 
 
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Delete lecture"
-                      onPress={() =>
-                        handleDeleteLecture(
-                          lecture
-                        )
-                      }
+                    <View
                       style={
-                        styles.deleteButton
-                      }
-                      hitSlop={
-                        10
+                        styles.lectureHeaderActions
                       }
                     >
-
-                      <Text
-                        style={[
-                          styles.deleteButtonText,
-                          {
-                            color:
-                              T.textSecondary,
-                          },
-                        ]}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={audioUi.renameAccessibility}
+                        onPress={() =>
+                          handleRenameLecture(
+                            lecture
+                          )
+                        }
+                        style={
+                          styles.deleteButton
+                        }
+                        hitSlop={
+                          10
+                        }
                       >
-                        🗑
-                      </Text>
+                        <Text
+                          style={[
+                            styles.deleteButtonText,
+                            {
+                              color:
+                                T.textSecondary,
+                            },
+                          ]}
+                        >
+                          ✎
+                        </Text>
+                      </Pressable>
 
-                    </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={audioUi.deleteAccessibility}
+                        onPress={() =>
+                          handleDeleteLecture(
+                            lecture
+                          )
+                        }
+                        style={
+                          styles.deleteButton
+                        }
+                        hitSlop={
+                          10
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.deleteButtonText,
+                            {
+                              color:
+                                T.textSecondary,
+                            },
+                          ]}
+                        >
+                          🗑
+                        </Text>
+                      </Pressable>
+                    </View>
 
                   </View>
 
@@ -3314,7 +2774,7 @@ export default function VoiceScreen() {
                         {isLoading ||
                         !playerStatus.isLoaded ||
                         playerStatus.duration <= 0
-                          ? 'Loading audio…'
+                          ? audioUi.loadingAudio
                           : (
                             `${formatPlaybackTime(
                               playerStatus.currentTime
@@ -3406,7 +2866,7 @@ export default function VoiceScreen() {
 
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel="Go back 15 seconds"
+                              accessibilityLabel={audioUi.back15}
                               disabled={
                                 !!transcribingLectureId
                               }
@@ -3439,7 +2899,7 @@ export default function VoiceScreen() {
                                   },
                                 ]}
                               >
-                                ↶ 15 sec
+                                {audioUi.back15Short}
                               </Text>
 
                             </Pressable>
@@ -3447,7 +2907,7 @@ export default function VoiceScreen() {
 
                             <Pressable
                               accessibilityRole="button"
-                              accessibilityLabel="Go forward 15 seconds"
+                              accessibilityLabel={audioUi.forward15}
                               disabled={
                                 !!transcribingLectureId
                               }
@@ -3480,7 +2940,7 @@ export default function VoiceScreen() {
                                   },
                                 ]}
                               >
-                                15 sec ↷
+                                {audioUi.forward15Short}
                               </Text>
 
                             </Pressable>
@@ -3534,20 +2994,25 @@ export default function VoiceScreen() {
                         F.base - 1
                       }
                       disabled={
+                        isInterrupted ||
                         isLoading ||
                         !!transcribingLectureId
                       }
                       accessibilityLabel={
-                        isPlaying
-                          ? 'Pause lecture'
-                          : 'Play lecture'
+                        isInterrupted
+                          ? audioUi.cannotPlayInterrupted
+                          : isPlaying
+                            ? audioUi.pauseLecture
+                            : audioUi.playLecture
                       }
                       label={
-                        isLoading
-                          ? '… Loading'
-                          : isPlaying
-                            ? '⏸ Pause'
-                            : '▶ Play'
+                        isInterrupted
+                          ? audioUi.noPlayback
+                          : isLoading
+                            ? audioUi.loading
+                            : isPlaying
+                              ? audioUi.pause
+                              : audioUi.play
                       }
                       onPress={() => {
                         void Haptics
@@ -3568,30 +3033,40 @@ export default function VoiceScreen() {
                         F.base - 1
                       }
                       disabled={
-                        isLectureProcessing
+                        isLectureProcessing ||
+                        (
+                          isInterrupted &&
+                          !lecture.transcriptReady
+                        )
                       }
                       accessibilityLabel={
-                        lecture.transcriptReady
+                        isInterrupted &&
+                        !lecture.transcriptReady
+                          ? audioUi.cannotTranscribeInterrupted
+                          : lecture.transcriptReady
                           ? (
                             isTranscriptOpen
-                              ? 'Hide lecture transcript'
-                              : 'Open lecture transcript'
+                              ? audioUi.hideTranscript
+                              : audioUi.openTranscript
                           )
-                          : 'Create lecture transcript'
+                          : audioUi.createTranscriptAccessibility
                       }
                       label={
-                        lecture.transcriptReady
-                          ? (
-                            isTranscriptOpen
-                              ? '📄 Hide text'
-                              : '📄 Transcript'
-                          )
-                          : (
-                            transcribingLectureId ===
-                              lecture.id
-                              ? '… Transcribing'
-                              : 'Create transcript'
-                          )
+                        isInterrupted &&
+                        !lecture.transcriptReady
+                          ? audioUi.noTranscript
+                          : lecture.transcriptReady
+                            ? (
+                              isTranscriptOpen
+                              ? audioUi.hideText
+                              : audioUi.transcript
+                            )
+                            : (
+                              transcribingLectureId ===
+                                lecture.id
+                                ? audioUi.transcribing
+                                : audioUi.createTranscript
+                            )
                       }
                       onPress={() => {
                         void Haptics
@@ -3625,17 +3100,17 @@ export default function VoiceScreen() {
                       accessibilityLabel={
                         exportLectureId ===
                           lecture.id
-                          ? 'Close lecture export menu'
-                          : 'Share or export lecture'
+                          ? audioUi.closeExportMenu
+                          : audioUi.shareOrExport
                       }
                       label={
                         exportingLectureId ===
                           lecture.id
-                          ? '… Exporting'
+                          ? audioUi.exporting
                           : exportLectureId ===
                               lecture.id
-                            ? '✕ Export'
-                            : '↗ Share / Export'
+                            ? audioUi.export
+                            : audioUi.shareExport
                       }
                       onPress={() => {
                         void Haptics
@@ -3695,12 +3170,37 @@ export default function VoiceScreen() {
                         },
                       ]}
                     >
-                      Playback: {playbackError}
+                      {audioUi.playback}: {playbackError}
                     </Text>
                   )}
 
 
-                  {!lecture.transcriptReady && (
+                  {isInterrupted && (
+
+                    <View
+                      style={
+                        styles.transcriptionBox
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.transcriptionStatus,
+                          {
+                            color:
+                              T.textSecondary,
+                            fontSize:
+                              F.base - 2,
+                          },
+                        ]}
+                      >
+                        {audioUi.interruptedDescription}
+                      </Text>
+                    </View>
+                  )}
+
+
+                  {!isInterrupted &&
+                    !lecture.transcriptReady && (
 
                     <View
                       style={
@@ -3722,28 +3222,28 @@ export default function VoiceScreen() {
                         {transcribingLectureId === lecture.id
                           ? (
                             whisperStage === 'preparing-model'
-                              ? 'Preparing offline Whisper model…'
+                              ? audioUi.preparingWhisper
                               : whisperStage === 'model-ready'
-                                ? 'Model ready'
+                                ? audioUi.modelReady
                                 : whisperStage === 'retrying'
-                                  ? 'No text detected · retrying once…'
-                                  : 'Transcribing locally on this iPhone…'
+                                  ? audioUi.noTextRetrying
+                                  : audioUi.transcribingLocally
                           )
                           : lecture.transcription.status ===
                               'not_started'
-                            ? 'Transcript not started · WhisperKit offline'
+                            ? audioUi.transcriptNotStarted
                             : lecture.transcription.status ===
                                 'pending'
-                              ? 'Ready for local transcription'
+                              ? audioUi.readyForTranscription
                               : lecture.transcription.status ===
                                   'processing'
-                                ? 'Transcription interrupted · tap Create transcript to retry'
+                                ? audioUi.transcriptionInterrupted
                                 : lecture.transcription.status ===
                                     'done'
-                                  ? 'Transcript ready'
+                                  ? audioUi.transcriptReady
                                   : lecture.transcription.status ===
                                       'error'
-                                    ? 'Transcription error · tap Create transcript to retry'
+                                    ? audioUi.transcriptionFailedStatus
                                     : lecture.transcription.status}
                       </Text>
 
@@ -3758,7 +3258,7 @@ export default function VoiceScreen() {
                           },
                         ]}
                       >
-                        WhisperKit · on-device · Norwegian
+                        WhisperKit · {audioUi.onDevice} · {getAudioSourceLanguageLabel(lecture.language, app_language)}
                       </Text>
 
                     </View>
@@ -3794,17 +3294,17 @@ export default function VoiceScreen() {
                           ? (
                             whisperStage ===
                               'preparing-model'
-                              ? 'Re-transcribing… preparing the offline Whisper model. The existing transcript will stay visible until the new version is ready.'
+                              ? audioUi.retranscribingPreparing
                               : whisperStage ===
                                   'retrying'
-                                ? 'Re-transcribing… no text detected on the first pass, retrying once.'
-                                : 'Re-transcribing locally on this iPhone… The existing transcript will stay visible until the replacement is complete.'
+                                ? audioUi.retranscribingRetrying
+                                : audioUi.retranscribingLocal
                           )
                           : (
                             whisperStage ===
                               'preparing-model'
-                              ? 'First use may download the Whisper model. Keep the app open and connected to the internet.'
-                              : 'Processing locally. Long lectures may take several minutes.'
+                              ? audioUi.firstUseWhisper
+                              : audioUi.processingLocally
                           )}
                       </Text>
 
@@ -3888,7 +3388,7 @@ export default function VoiceScreen() {
                             },
                           ]}
                         >
-                          ✓ Transcript updated
+                          {audioUi.transcriptUpdated}
                         </Text>
 
                       ) : transcriptUpdatedLectureId ===
@@ -3908,46 +3408,76 @@ export default function VoiceScreen() {
                             },
                           ]}
                         >
-                          Updated just now
+                          {audioUi.updatedJustNow}
                         </Text>
 
                       ) : null}
 
 
-                      <TranscriptView
-                        segments={
-                          openedTranscriptSegments
+                      <View
+                        style={
+                          styles.textTabRow
                         }
-                        fallbackText={
-                          openedTranscript
-                        }
-                        isCurrent={
-                          isCurrent
-                        }
-                        isLoaded={
-                          playerStatus.isLoaded
-                        }
-                        currentTime={
-                          playerStatus.currentTime
-                        }
-                        accent={
-                          T.accent
-                        }
-                        textSecondary={
-                          T.textSecondary
-                        }
-                        fontBase={
-                          F.base
-                        }
-                        onSeek={
-                          seconds =>
-                            void handleSeekLectureTo(
-                              lecture,
-                              seconds,
-                              true
-                            )
-                        }
-                      />
+                      >
+                        {(
+                          [
+                            ['source', getAudioSourceLanguageLabel(lecture.language, app_language)],
+                            ['uk', audioUi.ukrainian],
+                            ['ru', audioUi.russian],
+                          ] as const
+                        ).map(
+                          ([tab, label]) => (
+                            <Pressable
+                              key={tab}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${audioUi.showText}: ${label}`}
+                              disabled={
+                                isLectureProcessing
+                              }
+                              onPress={() =>
+                                handleSelectTextTab(
+                                  lecture,
+                                  tab
+                                )
+                              }
+                              style={[
+                                styles.textTabButton,
+                                {
+                                  borderColor:
+                                    T.accent,
+                                  backgroundColor:
+                                    openedTextTab ===
+                                      tab
+                                      ? T.accent
+                                      : 'transparent',
+                                  opacity:
+                                    isLectureProcessing
+                                      ? 0.45
+                                      : 1,
+                                },
+                              ]}
+                            >
+                              <Text
+                                numberOfLines={1}
+                                style={[
+                                  styles.textTabText,
+                                  {
+                                    color:
+                                      openedTextTab ===
+                                        tab
+                                        ? '#FFFFFF'
+                                        : T.accent,
+                                    fontSize:
+                                      F.base - 3,
+                                  },
+                                ]}
+                              >
+                                {label}
+                              </Text>
+                            </Pressable>
+                          )
+                        )}
+                      </View>
 
 
                       <View
@@ -3957,7 +3487,7 @@ export default function VoiceScreen() {
                       >
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel="Re-transcribe lecture"
+                          accessibilityLabel={audioUi.retranscribeAccessibility}
                           disabled={
                             isLectureProcessing
                           }
@@ -3965,6 +3495,10 @@ export default function VoiceScreen() {
                             confirmRetranscribe(
                               lecture,
                               async () => {
+                                setOpenedTextTab(
+                                  'source'
+                                );
+
                                 setTranscriptUpdatedLectureId(
                                   null
                                 );
@@ -3989,26 +3523,7 @@ export default function VoiceScreen() {
                                   );
                                 }
 
-                                clearPlaybackLoadTimers();
-
-                                pendingPlaybackIdRef.current =
-                                  null;
-
-                                pendingPlaybackUriRef.current =
-                                  null;
-
-                                pendingPlaybackSeekRef.current =
-                                  null;
-
-                                setLoadingLectureId(
-                                  null
-                                );
-
-                                if (
-                                  playerStatus.playing
-                                ) {
-                                  player.pause();
-                                }
+                                pauseForRetranscription();
                               }
                             )
                           }
@@ -4035,51 +3550,115 @@ export default function VoiceScreen() {
                               },
                             ]}
                           >
-                            ↻ Re-transcribe
+                            {audioUi.retranscribe}
                           </Text>
                         </Pressable>
                       </View>
 
-                      <TranslationPanel
-                        target={
-                          translationTarget
-                        }
-                        translating={
-                          translatingLectureId ===
-                            lecture.id
-                        }
-                        processing={
-                          isLectureProcessing
-                        }
-                        translatedText={
-                          openedTranslation
-                        }
-                        error={
-                          translationError
-                        }
-                        accent={
-                          T.accent
-                        }
-                        textSecondary={
-                          T.textSecondary
-                        }
-                        fontBase={
-                          F.base
-                        }
-                        onTarget={
-                          target =>
-                            handleSelectTranslationTarget(
-                              lecture,
-                              target
-                            )
-                        }
-                        onTranslate={
-                          () =>
-                            void handleTranslateTranscript(
-                              lecture
-                            )
-                        }
-                      />
+
+                      {openedTextTab ===
+                        'source' ? (
+
+                        <TranscriptView
+                          segments={
+                            openedTranscriptSegments
+                          }
+                          fallbackText={
+                            openedTranscript
+                          }
+                          isCurrent={
+                            isCurrent
+                          }
+                          isLoaded={
+                            playerStatus.isLoaded
+                          }
+                          currentTime={
+                            playerStatus.currentTime
+                          }
+                          accent={
+                            T.accent
+                          }
+                          textSecondary={
+                            T.textSecondary
+                          }
+                          fontBase={
+                            F.base
+                          }
+                          onSeek={
+                            seconds =>
+                              void handleSeekLectureTo(
+                                lecture,
+                                seconds,
+                                true
+                              )
+                          }
+                        />
+
+                      ) : (
+
+                        <TranslationPanel
+                          target={
+                            openedTextTab
+                          }
+                          translating={
+                            translatingLectureId ===
+                              lecture.id
+                          }
+                          processing={
+                            isLectureProcessing
+                          }
+                          translatedText={
+                            openedTranslation
+                          }
+                          translatedSegments={
+                            openedTranslationSegments
+                          }
+                          error={
+                            translationError
+                          }
+                          accent={
+                            T.accent
+                          }
+                          textSecondary={
+                            T.textSecondary
+                          }
+                          fontBase={
+                            F.base
+                          }
+                          isCurrent={
+                            isCurrent
+                          }
+                          isLoaded={
+                            playerStatus.isLoaded
+                          }
+                          currentTime={
+                            playerStatus.currentTime
+                          }
+                          onSeek={
+                            seconds =>
+                              void handleSeekLectureTo(
+                                lecture,
+                                seconds,
+                                true
+                              )
+                          }
+                          onTarget={
+                            target =>
+                              handleSelectTranslationTarget(
+                                lecture,
+                                target
+                              )
+                          }
+                          onTranslate={
+                            () =>
+                              void handleTranslateTranscript(
+                                lecture
+                              )
+                          }
+                          showTargetSelector={false}
+                        />
+                      )}
+
 
                     </View>
                   )}
@@ -4124,9 +3703,25 @@ const styles =
       padding: 20,
     },
 
-    language: {
-      fontWeight: '700',
+    sourceLanguageRow: {
+      flexDirection: 'row',
+      gap: 8,
       marginBottom: 18,
+    },
+
+    sourceLanguageButton: {
+      minWidth: 74,
+      minHeight: 34,
+      borderWidth: 1,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+
+    sourceLanguageText: {
+      fontWeight: '900',
+      textAlign: 'center',
     },
 
     info: {
@@ -4257,6 +3852,16 @@ const styles =
       textAlign: 'center',
     },
 
+    recordingActionRow: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      gap: 10,
+    },
+
+    recordingMainButton: {
+      flex: 1,
+    },
+
     mainButton: {
       paddingVertical: 17,
       paddingHorizontal: 20,
@@ -4339,9 +3944,20 @@ const styles =
       marginBottom: 5,
     },
 
+    lectureSubDate: {
+      fontWeight: '600',
+      marginBottom: 4,
+    },
+
     lectureMeta: {
       fontWeight: '700',
       lineHeight: 19,
+    },
+
+    lectureHeaderActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
 
     deleteButton: {
@@ -4440,8 +4056,26 @@ const styles =
         StyleSheet.hairlineWidth,
     },
 
+    textTabRow: {
+      flexDirection: 'row',
+      gap: 7,
+      marginBottom: 10,
+    },
 
+    textTabButton: {
+      flex: 1,
+      minHeight: 38,
+      borderWidth: 1,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 5,
+    },
 
+    textTabText: {
+      fontWeight: '800',
+      textAlign: 'center',
+    },
 
 
     savedTranscriptText: {
@@ -4462,7 +4096,7 @@ const styles =
 
 
     retranscribeRow: {
-      marginTop: 14,
+      marginBottom: 14,
       alignItems: 'flex-start',
     },
 
