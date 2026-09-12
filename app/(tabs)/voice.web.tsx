@@ -21,6 +21,10 @@ import {
 } from '@tauri-apps/api/core';
 
 import {
+  listen,
+} from '@tauri-apps/api/event';
+
+import {
   confirm,
   open,
 } from '@tauri-apps/plugin-dialog';
@@ -78,6 +82,32 @@ type WindowsLecture = {
   source: string;
   originalFileName: string | null;
   markers: WindowsLectureMarker[];
+  transcriptReady: boolean;
+  transcriptCharacters: number;
+};
+
+type WindowsTranscriptSegment = {
+  start: number;
+  end: number;
+  text: string;
+};
+
+type WindowsTranscript = {
+  ok: boolean;
+  model: string;
+  language: string;
+  text: string;
+  segments: WindowsTranscriptSegment[];
+  characters: number;
+  audioLoadingMode: string;
+  chunkingStrategy: string;
+};
+
+type WindowsWhisperProgress = {
+  stage: string;
+  percent: number;
+  message: string;
+  lectureId: string | null;
 };
 
 const EMPTY_STATUS: RecordingStatus = {
@@ -292,6 +322,43 @@ export default function WindowsVoiceScreen() {
   ] =
     useState('');
 
+  const [
+    openedTranscriptId,
+    setOpenedTranscriptId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    transcriptByLecture,
+    setTranscriptByLecture,
+  ] =
+    useState<
+      Record<
+        string,
+        WindowsTranscript
+      >
+    >({});
+
+  const [
+    transcribingLectureId,
+    setTranscribingLectureId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    whisperProgress,
+    setWhisperProgress,
+  ] =
+    useState<
+      WindowsWhisperProgress | null
+    >(
+      null
+    );
+
   const pollRef =
     useRef<
       ReturnType<typeof setInterval> | null
@@ -305,6 +372,50 @@ export default function WindowsVoiceScreen() {
   useEffect(
     () => {
       void loadSettings();
+    },
+    []
+  );
+
+  useEffect(
+    () => {
+      let active =
+        true;
+
+      let unlisten:
+        (() => void) | null =
+          null;
+
+      void listen<
+        WindowsWhisperProgress
+      >(
+        'windows-whisper-progress',
+        event => {
+          if (!active) {
+            return;
+          }
+
+          setWhisperProgress(
+            event.payload
+          );
+        }
+      ).then(
+        cleanup => {
+          if (!active) {
+            cleanup();
+            return;
+          }
+
+          unlisten =
+            cleanup;
+        }
+      );
+
+      return () => {
+        active =
+          false;
+
+        unlisten?.();
+      };
     },
     []
   );
@@ -938,6 +1049,225 @@ export default function WindowsVoiceScreen() {
             : String(error)
         );
       }
+    };
+
+  const loadTranscript =
+    async (
+      lecture:
+        WindowsLecture
+    ) => {
+      const cached =
+        transcriptByLecture[
+          lecture.id
+        ];
+
+      if (cached) {
+        return cached;
+      }
+
+      const saved =
+        await invoke<
+          WindowsTranscript | null
+        >(
+          'get_saved_transcript',
+          {
+            id:
+              lecture.id,
+          }
+        );
+
+      if (saved) {
+        setTranscriptByLecture(
+          current => ({
+            ...current,
+            [lecture.id]:
+              saved,
+          })
+        );
+      }
+
+      return saved;
+    };
+
+  const handleToggleTranscript =
+    async (
+      lecture:
+        WindowsLecture
+    ) => {
+      if (
+        openedTranscriptId ===
+          lecture.id
+      ) {
+        setOpenedTranscriptId(
+          null
+        );
+        return;
+      }
+
+      try {
+        const saved =
+          await loadTranscript(
+            lecture
+          );
+
+        if (!saved) {
+          setMessage(
+            audioUi.createTranscriptFirst
+          );
+          return;
+        }
+
+        setOpenedTranscriptId(
+          lecture.id
+        );
+
+        setMessage(
+          null
+        );
+      }
+      catch (error) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+      }
+    };
+
+  const handleTranscribe =
+    async (
+      lecture:
+        WindowsLecture
+    ) => {
+      if (
+        transcribingLectureId ||
+        status.isRecording
+      ) {
+        return;
+      }
+
+      if (
+        lecture.transcriptReady
+      ) {
+        const accepted =
+          await confirm(
+            audioUi.retranscribePrompt,
+            {
+              title:
+                audioUi.retranscribeTitle,
+              kind:
+                'warning',
+              okLabel:
+                audioUi.retranscribeConfirm,
+              cancelLabel:
+                audioUi.cancel,
+            }
+          );
+
+        if (!accepted) {
+          return;
+        }
+      }
+
+      stopPlayback();
+
+      setTranscribingLectureId(
+        lecture.id
+      );
+
+      setWhisperProgress({
+        stage:
+          'preparing',
+        percent:
+          0,
+        message:
+          'Preparing local Whisper model',
+        lectureId:
+          lecture.id,
+      });
+
+      setMessage(
+        null
+      );
+
+      try {
+        const result =
+          await invoke<
+            WindowsTranscript
+          >(
+            'transcribe_lecture',
+            {
+              id:
+                lecture.id,
+              language:
+                lecture.language,
+            }
+          );
+
+        setTranscriptByLecture(
+          current => ({
+            ...current,
+            [lecture.id]:
+              result,
+          })
+        );
+
+        setOpenedTranscriptId(
+          lecture.id
+        );
+
+        await refreshLibrary();
+
+        setMessage(
+          lecture.transcriptReady
+            ? audioUi.transcriptUpdated
+            : audioUi.transcriptReady
+        );
+      }
+      catch (error) {
+        console.error(
+          'Windows Whisper transcription error:',
+          error
+        );
+
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+      }
+      finally {
+        setTranscribingLectureId(
+          null
+        );
+      }
+    };
+
+  const handleTranscriptSeek =
+    async (
+      lecture:
+        WindowsLecture,
+      seconds:
+        number
+    ) => {
+      if (
+        playingLectureId !==
+          lecture.id
+      ) {
+        await handlePlay(
+          lecture
+        );
+      }
+
+      window.setTimeout(
+        () => {
+          seekTo(
+            lecture.id,
+            seconds
+          );
+        },
+        80
+      );
     };
 
   const currentPlaying =
@@ -1929,10 +2259,294 @@ export default function WindowsVoiceScreen() {
                         T.textSecondary,
                       fontSize:
                         F.base - 2,
+                      fontWeight:
+                        '800',
                     }}
                   >
-                    {audioUi.readyForTranscription}
+                    {lecture.transcriptReady
+                      ? `${audioUi.transcriptReady} · ${lecture.transcriptCharacters}`
+                      : audioUi.readyForTranscription}
                   </Text>
+
+                  {transcribingLectureId ===
+                    lecture.id ? (
+                    <View
+                      style={
+                        styles.whisperProgressBox
+                      }
+                    >
+                      <Text
+                        style={{
+                          color:
+                            T.accent,
+                          fontSize:
+                            F.base - 2,
+                          fontWeight:
+                            '900',
+                        }}
+                      >
+                        {whisperProgress?.stage ===
+                          'downloading-model'
+                          ? `${audioUi.preparingWhisper} ${whisperProgress.percent}%`
+                          : whisperProgress?.stage ===
+                              'retrying'
+                            ? audioUi.noTextRetrying
+                            : `${audioUi.transcribingLocally.replace(
+                                'на цьому iPhone',
+                                'на цьому PC'
+                              ).replace(
+                                'this iPhone',
+                                'this PC'
+                              ).replace(
+                                'denne iPhonen',
+                                'denne PC-en'
+                              )} ${whisperProgress?.percent ?? 0}%`}
+                      </Text>
+
+                      <View
+                        style={[
+                          styles.progressTrack,
+                          {
+                            backgroundColor:
+                              `${T.accent}1C`,
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.progressFill,
+                            {
+                              backgroundColor:
+                                T.accent,
+                              width:
+                                `${Math.max(
+                                  2,
+                                  Math.min(
+                                    100,
+                                    whisperProgress?.percent ?? 0
+                                  )
+                                )}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+
+                      <Text
+                        style={{
+                          color:
+                            T.textSecondary,
+                          fontSize:
+                            F.base - 3,
+                          marginTop:
+                            8,
+                        }}
+                      >
+                        {audioUi.processingLocally}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View
+                      style={
+                        styles.transcriptActionRow
+                      }
+                    >
+                      <Pressable
+                        disabled={
+                          !!transcribingLectureId ||
+                          status.isRecording
+                        }
+                        onPress={() =>
+                          void handleTranscribe(
+                            lecture
+                          )
+                        }
+                        style={[
+                          styles.transcriptButton,
+                          {
+                            backgroundColor:
+                              T.accent,
+                            opacity:
+                              transcribingLectureId ||
+                              status.isRecording
+                                ? 0.45
+                                : 1,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={
+                            styles.transcriptButtonText
+                          }
+                        >
+                          {lecture.transcriptReady
+                            ? audioUi.retranscribe
+                            : audioUi.createTranscript}
+                        </Text>
+                      </Pressable>
+
+                      {lecture.transcriptReady ? (
+                        <Pressable
+                          onPress={() =>
+                            void handleToggleTranscript(
+                              lecture
+                            )
+                          }
+                          style={[
+                            styles.transcriptOutlineButton,
+                            {
+                              borderColor:
+                                T.accent,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color:
+                                T.accent,
+                              fontSize:
+                                F.base - 2,
+                              fontWeight:
+                                '900',
+                            }}
+                          >
+                            {openedTranscriptId ===
+                              lecture.id
+                              ? audioUi.hideText
+                              : audioUi.showText}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  )}
+
+                  {openedTranscriptId ===
+                    lecture.id &&
+                  transcriptByLecture[
+                    lecture.id
+                  ] ? (
+                    <View
+                      style={
+                        styles.transcriptPanel
+                      }
+                    >
+                      <Text
+                        style={{
+                          color:
+                            T.textPrimary,
+                          fontSize:
+                            F.base,
+                          fontWeight:
+                            '900',
+                          marginBottom:
+                            10,
+                        }}
+                      >
+                        {lecture.language ===
+                          'en'
+                          ? 'English'
+                          : 'Norsk'}
+                      </Text>
+
+                      {transcriptByLecture[
+                        lecture.id
+                      ].segments.length >
+                        0 ? (
+                        transcriptByLecture[
+                          lecture.id
+                        ].segments.map(
+                          (
+                            segment,
+                            index
+                          ) => {
+                            const active =
+                              playingLectureId ===
+                                lecture.id &&
+                              playbackCurrent >=
+                                segment.start &&
+                              playbackCurrent <
+                                Math.max(
+                                  segment.end,
+                                  segment.start +
+                                    0.1
+                                );
+
+                            return (
+                              <Pressable
+                                key={
+                                  `${segment.start}-${index}`
+                                }
+                                onPress={() =>
+                                  void handleTranscriptSeek(
+                                    lecture,
+                                    segment.start
+                                  )
+                                }
+                                style={[
+                                  styles.transcriptRow,
+                                  {
+                                    backgroundColor:
+                                      active
+                                        ? `${T.accent}18`
+                                        : 'transparent',
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={{
+                                    color:
+                                      T.accent,
+                                    fontSize:
+                                      F.base - 3,
+                                    fontWeight:
+                                      '900',
+                                    minWidth:
+                                      46,
+                                  }}
+                                >
+                                  {formatTime(
+                                    segment.start *
+                                      1000
+                                  )}
+                                </Text>
+
+                                <Text
+                                  selectable
+                                  style={{
+                                    color:
+                                      T.textSecondary,
+                                    fontSize:
+                                      F.base,
+                                    lineHeight:
+                                      24,
+                                    flex:
+                                      1,
+                                  }}
+                                >
+                                  {segment.text}
+                                </Text>
+                              </Pressable>
+                            );
+                          }
+                        )
+                      ) : (
+                        <Text
+                          selectable
+                          style={{
+                            color:
+                              T.textSecondary,
+                            fontSize:
+                              F.base,
+                            lineHeight:
+                              24,
+                          }}
+                        >
+                          {transcriptByLecture[
+                            lecture.id
+                          ].text}
+                        </Text>
+                      )}
+                    </View>
+                  ) : null}
                 </View>
               </View>
             );
@@ -2394,6 +3008,115 @@ const styles =
         1,
       borderTopColor:
         'rgba(127,127,127,0.14)',
+    },
+
+    whisperProgressBox: {
+      marginTop:
+        12,
+    },
+
+    progressTrack: {
+      width:
+        '100%',
+      height:
+        8,
+      borderRadius:
+        999,
+      overflow:
+        'hidden',
+      marginTop:
+        10,
+    },
+
+    progressFill: {
+      height:
+        '100%',
+      borderRadius:
+        999,
+    },
+
+    transcriptActionRow: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        8,
+      marginTop:
+        12,
+    },
+
+    transcriptButton: {
+      flexGrow:
+        1,
+      flexBasis:
+        210,
+      minHeight:
+        46,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        12,
+    },
+
+    transcriptButtonText: {
+      color:
+        '#FFFFFF',
+      fontWeight:
+        '900',
+      fontSize:
+        15,
+      textAlign:
+        'center',
+    },
+
+    transcriptOutlineButton: {
+      flexGrow:
+        1,
+      flexBasis:
+        150,
+      minHeight:
+        46,
+      borderWidth:
+        1.2,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        12,
+    },
+
+    transcriptPanel: {
+      marginTop:
+        14,
+      paddingTop:
+        14,
+      borderTopWidth:
+        1,
+      borderTopColor:
+        'rgba(127,127,127,0.14)',
+    },
+
+    transcriptRow: {
+      flexDirection:
+        'row',
+      alignItems:
+        'flex-start',
+      gap:
+        10,
+      paddingVertical:
+        8,
+      paddingHorizontal:
+        8,
+      borderRadius:
+        10,
     },
 
     nowPlaying: {

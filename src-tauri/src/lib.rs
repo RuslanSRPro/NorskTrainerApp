@@ -1,6 +1,7 @@
 mod windows_library;
 mod windows_loopback;
 mod windows_recorder;
+mod windows_whisper;
 
 use windows_library::{
     adopt_recording, delete_lecture, import_audio, list_lectures, rename_lecture,
@@ -13,6 +14,10 @@ use windows_loopback::{
 
 use windows_recorder::{
     get_recording_status, list_recordings, start_recording, stop_recording, RecorderState,
+};
+
+use windows_whisper::{
+    get_saved_transcript, get_whisper_model_status, prepare_whisper_model, transcribe_lecture,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,7 +41,11 @@ pub fn run() {
             delete_lecture,
             save_lecture_markers,
             update_lecture_duration,
-            set_lecture_language
+            set_lecture_language,
+            get_whisper_model_status,
+            prepare_whisper_model,
+            get_saved_transcript,
+            transcribe_lecture
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
