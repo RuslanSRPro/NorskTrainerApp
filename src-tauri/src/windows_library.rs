@@ -643,3 +643,118 @@ pub fn set_lecture_language(
     write_session(&directory, &session)?;
     session_to_lecture(&directory, session)
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowsTranslationSegment {
+    start: f64,
+    end: f64,
+    text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowsSavedTranslation {
+    target: String,
+    text: String,
+    segments: Vec<WindowsTranslationSegment>,
+}
+
+fn normalize_translation_target(target: &str) -> Result<&'static str, String> {
+    match target.trim().to_ascii_lowercase().as_str() {
+        "uk" => Ok("uk"),
+
+        "ru" => Ok("ru"),
+
+        _ => Err("Unsupported translation target.".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn save_lecture_translation(
+    app: AppHandle,
+    id: String,
+    target: String,
+    text: String,
+    segments: Vec<WindowsTranslationSegment>,
+) -> Result<WindowsSavedTranslation, String> {
+    let directory = lecture_dir(&app, &id)?;
+
+    if !directory.exists() {
+        return Err("Lecture does not exist.".to_string());
+    }
+
+    let target = normalize_translation_target(&target)?;
+
+    let normalized_text = text.trim().to_string();
+
+    if normalized_text.is_empty() {
+        return Err("Translation is empty.".to_string());
+    }
+
+    fs::write(
+        directory.join(format!("translation-{target}.txt")),
+        normalized_text.as_bytes(),
+    )
+    .map_err(|error| format!("Could not save translation: {error}"))?;
+
+    fs::write(
+        directory.join(format!("translation-{target}-segments.json")),
+        serde_json::to_vec_pretty(&segments)
+            .map_err(|error| format!("Could not serialize translation timestamps: {error}"))?,
+    )
+    .map_err(|error| format!("Could not save translation timestamps: {error}"))?;
+
+    Ok(WindowsSavedTranslation {
+        target: target.to_string(),
+        text: normalized_text,
+        segments,
+    })
+}
+
+#[tauri::command]
+pub fn get_saved_translation(
+    app: AppHandle,
+    id: String,
+    target: String,
+) -> Result<Option<WindowsSavedTranslation>, String> {
+    let directory = lecture_dir(&app, &id)?;
+
+    if !directory.exists() {
+        return Ok(None);
+    }
+
+    let target = normalize_translation_target(&target)?;
+
+    let text_path = directory.join(format!("translation-{target}.txt"));
+
+    if !text_path.exists() {
+        return Ok(None);
+    }
+
+    let text = fs::read_to_string(&text_path)
+        .map_err(|error| format!("Could not read translation: {error}"))?
+        .trim()
+        .to_string();
+
+    if text.is_empty() {
+        return Ok(None);
+    }
+
+    let segments_path = directory.join(format!("translation-{target}-segments.json"));
+
+    let segments = if segments_path.exists() {
+        fs::read(&segments_path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Vec<WindowsTranslationSegment>>(&bytes).ok())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    Ok(Some(WindowsSavedTranslation {
+        target: target.to_string(),
+        text,
+        segments,
+    }))
+}

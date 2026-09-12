@@ -452,17 +452,31 @@ fn run_whisper(
 ) -> Result<WindowsTranscriptResult, String> {
     let path_string = model_path.to_string_lossy().to_string();
 
-    let mut context_params = WhisperContextParameters::default();
+    let mut gpu_params = WhisperContextParameters::default();
 
-    /*
-     * CPU is the portability baseline for the first Windows
-     * implementation. GPU backends can be enabled later without
-     * changing the JS contract.
-     */
-    context_params.use_gpu = false;
+    gpu_params.use_gpu = true;
 
-    let context = WhisperContext::new_with_params(&path_string, context_params)
-        .map_err(|error| format!("Could not load Whisper model: {error}"))?;
+    let context = match WhisperContext::new_with_params(&path_string, gpu_params) {
+        Ok(context) => context,
+
+        Err(gpu_error) => {
+            emit_progress(
+                app,
+                "gpu-fallback",
+                0,
+                format!("Vulkan unavailable for this run · falling back to CPU: {gpu_error}"),
+                Some(lecture_id.to_string()),
+            );
+
+            let mut cpu_params = WhisperContextParameters::default();
+
+            cpu_params.use_gpu = false;
+
+            WhisperContext::new_with_params(&path_string, cpu_params).map_err(|cpu_error| {
+                format!("Could not load Whisper model on Vulkan ({gpu_error}) or CPU ({cpu_error})")
+            })?
+        }
+    };
 
     let mut state = context
         .create_state()

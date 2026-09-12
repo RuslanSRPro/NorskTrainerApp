@@ -36,6 +36,14 @@ import {
 } from '@/features/audio/audioUiText';
 
 import {
+  beginWindowsTranslator,
+  translateSegmentsWithSession,
+  type WindowsTranslationTarget,
+  type WindowsTranslatorProgress,
+  type WindowsTranslatorSession,
+} from '@/features/audio/windowsTranslation';
+
+import {
   useSettingsStore,
 } from '@/store/settingsStore';
 
@@ -108,6 +116,23 @@ type WindowsWhisperProgress = {
   percent: number;
   message: string;
   lectureId: string | null;
+};
+
+type WindowsSavedTranslation = {
+  target: WindowsTranslationTarget;
+  text: string;
+  segments: WindowsTranscriptSegment[];
+};
+
+type WindowsLiveSnapshot = {
+  ok: boolean;
+  model: string;
+  backend: string;
+  language: string;
+  text: string;
+  segments: WindowsTranscriptSegment[];
+  windowStart: number;
+  duration: number;
 };
 
 const EMPTY_STATUS: RecordingStatus = {
@@ -201,6 +226,79 @@ function newMarker(
   };
 }
 
+function mergeLiveSegments(
+  current: WindowsTranscriptSegment[],
+  incoming: WindowsTranscriptSegment[],
+  windowStart: number
+) {
+  const keepBefore =
+    windowStart +
+    0.2;
+
+  const kept =
+    current.filter(
+      segment =>
+        segment.end <
+          keepBefore
+    );
+
+  const merged =
+    [
+      ...kept,
+      ...incoming,
+    ]
+      .filter(
+        segment =>
+          segment.text
+            .trim()
+            .length >
+          0
+      )
+      .sort(
+        (left, right) =>
+          left.start -
+          right.start
+      );
+
+  const deduped:
+    WindowsTranscriptSegment[] =
+      [];
+
+  for (
+    const segment
+    of merged
+  ) {
+    const previous =
+      deduped[
+        deduped.length -
+          1
+      ];
+
+    if (
+      previous &&
+      Math.abs(
+        previous.start -
+          segment.start
+      ) <
+        0.25 &&
+      previous.text
+        .trim()
+        .toLowerCase() ===
+        segment.text
+          .trim()
+          .toLowerCase()
+    ) {
+      continue;
+    }
+
+    deduped.push(
+      segment
+    );
+  }
+
+  return deduped;
+}
+
 export default function WindowsVoiceScreen() {
   const {
     theme,
@@ -231,6 +329,13 @@ export default function WindowsVoiceScreen() {
       : uiLanguage === 'no'
         ? 'Tar opp lyden som spilles av i Windows. Fungerer med både høyttalere og hodetelefoner.'
         : 'Records the audio played by Windows. Works with speakers or headphones.';
+
+  const windowsTranslationInfo =
+    uiLanguage === 'ua'
+      ? 'Локальний переклад Microsoft Edge. Після першого завантаження мовної моделі працює на цьому PC.'
+      : uiLanguage === 'no'
+        ? 'Lokal oversettelse med Microsoft Edge. Etter første modellnedlasting kjører den på denne PC-en.'
+        : 'On-device translation with Microsoft Edge. After the first language-model download it runs on this PC.';
 
   const [
     status,
@@ -359,6 +464,104 @@ export default function WindowsVoiceScreen() {
       null
     );
 
+  const [
+    translationTarget,
+    setTranslationTarget,
+  ] =
+    useState<
+      WindowsTranslationTarget
+    >(
+      'uk'
+    );
+
+  const [
+    translationByLecture,
+    setTranslationByLecture,
+  ] =
+    useState<
+      Record<
+        string,
+        Partial<
+          Record<
+            WindowsTranslationTarget,
+            WindowsSavedTranslation
+          >
+        >
+      >
+    >({});
+
+  const [
+    translatingKey,
+    setTranslatingKey,
+  ] =
+    useState<
+      string | null
+    >(
+      null
+    );
+
+  const [
+    translatorProgress,
+    setTranslatorProgress,
+  ] =
+    useState<
+      WindowsTranslatorProgress | null
+    >(
+      null
+    );
+
+  const [
+    liveActive,
+    setLiveActive,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    livePhase,
+    setLivePhase,
+  ] =
+    useState<
+      'idle' |
+      'preparing' |
+      'listening' |
+      'finalizing'
+    >(
+      'idle'
+    );
+
+  const [
+    liveText,
+    setLiveText,
+  ] =
+    useState(
+      ''
+    );
+
+  const [
+    liveTranslation,
+    setLiveTranslation,
+  ] =
+    useState(
+      ''
+    );
+
+  const [
+    liveBackend,
+    setLiveBackend,
+  ] =
+    useState(
+      ''
+    );
+
+  const liveBackendLabel =
+    liveBackend === 'vulkan'
+      ? 'Vulkan GPU'
+      : liveBackend === 'cpu-fallback'
+        ? 'CPU'
+        : '';
+
   const pollRef =
     useRef<
       ReturnType<typeof setInterval> | null
@@ -367,6 +570,75 @@ export default function WindowsVoiceScreen() {
   const audioRef =
     useRef<HTMLAudioElement | null>(
       null
+    );
+
+  const liveSnapshotTimerRef =
+    useRef<
+      ReturnType<typeof setInterval> | null
+    >(
+      null
+    );
+
+  const liveSnapshotBusyRef =
+    useRef(
+      false
+    );
+
+  const liveGenerationRef =
+    useRef(
+      0
+    );
+
+  const livePathRef =
+    useRef<
+      string | null
+    >(
+      null
+    );
+
+  const liveSegmentsRef =
+    useRef<
+      WindowsTranscriptSegment[]
+    >(
+      []
+    );
+
+  const liveTranslatedSegmentsRef =
+    useRef<
+      WindowsTranscriptSegment[]
+    >(
+      []
+    );
+
+  const liveTranslatorRef =
+    useRef<
+      WindowsTranslatorSession | null
+    >(
+      null
+    );
+
+  const liveTranslatorPromiseRef =
+    useRef<
+      Promise<
+        WindowsTranslatorSession
+      > |
+      null
+    >(
+      null
+    );
+
+  const liveSourceLanguageRef =
+    useRef<
+      LectureSourceLanguage
+    >(
+      'nb-NO'
+    );
+
+  const liveTargetRef =
+    useRef<
+      WindowsTranslationTarget
+    >(
+      'uk'
     );
 
   useEffect(
@@ -433,6 +705,46 @@ export default function WindowsVoiceScreen() {
           pollRef.current =
             null;
         }
+      },
+      []
+    );
+
+  const stopLiveSnapshotLoop =
+    useCallback(
+      () => {
+        if (
+          liveSnapshotTimerRef.current
+        ) {
+          clearInterval(
+            liveSnapshotTimerRef.current
+          );
+
+          liveSnapshotTimerRef.current =
+            null;
+        }
+
+        liveSnapshotBusyRef.current =
+          false;
+      },
+      []
+    );
+
+  const destroyLiveTranslator =
+    useCallback(
+      () => {
+        try {
+          liveTranslatorRef.current
+            ?.destroy();
+        }
+        catch {
+          // no-op
+        }
+
+        liveTranslatorRef.current =
+          null;
+
+        liveTranslatorPromiseRef.current =
+          null;
       },
       []
     );
@@ -546,18 +858,769 @@ export default function WindowsVoiceScreen() {
       return () => {
         stopPolling();
         stopPlayback();
+        stopLiveSnapshotLoop();
+        destroyLiveTranslator();
       };
     },
     [
+      destroyLiveTranslator,
       refreshLibrary,
+      stopLiveSnapshotLoop,
       stopPlayback,
       stopPolling,
     ]
   );
 
+  const runLiveSnapshot =
+    useCallback(
+      async (
+        generation:
+          number
+      ) => {
+        if (
+          generation !==
+            liveGenerationRef.current ||
+          liveSnapshotBusyRef.current
+        ) {
+          return;
+        }
+
+        const recordingPath =
+          livePathRef.current;
+
+        if (!recordingPath) {
+          return;
+        }
+
+        liveSnapshotBusyRef.current =
+          true;
+
+        try {
+          const prompt =
+            liveSegmentsRef.current
+              .map(
+                segment =>
+                  segment.text
+              )
+              .join(' ');
+
+          const snapshot =
+            await invoke<
+              WindowsLiveSnapshot
+            >(
+              'transcribe_live_snapshot',
+              {
+                recordingPath,
+                language:
+                  liveSourceLanguageRef.current,
+                windowSeconds:
+                  12,
+                prompt,
+              }
+            );
+
+          if (
+            generation !==
+              liveGenerationRef.current
+          ) {
+            return;
+          }
+
+          setLiveBackend(
+            snapshot.backend
+          );
+
+          const merged =
+            mergeLiveSegments(
+              liveSegmentsRef.current,
+              snapshot.segments,
+              snapshot.windowStart
+            );
+
+          liveSegmentsRef.current =
+            merged;
+
+          setLiveText(
+            merged
+              .map(
+                segment =>
+                  segment.text
+              )
+              .join(' ')
+              .trim()
+          );
+
+          const translator =
+            liveTranslatorRef.current;
+
+          if (
+            translator &&
+            snapshot.segments.length >
+              0
+          ) {
+            try {
+              const translatedWindow =
+                await translateSegmentsWithSession(
+                  translator,
+                  snapshot.segments
+                );
+
+              if (
+                generation !==
+                  liveGenerationRef.current
+              ) {
+                return;
+              }
+
+              const mergedTranslation =
+                mergeLiveSegments(
+                  liveTranslatedSegmentsRef.current,
+                  translatedWindow.segments,
+                  snapshot.windowStart
+                );
+
+              liveTranslatedSegmentsRef.current =
+                mergedTranslation;
+
+              setLiveTranslation(
+                mergedTranslation
+                  .map(
+                    segment =>
+                      segment.text
+                  )
+                  .join(' ')
+                  .trim()
+              );
+            }
+            catch (translationError) {
+              console.warn(
+                'Live translation update failed:',
+                translationError
+              );
+            }
+          }
+        }
+        catch (error) {
+          const text =
+            error instanceof Error
+              ? error.message
+              : String(error);
+
+          /*
+           * The recorder flushes checkpoints every 500 ms. A
+           * snapshot can occasionally hit the file between two
+           * checkpoints; the next interval simply retries.
+           */
+          if (
+            !/waiting for more speech|not ready yet|does not contain audio/i
+              .test(
+                text
+              )
+          ) {
+            console.warn(
+              'Live snapshot skipped:',
+              text
+            );
+          }
+        }
+        finally {
+          liveSnapshotBusyRef.current =
+            false;
+        }
+      },
+      []
+    );
+
+  const startLiveSnapshotLoop =
+    useCallback(
+      (
+        generation:
+          number
+      ) => {
+        stopLiveSnapshotLoop();
+
+        void runLiveSnapshot(
+          generation
+        );
+
+        liveSnapshotTimerRef.current =
+          setInterval(
+            () => {
+              void runLiveSnapshot(
+                generation
+              );
+            },
+            3500
+          );
+      },
+      [
+        runLiveSnapshot,
+        stopLiveSnapshotLoop,
+      ]
+    );
+
+  const resetLiveUi =
+    useCallback(
+      () => {
+        stopLiveSnapshotLoop();
+
+        livePathRef.current =
+          null;
+
+        liveSegmentsRef.current =
+          [];
+
+        liveTranslatedSegmentsRef.current =
+          [];
+
+        setLiveText(
+          ''
+        );
+
+        setLiveTranslation(
+          ''
+        );
+
+        setLiveBackend(
+          ''
+        );
+
+        setLivePhase(
+          'idle'
+        );
+
+        setLiveActive(
+          false
+        );
+      },
+      [
+        stopLiveSnapshotLoop,
+      ]
+    );
+
+  const handleLive =
+    async () => {
+      if (
+        liveActive &&
+        livePhase ===
+          'finalizing'
+      ) {
+        return;
+      }
+
+      if (
+        liveActive
+      ) {
+        setBusy(
+          true
+        );
+
+        setLivePhase(
+          'finalizing'
+        );
+
+        const generation =
+          ++liveGenerationRef.current;
+
+        stopLiveSnapshotLoop();
+
+        try {
+          const stopped =
+            await invoke<
+              RecordingStatus
+            >(
+              'stop_system_recording'
+            );
+
+          stopPolling();
+
+          if (
+            !stopped.path
+          ) {
+            throw new Error(
+              audioUi.recordingNotSaved
+            );
+          }
+
+          const lecture =
+            await invoke<
+              WindowsLecture
+            >(
+              'adopt_recording',
+              {
+                recordingPath:
+                  stopped.path,
+                language:
+                  liveSourceLanguageRef.current,
+              }
+            );
+
+          if (
+            activeMarkers.length >
+              0
+          ) {
+            await invoke(
+              'save_lecture_markers',
+              {
+                id:
+                  lecture.id,
+                markers:
+                  activeMarkers,
+              }
+            );
+          }
+
+          setStatus(
+            EMPTY_STATUS
+          );
+
+          setActiveMarkers(
+            []
+          );
+
+          /*
+           * Accuracy-first final pass: Live preview is provisional.
+           * The saved lecture always receives a full-file transcript
+           * from the large Turbo model.
+           */
+          const finalTranscript =
+            await invoke<
+              WindowsTranscript
+            >(
+              'transcribe_lecture',
+              {
+                id:
+                  lecture.id,
+                language:
+                  liveSourceLanguageRef.current,
+              }
+            );
+
+          if (
+            generation !==
+              liveGenerationRef.current
+          ) {
+            return;
+          }
+
+          setTranscriptByLecture(
+            current => ({
+              ...current,
+              [lecture.id]:
+                finalTranscript,
+            })
+          );
+
+          setOpenedTranscriptId(
+            lecture.id
+          );
+
+          let translator =
+            liveTranslatorRef.current;
+
+          if (
+            !translator &&
+            liveTranslatorPromiseRef.current
+          ) {
+            try {
+              translator =
+                await liveTranslatorPromiseRef.current;
+
+              liveTranslatorRef.current =
+                translator;
+            }
+            catch (translationError) {
+              console.warn(
+                'Final Live Translator session failed:',
+                translationError
+              );
+            }
+          }
+
+          if (
+            translator &&
+            finalTranscript.text
+              .trim()
+          ) {
+            try {
+              const sourceSegments =
+                finalTranscript.segments.length >
+                  0
+                  ? finalTranscript.segments
+                  : [
+                      {
+                        start:
+                          0,
+                        end:
+                          Math.max(
+                            0.1,
+                            lecture.durationMillis /
+                              1000
+                          ),
+                        text:
+                          finalTranscript.text,
+                      },
+                    ];
+
+              const translated =
+                await translateSegmentsWithSession(
+                  translator,
+                  sourceSegments,
+                  progress => {
+                    setTranslatorProgress(
+                      progress
+                    );
+                  }
+                );
+
+              if (
+                translated.text
+                  .trim()
+              ) {
+                const saved =
+                  await invoke<
+                    WindowsSavedTranslation
+                  >(
+                    'save_lecture_translation',
+                    {
+                      id:
+                        lecture.id,
+                      target:
+                        liveTargetRef.current,
+                      text:
+                        translated.text,
+                      segments:
+                        translated.segments,
+                    }
+                  );
+
+                setTranslationByLecture(
+                  current => ({
+                    ...current,
+                    [lecture.id]: {
+                      ...(
+                        current[
+                          lecture.id
+                        ] ??
+                        {}
+                      ),
+                      [liveTargetRef.current]:
+                        saved,
+                    },
+                  })
+                );
+
+                setTranslationTarget(
+                  liveTargetRef.current
+                );
+              }
+            }
+            catch (translationError) {
+              console.warn(
+                'Final Live translation failed:',
+                translationError
+              );
+            }
+          }
+
+          await refreshLibrary();
+
+          setMessage(
+            audioUi.liveSaved
+          );
+        }
+        catch (error) {
+          console.error(
+            'Windows Live finalization error:',
+            error
+          );
+
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : String(error)
+          );
+        }
+        finally {
+          destroyLiveTranslator();
+
+          setTranslatorProgress(
+            null
+          );
+
+          resetLiveUi();
+
+          setStatus(
+            EMPTY_STATUS
+          );
+
+          setBusy(
+            false
+          );
+        }
+
+        return;
+      }
+
+      if (
+        busy ||
+        status.isRecording ||
+        transcribingLectureId ||
+        translatingKey
+      ) {
+        return;
+      }
+
+      const generation =
+        ++liveGenerationRef.current;
+
+      liveSourceLanguageRef.current =
+        sourceLanguage;
+
+      liveTargetRef.current =
+        translationTarget;
+
+      let translatorPromise:
+        Promise<
+          WindowsTranslatorSession
+        > |
+        null =
+          null;
+
+      try {
+        /*
+         * Start the browser translation session directly inside
+         * the Live button gesture. Live transcription still works
+         * if Edge Translator is unavailable.
+         */
+        translatorPromise =
+          beginWindowsTranslator(
+            sourceLanguage,
+            translationTarget,
+            progress => {
+              setTranslatorProgress(
+                progress
+              );
+            }
+          );
+      }
+      catch (translationError) {
+        console.warn(
+          'Live Translator unavailable:',
+          translationError
+        );
+
+        setLiveTranslation(
+          uiLanguage === 'ua'
+            ? 'Локальний переклад недоступний у цьому WebView2.'
+            : uiLanguage === 'no'
+              ? 'Lokal oversettelse er ikke tilgjengelig i denne WebView2-versjonen.'
+              : 'On-device translation is unavailable in this WebView2 runtime.'
+        );
+      }
+
+      liveTranslatorPromiseRef.current =
+        translatorPromise;
+
+      setBusy(
+        true
+      );
+
+      setMessage(
+        null
+      );
+
+      stopPlayback();
+
+      setActiveMarkers(
+        []
+      );
+
+      liveSegmentsRef.current =
+        [];
+
+      liveTranslatedSegmentsRef.current =
+        [];
+
+      setLiveText(
+        ''
+      );
+
+      setLiveTranslation(
+        ''
+      );
+
+      setLiveBackend(
+        ''
+      );
+
+      setLivePhase(
+        'preparing'
+      );
+
+      try {
+        /*
+         * Capture begins immediately. Model loading happens in
+         * parallel, matching the iOS Live latency strategy.
+         */
+        const recordingPromise =
+          invoke<
+            RecordingStatus
+          >(
+            'start_system_recording'
+          );
+
+        const modelPromise =
+          invoke(
+            'prepare_live_whisper_model'
+          );
+
+        const started =
+          await recordingPromise;
+
+        if (
+          generation !==
+            liveGenerationRef.current
+        ) {
+          return;
+        }
+
+        if (
+          !started.path
+        ) {
+          throw new Error(
+            audioUi.recordingNotSaved
+          );
+        }
+
+        livePathRef.current =
+          started.path;
+
+        setStatus(
+          started
+        );
+
+        setLiveActive(
+          true
+        );
+
+        startPolling();
+
+        /*
+         * Once capture has started, Stop Live must remain clickable
+         * even while the model is downloading.
+         */
+        setBusy(
+          false
+        );
+
+        if (
+          translatorPromise
+        ) {
+          void translatorPromise
+            .then(
+              translator => {
+                if (
+                  generation !==
+                    liveGenerationRef.current
+                ) {
+                  translator.destroy();
+                  return;
+                }
+
+                liveTranslatorRef.current =
+                  translator;
+              }
+            )
+            .catch(
+              translationError => {
+                console.warn(
+                  'Live Translator session failed:',
+                  translationError
+                );
+
+                setLiveTranslation(
+                  uiLanguage === 'ua'
+                    ? 'Локальний переклад недоступний у цьому WebView2.'
+                    : uiLanguage === 'no'
+                      ? 'Lokal oversettelse er ikke tilgjengelig i denne WebView2-versjonen.'
+                      : 'On-device translation is unavailable in this WebView2 runtime.'
+                );
+              }
+            );
+        }
+
+        await modelPromise;
+
+        if (
+          generation !==
+            liveGenerationRef.current
+        ) {
+          return;
+        }
+
+        setLivePhase(
+          'listening'
+        );
+
+        startLiveSnapshotLoop(
+          generation
+        );
+      }
+      catch (error) {
+        console.error(
+          'Windows Live start error:',
+          error
+        );
+
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+
+        destroyLiveTranslator();
+
+        try {
+          const current =
+            await invoke<
+              RecordingStatus
+            >(
+              'get_system_recording_status'
+            );
+
+          if (
+            current.isRecording
+          ) {
+            await invoke(
+              'stop_system_recording'
+            );
+          }
+        }
+        catch {
+          // no-op
+        }
+
+        stopPolling();
+
+        resetLiveUi();
+
+        setStatus(
+          EMPTY_STATUS
+        );
+
+        setBusy(
+          false
+        );
+      }
+    };
+
   const handleRecording =
     async () => {
-      if (busy) {
+      if (
+        busy ||
+        liveActive
+      ) {
         return;
       }
 
@@ -1089,6 +2152,278 @@ export default function WindowsVoiceScreen() {
       return saved;
     };
 
+  const loadSavedTranslation =
+    async (
+      lecture:
+        WindowsLecture,
+      target:
+        WindowsTranslationTarget
+    ) => {
+      const cached =
+        translationByLecture[
+          lecture.id
+        ]?.[
+          target
+        ];
+
+      if (cached) {
+        return cached;
+      }
+
+      const saved =
+        await invoke<
+          WindowsSavedTranslation | null
+        >(
+          'get_saved_translation',
+          {
+            id:
+              lecture.id,
+            target,
+          }
+        );
+
+      if (saved) {
+        setTranslationByLecture(
+          current => ({
+            ...current,
+            [lecture.id]: {
+              ...(
+                current[
+                  lecture.id
+                ] ??
+                {}
+              ),
+              [target]:
+                saved,
+            },
+          })
+        );
+      }
+
+      return saved;
+    };
+
+  const handleSelectTranslationTarget =
+    async (
+      lecture:
+        WindowsLecture,
+      target:
+        WindowsTranslationTarget
+    ) => {
+      setTranslationTarget(
+        target
+      );
+
+      try {
+        await loadSavedTranslation(
+          lecture,
+          target
+        );
+      }
+      catch (error) {
+        console.error(
+          'Could not load Windows translation:',
+          error
+        );
+      }
+    };
+
+  const handleTranslate =
+    async (
+      lecture:
+        WindowsLecture,
+      target:
+        WindowsTranslationTarget
+    ) => {
+      if (
+        translatingKey ||
+        transcribingLectureId ||
+        status.isRecording
+      ) {
+        return;
+      }
+
+      let translatorPromise:
+        Promise<
+          WindowsTranslatorSession
+        >;
+
+      try {
+        /*
+         * Begin the Edge Translator session immediately from the
+         * click event. A first-time model download requires recent
+         * user activation.
+         */
+        translatorPromise =
+          beginWindowsTranslator(
+            lecture.language,
+            target,
+            progress => {
+              setTranslatorProgress(
+                progress
+              );
+            }
+          );
+      }
+      catch (error) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+        return;
+      }
+
+      setTranslatingKey(
+        `${lecture.id}:${target}`
+      );
+
+      setTranslatorProgress({
+        stage:
+          'preparing',
+        percent:
+          0,
+      });
+
+      setMessage(
+        null
+      );
+
+      let translator:
+        WindowsTranslatorSession | null =
+          null;
+
+      try {
+        const [
+          transcript,
+          createdTranslator,
+        ] =
+          await Promise.all([
+            loadTranscript(
+              lecture
+            ),
+            translatorPromise,
+          ]);
+
+        translator =
+          createdTranslator;
+
+        if (
+          !transcript ||
+          !transcript.text
+            .trim()
+        ) {
+          throw new Error(
+            audioUi.createTranscriptFirst
+          );
+        }
+
+        const sourceSegments =
+          transcript.segments.length >
+            0
+            ? transcript.segments
+            : [
+                {
+                  start:
+                    0,
+                  end:
+                    Math.max(
+                      0.1,
+                      lecture.durationMillis /
+                        1000
+                    ),
+                  text:
+                    transcript.text,
+                },
+              ];
+
+        const translated =
+          await translateSegmentsWithSession(
+            translator,
+            sourceSegments,
+            progress => {
+              setTranslatorProgress(
+                progress
+              );
+            }
+          );
+
+        if (
+          !translated.text
+            .trim()
+        ) {
+          throw new Error(
+            audioUi.emptyTranslation
+          );
+        }
+
+        const saved =
+          await invoke<
+            WindowsSavedTranslation
+          >(
+            'save_lecture_translation',
+            {
+              id:
+                lecture.id,
+              target,
+              text:
+                translated.text,
+              segments:
+                translated.segments,
+            }
+          );
+
+        setTranslationByLecture(
+          current => ({
+            ...current,
+            [lecture.id]: {
+              ...(
+                current[
+                  lecture.id
+                ] ??
+                {}
+              ),
+              [target]:
+                saved,
+            },
+          })
+        );
+
+        setTranslationTarget(
+          target
+        );
+      }
+      catch (error) {
+        console.error(
+          'Windows on-device translation error:',
+          error
+        );
+
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+      }
+      finally {
+        try {
+          translator
+            ?.destroy();
+        }
+        catch {
+          // no-op
+        }
+
+        setTranslatingKey(
+          null
+        );
+
+        setTranslatorProgress(
+          null
+        );
+      }
+    };
+
   const handleToggleTranscript =
     async (
       lecture:
@@ -1119,6 +2454,11 @@ export default function WindowsVoiceScreen() {
 
         setOpenedTranscriptId(
           lecture.id
+        );
+
+        void loadSavedTranslation(
+          lecture,
+          translationTarget
         );
 
         setMessage(
@@ -1548,11 +2888,76 @@ export default function WindowsVoiceScreen() {
 
         <View
           style={
+            styles.liveTargetRow
+          }
+        >
+          {(
+            [
+              ['uk', '🇺🇦'],
+              ['ru', '🇷🇺'],
+            ] as const
+          ).map(
+            ([target, label]) => (
+              <Pressable
+                key={target}
+                disabled={
+                  liveActive ||
+                  busy
+                }
+                onPress={() =>
+                  setTranslationTarget(
+                    target
+                  )
+                }
+                style={[
+                  styles.liveTargetButton,
+                  {
+                    borderColor:
+                      T.accent,
+                    backgroundColor:
+                      translationTarget ===
+                        target
+                        ? `${T.accent}18`
+                        : 'transparent',
+                    opacity:
+                      liveActive ||
+                      busy
+                        ? 0.55
+                        : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color:
+                      T.accent,
+                    fontSize:
+                      F.base - 1,
+                    fontWeight:
+                      '900',
+                  }}
+                >
+                  {label} {
+                    target === 'uk'
+                      ? audioUi.ukrainian
+                      : audioUi.russian
+                  }
+                </Text>
+              </Pressable>
+            )
+          )}
+        </View>
+
+        <View
+          style={
             styles.actionRow
           }
         >
           <Pressable
-            disabled={busy}
+            disabled={
+              busy ||
+              liveActive
+            }
             onPress={
               handleRecording
             }
@@ -1560,12 +2965,14 @@ export default function WindowsVoiceScreen() {
               styles.mainButton,
               {
                 backgroundColor:
-                  status.isRecording
+                  status.isRecording &&
+                  !liveActive
                     ? '#C94B4B'
                     : T.accent,
                 opacity:
-                  busy
-                    ? 0.55
+                  busy ||
+                  liveActive
+                    ? 0.45
                     : 1,
               },
             ]}
@@ -1575,38 +2982,208 @@ export default function WindowsVoiceScreen() {
                 styles.mainButtonText
               }
             >
-              {status.isRecording
+              {status.isRecording &&
+              !liveActive
                 ? audioUi.stopRecording
                 : audioUi.startRecording}
             </Text>
           </Pressable>
 
           <Pressable
-            disabled
+            disabled={
+              livePhase ===
+                'finalizing' ||
+              (
+                busy &&
+                !liveActive
+              ) ||
+              (
+                status.isRecording &&
+                !liveActive
+              ) ||
+              !!transcribingLectureId ||
+              !!translatingKey
+            }
+            onPress={() =>
+              void handleLive()
+            }
             style={[
               styles.liveButton,
               {
                 borderColor:
-                  T.accent,
+                  liveActive
+                    ? '#C94B4B'
+                    : T.accent,
+                backgroundColor:
+                  liveActive
+                    ? '#C94B4B'
+                    : 'transparent',
                 opacity:
-                  0.45,
+                  livePhase ===
+                    'finalizing' ||
+                  (
+                    busy &&
+                    !liveActive
+                  ) ||
+                  (
+                    status.isRecording &&
+                    !liveActive
+                  ) ||
+                  !!transcribingLectureId ||
+                  !!translatingKey
+                    ? 0.45
+                    : 1,
               },
             ]}
           >
             <Text
               style={{
                 color:
-                  T.accent,
+                  liveActive
+                    ? '#FFFFFF'
+                    : T.accent,
                 fontWeight:
                   '900',
                 fontSize:
                   F.base,
               }}
             >
-              ● {audioUi.live}
+              {liveActive
+                ? `■ ${audioUi.live}`
+                : `● ${audioUi.live}`}
             </Text>
           </Pressable>
         </View>
+
+        {liveActive ? (
+          <View
+            style={
+              styles.livePanel
+            }
+          >
+            <View
+              style={
+                styles.liveHeader
+              }
+            >
+              <Text
+                style={{
+                  color:
+                    T.textPrimary,
+                  fontSize:
+                    F.base,
+                  fontWeight:
+                    '900',
+                }}
+              >
+                {audioUi.liveTitle}
+              </Text>
+
+              {liveBackendLabel ? (
+                <Text
+                  style={{
+                    color:
+                      T.textSecondary,
+                    fontSize:
+                      F.base - 3,
+                    fontWeight:
+                      '800',
+                  }}
+                >
+                  {liveBackendLabel}
+                </Text>
+              ) : null}
+            </View>
+
+            <Text
+              style={{
+                color:
+                  T.accent,
+                fontSize:
+                  F.base - 2,
+                fontWeight:
+                  '800',
+                marginTop:
+                  8,
+              }}
+            >
+              {livePhase ===
+                'preparing'
+                ? audioUi.livePreparing
+                : livePhase ===
+                    'finalizing'
+                  ? audioUi.liveFinalizing
+                  : audioUi.liveListening}
+            </Text>
+
+            <Text
+              style={[
+                styles.liveSectionTitle,
+                {
+                  color:
+                    T.textPrimary,
+                  fontSize:
+                    F.base - 1,
+                },
+              ]}
+            >
+              {audioUi.liveSource}
+            </Text>
+
+            <Text
+              selectable
+              style={{
+                color:
+                  T.textSecondary,
+                fontSize:
+                  F.base,
+                lineHeight:
+                  24,
+              }}
+            >
+              {liveText ||
+                audioUi.liveWaiting}
+            </Text>
+
+            <Text
+              style={[
+                styles.liveSectionTitle,
+                {
+                  color:
+                    T.textPrimary,
+                  fontSize:
+                    F.base - 1,
+                },
+              ]}
+            >
+              {audioUi.liveTranslation} · {
+                translationTarget ===
+                  'uk'
+                  ? audioUi.ukrainian
+                  : audioUi.russian
+              }
+            </Text>
+
+            <Text
+              selectable
+              style={{
+                color:
+                  T.textSecondary,
+                fontSize:
+                  F.base,
+                lineHeight:
+                  24,
+              }}
+            >
+              {liveTranslation ||
+                (
+                  liveTranslatorRef.current
+                    ? audioUi.liveWaiting
+                    : windowsTranslationInfo
+                )}
+            </Text>
+          </View>
+        ) : null}
 
         <Pressable
           disabled={
@@ -2547,6 +4124,267 @@ export default function WindowsVoiceScreen() {
                       )}
                     </View>
                   ) : null}
+
+                  {lecture.transcriptReady ? (
+                    <View
+                      style={
+                        styles.translationBox
+                      }
+                    >
+                      <Text
+                        style={{
+                          color:
+                            T.textPrimary,
+                          fontSize:
+                            F.base,
+                          fontWeight:
+                            '900',
+                        }}
+                      >
+                        {audioUi.quickTranslation}
+                      </Text>
+
+                      <Text
+                        style={{
+                          color:
+                            T.textSecondary,
+                          fontSize:
+                            F.base - 3,
+                          lineHeight:
+                            19,
+                          marginTop:
+                            5,
+                        }}
+                      >
+                        {windowsTranslationInfo}
+                      </Text>
+
+                      <View
+                        style={
+                          styles.translationTargetRow
+                        }
+                      >
+                        {(
+                          [
+                            ['uk', `🇺🇦 ${audioUi.ukrainian}`],
+                            ['ru', `🇷🇺 ${audioUi.russian}`],
+                          ] as const
+                        ).map(
+                          ([target, label]) => (
+                            <Pressable
+                              key={target}
+                              disabled={
+                                !!translatingKey
+                              }
+                              onPress={() =>
+                                void handleSelectTranslationTarget(
+                                  lecture,
+                                  target
+                                )
+                              }
+                              style={[
+                                styles.translationTargetButton,
+                                {
+                                  borderColor:
+                                    T.accent,
+                                  backgroundColor:
+                                    translationTarget ===
+                                      target
+                                      ? `${T.accent}18`
+                                      : 'transparent',
+                                  opacity:
+                                    translatingKey
+                                      ? 0.5
+                                      : 1,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={{
+                                  color:
+                                    T.accent,
+                                  fontSize:
+                                    F.base - 2,
+                                  fontWeight:
+                                    '900',
+                                }}
+                              >
+                                {label}
+                              </Text>
+                            </Pressable>
+                          )
+                        )}
+                      </View>
+
+                      <Pressable
+                        disabled={
+                          !!translatingKey ||
+                          !!transcribingLectureId ||
+                          status.isRecording
+                        }
+                        onPress={() =>
+                          void handleTranslate(
+                            lecture,
+                            translationTarget
+                          )
+                        }
+                        style={[
+                          styles.translationButton,
+                          {
+                            backgroundColor:
+                              T.accent,
+                            opacity:
+                              translatingKey ||
+                              transcribingLectureId ||
+                              status.isRecording
+                                ? 0.45
+                                : 1,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={
+                            styles.transcriptButtonText
+                          }
+                        >
+                          {translationByLecture[
+                            lecture.id
+                          ]?.[
+                            translationTarget
+                          ]
+                            ? audioUi.translateAgainAccessibility
+                            : audioUi.translateAccessibility}
+                        </Text>
+                      </Pressable>
+
+                      {translatingKey ===
+                        `${lecture.id}:${translationTarget}` ? (
+                        <View
+                          style={
+                            styles.translationProgressBox
+                          }
+                        >
+                          <Text
+                            style={{
+                              color:
+                                T.accent,
+                              fontSize:
+                                F.base - 2,
+                              fontWeight:
+                                '800',
+                            }}
+                          >
+                            {audioUi.translatingOnDevice
+                              .replace(
+                                'на цьому iPhone',
+                                'на цьому PC'
+                              )
+                              .replace(
+                                'this iPhone',
+                                'this PC'
+                              )
+                              .replace(
+                                'denne iPhonen',
+                                'denne PC-en'
+                              )} {
+                                translatorProgress?.percent ??
+                                0
+                              }%
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {translationByLecture[
+                        lecture.id
+                      ]?.[
+                        translationTarget
+                      ] ? (
+                        <View
+                          style={
+                            styles.translationPanel
+                          }
+                        >
+                          <Text
+                            style={{
+                              color:
+                                T.textPrimary,
+                              fontSize:
+                                F.base,
+                              fontWeight:
+                                '900',
+                              marginBottom:
+                                8,
+                            }}
+                          >
+                            {translationTarget ===
+                              'uk'
+                              ? audioUi.ukrainian
+                              : audioUi.russian}
+                          </Text>
+
+                          {translationByLecture[
+                            lecture.id
+                          ]?.[
+                            translationTarget
+                          ]?.segments.map(
+                            (
+                              segment,
+                              index
+                            ) => (
+                              <Pressable
+                                key={
+                                  `${translationTarget}-${segment.start}-${index}`
+                                }
+                                onPress={() =>
+                                  void handleTranscriptSeek(
+                                    lecture,
+                                    segment.start
+                                  )
+                                }
+                                style={
+                                  styles.transcriptRow
+                                }
+                              >
+                                <Text
+                                  style={{
+                                    color:
+                                      T.accent,
+                                    fontSize:
+                                      F.base - 3,
+                                    fontWeight:
+                                      '900',
+                                    minWidth:
+                                      46,
+                                  }}
+                                >
+                                  {formatTime(
+                                    segment.start *
+                                      1000
+                                  )}
+                                </Text>
+
+                                <Text
+                                  selectable
+                                  style={{
+                                    color:
+                                      T.textSecondary,
+                                    fontSize:
+                                      F.base,
+                                    lineHeight:
+                                      24,
+                                    flex:
+                                      1,
+                                  }}
+                                >
+                                  {segment.text}
+                                </Text>
+                              </Pressable>
+                            )
+                          )}
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               </View>
             );
@@ -3117,6 +4955,139 @@ const styles =
         8,
       borderRadius:
         10,
+    },
+
+    liveTargetRow: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        8,
+      marginTop:
+        18,
+    },
+
+    liveTargetButton: {
+      flexGrow:
+        1,
+      flexBasis:
+        150,
+      minHeight:
+        42,
+      borderWidth:
+        1.2,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        10,
+    },
+
+    livePanel: {
+      marginTop:
+        14,
+      borderTopWidth:
+        1,
+      borderTopColor:
+        'rgba(127,127,127,0.14)',
+      paddingTop:
+        14,
+    },
+
+    liveHeader: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+      gap:
+        10,
+    },
+
+    liveSectionTitle: {
+      fontWeight:
+        '900',
+      marginTop:
+        16,
+      marginBottom:
+        6,
+    },
+
+    translationBox: {
+      marginTop:
+        18,
+      paddingTop:
+        16,
+      borderTopWidth:
+        1,
+      borderTopColor:
+        'rgba(127,127,127,0.14)',
+    },
+
+    translationTargetRow: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        8,
+      marginTop:
+        12,
+    },
+
+    translationTargetButton: {
+      flexGrow:
+        1,
+      flexBasis:
+        150,
+      minHeight:
+        42,
+      borderWidth:
+        1.2,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        10,
+    },
+
+    translationButton: {
+      minHeight:
+        48,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginTop:
+        10,
+      paddingHorizontal:
+        12,
+    },
+
+    translationProgressBox: {
+      marginTop:
+        10,
+    },
+
+    translationPanel: {
+      marginTop:
+        14,
+      paddingTop:
+        14,
+      borderTopWidth:
+        1,
+      borderTopColor:
+        'rgba(127,127,127,0.14)',
     },
 
     nowPlaying: {
