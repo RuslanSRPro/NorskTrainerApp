@@ -65,6 +65,8 @@ pub struct WindowsLecture {
     source: String,
     original_file_name: Option<String>,
     markers: Vec<WindowsLectureMarker>,
+    transcript_ready: bool,
+    transcript_characters: usize,
 }
 
 fn now_millis() -> u64 {
@@ -392,6 +394,18 @@ fn session_to_lecture(
         source: session.source,
         original_file_name: session.original_file_name,
         markers: read_markers(directory),
+        transcript_ready: {
+            let path = directory.join("transcript.txt");
+            fs::read_to_string(path)
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false)
+        },
+        transcript_characters: {
+            let path = directory.join("transcript.txt");
+            fs::read_to_string(path)
+                .map(|value| value.trim().chars().count())
+                .unwrap_or(0)
+        },
     })
 }
 
