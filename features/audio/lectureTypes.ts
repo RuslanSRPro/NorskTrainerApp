@@ -59,11 +59,16 @@ export type SavedTranscriptSegment = {
   avgLogProb?: number;
 };
 
+export type LectureSourceLanguage =
+  | 'nb-NO'
+  | 'en';
+
 export type LectureMetadata = {
   id?: string;
   createdAt?: string | null;
   durationMillis?: number;
-  language?: string;
+  language?: LectureSourceLanguage | string;
+  title?: string | null;
   audioFile?: string | null;
   transcriptFile?: string | null;
   transcriptReady?: boolean;
@@ -71,6 +76,11 @@ export type LectureMetadata = {
   audioBytes?: number;
   source?: 'recorded' | 'imported';
   originalFileName?: string | null;
+  recordingState?:
+    | 'recording'
+    | 'ready'
+    | 'interrupted';
+  interruptionReason?: string | null;
   transcription?: LectureTranscription;
 };
 
@@ -78,13 +88,19 @@ export type LectureItem = {
   id: string;
   createdAt: string | null;
   durationMillis: number;
-  language: string;
+  language: LectureSourceLanguage;
+  title: string | null;
   audioUri: string;
   audioFileName: string;
   transcriptUri: string | null;
   transcriptReady: boolean;
   characters: number;
   audioBytes: number;
+  recordingState:
+    | 'recording'
+    | 'ready'
+    | 'interrupted';
+  interruptionReason: string | null;
   transcription: LectureTranscription;
   markers: LectureMarker[];
   transcriptSegments: SavedTranscriptSegment[];
@@ -93,6 +109,7 @@ export type LectureItem = {
 export type ActiveRecording = {
   id: string;
   createdAt: string;
+  language: LectureSourceLanguage;
   directory: Directory;
   audioFile: File;
 };

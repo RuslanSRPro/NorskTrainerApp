@@ -6,168 +6,172 @@ import {
 } from 'react-native';
 
 import type {
+  SavedTranscriptSegment,
   TranslationTarget,
 } from '@/features/audio/lectureTypes';
 
-type Props = {
-  target:
-    TranslationTarget;
-  translating:
-    boolean;
-  processing:
-    boolean;
-  translatedText:
-    string;
-  error:
-    string | null;
-  accent:
-    string;
-  textSecondary:
-    string;
-  fontBase:
-    number;
-  onTarget:
-    (
-      target:
-        TranslationTarget
-    ) => void;
-  onTranslate:
-    () => void;
+import {
+  TranscriptView,
+} from '@/components/audio/TranscriptView';
+
+import {
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
+
+
+type TranslationPanelProps = {
+  target: TranslationTarget;
+  translating: boolean;
+  processing: boolean;
+  translatedText: string;
+  translatedSegments:
+    SavedTranscriptSegment[];
+  error: string | null;
+  accent: string;
+  textSecondary: string;
+  fontBase: number;
+  isCurrent: boolean;
+  isLoaded: boolean;
+  currentTime: number;
+  onSeek: (
+    seconds:
+      number
+  ) => void;
+  onTarget: (
+    target: TranslationTarget
+  ) => void;
+  onTranslate: () => void;
+  showTargetSelector?: boolean;
 };
+
 
 export function TranslationPanel({
   target,
   translating,
   processing,
   translatedText,
+  translatedSegments,
   error,
   accent,
   textSecondary,
   fontBase,
+  isCurrent,
+  isLoaded,
+  currentTime,
+  onSeek,
   onTarget,
   onTranslate,
-}: Props) {
+  showTargetSelector = true,
+}: TranslationPanelProps) {
+
+  const { app_language } =
+    useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
   return (
-    <View style={styles.section}>
-      <Text
-        style={[
-          styles.title,
-          {
-            color:
-              textSecondary,
-            fontSize:
-              fontBase,
-          },
-        ]}
-      >
-        Quick translation
-      </Text>
+    <View
+      style={
+        styles.translationSection
+      }
+    >
 
-      <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Translate to Ukrainian"
-          accessibilityState={{
-            selected:
-              target ===
-                'uk',
-          }}
-          disabled={
-            processing
-          }
-          onPress={() =>
-            onTarget('uk')
-          }
-          style={[
-            styles.choice,
-            {
-              borderColor:
-                accent,
-              backgroundColor:
-                target === 'uk'
-                  ? accent
-                  : 'transparent',
-              opacity:
-                processing
-                  ? 0.45
-                  : 1,
-            },
-          ]}
-        >
+      {showTargetSelector && (
+        <>
           <Text
             style={[
-              styles.choiceText,
+              styles.translationTitle,
               {
                 color:
-                  target === 'uk'
-                    ? '#FFFFFF'
-                    : accent,
+                  textSecondary,
                 fontSize:
-                  fontBase - 2,
+                  fontBase,
               },
             ]}
           >
-            Українська
+            {audioUi.quickTranslation}
           </Text>
-        </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Translate to Russian"
-          accessibilityState={{
-            selected:
-              target ===
-                'ru',
-          }}
-          disabled={
-            processing
-          }
-          onPress={() =>
-            onTarget('ru')
-          }
-          style={[
-            styles.choice,
-            {
-              borderColor:
-                accent,
-              backgroundColor:
-                target === 'ru'
-                  ? accent
-                  : 'transparent',
-              opacity:
-                processing
-                  ? 0.45
-                  : 1,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.choiceText,
-              {
-                color:
-                  target === 'ru'
-                    ? '#FFFFFF'
-                    : accent,
-                fontSize:
-                  fontBase - 2,
-              },
-            ]}
+          <View
+            style={
+              styles.translationLanguageRow
+            }
           >
-            Русский
-          </Text>
-        </Pressable>
-      </View>
+            {(
+              [
+                ['uk', audioUi.ukrainian],
+                ['ru', audioUi.russian],
+              ] as const
+            ).map(
+              ([value, label]) => (
+                <Pressable
+                  key={value}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    value === 'uk'
+                      ? audioUi.selectUkrainianTranslation
+                      : audioUi.selectRussianTranslation
+                  }
+                  disabled={processing}
+                  onPress={() =>
+                    onTarget(
+                      value
+                    )
+                  }
+                  style={[
+                    styles.translationLanguageButton,
+                    {
+                      borderColor:
+                        accent,
+                      backgroundColor:
+                        target === value
+                          ? accent
+                          : 'transparent',
+                      opacity:
+                        processing
+                          ? 0.45
+                          : 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.translationLanguageText,
+                      {
+                        color:
+                          target === value
+                            ? '#FFFFFF'
+                            : accent,
+                        fontSize:
+                          fontBase - 2,
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              )
+            )}
+          </View>
+        </>
+      )}
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Translate transcript with Google offline"
-        disabled={
-          processing
+        accessibilityLabel={
+          translatedText
+            ? audioUi.translateAgainAccessibility
+            : audioUi.translateAccessibility
         }
-        onPress={
-          onTranslate
-        }
+        disabled={processing}
+        onPress={onTranslate}
         style={[
           styles.translateButton,
           {
@@ -192,16 +196,16 @@ export function TranslationPanel({
           ]}
         >
           {translating
-            ? '… Translating on this iPhone'
+            ? audioUi.translatingOnDevice
             : translatedText
-              ? 'Translate again with Google'
-              : 'Translate with Google'}
+              ? audioUi.translateAgainGoogle
+              : audioUi.translateGoogle}
         </Text>
       </Pressable>
 
       <Text
         style={[
-          styles.info,
+          styles.translationInfo,
           {
             color:
               textSecondary,
@@ -210,13 +214,13 @@ export function TranslationPanel({
           },
         ]}
       >
-        Google ML Kit works on-device after the language model is downloaded. First use requires Wi-Fi.
+        {audioUi.translationInfo}
       </Text>
 
       {!!error && (
         <Text
           style={[
-            styles.error,
+            styles.translationError,
             {
               color:
                 textSecondary,
@@ -230,25 +234,44 @@ export function TranslationPanel({
       )}
 
       {!!translatedText && (
-        <View style={styles.result}>
-          <Text
-            selectable
-            style={[
-              styles.translationText,
-              {
-                color:
-                  textSecondary,
-                fontSize:
-                  fontBase,
-              },
-            ]}
-          >
-            {translatedText}
-          </Text>
+        <View
+          style={
+            styles.translationResult
+          }
+        >
+          <TranscriptView
+            segments={
+              translatedSegments
+            }
+            fallbackText={
+              translatedText
+            }
+            isCurrent={
+              isCurrent
+            }
+            isLoaded={
+              isLoaded
+            }
+            currentTime={
+              currentTime
+            }
+            accent={
+              accent
+            }
+            textSecondary={
+              textSecondary
+            }
+            fontBase={
+              fontBase
+            }
+            onSeek={
+              onSeek
+            }
+          />
 
           <Text
             style={[
-              styles.attribution,
+              styles.translationAttribution,
               {
                 color:
                   textSecondary,
@@ -257,79 +280,81 @@ export function TranslationPanel({
               },
             ]}
           >
-            Automatic translation powered by Google Translate
+            {audioUi.translationAttribution}
           </Text>
         </View>
       )}
+
     </View>
   );
 }
 
+
 const styles =
   StyleSheet.create({
-    section: {
-      marginTop: 18,
-      paddingTop: 16,
-      borderTopWidth:
-        StyleSheet.hairlineWidth,
-      borderTopColor:
-        'rgba(128,128,128,0.35)',
+    translationSection: {
+      marginTop: 4,
     },
-    title: {
-      fontWeight: '900',
+
+    translationTitle: {
+      fontWeight: '800',
       marginBottom: 10,
     },
-    row: {
+
+    translationLanguageRow: {
       flexDirection: 'row',
-      gap: 10,
-      marginBottom: 10,
+      gap: 8,
+      marginBottom: 12,
     },
-    choice: {
+
+    translationLanguageButton: {
       flex: 1,
       minHeight: 38,
       borderWidth: 1,
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 8,
+      paddingHorizontal: 10,
     },
-    choiceText: {
+
+    translationLanguageText: {
       fontWeight: '800',
       textAlign: 'center',
     },
+
     translateButton: {
-      minHeight: 42,
-      borderWidth: 1.5,
-      borderRadius: 13,
+      minHeight: 40,
+      borderWidth: 1,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 12,
-      paddingVertical: 9,
     },
+
     translateButtonText: {
-      fontWeight: '900',
+      fontWeight: '800',
       textAlign: 'center',
     },
-    info: {
+
+    translationInfo: {
       marginTop: 8,
       lineHeight: 17,
       fontWeight: '600',
     },
-    error: {
+
+    translationError: {
       marginTop: 10,
       lineHeight: 19,
       fontWeight: '700',
     },
-    result: {
-      marginTop: 16,
+
+    translationResult: {
+      marginTop: 14,
     },
-    translationText: {
-      lineHeight: 24,
-      fontWeight: '500',
-    },
-    attribution: {
-      marginTop: 12,
-      lineHeight: 17,
+
+    translationAttribution: {
+      marginTop: 10,
+      lineHeight: 16,
       fontWeight: '600',
     },
   });

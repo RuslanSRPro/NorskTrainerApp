@@ -13,6 +13,14 @@ import {
   formatPlaybackTime,
 } from '@/features/audio/lectureStorage';
 
+import {
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
+
 type Props = {
   segments:
     SavedTranscriptSegment[];
@@ -48,6 +56,14 @@ export function TranscriptView({
   fontBase,
   onSeek,
 }: Props) {
+  const { app_language } =
+    useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
   if (
     segments.length ===
       0
@@ -105,7 +121,7 @@ export function TranscriptView({
               }
               accessibilityRole="button"
               accessibilityLabel={
-                `Play transcript from ${timestamp}: ${segment.text}`
+                `${audioUi.playTranscriptFrom} ${timestamp}: ${segment.text}`
               }
               onPress={() =>
                 onSeek(

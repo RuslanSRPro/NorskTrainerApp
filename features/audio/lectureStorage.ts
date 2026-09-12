@@ -6,6 +6,7 @@ import {
 
 import type {
   LectureMarker,
+  LectureSourceLanguage,
   LectureMarkerType,
   LectureMetadata,
   LectureTranscription,
@@ -21,8 +22,9 @@ export function safeFileStem(
   value: string
 ) {
   return value
+    .normalize('NFKC')
     .replace(
-      /[^a-zA-Z0-9_-]+/g,
+      /[^\p{L}\p{N}_-]+/gu,
       '-'
     )
     .replace(
@@ -120,6 +122,68 @@ export function buildTimestampText(
       '\n\n'
     )
     .trim();
+}
+
+export function normalizeLectureLanguage(
+  value:
+    string | null | undefined
+): LectureSourceLanguage {
+  const normalized =
+    String(
+      value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+  return normalized === 'en' ||
+    normalized === 'en-us' ||
+    normalized === 'en-gb'
+    ? 'en'
+    : 'nb-NO';
+}
+
+export function getLectureLanguageUi(
+  value:
+    string | null | undefined
+) {
+  const language =
+    normalizeLectureLanguage(
+      value
+    );
+
+  return language === 'en'
+    ? {
+        code: 'EN',
+        flag: '🇬🇧',
+        label: 'English',
+        locale: 'en',
+      } as const
+    : {
+        code: 'NO',
+        flag: '🇳🇴',
+        label: 'Norsk',
+        locale: 'nb-NO',
+      } as const;
+}
+
+export function getWhisperLanguageCode(
+  value:
+    string | null | undefined
+) {
+  return normalizeLectureLanguage(
+    value
+  ) === 'en'
+    ? 'en'
+    : 'no';
+}
+
+export function getTranslationSourceLanguageCode(
+  value:
+    string | null | undefined
+) {
+  return getWhisperLanguageCode(
+    value
+  );
 }
 
 export function normalizeMicDb(
@@ -407,6 +471,69 @@ export function readTranscriptSegments(
                 segment.avgLogProb
               )
             : undefined,
+      })
+    )
+    .filter(
+      segment =>
+        Number.isFinite(
+          segment.start
+        ) &&
+        Number.isFinite(
+          segment.end
+        ) &&
+        segment.start >=
+          0 &&
+        segment.end >=
+          segment.start &&
+        isMeaningfulTranscriptText(
+          segment.text
+        )
+    )
+    .sort(
+      (a, b) =>
+        a.start -
+        b.start
+    );
+}
+
+export function getTranslationSegmentsFileName(
+  target:
+    TranslationTarget
+) {
+  return `translation-${target}-segments.json`;
+}
+
+export function readTranslationSegments(
+  directory:
+    Directory,
+  target:
+    TranslationTarget
+): SavedTranscriptSegment[] {
+  const file =
+    new File(
+      directory,
+      getTranslationSegmentsFileName(
+        target
+      )
+    );
+
+  return readJsonArray<SavedTranscriptSegment>(
+    file
+  )
+    .map(
+      segment => ({
+        start:
+          Number(
+            segment.start
+          ),
+        end:
+          Number(
+            segment.end
+          ),
+        text:
+          String(
+            segment.text || ''
+          ).trim(),
       })
     )
     .filter(

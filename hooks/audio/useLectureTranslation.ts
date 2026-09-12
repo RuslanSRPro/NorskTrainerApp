@@ -20,17 +20,31 @@ import OfflineTranslator from '@/modules/offlinetranslator';
 
 import type {
   LectureItem,
+  SavedTranscriptSegment,
   TranslationTarget,
 } from '@/features/audio/lectureTypes';
 
 import {
   getLectureDirectory,
   getTranslationFileName,
+  getTranslationSegmentsFileName,
+  getTranslationSourceLanguageCode,
+  readTranscriptSegments,
+  readTranslationSegments,
+  writeJsonArray,
 } from '@/features/audio/lectureStorage';
 
 import {
   splitTextForTranslation,
 } from '@/features/audio/translationUtils';
+
+import {
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
 
 const KEEP_AWAKE_TAG =
   'lecture-translation';
@@ -45,6 +59,8 @@ type Params = {
     string | null;
   openedTranscript:
     string;
+  openedTranscriptSegments:
+    SavedTranscriptSegment[];
   processingLockRef:
     MutableRefObject<
       ProcessingLock
@@ -54,8 +70,17 @@ type Params = {
 export function useLectureTranslation({
   openedLectureId,
   openedTranscript,
+  openedTranscriptSegments,
   processingLockRef,
 }: Params) {
+  const { app_language } =
+    useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
   const [
     translationTarget,
     setTranslationTarget,
@@ -79,6 +104,16 @@ export function useLectureTranslation({
     useState('');
 
   const [
+    openedTranslationSegments,
+    setOpenedTranslationSegments,
+  ] =
+    useState<
+      SavedTranscriptSegment[]
+    >(
+      []
+    );
+
+  const [
     translationError,
     setTranslationError,
   ] =
@@ -90,6 +125,9 @@ export function useLectureTranslation({
     () => {
       setOpenedTranslation(
         ''
+      );
+      setOpenedTranslationSegments(
+        []
       );
       setTranslationError(
         null
@@ -117,6 +155,16 @@ export function useLectureTranslation({
             )
           );
 
+        const savedSegments =
+          readTranslationSegments(
+            directory,
+            target
+          );
+
+        setOpenedTranslationSegments(
+          savedSegments
+        );
+
         if (
           translationFile.exists
         ) {
@@ -138,6 +186,9 @@ export function useLectureTranslation({
 
       setOpenedTranslation(
         ''
+      );
+      setOpenedTranslationSegments(
+        []
       );
     };
 
@@ -190,6 +241,11 @@ export function useLectureTranslation({
           KEEP_AWAKE_TAG
         );
 
+        const directory =
+          getLectureDirectory(
+            lecture.id
+          );
+
         let sourceText =
           openedLectureId ===
             lecture.id
@@ -213,71 +269,168 @@ export function useLectureTranslation({
 
         if (!sourceText) {
           throw new Error(
-            'The Norwegian transcript is empty.'
+            audioUi.transcriptEmpty
           );
         }
 
-        const chunks =
-          splitTextForTranslation(
-            sourceText
+        const sourceSegments =
+          openedLectureId ===
+            lecture.id &&
+          openedTranscriptSegments
+            .length >
+              0
+            ? openedTranscriptSegments
+            : readTranscriptSegments(
+                directory
+              );
+
+        const sourceLanguage =
+          getTranslationSourceLanguageCode(
+            lecture.language
           );
 
+        let translatedText =
+          '';
+
+        let translatedSegments:
+          SavedTranscriptSegment[] =
+            [];
+
+        /*
+         * Prefer the timestamped Whisper segments. Translating
+         * each segment independently preserves an exact
+         * source-time -> translated-text mapping, so tapping a
+         * translated timestamp can seek the same audio position.
+         *
+         * Older lectures without segment JSON fall back to the
+         * previous paragraph/chunk translation path.
+         */
         if (
-          chunks.length ===
+          sourceSegments.length >
             0
         ) {
-          throw new Error(
-            'There is no text to translate.'
-          );
-        }
-
-        const result =
-          await OfflineTranslator
-            .translateChunks(
-              chunks,
-              'no',
-              translationTarget
+          const sourceSegmentTexts =
+            sourceSegments.map(
+              segment =>
+                segment.text
             );
 
-        const translations =
-          result.translations
-            .map(
+          const result =
+            await OfflineTranslator
+              .translateChunks(
+                sourceSegmentTexts,
+                sourceLanguage,
+                translationTarget
+              );
+
+          const translations =
+            result.translations
+              .map(
+                value =>
+                  String(
+                    value || ''
+                  ).trim()
+              );
+
+          if (
+            translations.length !==
+              sourceSegments.length ||
+            translations.some(
               value =>
-                String(
-                  value || ''
-                ).trim()
+                !value
+            )
+          ) {
+            throw new Error(
+              audioUi.incompleteTimestampedTranslation
+            );
+          }
+
+          translatedSegments =
+            sourceSegments.map(
+              (
+                segment,
+                index
+              ) => ({
+                start:
+                  segment.start,
+                end:
+                  segment.end,
+                text:
+                  translations[
+                    index
+                  ],
+              })
             );
 
-        if (
-          translations.length !==
-            chunks.length ||
-          translations.some(
-            value =>
-              !value
-          )
-        ) {
-          throw new Error(
-            'ML Kit returned an incomplete translation.'
-          );
-        }
+          translatedText =
+            translatedSegments
+              .map(
+                segment =>
+                  segment.text
+              )
+              .join(
+                '\n\n'
+              )
+              .trim();
 
-        const translatedText =
-          translations
-            .join(
-              '\n\n'
+        } else {
+          const chunks =
+            splitTextForTranslation(
+              sourceText
+            );
+
+          if (
+            chunks.length ===
+              0
+          ) {
+            throw new Error(
+              audioUi.noTextToTranslate
+            );
+          }
+
+          const result =
+            await OfflineTranslator
+              .translateChunks(
+                chunks,
+                sourceLanguage,
+                translationTarget
+              );
+
+          const translations =
+            result.translations
+              .map(
+                value =>
+                  String(
+                    value || ''
+                  ).trim()
+              );
+
+          if (
+            translations.length !==
+              chunks.length ||
+            translations.some(
+              value =>
+                !value
             )
-            .trim();
+          ) {
+            throw new Error(
+              audioUi.incompleteTranslation
+            );
+          }
+
+          translatedText =
+            translations
+              .join(
+                '\n\n'
+              )
+              .trim();
+        }
 
         if (!translatedText) {
           throw new Error(
-            'ML Kit returned an empty translation.'
+            audioUi.emptyTranslation
           );
         }
-
-        const directory =
-          getLectureDirectory(
-            lecture.id
-          );
 
         const translationFile =
           new File(
@@ -296,8 +449,34 @@ export function useLectureTranslation({
           translatedText
         );
 
+        const segmentFile =
+          new File(
+            directory,
+            getTranslationSegmentsFileName(
+              translationTarget
+            )
+          );
+
+        if (
+          translatedSegments.length >
+            0
+        ) {
+          writeJsonArray(
+            segmentFile,
+            translatedSegments
+          );
+        } else if (
+          segmentFile.exists
+        ) {
+          segmentFile.delete();
+        }
+
         setOpenedTranslation(
           translatedText
+        );
+
+        setOpenedTranslationSegments(
+          translatedSegments
         );
 
       } catch (error) {
@@ -318,7 +497,7 @@ export function useLectureTranslation({
         );
 
         Alert.alert(
-          'Translation error',
+          audioUi.translationErrorTitle,
           message
         );
 
@@ -342,6 +521,7 @@ export function useLectureTranslation({
     translationTarget,
     translatingLectureId,
     openedTranslation,
+    openedTranslationSegments,
     translationError,
     clearTranslationState,
     loadSavedTranslation,

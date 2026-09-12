@@ -1,6 +1,10 @@
 export { default } from './src/WhisperKitLocalModule';
 
 export type {
+  WhisperLiveErrorEvent,
+  WhisperLiveStartResult,
+  WhisperLiveStopResult,
+  WhisperLiveUpdateEvent,
   WhisperProgressEvent,
   WhisperSegment,
   WhisperTranscriptResult,

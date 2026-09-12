@@ -33,9 +33,42 @@ export type WhisperTranscriptResult = {
   chunkingStrategy?: 'none';
 };
 
+export type WhisperLiveUpdateEvent = {
+  isRecording: boolean;
+  elapsedMillis: number;
+  partialText: string;
+  confirmedSegments: WhisperSegment[];
+  unconfirmedSegments: WhisperSegment[];
+};
+
+export type WhisperLiveErrorEvent = {
+  message: string;
+};
+
+export type WhisperLiveStartResult = {
+  ok: boolean;
+  model: string;
+  language: string;
+  audioUri: string;
+};
+
+export type WhisperLiveStopResult = {
+  ok: boolean;
+  audioUri: string;
+  durationMillis: number;
+  bytes: number;
+  writerError?: string | null;
+};
+
 type WhisperKitLocalEvents = {
   onProgress(
     event: WhisperProgressEvent
+  ): void;
+  onLiveUpdate(
+    event: WhisperLiveUpdateEvent
+  ): void;
+  onLiveError(
+    event: WhisperLiveErrorEvent
   ): void;
 };
 
@@ -54,6 +87,18 @@ declare class WhisperKitLocalNativeModule
     language: string,
     model: string
   ): Promise<WhisperTranscriptResult>;
+
+  startLive(
+    audioUri: string,
+    language: string,
+    model: string
+  ): Promise<WhisperLiveStartResult>;
+
+  stopLive():
+    Promise<WhisperLiveStopResult>;
+
+  cancelLive():
+    Promise<{ ok: boolean }>;
 }
 
 export default requireNativeModule<

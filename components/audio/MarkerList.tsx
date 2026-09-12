@@ -11,24 +11,28 @@ import type {
 
 import {
   formatTime,
-  markerLabel,
 } from '@/features/audio/lectureStorage';
 
+import {
+  getAudioMarkerLabel,
+  getAudioUiText,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
+
+
 type Props = {
-  markers:
-    LectureMarker[];
-  accent:
-    string;
-  textSecondary:
-    string;
-  fontBase:
-    number;
-  onSeek:
-    (
-      milliseconds:
-        number
-    ) => void;
+  markers: LectureMarker[];
+  accent: string;
+  textSecondary: string;
+  fontBase: number;
+  onSeek: (
+    milliseconds: number
+  ) => void;
 };
+
 
 export function MarkerList({
   markers,
@@ -37,9 +41,16 @@ export function MarkerList({
   fontBase,
   onSeek,
 }: Props) {
+  const { app_language } =
+    useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
   if (
-    markers.length ===
-      0
+    markers.length === 0
   ) {
     return null;
   }
@@ -61,7 +72,7 @@ export function MarkerList({
           },
         ]}
       >
-        Marked moments
+        {audioUi.markedMoments}
       </Text>
 
       <View
@@ -70,57 +81,56 @@ export function MarkerList({
         }
       >
         {markers.map(
-          marker => {
-            const label =
-              `${markerLabel(
-                marker.type
-              )} · ${formatTime(
-                marker.timeMillis
-              )}`;
-
-            return (
-              <Pressable
-                key={
-                  marker.id
-                }
-                accessibilityRole="button"
-                accessibilityLabel={
-                  `Play ${label}`
-                }
-                onPress={() =>
-                  onSeek(
-                    marker.timeMillis
-                  )
-                }
+          marker => (
+            <Pressable
+              key={
+                marker.id
+              }
+              accessibilityRole="button"
+              accessibilityLabel={
+                `${getAudioMarkerLabel(marker.type, app_language)} ${formatTime(marker.timeMillis)}`
+              }
+              onPress={() =>
+                onSeek(
+                  marker.timeMillis
+                )
+              }
+              style={[
+                styles.button,
+                {
+                  borderColor:
+                    accent,
+                },
+              ]}
+            >
+              <Text
                 style={[
-                  styles.button,
+                  styles.text,
                   {
-                    borderColor:
+                    color:
                       accent,
+                    fontSize:
+                      fontBase - 3,
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.text,
-                    {
-                      color:
-                        accent,
-                      fontSize:
-                        fontBase - 3,
-                    },
-                  ]}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          }
+                {getAudioMarkerLabel(
+                  marker.type,
+                  app_language
+                )}
+                {' · '}
+                {formatTime(
+                  marker.timeMillis
+                )}
+              </Text>
+            </Pressable>
+          )
         )}
       </View>
     </View>
   );
 }
+
 
 const styles =
   StyleSheet.create({

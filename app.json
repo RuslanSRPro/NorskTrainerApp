@@ -2,7 +2,7 @@
   "expo": {
     "name": "NorskTrainerApp",
     "slug": "NorskTrainerApp",
-    "version": "1.0.7",
+    "version": "1.0.10",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "norsktrainerapp",
