@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -10,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -17,6 +19,31 @@ import {
   convertFileSrc,
   invoke,
 } from '@tauri-apps/api/core';
+
+import {
+  confirm,
+  open,
+} from '@tauri-apps/plugin-dialog';
+
+import {
+  getAudioMarkerLabel,
+  getAudioUiText,
+  normalizeAudioUiLanguage,
+} from '@/features/audio/audioUiText';
+
+import {
+  useSettingsStore,
+} from '@/store/settingsStore';
+
+import {
+  useTheme,
+} from '@/contexts/ThemeContext';
+
+import type {
+  LectureMarker,
+  LectureMarkerType,
+  LectureSourceLanguage,
+} from '@/features/audio/lectureTypes';
 
 type RecordingStatus = {
   isRecording: boolean;
@@ -28,15 +55,29 @@ type RecordingStatus = {
   error: string | null;
 };
 
-type WindowsRecording = {
+type WindowsLectureMarker = {
+  id: string;
+  timeMillis: number;
+  markerType: LectureMarkerType;
+  note: string;
+  createdAt: string;
+};
+
+type WindowsLecture = {
   id: string;
   path: string;
-  fileName: string;
-  bytes: number;
+  audioPath: string;
+  audioFileName: string;
+  title: string | null;
+  createdAtMillis: number;
   durationMillis: number;
+  bytes: number;
   sampleRate: number;
   channels: number;
-  createdAtMillis: number;
+  language: LectureSourceLanguage;
+  source: string;
+  originalFileName: string | null;
+  markers: WindowsLectureMarker[];
 };
 
 const EMPTY_STATUS: RecordingStatus = {
@@ -50,11 +91,10 @@ const EMPTY_STATUS: RecordingStatus = {
 };
 
 function formatTime(milliseconds: number) {
-  const totalSeconds =
-    Math.max(
-      0,
-      Math.floor(milliseconds / 1000)
-    );
+  const totalSeconds = Math.max(
+    0,
+    Math.floor(milliseconds / 1000)
+  );
 
   const hours =
     Math.floor(totalSeconds / 3600);
@@ -89,14 +129,15 @@ function formatSize(bytes: number) {
     )} KB`;
   }
 
-  return `${
-    (bytes / (1024 * 1024)).toFixed(1)
-  } MB`;
+  return `${(
+    bytes /
+    (1024 * 1024)
+  ).toFixed(1)} MB`;
 }
 
 function formatDate(milliseconds: number) {
   if (!milliseconds) {
-    return 'Opptak';
+    return '';
   }
 
   return new Intl.DateTimeFormat(
@@ -113,7 +154,54 @@ function formatDate(milliseconds: number) {
   );
 }
 
+function newMarker(
+  timeMillis: number,
+  type: LectureMarkerType
+): WindowsLectureMarker {
+  return {
+    id:
+      `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`,
+    timeMillis,
+    markerType: type,
+    note: '',
+    createdAt:
+      new Date().toISOString(),
+  };
+}
+
 export default function WindowsVoiceScreen() {
+  const {
+    theme,
+    fonts,
+  } = useTheme();
+
+  const T = theme;
+  const F = fonts;
+
+  const {
+    app_language,
+    loadSettings,
+  } = useSettingsStore();
+
+  const audioUi =
+    getAudioUiText(
+      app_language
+    );
+
+  const uiLanguage =
+    normalizeAudioUiLanguage(
+      app_language
+    );
+
+  const windowsInfo =
+    uiLanguage === 'ua'
+      ? 'Записує звук, який відтворює Windows. Працює через динаміки або навушники.'
+      : uiLanguage === 'no'
+        ? 'Tar opp lyden som spilles av i Windows. Fungerer med både høyttalere og hodetelefoner.'
+        : 'Records the audio played by Windows. Works with speakers or headphones.';
+
   const [
     status,
     setStatus,
@@ -123,10 +211,18 @@ export default function WindowsVoiceScreen() {
     );
 
   const [
-    recordings,
-    setRecordings,
+    lectures,
+    setLectures,
   ] =
-    useState<WindowsRecording[]>([]);
+    useState<WindowsLecture[]>([]);
+
+  const [
+    sourceLanguage,
+    setSourceLanguage,
+  ] =
+    useState<LectureSourceLanguage>(
+      'nb-NO'
+    );
 
   const [
     busy,
@@ -141,22 +237,60 @@ export default function WindowsVoiceScreen() {
     useState(true);
 
   const [
-    playingId,
-    setPlayingId,
-  ] =
-    useState<string | null>(null);
-
-  const [
-    sourceLanguage,
-    setSourceLanguage,
-  ] =
-    useState<'NO' | 'EN'>('NO');
-
-  const [
     message,
     setMessage,
   ] =
     useState<string | null>(null);
+
+  const [
+    selectedMarkerType,
+    setSelectedMarkerType,
+  ] =
+    useState<LectureMarkerType>(
+      'important'
+    );
+
+  const [
+    activeMarkers,
+    setActiveMarkers,
+  ] =
+    useState<WindowsLectureMarker[]>(
+      []
+    );
+
+  const [
+    playingLectureId,
+    setPlayingLectureId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    playbackCurrent,
+    setPlaybackCurrent,
+  ] =
+    useState(0);
+
+  const [
+    playbackDuration,
+    setPlaybackDuration,
+  ] =
+    useState(0);
+
+  const [
+    renameLectureId,
+    setRenameLectureId,
+  ] =
+    useState<string | null>(
+      null
+    );
+
+  const [
+    renameValue,
+    setRenameValue,
+  ] =
+    useState('');
 
   const pollRef =
     useRef<
@@ -168,15 +302,25 @@ export default function WindowsVoiceScreen() {
       null
     );
 
+  useEffect(
+    () => {
+      void loadSettings();
+    },
+    []
+  );
+
   const stopPolling =
     useCallback(
       () => {
-        if (pollRef.current) {
+        if (
+          pollRef.current
+        ) {
           clearInterval(
             pollRef.current
           );
 
-          pollRef.current = null;
+          pollRef.current =
+            null;
         }
       },
       []
@@ -188,16 +332,16 @@ export default function WindowsVoiceScreen() {
         try {
           const items =
             await invoke<
-              WindowsRecording[]
+              WindowsLecture[]
             >(
-              'list_recordings'
+              'list_lectures'
             );
 
-          setRecordings(items);
+          setLectures(items);
         }
         catch (error) {
           console.error(
-            'Could not load recordings:',
+            'Could not load Windows lectures:',
             error
           );
 
@@ -206,7 +350,9 @@ export default function WindowsVoiceScreen() {
           );
         }
         finally {
-          setLoadingLibrary(false);
+          setLoadingLibrary(
+            false
+          );
         }
       },
       []
@@ -223,8 +369,20 @@ export default function WindowsVoiceScreen() {
           audio.src = '';
         }
 
-        audioRef.current = null;
-        setPlayingId(null);
+        audioRef.current =
+          null;
+
+        setPlayingLectureId(
+          null
+        );
+
+        setPlaybackCurrent(
+          0
+        );
+
+        setPlaybackDuration(
+          0
+        );
       },
       []
     );
@@ -245,7 +403,9 @@ export default function WindowsVoiceScreen() {
                     'get_system_recording_status'
                   );
 
-                setStatus(next);
+                setStatus(
+                  next
+                );
 
                 if (
                   !next.isRecording
@@ -270,7 +430,7 @@ export default function WindowsVoiceScreen() {
 
   useEffect(
     () => {
-      refreshLibrary();
+      void refreshLibrary();
 
       return () => {
         stopPolling();
@@ -305,18 +465,65 @@ export default function WindowsVoiceScreen() {
             );
 
           stopPolling();
-          setStatus(stopped);
+
+          if (
+            !stopped.path
+          ) {
+            throw new Error(
+              audioUi.recordingNotSaved
+            );
+          }
+
+          const lecture =
+            await invoke<
+              WindowsLecture
+            >(
+              'adopt_recording',
+              {
+                recordingPath:
+                  stopped.path,
+                language:
+                  sourceLanguage,
+              }
+            );
+
+          if (
+            activeMarkers.length >
+              0
+          ) {
+            await invoke(
+              'save_lecture_markers',
+              {
+                id:
+                  lecture.id,
+                markers:
+                  activeMarkers,
+              }
+            );
+          }
+
+          setActiveMarkers(
+            []
+          );
+
+          setStatus(
+            EMPTY_STATUS
+          );
 
           await refreshLibrary();
 
           setMessage(
-            'Opptaket er lagret.'
+            audioUi.audioSavedShort
           );
 
           return;
         }
 
         stopPlayback();
+
+        setActiveMarkers(
+          []
+        );
 
         const started =
           await invoke<
@@ -326,6 +533,7 @@ export default function WindowsVoiceScreen() {
           );
 
         setStatus(started);
+
         startPolling();
       }
       catch (error) {
@@ -344,8 +552,10 @@ export default function WindowsVoiceScreen() {
         setStatus(
           current => ({
             ...current,
-            isRecording: false,
-            error: text,
+            isRecording:
+              false,
+            error:
+              text,
           })
         );
 
@@ -356,16 +566,128 @@ export default function WindowsVoiceScreen() {
       }
     };
 
+  const handleMarkMoment =
+    () => {
+      if (
+        !status.isRecording
+      ) {
+        return;
+      }
+
+      setActiveMarkers(
+        current => [
+          ...current,
+          newMarker(
+            status.elapsedMillis,
+            selectedMarkerType
+          ),
+        ]
+      );
+    };
+
+  const handleImport =
+    async () => {
+      if (
+        busy ||
+        status.isRecording
+      ) {
+        return;
+      }
+
+      setBusy(true);
+      setMessage(null);
+
+      try {
+        const selected =
+          await open({
+            multiple:
+              false,
+            directory:
+              false,
+            title:
+              audioUi.importAudio,
+            filters: [
+              {
+                name:
+                  'Audio',
+                extensions: [
+                  'm4a',
+                  'mp3',
+                  'wav',
+                  'aac',
+                  'caf',
+                  'mp4',
+                  'mpeg',
+                  'mpga',
+                ],
+              },
+            ],
+          });
+
+        if (
+          !selected ||
+          Array.isArray(
+            selected
+          )
+        ) {
+          return;
+        }
+
+        await invoke(
+          'import_audio',
+          {
+            sourcePath:
+              selected,
+            language:
+              sourceLanguage,
+          }
+        );
+
+        await refreshLibrary();
+
+        setMessage(
+          audioUi.audioImported
+        );
+      }
+      catch (error) {
+        console.error(
+          'Windows audio import error:',
+          error
+        );
+
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+      }
+      finally {
+        setBusy(false);
+      }
+    };
+
   const handlePlay =
     async (
-      recording:
-        WindowsRecording
+      lecture:
+        WindowsLecture
     ) => {
+      const current =
+        audioRef.current;
+
       if (
-        playingId ===
-          recording.id
+        current &&
+        playingLectureId ===
+          lecture.id
       ) {
-        stopPlayback();
+        if (
+          current.paused
+        ) {
+          await current.play();
+        }
+        else {
+          current.pause();
+        }
+
         return;
       }
 
@@ -374,7 +696,7 @@ export default function WindowsVoiceScreen() {
       try {
         const url =
           convertFileSrc(
-            recording.path
+            lecture.audioPath
           );
 
         const audio =
@@ -383,206 +705,639 @@ export default function WindowsVoiceScreen() {
         audioRef.current =
           audio;
 
-        audio.onended =
+        audio.preload =
+          'metadata';
+
+        audio.onloadedmetadata =
+          () => {
+            const seconds =
+              Number.isFinite(
+                audio.duration
+              )
+                ? audio.duration
+                : 0;
+
+            setPlaybackDuration(
+              seconds
+            );
+
+            if (
+              lecture.durationMillis ===
+                0 &&
+              seconds >
+                0
+            ) {
+              void invoke(
+                'update_lecture_duration',
+                {
+                  id:
+                    lecture.id,
+                  durationMillis:
+                    Math.round(
+                      seconds *
+                        1000
+                    ),
+                }
+              );
+            }
+          };
+
+        audio.ontimeupdate =
+          () => {
+            setPlaybackCurrent(
+              audio.currentTime ||
+                0
+            );
+          };
+
+        audio.onplay =
+          () => {
+            setPlayingLectureId(
+              lecture.id
+            );
+          };
+
+        audio.onpause =
           () => {
             if (
-              audioRef.current ===
-                audio
+              !audio.ended
             ) {
-              audioRef.current =
-                null;
-
-              setPlayingId(null);
+              setPlayingLectureId(
+                lecture.id
+              );
             }
+          };
+
+        audio.onended =
+          () => {
+            setPlayingLectureId(
+              null
+            );
+
+            setPlaybackCurrent(
+              0
+            );
           };
 
         audio.onerror =
           () => {
-            console.error(
-              'Audio playback failed:',
-              recording.path
-            );
-
-            if (
-              audioRef.current ===
-                audio
-            ) {
-              audioRef.current =
-                null;
-            }
-
-            setPlayingId(null);
-
             setMessage(
-              'Kunne ikke spille av opptaket.'
+              audioUi.playbackLoadFailed
             );
+
+            stopPlayback();
           };
 
         await audio.play();
 
-        setPlayingId(
-          recording.id
+        setPlayingLectureId(
+          lecture.id
         );
-
-        setMessage(null);
       }
       catch (error) {
         console.error(
-          'Playback error:',
+          'Windows playback error:',
           error
         );
 
-        stopPlayback();
-
         setMessage(
-          `Avspillingsfeil: ${
-            String(error)
-          }`
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+
+        stopPlayback();
+      }
+    };
+
+  const seekTo =
+    (
+      lectureId:
+        string,
+      seconds:
+        number
+    ) => {
+      const audio =
+        audioRef.current;
+
+      if (
+        !audio ||
+        playingLectureId !==
+          lectureId
+      ) {
+        return;
+      }
+
+      const maximum =
+        Number.isFinite(
+          audio.duration
+        )
+          ? audio.duration
+          : playbackDuration;
+
+      audio.currentTime =
+        Math.max(
+          0,
+          Math.min(
+            seconds,
+            maximum ||
+              seconds
+          )
+        );
+
+      setPlaybackCurrent(
+        audio.currentTime
+      );
+    };
+
+  const handleRenameSave =
+    async (
+      lecture:
+        WindowsLecture
+    ) => {
+      try {
+        await invoke(
+          'rename_lecture',
+          {
+            id:
+              lecture.id,
+            title:
+              renameValue,
+          }
+        );
+
+        setRenameLectureId(
+          null
+        );
+
+        setRenameValue(
+          ''
+        );
+
+        await refreshLibrary();
+      }
+      catch (error) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
         );
       }
     };
 
+  const handleDelete =
+    async (
+      lecture:
+        WindowsLecture
+    ) => {
+      const accepted =
+        await confirm(
+          audioUi.deletePrompt
+            .replace(
+              /iPhone/gi,
+              'PC'
+            ),
+          {
+            title:
+              audioUi.deleteLecture,
+            kind:
+              'warning',
+            okLabel:
+              audioUi.delete,
+            cancelLabel:
+              audioUi.cancel,
+          }
+        );
+
+      if (!accepted) {
+        return;
+      }
+
+      try {
+        if (
+          playingLectureId ===
+            lecture.id
+        ) {
+          stopPlayback();
+        }
+
+        await invoke(
+          'delete_lecture',
+          {
+            id:
+              lecture.id,
+          }
+        );
+
+        await refreshLibrary();
+      }
+      catch (error) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : String(error)
+        );
+      }
+    };
+
+  const currentPlaying =
+    useMemo(
+      () =>
+        lectures.find(
+          lecture =>
+            lecture.id ===
+              playingLectureId
+        ) ??
+        null,
+      [
+        lectures,
+        playingLectureId,
+      ]
+    );
+
   return (
     <ScrollView
+      style={styles.screen}
       contentContainerStyle={
-        styles.page
+        styles.content
       }
+      showsVerticalScrollIndicator
     >
-      <View
-        style={styles.hero}
+      <Text
+        style={[
+          styles.title,
+          {
+            color:
+              T.textPrimary,
+            fontSize:
+              22,
+          },
+        ]}
       >
-        <Text
-          style={styles.title}
+        {audioUi.captureTitle}
+      </Text>
+
+      <View
+        style={[
+          styles.card,
+          {
+            borderColor:
+              `${T.accent}26`,
+          },
+        ]}
+      >
+        <View
+          style={
+            styles.sourceLanguageRow
+          }
         >
-          🎙 Lydopptak
-        </Text>
+          {(
+            [
+              ['nb-NO', '🇳🇴 NO'],
+              ['en', '🇬🇧 EN'],
+            ] as const
+          ).map(
+            ([value, label]) => (
+              <Pressable
+                key={value}
+                disabled={
+                  status.isRecording ||
+                  busy
+                }
+                onPress={() =>
+                  setSourceLanguage(
+                    value
+                  )
+                }
+                style={[
+                  styles.languageButton,
+                  {
+                    borderColor:
+                      T.accent,
+                    backgroundColor:
+                      sourceLanguage ===
+                        value
+                        ? T.accent
+                        : 'transparent',
+                    opacity:
+                      status.isRecording ||
+                      busy
+                        ? 0.5
+                        : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color:
+                      sourceLanguage ===
+                        value
+                        ? '#FFFFFF'
+                        : T.accent,
+                    fontSize:
+                      F.base - 2,
+                    fontWeight:
+                      '800',
+                  }}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            )
+          )}
+        </View>
+
+        {!status.isRecording && (
+          <Text
+            style={[
+              styles.info,
+              {
+                color:
+                  T.textSecondary,
+                fontSize:
+                  F.base,
+              },
+            ]}
+          >
+            {windowsInfo}
+          </Text>
+        )}
+
+        {status.isRecording && (
+          <>
+            <Text
+              style={[
+                styles.recordingLabel,
+                {
+                  color:
+                    T.accent,
+                  fontSize:
+                    F.base,
+                },
+              ]}
+            >
+              {audioUi.recording}
+            </Text>
+
+            <Text
+              style={[
+                styles.timer,
+                {
+                  color:
+                    T.textPrimary,
+                },
+              ]}
+            >
+              {formatTime(
+                status.elapsedMillis
+              )}
+            </Text>
+
+            <View
+              style={
+                styles.markerBox
+              }
+            >
+              <Text
+                style={[
+                  styles.markerTitle,
+                  {
+                    color:
+                      T.textSecondary,
+                    fontSize:
+                      F.base - 1,
+                  },
+                ]}
+              >
+                {audioUi.markThisMoment}
+              </Text>
+
+              <View
+                style={
+                  styles.markerTypeRow
+                }
+              >
+                {(
+                  [
+                    'important',
+                    'unclear',
+                    'repeat',
+                    'term',
+                  ] as LectureMarkerType[]
+                ).map(
+                  type => (
+                    <Pressable
+                      key={type}
+                      onPress={() =>
+                        setSelectedMarkerType(
+                          type
+                        )
+                      }
+                      style={[
+                        styles.markerTypeButton,
+                        {
+                          borderColor:
+                            T.accent,
+                          backgroundColor:
+                            selectedMarkerType ===
+                              type
+                              ? T.accent
+                              : 'transparent',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color:
+                            selectedMarkerType ===
+                              type
+                              ? '#FFFFFF'
+                              : T.accent,
+                          fontSize:
+                            F.base - 3,
+                          fontWeight:
+                            '800',
+                        }}
+                      >
+                        {getAudioMarkerLabel(
+                          type,
+                          app_language
+                        )}
+                      </Text>
+                    </Pressable>
+                  )
+                )}
+              </View>
+
+              <Pressable
+                onPress={
+                  handleMarkMoment
+                }
+                style={[
+                  styles.outlineButton,
+                  {
+                    borderColor:
+                      T.accent,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color:
+                      T.accent,
+                    fontWeight:
+                      '900',
+                    fontSize:
+                      F.base,
+                  }}
+                >
+                  {audioUi.markMoment} · {formatTime(
+                    status.elapsedMillis
+                  )}
+                </Text>
+              </Pressable>
+
+              {activeMarkers.length >
+                0 && (
+                <Text
+                  style={{
+                    color:
+                      T.textSecondary,
+                    marginTop:
+                      10,
+                    fontSize:
+                      F.base - 3,
+                  }}
+                >
+                  {audioUi.markersSaved} {activeMarkers.length}
+                </Text>
+              )}
+            </View>
+          </>
+        )}
 
         <View
           style={
-            styles.languageRow
+            styles.actionRow
           }
         >
           <Pressable
-            style={[
-              styles.languageButton,
-              sourceLanguage ===
-                'NO' &&
-                styles.languageActive,
-            ]}
-            onPress={() =>
-              setSourceLanguage(
-                'NO'
-              )
-            }
-          >
-            <Text
-              style={[
-                styles.languageText,
-                sourceLanguage ===
-                  'NO' &&
-                  styles.languageTextActive,
-              ]}
-            >
-              🇳🇴 NO
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.languageButton,
-              sourceLanguage ===
-                'EN' &&
-                styles.languageActive,
-            ]}
-            onPress={() =>
-              setSourceLanguage(
-                'EN'
-              )
-            }
-          >
-            <Text
-              style={[
-                styles.languageText,
-                sourceLanguage ===
-                  'EN' &&
-                  styles.languageTextActive,
-              ]}
-            >
-              🇬🇧 EN
-            </Text>
-          </Pressable>
-        </View>
-
-        <Text
-          style={styles.description}
-        >
-          Tar opp lyden som spilles av
-          på PC-en. Fungerer både med
-          høyttalere og hodetelefoner.
-        </Text>
-
-        {status.isRecording ? (
-          <Text
-            style={styles.timer}
-          >
-            {formatTime(
-              status.elapsedMillis
-            )}
-          </Text>
-        ) : null}
-
-        <View
-          style={styles.actions}
-        >
-          <Pressable
             disabled={busy}
-            style={[
-              styles.recordButton,
-              status.isRecording &&
-                styles.stopButton,
-              busy &&
-                styles.disabled,
-            ]}
             onPress={
               handleRecording
             }
+            style={[
+              styles.mainButton,
+              {
+                backgroundColor:
+                  status.isRecording
+                    ? '#C94B4B'
+                    : T.accent,
+                opacity:
+                  busy
+                    ? 0.55
+                    : 1,
+              },
+            ]}
           >
             <Text
               style={
-                styles.recordButtonText
+                styles.mainButtonText
               }
             >
-              {busy
-                ? 'Vent...'
-                : status.isRecording
-                  ? 'Stopp'
-                  : 'Start opptak'}
+              {status.isRecording
+                ? audioUi.stopRecording
+                : audioUi.startRecording}
             </Text>
           </Pressable>
 
           <Pressable
-            style={
-              styles.liveButton
-            }
-            onPress={() =>
-              setMessage(
-                'Live-transkripsjon kobles til etter at vanlig opptak og avspilling er ferdig testet.'
-              )
-            }
+            disabled
+            style={[
+              styles.liveButton,
+              {
+                borderColor:
+                  T.accent,
+                opacity:
+                  0.45,
+              },
+            ]}
           >
             <Text
-              style={
-                styles.liveButtonText
-              }
+              style={{
+                color:
+                  T.accent,
+                fontWeight:
+                  '900',
+                fontSize:
+                  F.base,
+              }}
             >
-              ● Live
+              ● {audioUi.live}
             </Text>
           </Pressable>
         </View>
 
+        <Pressable
+          disabled={
+            busy ||
+            status.isRecording
+          }
+          onPress={
+            handleImport
+          }
+          style={[
+            styles.importButton,
+            {
+              borderColor:
+                T.accent,
+              opacity:
+                busy ||
+                status.isRecording
+                  ? 0.45
+                  : 1,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              color:
+                T.accent,
+              fontWeight:
+                '900',
+              fontSize:
+                F.base,
+            }}
+          >
+            {audioUi.importAudio}
+          </Text>
+        </Pressable>
+
+        <Text
+          style={[
+            styles.hint,
+            {
+              color:
+                T.textSecondary,
+              fontSize:
+                F.base - 2,
+            },
+          ]}
+        >
+          {audioUi.supportedFormats}
+        </Text>
+
         {message ? (
           <Text
-            style={styles.message}
+            style={[
+              styles.message,
+              {
+                color:
+                  T.textSecondary,
+                fontSize:
+                  F.base - 2,
+              },
+            ]}
           >
             {message}
           </Text>
@@ -590,352 +1345,1061 @@ export default function WindowsVoiceScreen() {
       </View>
 
       <View
-        style={styles.libraryHeader}
+        style={
+          styles.libraryHeader
+        }
       >
         <Text
-          style={
-            styles.libraryTitle
-          }
+          style={{
+            color:
+              T.textPrimary,
+            fontSize:
+              F.base + 4,
+            fontWeight:
+              '900',
+          }}
         >
-          Opptak
+          {audioUi.savedLectures}
         </Text>
 
         <Text
-          style={
-            styles.libraryCount
-          }
+          style={{
+            color:
+              T.textSecondary,
+            fontSize:
+              F.base - 1,
+            fontWeight:
+              '800',
+          }}
         >
-          {recordings.length}
+          {lectures.length}
         </Text>
       </View>
 
       {loadingLibrary ? (
         <Text
-          style={styles.emptyText}
+          style={{
+            color:
+              T.textSecondary,
+            fontSize:
+              F.base,
+          }}
         >
-          Laster opptak...
+          {audioUi.loading}
         </Text>
-      ) : recordings.length ===
+      ) : lectures.length ===
           0 ? (
         <View
-          style={styles.emptyCard}
+          style={
+            styles.card
+          }
         >
           <Text
-            style={styles.emptyText}
+            style={{
+              color:
+                T.textSecondary,
+              fontSize:
+                F.base,
+            }}
           >
-            Ingen opptak ennå.
+            {audioUi.emptyLibrary}
           </Text>
         </View>
       ) : (
-        recordings.map(
-          recording => {
-            const playing =
-              playingId ===
-              recording.id;
+        lectures.map(
+          lecture => {
+            const isCurrent =
+              playingLectureId ===
+                lecture.id;
+
+            const shownDuration =
+              isCurrent &&
+              playbackDuration >
+                0
+                ? playbackDuration *
+                  1000
+                : lecture.durationMillis;
+
+            const currentMillis =
+              isCurrent
+                ? playbackCurrent *
+                  1000
+                : 0;
 
             return (
               <View
                 key={
-                  recording.id
+                  lecture.id
                 }
-                style={
-                  styles.recordingCard
-                }
+                style={[
+                  styles.lectureCard,
+                  {
+                    borderColor:
+                      `${T.accent}22`,
+                  },
+                ]}
               >
                 <View
                   style={
-                    styles.recordingTop
+                    styles.lectureHeader
                   }
                 >
                   <View
-                    style={
-                      styles.recordingInfo
-                    }
+                    style={{
+                      flex:
+                        1,
+                      minWidth:
+                        0,
+                    }}
                   >
                     <Text
-                      style={
-                        styles.recordingTitle
-                      }
+                      style={{
+                        color:
+                          T.textPrimary,
+                        fontSize:
+                          F.base + 1,
+                        fontWeight:
+                          '900',
+                      }}
                     >
-                      {formatDate(
-                        recording.createdAtMillis
-                      )}
+                      {lecture.title ||
+                        formatDate(
+                          lecture.createdAtMillis
+                        ) ||
+                        audioUi.savedRecording}
                     </Text>
 
                     <Text
-                      style={
-                        styles.recordingMeta
-                      }
+                      style={{
+                        color:
+                          T.textSecondary,
+                        fontSize:
+                          F.base - 2,
+                        marginTop:
+                          5,
+                      }}
                     >
                       {formatTime(
-                        recording.durationMillis
-                      )}
-                      {'  •  '}
-                      {formatSize(
-                        recording.bytes
-                      )}
+                        shownDuration
+                      )} · {formatSize(
+                        lecture.bytes
+                      )} · {
+                        lecture.language ===
+                          'en'
+                          ? '🇬🇧 EN'
+                          : '🇳🇴 NO'
+                      }
                     </Text>
                   </View>
+                </View>
 
-                  <Pressable
-                    style={
-                      styles.playButton
+                <View
+                  style={
+                    styles.playbackBox
+                  }
+                >
+                  <Text
+                    style={{
+                      color:
+                        T.textSecondary,
+                      fontSize:
+                        F.base - 2,
+                      fontWeight:
+                        '800',
+                    }}
+                  >
+                    {audioUi.playback}
+                  </Text>
+
+                  <Text
+                    style={{
+                      color:
+                        T.textPrimary,
+                      fontSize:
+                        F.base - 1,
+                      marginTop:
+                        8,
+                    }}
+                  >
+                    {formatTime(
+                      currentMillis
+                    )} / {formatTime(
+                      shownDuration
+                    )}
+                  </Text>
+
+                  <input
+                    aria-label={
+                      audioUi.playback
                     }
-                    onPress={() =>
-                      handlePlay(
-                        recording
+                    type="range"
+                    min={0}
+                    max={
+                      Math.max(
+                        0.1,
+                        shownDuration /
+                          1000
                       )
+                    }
+                    step={0.1}
+                    value={
+                      isCurrent
+                        ? playbackCurrent
+                        : 0
+                    }
+                    disabled={
+                      !isCurrent
+                    }
+                    onChange={(
+                      event:
+                        any
+                    ) =>
+                      seekTo(
+                        lecture.id,
+                        Number(
+                          event.target
+                            .value
+                        )
+                      )
+                    }
+                    style={{
+                      width:
+                        '100%',
+                      marginTop:
+                        10,
+                      accentColor:
+                        T.accent,
+                    }}
+                  />
+
+                  <View
+                    style={
+                      styles.playbackActions
+                    }
+                  >
+                    <Pressable
+                      disabled={
+                        !isCurrent
+                      }
+                      onPress={() =>
+                        seekTo(
+                          lecture.id,
+                          playbackCurrent -
+                            15
+                        )
+                      }
+                      style={[
+                        styles.smallButton,
+                        {
+                          borderColor:
+                            T.accent,
+                          opacity:
+                            isCurrent
+                              ? 1
+                              : 0.4,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color:
+                            T.accent,
+                          fontWeight:
+                            '800',
+                        }}
+                      >
+                        {audioUi.back15Short}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() =>
+                        void handlePlay(
+                          lecture
+                        )
+                      }
+                      style={[
+                        styles.playButton,
+                        {
+                          backgroundColor:
+                            T.accent,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={
+                          styles.playButtonText
+                        }
+                      >
+                        {isCurrent &&
+                        audioRef.current &&
+                        !audioRef.current
+                          .paused
+                          ? audioUi.pause
+                          : audioUi.play}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      disabled={
+                        !isCurrent
+                      }
+                      onPress={() =>
+                        seekTo(
+                          lecture.id,
+                          playbackCurrent +
+                            15
+                        )
+                      }
+                      style={[
+                        styles.smallButton,
+                        {
+                          borderColor:
+                            T.accent,
+                          opacity:
+                            isCurrent
+                              ? 1
+                              : 0.4,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color:
+                            T.accent,
+                          fontWeight:
+                            '800',
+                        }}
+                      >
+                        {audioUi.forward15Short}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                {lecture.markers.length >
+                  0 && (
+                  <View
+                    style={
+                      styles.savedMarkers
                     }
                   >
                     <Text
+                      style={{
+                        color:
+                          T.textSecondary,
+                        fontSize:
+                          F.base - 2,
+                        fontWeight:
+                          '800',
+                      }}
+                    >
+                      {audioUi.markedMoments}
+                    </Text>
+
+                    <View
                       style={
-                        styles.playButtonText
+                        styles.markerWrap
                       }
                     >
-                      {playing
-                        ? '❚❚'
-                        : '▶'}
+                      {lecture.markers.map(
+                        marker => (
+                          <Pressable
+                            key={
+                              marker.id
+                            }
+                            onPress={async () => {
+                              if (
+                                playingLectureId !==
+                                  lecture.id
+                              ) {
+                                await handlePlay(
+                                  lecture
+                                );
+                              }
+
+                              window.setTimeout(
+                                () =>
+                                  seekTo(
+                                    lecture.id,
+                                    marker.timeMillis /
+                                      1000
+                                  ),
+                                80
+                              );
+                            }}
+                            style={[
+                              styles.markerChip,
+                              {
+                                borderColor:
+                                  T.accent,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                color:
+                                  T.accent,
+                                fontSize:
+                                  F.base - 3,
+                                fontWeight:
+                                  '800',
+                              }}
+                            >
+                              {getAudioMarkerLabel(
+                                marker.markerType,
+                                app_language
+                              )} · {formatTime(
+                                marker.timeMillis
+                              )}
+                            </Text>
+                          </Pressable>
+                        )
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                {renameLectureId ===
+                  lecture.id ? (
+                  <View
+                    style={
+                      styles.renameBox
+                    }
+                  >
+                    <TextInput
+                      autoFocus
+                      value={
+                        renameValue
+                      }
+                      onChangeText={
+                        setRenameValue
+                      }
+                      placeholder={
+                        audioUi.renamePrompt
+                      }
+                      placeholderTextColor={
+                        T.textSecondary
+                      }
+                      style={[
+                        styles.renameInput,
+                        {
+                          color:
+                            T.textPrimary,
+                          borderColor:
+                            T.accent,
+                        },
+                      ]}
+                    />
+
+                    <View
+                      style={
+                        styles.renameActions
+                      }
+                    >
+                      <Pressable
+                        onPress={() => {
+                          setRenameLectureId(
+                            null
+                          );
+                          setRenameValue(
+                            ''
+                          );
+                        }}
+                        style={[
+                          styles.smallButton,
+                          {
+                            borderColor:
+                              T.accent,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color:
+                              T.accent,
+                            fontWeight:
+                              '800',
+                          }}
+                        >
+                          {audioUi.cancel}
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() =>
+                          void handleRenameSave(
+                            lecture
+                          )
+                        }
+                        style={[
+                          styles.playButton,
+                          {
+                            backgroundColor:
+                              T.accent,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={
+                            styles.playButtonText
+                          }
+                        >
+                          {audioUi.save}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : null}
+
+                <View
+                  style={
+                    styles.managementRow
+                  }
+                >
+                  <Pressable
+                    onPress={() => {
+                      setRenameLectureId(
+                        lecture.id
+                      );
+                      setRenameValue(
+                        lecture.title ||
+                          ''
+                      );
+                    }}
+                    style={[
+                      styles.managementButton,
+                      {
+                        borderColor:
+                          T.accent,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          T.accent,
+                        fontWeight:
+                          '900',
+                        fontSize:
+                          F.base - 2,
+                      }}
+                    >
+                      ✎ {audioUi.renameLecture}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() =>
+                      void handleDelete(
+                        lecture
+                      )
+                    }
+                    style={[
+                      styles.managementButton,
+                      {
+                        borderColor:
+                          '#C94B4B',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          '#C94B4B',
+                        fontWeight:
+                          '900',
+                        fontSize:
+                          F.base - 2,
+                      }}
+                    >
+                      🗑 {audioUi.delete}
                     </Text>
                   </Pressable>
                 </View>
 
-                <Text
+                <View
                   style={
-                    styles.audioMeta
+                    styles.nextStageBox
                   }
                 >
-                  {
-                    recording.sampleRate
-                  } Hz · {
-                    recording.channels
-                  } ch
-                </Text>
+                  <Text
+                    style={{
+                      color:
+                        T.textSecondary,
+                      fontSize:
+                        F.base - 2,
+                    }}
+                  >
+                    {audioUi.readyForTranscription}
+                  </Text>
+                </View>
               </View>
             );
           }
         )
       )}
+
+      {currentPlaying ? (
+        <Text
+          style={[
+            styles.nowPlaying,
+            {
+              color:
+                T.textSecondary,
+              fontSize:
+                F.base - 3,
+            },
+          ]}
+        >
+          {currentPlaying.title ||
+            formatDate(
+              currentPlaying.createdAtMillis
+            )}
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
 
 const styles =
   StyleSheet.create({
-    page: {
-      flexGrow: 1,
-      paddingHorizontal: 28,
-      paddingTop: 34,
-      paddingBottom: 135,
+    screen: {
+      flex:
+        1,
+      position:
+        'relative',
+      zIndex:
+        20,
       backgroundColor:
-        '#f7fbff',
+        '#F5F9FC',
     },
 
-    hero: {
-      backgroundColor:
-        '#ffffff',
-      borderRadius: 32,
-      padding: 28,
+    content: {
+      width:
+        '100%',
+      maxWidth:
+        920,
+      alignSelf:
+        'center',
+      paddingHorizontal:
+        22,
+      paddingTop:
+        28,
+      paddingBottom:
+        230,
     },
 
     title: {
-      fontSize: 32,
-      lineHeight: 38,
-      fontWeight: '900',
-      color: '#101014',
-      marginBottom: 22,
+      fontWeight:
+        '900',
+      marginBottom:
+        16,
     },
 
-    languageRow: {
-      flexDirection: 'row',
-      gap: 12,
-      marginBottom: 24,
+    card: {
+      width:
+        '100%',
+      borderRadius:
+        24,
+      borderWidth:
+        1,
+      padding:
+        22,
+      backgroundColor:
+        '#FFFFFF',
+    },
+
+    sourceLanguageRow: {
+      flexDirection:
+        'row',
+      gap:
+        10,
+      marginBottom:
+        18,
     },
 
     languageButton: {
-      flex: 1,
-      minHeight: 54,
-      borderRadius: 27,
-      borderWidth: 2,
-      borderColor: '#087cff',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flex:
+        1,
+      minHeight:
+        48,
+      borderRadius:
+        14,
+      borderWidth:
+        1.5,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
     },
 
-    languageActive: {
-      backgroundColor:
-        '#087cff',
+    info: {
+      lineHeight:
+        23,
     },
 
-    languageText: {
-      fontSize: 17,
-      fontWeight: '800',
-      color: '#087cff',
-    },
-
-    languageTextActive: {
-      color: '#ffffff',
-    },
-
-    description: {
-      fontSize: 18,
-      lineHeight: 28,
-      color: '#4f4f58',
+    recordingLabel: {
+      fontWeight:
+        '900',
+      textAlign:
+        'center',
+      marginTop:
+        8,
     },
 
     timer: {
-      marginTop: 22,
-      textAlign: 'center',
-      fontSize: 42,
-      lineHeight: 48,
-      fontWeight: '900',
-      color: '#087cff',
+      fontSize:
+        42,
+      fontWeight:
+        '900',
+      textAlign:
+        'center',
+      marginTop:
+        10,
+      marginBottom:
+        10,
     },
 
-    actions: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 28,
+    markerBox: {
+      marginTop:
+        14,
+      paddingTop:
+        14,
+      borderTopWidth:
+        1,
+      borderTopColor:
+        'rgba(127,127,127,0.18)',
     },
 
-    recordButton: {
-      flex: 1,
-      minHeight: 74,
-      borderRadius: 24,
-      backgroundColor:
-        '#087cff',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 10,
+    markerTitle: {
+      fontWeight:
+        '800',
+      marginBottom:
+        10,
     },
 
-    stopButton: {
-      backgroundColor:
-        '#d63c3c',
+    markerTypeRow: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        8,
     },
 
-    disabled: {
-      opacity: 0.55,
+    markerTypeButton: {
+      borderWidth:
+        1,
+      borderRadius:
+        999,
+      paddingHorizontal:
+        10,
+      paddingVertical:
+        7,
     },
 
-    recordButtonText: {
-      textAlign: 'center',
-      fontSize: 18,
-      lineHeight: 22,
-      fontWeight: '900',
-      color: '#ffffff',
+    outlineButton: {
+      minHeight:
+        48,
+      borderWidth:
+        1.5,
+      borderRadius:
+        14,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginTop:
+        12,
+      paddingHorizontal:
+        12,
+    },
+
+    actionRow: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        12,
+      marginTop:
+        22,
+    },
+
+    mainButton: {
+      flexGrow:
+        1,
+      flexBasis:
+        260,
+      minHeight:
+        58,
+      borderRadius:
+        16,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        14,
     },
 
     liveButton: {
-      flex: 1,
-      minHeight: 74,
-      borderRadius: 24,
-      borderWidth: 2,
-      borderColor: '#087cff',
-      backgroundColor:
-        '#ffffff',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 10,
+      flexGrow:
+        1,
+      flexBasis:
+        180,
+      minHeight:
+        58,
+      borderRadius:
+        16,
+      borderWidth:
+        1.5,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        14,
     },
 
-    liveButtonText: {
-      fontSize: 19,
-      fontWeight: '900',
-      color: '#087cff',
+    mainButtonText: {
+      color:
+        '#FFFFFF',
+      fontWeight:
+        '900',
+      fontSize:
+        17,
+    },
+
+    importButton: {
+      minHeight:
+        52,
+      borderWidth:
+        1.5,
+      borderRadius:
+        14,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginTop:
+        12,
+    },
+
+    hint: {
+      textAlign:
+        'center',
+      marginTop:
+        8,
     },
 
     message: {
-      marginTop: 18,
-      fontSize: 14,
-      lineHeight: 21,
-      color: '#5b5b64',
+      marginTop:
+        12,
+      lineHeight:
+        20,
     },
 
     libraryHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection:
+        'row',
       justifyContent:
         'space-between',
-      marginTop: 28,
-      marginBottom: 12,
-      paddingHorizontal: 4,
+      alignItems:
+        'center',
+      marginTop:
+        28,
+      marginBottom:
+        12,
+      paddingHorizontal:
+        2,
     },
 
-    libraryTitle: {
-      fontSize: 25,
-      fontWeight: '900',
-      color: '#101014',
-    },
-
-    libraryCount: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: '#8a8a93',
-    },
-
-    recordingCard: {
+    lectureCard: {
+      width:
+        '100%',
+      borderRadius:
+        22,
+      borderWidth:
+        1,
+      padding:
+        18,
       backgroundColor:
-        '#ffffff',
-      borderRadius: 24,
-      padding: 20,
-      marginBottom: 12,
+        '#FFFFFF',
+      marginBottom:
+        14,
     },
 
-    recordingTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
+    lectureHeader: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      gap:
+        12,
     },
 
-    recordingInfo: {
-      flex: 1,
+    playbackBox: {
+      marginTop:
+        16,
+      paddingTop:
+        14,
+      borderTopWidth:
+        1,
+      borderTopColor:
+        'rgba(127,127,127,0.16)',
     },
 
-    recordingTitle: {
-      fontSize: 17,
-      lineHeight: 23,
-      fontWeight: '800',
-      color: '#16161a',
+    playbackActions: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        8,
+      marginTop:
+        10,
+      alignItems:
+        'center',
     },
 
-    recordingMeta: {
-      marginTop: 5,
-      fontSize: 14,
-      color: '#696971',
-    },
-
-    audioMeta: {
-      marginTop: 12,
-      fontSize: 12,
-      color: '#92929a',
+    smallButton: {
+      minHeight:
+        42,
+      borderWidth:
+        1.2,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        12,
     },
 
     playButton: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      backgroundColor:
-        '#087cff',
-      alignItems: 'center',
-      justifyContent: 'center',
+      minHeight:
+        44,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        18,
     },
 
     playButtonText: {
-      fontSize: 20,
-      fontWeight: '900',
-      color: '#ffffff',
+      color:
+        '#FFFFFF',
+      fontWeight:
+        '900',
     },
 
-    emptyCard: {
+    savedMarkers: {
+      marginTop:
+        16,
+    },
+
+    markerWrap: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        8,
+      marginTop:
+        8,
+    },
+
+    markerChip: {
+      borderWidth:
+        1,
+      borderRadius:
+        999,
+      paddingHorizontal:
+        10,
+      paddingVertical:
+        7,
+    },
+
+    renameBox: {
+      marginTop:
+        16,
+    },
+
+    renameInput: {
+      minHeight:
+        48,
+      borderWidth:
+        1.3,
+      borderRadius:
+        12,
+      paddingHorizontal:
+        12,
+      fontSize:
+        16,
       backgroundColor:
-        '#ffffff',
-      borderRadius: 24,
-      padding: 24,
+        '#FFFFFF',
     },
 
-    emptyText: {
-      fontSize: 16,
-      lineHeight: 23,
-      color: '#777780',
+    renameActions: {
+      flexDirection:
+        'row',
+      gap:
+        8,
+      marginTop:
+        8,
+    },
+
+    managementRow: {
+      flexDirection:
+        'row',
+      flexWrap:
+        'wrap',
+      gap:
+        10,
+      marginTop:
+        16,
+    },
+
+    managementButton: {
+      flexGrow:
+        1,
+      flexBasis:
+        190,
+      minHeight:
+        46,
+      borderWidth:
+        1.2,
+      borderRadius:
+        12,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      paddingHorizontal:
+        10,
+    },
+
+    nextStageBox: {
+      marginTop:
+        14,
+      paddingTop:
+        12,
+      borderTopWidth:
+        1,
+      borderTopColor:
+        'rgba(127,127,127,0.14)',
+    },
+
+    nowPlaying: {
+      textAlign:
+        'center',
+      marginTop:
+        8,
     },
   });
