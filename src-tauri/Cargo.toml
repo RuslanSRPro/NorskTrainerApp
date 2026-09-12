@@ -26,3 +26,9 @@ tauri-plugin-log = "2"
 cpal = "0.18.2"
 hound = "3.5.1"
 wasapi = "0.24.0"
+tauri-plugin-dialog = "2.7.2"
+whisper-rs = "0.16.0"
+symphonia = { version = "0.5.4", features = ["all"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+zip = "4"
+uuid = { version = "1", features = ["v4"] }
