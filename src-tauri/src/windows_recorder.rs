@@ -305,3 +305,110 @@ pub fn stop_recording(state: State<'_, RecorderState>) -> Result<RecordingStatus
         error: current_error(&session.error),
     })
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowsRecording {
+    id: String,
+    path: String,
+    file_name: String,
+    bytes: u64,
+    duration_millis: u64,
+    sample_rate: u32,
+    channels: u16,
+    created_at_millis: u64,
+}
+
+#[tauri::command]
+pub fn list_recordings(app: AppHandle) -> Result<Vec<WindowsRecording>, String> {
+    let recordings_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("Could not resolve NorskTrainer data directory: {error}"))?
+        .join("recordings");
+
+    if !recordings_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let entries = fs::read_dir(&recordings_dir)
+        .map_err(|error| format!("Could not read recordings directory: {error}"))?;
+
+    let mut recordings = Vec::new();
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+
+        let path = entry.path();
+
+        let is_wav = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .map(|value| value.eq_ignore_ascii_case("wav"))
+            .unwrap_or(false);
+
+        if !is_wav {
+            continue;
+        }
+
+        let metadata = match fs::metadata(&path) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+
+        if metadata.len() < 44 {
+            continue;
+        }
+
+        let reader = match hound::WavReader::open(&path) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+
+        let spec = reader.spec();
+
+        if spec.sample_rate == 0 {
+            continue;
+        }
+
+        let duration_millis =
+            (reader.duration() as u64).saturating_mul(1000) / spec.sample_rate as u64;
+
+        let created_at_millis = metadata
+            .modified()
+            .ok()
+            .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
+            .map(|value| value.as_millis() as u64)
+            .unwrap_or(0);
+
+        let file_name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("recording.wav")
+            .to_string();
+
+        let id = path
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .unwrap_or(&file_name)
+            .to_string();
+
+        recordings.push(WindowsRecording {
+            id,
+            path: path_string(&path),
+            file_name,
+            bytes: metadata.len(),
+            duration_millis,
+            sample_rate: spec.sample_rate,
+            channels: spec.channels,
+            created_at_millis,
+        });
+    }
+
+    recordings.sort_by(|a, b| b.created_at_millis.cmp(&a.created_at_millis));
+
+    Ok(recordings)
+}
