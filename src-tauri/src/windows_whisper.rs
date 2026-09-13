@@ -6,6 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use std::time::Instant;
 use symphonia::{
     core::{
         audio::SampleBuffer,
@@ -69,6 +70,14 @@ pub struct WindowsTranscriptResult {
     characters: usize,
     audio_loading_mode: String,
     chunking_strategy: String,
+
+    // A0 performance diagnostics. These values do not affect recognition.
+    backend: String,
+    threads: usize,
+    audio_duration_sec: f64,
+    model_load_ms: u64,
+    inference_ms: u64,
+    rtf: f64,
 }
 
 fn emit_progress(
@@ -452,12 +461,14 @@ fn run_whisper(
 ) -> Result<WindowsTranscriptResult, String> {
     let path_string = model_path.to_string_lossy().to_string();
 
+    let model_load_started = Instant::now();
+
     let mut gpu_params = WhisperContextParameters::default();
 
     gpu_params.use_gpu = true;
 
-    let context = match WhisperContext::new_with_params(&path_string, gpu_params) {
-        Ok(context) => context,
+    let (context, backend) = match WhisperContext::new_with_params(&path_string, gpu_params) {
+        Ok(context) => (context, "vulkan".to_string()),
 
         Err(gpu_error) => {
             emit_progress(
@@ -472,11 +483,18 @@ fn run_whisper(
 
             cpu_params.use_gpu = false;
 
-            WhisperContext::new_with_params(&path_string, cpu_params).map_err(|cpu_error| {
-                format!("Could not load Whisper model on Vulkan ({gpu_error}) or CPU ({cpu_error})")
-            })?
+            let context =
+                WhisperContext::new_with_params(&path_string, cpu_params).map_err(|cpu_error| {
+                    format!(
+                        "Could not load Whisper model on Vulkan ({gpu_error}) or CPU ({cpu_error})"
+                    )
+                })?;
+
+            (context, "cpu-fallback".to_string())
         }
     };
+
+    let model_load_ms = model_load_started.elapsed().as_millis() as u64;
 
     let mut state = context
         .create_state()
@@ -529,9 +547,22 @@ fn run_whisper(
         );
     });
 
+    let inference_started = Instant::now();
+
     state
         .full(params, pcm)
         .map_err(|error| format!("Whisper transcription failed: {error}"))?;
+
+    let inference_ms = inference_started.elapsed().as_millis() as u64;
+
+    let audio_duration_sec = pcm.len() as f64 / WHISPER_SAMPLE_RATE as f64;
+    let inference_sec = inference_ms as f64 / 1000.0;
+
+    let rtf = if audio_duration_sec > 0.0 {
+        inference_sec / audio_duration_sec
+    } else {
+        0.0
+    };
 
     let mut segments = Vec::<WindowsTranscriptSegment>::new();
 
@@ -572,6 +603,12 @@ fn run_whisper(
         segments,
         audio_loading_mode: "full-file".to_string(),
         chunking_strategy: "none".to_string(),
+        backend,
+        threads,
+        audio_duration_sec,
+        model_load_ms,
+        inference_ms,
+        rtf,
     })
 }
 
@@ -594,6 +631,13 @@ fn persist_transcript(directory: &Path, result: &WindowsTranscriptResult) -> Res
         "characters": result.characters,
         "audioLoadingMode": "full-file",
         "chunkingStrategy": "none",
+
+        "backend": result.backend,
+        "threads": result.threads,
+        "audioDurationSec": result.audio_duration_sec,
+        "modelLoadMs": result.model_load_ms,
+        "inferenceMs": result.inference_ms,
+        "rtf": result.rtf,
     });
 
     fs::write(
@@ -700,6 +744,15 @@ pub fn get_saved_transcript(
         segments,
         audio_loading_mode: "full-file".to_string(),
         chunking_strategy: "none".to_string(),
+
+        // Historical transcript loaded from disk: runtime diagnostics
+        // are unknown because no inference is performed here.
+        backend: "saved".to_string(),
+        threads: 0,
+        audio_duration_sec: 0.0,
+        model_load_ms: 0,
+        inference_ms: 0,
+        rtf: 0.0,
     }))
 }
 

@@ -10,8 +10,8 @@
                 "windows":  [
                                 {
                                     "title":  "NorskTrainer",
-                                    "width":  800,
-                                    "height":  600,
+                                    "width":  390,
+                                    "height":  440,
                                     "resizable":  true,
                                     "fullscreen":  false
                                 }

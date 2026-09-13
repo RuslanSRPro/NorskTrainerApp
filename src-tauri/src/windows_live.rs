@@ -4,6 +4,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
+    time::Instant,
 };
 
 use hound::WavReader;
@@ -514,11 +515,40 @@ pub async fn transcribe_live_snapshot(
         if pcm.len() < WHISPER_SAMPLE_RATE as usize {
             return Err("Waiting for more speech.".to_string());
         }
-
+        let context_acquire_started = Instant::now();
         let (context, backend) = load_live_context(&model_path)?;
+        let context_acquire_ms = context_acquire_started.elapsed().as_millis() as u64;
+
+        let threads = std::thread::available_parallelism()
+            .map(|value| value.get().clamp(1, 4))
+            .unwrap_or(4);
+
+        let window_audio_sec = pcm.len() as f64 / WHISPER_SAMPLE_RATE as f64;
+
+        let inference_started = Instant::now();
 
         let (text, segments) =
             transcribe_window(&context, &pcm, &whisper_language, &prompt, window_start)?;
+
+        let inference_ms = inference_started.elapsed().as_millis() as u64;
+        let inference_sec = inference_ms as f64 / 1000.0;
+
+        let rtf = if window_audio_sec > 0.0 {
+            inference_sec / window_audio_sec
+        } else {
+            0.0
+        };
+
+        eprintln!(
+            "[live-benchmark] model={} backend={} threads={} window_audio_sec={:.3} context_acquire_ms={} inference_ms={} rtf={:.4}",
+            LIVE_MODEL_NAME,
+            backend,
+            threads,
+            window_audio_sec,
+            context_acquire_ms,
+            inference_ms,
+            rtf
+        );
 
         Ok(WindowsLiveSnapshot {
             ok: !text.is_empty(),

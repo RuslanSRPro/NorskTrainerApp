@@ -32,3 +32,5 @@ symphonia = { version = "0.5.4", features = ["all"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 zip = "4"
 uuid = { version = "1", features = ["v4"] }
+ct2rs = { path = "../vendor/ct2rs", version = "0.10.1", default-features = false, features = ["ruy", "sentencepiece"] }
+anyhow = "1"
