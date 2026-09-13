@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -36,11 +37,8 @@ import {
 } from '@/features/audio/audioUiText';
 
 import {
-  beginWindowsTranslator,
-  translateSegmentsWithSession,
   type WindowsTranslationTarget,
   type WindowsTranslatorProgress,
-  type WindowsTranslatorSession,
 } from '@/features/audio/windowsTranslation';
 
 import {
@@ -305,6 +303,36 @@ export default function WindowsVoiceScreen() {
     fonts,
   } = useTheme();
 
+  const {
+    width: viewportWidth,
+  } = useWindowDimensions();
+
+  const uiScale = useMemo(
+    () =>
+      Math.max(
+        0.76,
+        Math.min(
+          1.08,
+          viewportWidth / 390,
+        ),
+      ),
+    [viewportWidth],
+  );
+
+  const styles = useMemo(
+    () => createStyles(uiScale),
+    [uiScale],
+  );
+
+  const fs = useCallback(
+    (value: number) =>
+      Math.max(
+        11,
+        Math.round(value * uiScale),
+      ),
+    [uiScale],
+  );
+
   const T = theme;
   const F = fonts;
 
@@ -475,6 +503,17 @@ export default function WindowsVoiceScreen() {
     );
 
   const [
+    lectureTextView,
+    setLectureTextView,
+  ] =
+    useState<
+      'source' |
+      WindowsTranslationTarget
+    >(
+      'source'
+    );
+
+  const [
     translationByLecture,
     setTranslationByLecture,
   ] =
@@ -610,21 +649,9 @@ export default function WindowsVoiceScreen() {
       []
     );
 
-  const liveTranslatorRef =
-    useRef<
-      WindowsTranslatorSession | null
-    >(
-      null
-    );
-
-  const liveTranslatorPromiseRef =
-    useRef<
-      Promise<
-        WindowsTranslatorSession
-      > |
-      null
-    >(
-      null
+  const liveTranslatedThroughRef =
+    useRef(
+      0
     );
 
   const liveSourceLanguageRef =
@@ -725,26 +752,6 @@ export default function WindowsVoiceScreen() {
 
         liveSnapshotBusyRef.current =
           false;
-      },
-      []
-    );
-
-  const destroyLiveTranslator =
-    useCallback(
-      () => {
-        try {
-          liveTranslatorRef.current
-            ?.destroy();
-        }
-        catch {
-          // no-op
-        }
-
-        liveTranslatorRef.current =
-          null;
-
-        liveTranslatorPromiseRef.current =
-          null;
       },
       []
     );
@@ -859,11 +866,9 @@ export default function WindowsVoiceScreen() {
         stopPolling();
         stopPlayback();
         stopLiveSnapshotLoop();
-        destroyLiveTranslator();
       };
     },
     [
-      destroyLiveTranslator,
       refreshLibrary,
       stopLiveSnapshotLoop,
       stopPlayback,
@@ -950,19 +955,73 @@ export default function WindowsVoiceScreen() {
               .trim()
           );
 
-          const translator =
-            liveTranslatorRef.current;
+          /*
+           * Keep the unstable tail provisional. Only source segments
+           * that are at least 1.5 seconds behind the newest speech are
+           * committed to translation. Already committed source is never
+           * translated again during this Live session.
+           */
+          const latestSnapshotEnd =
+            snapshot.segments.reduce(
+              (
+                latest,
+                segment
+              ) =>
+                Math.max(
+                  latest,
+                  segment.end
+                ),
+              0
+            );
+
+          const stableCutoff =
+            Math.max(
+              0,
+              latestSnapshotEnd -
+                1.5
+            );
+
+          const pendingSegments =
+            merged.filter(
+              segment =>
+                !!segment.text.trim() &&
+                segment.start >=
+                  liveTranslatedThroughRef.current -
+                    0.05 &&
+                segment.end >
+                  liveTranslatedThroughRef.current +
+                    0.05 &&
+                segment.end <=
+                  stableCutoff
+            );
 
           if (
-            translator &&
-            snapshot.segments.length >
+            pendingSegments.length >
               0
           ) {
             try {
-              const translatedWindow =
-                await translateSegmentsWithSession(
-                  translator,
-                  snapshot.segments
+              const translated =
+                await invoke<{
+                  source: string;
+                  target: WindowsTranslationTarget;
+                  text: string;
+                  segments: WindowsTranscriptSegment[];
+                }>(
+                  'translate_windows_segments',
+                  {
+                    source:
+                      liveSourceLanguageRef.current
+                        .toLowerCase()
+                        .startsWith(
+                          'en'
+                        )
+                        ? 'en'
+                        : 'no',
+                    target:
+                      liveTargetRef.current,
+                    segments:
+                      pendingSegments,
+                  }
                 );
 
               if (
@@ -972,18 +1031,25 @@ export default function WindowsVoiceScreen() {
                 return;
               }
 
-              const mergedTranslation =
-                mergeLiveSegments(
-                  liveTranslatedSegmentsRef.current,
-                  translatedWindow.segments,
-                  snapshot.windowStart
+              liveTranslatedThroughRef.current =
+                Math.max(
+                  ...pendingSegments.map(
+                    segment =>
+                      segment.end
+                  )
                 );
 
+              const combinedTranslation =
+                [
+                  ...liveTranslatedSegmentsRef.current,
+                  ...translated.segments,
+                ];
+
               liveTranslatedSegmentsRef.current =
-                mergedTranslation;
+                combinedTranslation;
 
               setLiveTranslation(
-                mergedTranslation
+                combinedTranslation
                   .map(
                     segment =>
                       segment.text
@@ -993,13 +1059,16 @@ export default function WindowsVoiceScreen() {
               );
             }
             catch (translationError) {
+              /*
+               * Translation is deliberately non-fatal. Live recording
+               * and transcription must continue even if M2M100 fails.
+               */
               console.warn(
-                'Live translation update failed:',
+                'Native Live translation update failed:',
                 translationError
               );
             }
-          }
-        }
+          }        }
         catch (error) {
           const text =
             error instanceof Error
@@ -1072,6 +1141,9 @@ export default function WindowsVoiceScreen() {
 
         liveTranslatedSegmentsRef.current =
           [];
+
+        liveTranslatedThroughRef.current =
+          0;
 
         setLiveText(
           ''
@@ -1215,30 +1287,7 @@ export default function WindowsVoiceScreen() {
             lecture.id
           );
 
-          let translator =
-            liveTranslatorRef.current;
-
           if (
-            !translator &&
-            liveTranslatorPromiseRef.current
-          ) {
-            try {
-              translator =
-                await liveTranslatorPromiseRef.current;
-
-              liveTranslatorRef.current =
-                translator;
-            }
-            catch (translationError) {
-              console.warn(
-                'Final Live Translator session failed:',
-                translationError
-              );
-            }
-          }
-
-          if (
-            translator &&
             finalTranscript.text
               .trim()
           ) {
@@ -1262,16 +1311,50 @@ export default function WindowsVoiceScreen() {
                       },
                     ];
 
+              setTranslatorProgress({
+                stage:
+                  'translating',
+                percent:
+                  10,
+              });
+
               const translated =
-                await translateSegmentsWithSession(
-                  translator,
-                  sourceSegments,
-                  progress => {
-                    setTranslatorProgress(
-                      progress
-                    );
+                await invoke<{
+                  source: string;
+                  target: WindowsTranslationTarget;
+                  text: string;
+                  segments: WindowsTranscriptSegment[];
+                }>(
+                  'translate_windows_segments',
+                  {
+                    source:
+                      liveSourceLanguageRef.current
+                        .toLowerCase()
+                        .startsWith(
+                          'en'
+                        )
+                        ? 'en'
+                        : 'no',
+                    target:
+                      liveTargetRef.current,
+                    segments:
+                      sourceSegments,
                   }
                 );
+
+              if (
+                generation !==
+                  liveGenerationRef.current
+              ) {
+                return;
+              }
+
+              setTranslatorProgress({
+                stage:
+                  'done',
+                percent:
+                  100,
+              });
 
               if (
                 translated.text
@@ -1316,13 +1399,16 @@ export default function WindowsVoiceScreen() {
               }
             }
             catch (translationError) {
+              /*
+               * The lecture and final transcript remain valid even when
+               * translation fails.
+               */
               console.warn(
-                'Final Live translation failed:',
+                'Final native Live translation failed:',
                 translationError
               );
             }
           }
-
           await refreshLibrary();
 
           setMessage(
@@ -1342,8 +1428,6 @@ export default function WindowsVoiceScreen() {
           );
         }
         finally {
-          destroyLiveTranslator();
-
           setTranslatorProgress(
             null
           );
@@ -1380,48 +1464,6 @@ export default function WindowsVoiceScreen() {
       liveTargetRef.current =
         translationTarget;
 
-      let translatorPromise:
-        Promise<
-          WindowsTranslatorSession
-        > |
-        null =
-          null;
-
-      try {
-        /*
-         * Start the browser translation session directly inside
-         * the Live button gesture. Live transcription still works
-         * if Edge Translator is unavailable.
-         */
-        translatorPromise =
-          beginWindowsTranslator(
-            sourceLanguage,
-            translationTarget,
-            progress => {
-              setTranslatorProgress(
-                progress
-              );
-            }
-          );
-      }
-      catch (translationError) {
-        console.warn(
-          'Live Translator unavailable:',
-          translationError
-        );
-
-        setLiveTranslation(
-          uiLanguage === 'ua'
-            ? 'Локальний переклад недоступний у цьому WebView2.'
-            : uiLanguage === 'no'
-              ? 'Lokal oversettelse er ikke tilgjengelig i denne WebView2-versjonen.'
-              : 'On-device translation is unavailable in this WebView2 runtime.'
-        );
-      }
-
-      liveTranslatorPromiseRef.current =
-        translatorPromise;
-
       setBusy(
         true
       );
@@ -1441,6 +1483,9 @@ export default function WindowsVoiceScreen() {
 
       liveTranslatedSegmentsRef.current =
         [];
+
+        liveTranslatedThroughRef.current =
+          0;
 
       setLiveText(
         ''
@@ -1514,42 +1559,6 @@ export default function WindowsVoiceScreen() {
           false
         );
 
-        if (
-          translatorPromise
-        ) {
-          void translatorPromise
-            .then(
-              translator => {
-                if (
-                  generation !==
-                    liveGenerationRef.current
-                ) {
-                  translator.destroy();
-                  return;
-                }
-
-                liveTranslatorRef.current =
-                  translator;
-              }
-            )
-            .catch(
-              translationError => {
-                console.warn(
-                  'Live Translator session failed:',
-                  translationError
-                );
-
-                setLiveTranslation(
-                  uiLanguage === 'ua'
-                    ? 'Локальний переклад недоступний у цьому WebView2.'
-                    : uiLanguage === 'no'
-                      ? 'Lokal oversettelse er ikke tilgjengelig i denne WebView2-versjonen.'
-                      : 'On-device translation is unavailable in this WebView2 runtime.'
-                );
-              }
-            );
-        }
-
         await modelPromise;
 
         if (
@@ -1578,8 +1587,6 @@ export default function WindowsVoiceScreen() {
             ? error.message
             : String(error)
         );
-
-        destroyLiveTranslator();
 
         try {
           const current =
@@ -2214,6 +2221,14 @@ export default function WindowsVoiceScreen() {
         target
       );
 
+      setLectureTextView(
+        target
+      );
+
+      setOpenedTranscriptId(
+        lecture.id
+      );
+
       try {
         await loadSavedTranslation(
           lecture,
@@ -2243,37 +2258,6 @@ export default function WindowsVoiceScreen() {
         return;
       }
 
-      let translatorPromise:
-        Promise<
-          WindowsTranslatorSession
-        >;
-
-      try {
-        /*
-         * Begin the Edge Translator session immediately from the
-         * click event. A first-time model download requires recent
-         * user activation.
-         */
-        translatorPromise =
-          beginWindowsTranslator(
-            lecture.language,
-            target,
-            progress => {
-              setTranslatorProgress(
-                progress
-              );
-            }
-          );
-      }
-      catch (error) {
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : String(error)
-        );
-        return;
-      }
-
       setTranslatingKey(
         `${lecture.id}:${target}`
       );
@@ -2285,28 +2269,13 @@ export default function WindowsVoiceScreen() {
           0,
       });
 
-      setMessage(
-        null
-      );
-
-      let translator:
-        WindowsTranslatorSession | null =
-          null;
+      setMessage(null);
 
       try {
-        const [
-          transcript,
-          createdTranslator,
-        ] =
-          await Promise.all([
-            loadTranscript(
-              lecture
-            ),
-            translatorPromise,
-          ]);
-
-        translator =
-          createdTranslator;
+        const transcript =
+          await loadTranscript(
+            lecture
+          );
 
         if (
           !transcript ||
@@ -2337,16 +2306,40 @@ export default function WindowsVoiceScreen() {
                 },
               ];
 
+        setTranslatorProgress({
+          stage:
+            'translating',
+          percent:
+            10,
+        });
+
         const translated =
-          await translateSegmentsWithSession(
-            translator,
-            sourceSegments,
-            progress => {
-              setTranslatorProgress(
-                progress
-              );
+          await invoke<{
+            source: string;
+            target: WindowsTranslationTarget;
+            text: string;
+            segments: WindowsTranscriptSegment[];
+          }>(
+            'translate_windows_segments',
+            {
+              source:
+                lecture.language
+                  .toLowerCase()
+                  .startsWith('en')
+                  ? 'en'
+                  : 'no',
+              target,
+              segments:
+                sourceSegments,
             }
           );
+
+        setTranslatorProgress({
+          stage:
+            'done',
+          percent:
+            100,
+        });
 
         if (
           !translated.text
@@ -2392,10 +2385,18 @@ export default function WindowsVoiceScreen() {
         setTranslationTarget(
           target
         );
+
+        setLectureTextView(
+          target
+        );
+
+        setOpenedTranscriptId(
+          lecture.id
+        );
       }
       catch (error) {
         console.error(
-          'Windows on-device translation error:',
+          'Windows native translation error:',
           error
         );
 
@@ -2406,24 +2407,15 @@ export default function WindowsVoiceScreen() {
         );
       }
       finally {
-        try {
-          translator
-            ?.destroy();
-        }
-        catch {
-          // no-op
-        }
+        setTranslatorProgress(
+          null
+        );
 
         setTranslatingKey(
           null
         );
-
-        setTranslatorProgress(
-          null
-        );
       }
     };
-
   const handleToggleTranscript =
     async (
       lecture:
@@ -2530,7 +2522,7 @@ export default function WindowsVoiceScreen() {
         null
       );
 
-      try {
+try {
         const result =
           await invoke<
             WindowsTranscript
@@ -2640,7 +2632,7 @@ export default function WindowsVoiceScreen() {
             color:
               T.textPrimary,
             fontSize:
-              22,
+              fs(22),
           },
         ]}
       >
@@ -2705,7 +2697,7 @@ export default function WindowsVoiceScreen() {
                         ? '#FFFFFF'
                         : T.accent,
                     fontSize:
-                      F.base - 2,
+                      fs(F.base - 2),
                     fontWeight:
                       '800',
                   }}
@@ -2725,7 +2717,7 @@ export default function WindowsVoiceScreen() {
                 color:
                   T.textSecondary,
                 fontSize:
-                  F.base,
+                  fs(F.base),
               },
             ]}
           >
@@ -2742,7 +2734,7 @@ export default function WindowsVoiceScreen() {
                   color:
                     T.accent,
                   fontSize:
-                    F.base,
+                    fs(F.base),
                 },
               ]}
             >
@@ -2775,7 +2767,7 @@ export default function WindowsVoiceScreen() {
                     color:
                       T.textSecondary,
                     fontSize:
-                      F.base - 1,
+                      fs(F.base - 1),
                   },
                 ]}
               >
@@ -2824,7 +2816,7 @@ export default function WindowsVoiceScreen() {
                               ? '#FFFFFF'
                               : T.accent,
                           fontSize:
-                            F.base - 3,
+                            fs(F.base - 3),
                           fontWeight:
                             '800',
                         }}
@@ -2858,7 +2850,7 @@ export default function WindowsVoiceScreen() {
                     fontWeight:
                       '900',
                     fontSize:
-                      F.base,
+                      fs(F.base),
                   }}
                 >
                   {audioUi.markMoment} · {formatTime(
@@ -2876,7 +2868,7 @@ export default function WindowsVoiceScreen() {
                     marginTop:
                       10,
                     fontSize:
-                      F.base - 3,
+                      fs(F.base - 3),
                   }}
                 >
                   {audioUi.markersSaved} {activeMarkers.length}
@@ -2932,7 +2924,7 @@ export default function WindowsVoiceScreen() {
                     color:
                       T.accent,
                     fontSize:
-                      F.base - 1,
+                      fs(F.base - 4),
                     fontWeight:
                       '900',
                   }}
@@ -2978,9 +2970,14 @@ export default function WindowsVoiceScreen() {
             ]}
           >
             <Text
-              style={
-                styles.mainButtonText
-              }
+              numberOfLines={1}
+              style={[
+                styles.mainButtonText,
+                {
+                  fontSize:
+                    fs(F.base - 5),
+                },
+              ]}
             >
               {status.isRecording &&
               !liveActive
@@ -3045,7 +3042,7 @@ export default function WindowsVoiceScreen() {
                 fontWeight:
                   '900',
                 fontSize:
-                  F.base,
+                  fs(F.base),
               }}
             >
               {liveActive
@@ -3071,7 +3068,7 @@ export default function WindowsVoiceScreen() {
                   color:
                     T.textPrimary,
                   fontSize:
-                    F.base,
+                    fs(F.base),
                   fontWeight:
                     '900',
                 }}
@@ -3085,7 +3082,7 @@ export default function WindowsVoiceScreen() {
                     color:
                       T.textSecondary,
                     fontSize:
-                      F.base - 3,
+                      fs(F.base - 3),
                     fontWeight:
                       '800',
                   }}
@@ -3100,7 +3097,7 @@ export default function WindowsVoiceScreen() {
                 color:
                   T.accent,
                 fontSize:
-                  F.base - 2,
+                  fs(F.base - 2),
                 fontWeight:
                   '800',
                 marginTop:
@@ -3123,7 +3120,7 @@ export default function WindowsVoiceScreen() {
                   color:
                     T.textPrimary,
                   fontSize:
-                    F.base - 1,
+                    fs(F.base - 1),
                 },
               ]}
             >
@@ -3136,9 +3133,9 @@ export default function WindowsVoiceScreen() {
                 color:
                   T.textSecondary,
                 fontSize:
-                  F.base,
+                  fs(F.base),
                 lineHeight:
-                  24,
+                  fs(24),
               }}
             >
               {liveText ||
@@ -3152,7 +3149,7 @@ export default function WindowsVoiceScreen() {
                   color:
                     T.textPrimary,
                   fontSize:
-                    F.base - 1,
+                    fs(F.base - 1),
                 },
               ]}
             >
@@ -3170,17 +3167,13 @@ export default function WindowsVoiceScreen() {
                 color:
                   T.textSecondary,
                 fontSize:
-                  F.base,
+                  fs(F.base),
                 lineHeight:
-                  24,
+                  fs(24),
               }}
             >
               {liveTranslation ||
-                (
-                  liveTranslatorRef.current
-                    ? audioUi.liveWaiting
-                    : windowsTranslationInfo
-                )}
+                audioUi.liveWaiting}
             </Text>
           </View>
         ) : null}
@@ -3213,7 +3206,7 @@ export default function WindowsVoiceScreen() {
               fontWeight:
                 '900',
               fontSize:
-                F.base,
+                fs(F.base),
             }}
           >
             {audioUi.importAudio}
@@ -3227,7 +3220,7 @@ export default function WindowsVoiceScreen() {
               color:
                 T.textSecondary,
               fontSize:
-                F.base - 2,
+                fs(F.base - 2),
             },
           ]}
         >
@@ -3242,7 +3235,7 @@ export default function WindowsVoiceScreen() {
                 color:
                   T.textSecondary,
                 fontSize:
-                  F.base - 2,
+                  fs(F.base - 2),
               },
             ]}
           >
@@ -3261,7 +3254,7 @@ export default function WindowsVoiceScreen() {
             color:
               T.textPrimary,
             fontSize:
-              F.base + 4,
+              fs(F.base + 4),
             fontWeight:
               '900',
           }}
@@ -3274,7 +3267,7 @@ export default function WindowsVoiceScreen() {
             color:
               T.textSecondary,
             fontSize:
-              F.base - 1,
+              fs(F.base - 1),
             fontWeight:
               '800',
           }}
@@ -3289,7 +3282,7 @@ export default function WindowsVoiceScreen() {
             color:
               T.textSecondary,
             fontSize:
-              F.base,
+              fs(F.base),
           }}
         >
           {audioUi.loading}
@@ -3306,7 +3299,7 @@ export default function WindowsVoiceScreen() {
               color:
                 T.textSecondary,
               fontSize:
-                F.base,
+                fs(F.base),
             }}
           >
             {audioUi.emptyLibrary}
@@ -3364,7 +3357,7 @@ export default function WindowsVoiceScreen() {
                         color:
                           T.textPrimary,
                         fontSize:
-                          F.base + 1,
+                          fs(F.base + 1),
                         fontWeight:
                           '900',
                       }}
@@ -3381,7 +3374,7 @@ export default function WindowsVoiceScreen() {
                         color:
                           T.textSecondary,
                         fontSize:
-                          F.base - 2,
+                          fs(F.base - 2),
                         marginTop:
                           5,
                       }}
@@ -3410,7 +3403,7 @@ export default function WindowsVoiceScreen() {
                       color:
                         T.textSecondary,
                       fontSize:
-                        F.base - 2,
+                        fs(F.base - 2),
                       fontWeight:
                         '800',
                     }}
@@ -3423,7 +3416,7 @@ export default function WindowsVoiceScreen() {
                       color:
                         T.textPrimary,
                       fontSize:
-                        F.base - 1,
+                        fs(F.base - 1),
                       marginTop:
                         8,
                     }}
@@ -3498,6 +3491,10 @@ export default function WindowsVoiceScreen() {
                       style={[
                         styles.smallButton,
                         {
+                          flex: 1,
+                          minWidth: 0,
+                          paddingHorizontal:
+                            Math.round(5 * uiScale),
                           borderColor:
                             T.accent,
                           opacity:
@@ -3508,9 +3505,12 @@ export default function WindowsVoiceScreen() {
                       ]}
                     >
                       <Text
+                        numberOfLines={1}
                         style={{
                           color:
                             T.accent,
+                          fontSize:
+                            fs(F.base - 4),
                           fontWeight:
                             '800',
                         }}
@@ -3528,15 +3528,24 @@ export default function WindowsVoiceScreen() {
                       style={[
                         styles.playButton,
                         {
+                          flex: 1.35,
+                          minWidth: 0,
+                          paddingHorizontal:
+                            Math.round(5 * uiScale),
                           backgroundColor:
                             T.accent,
                         },
                       ]}
                     >
                       <Text
-                        style={
-                          styles.playButtonText
-                        }
+                        numberOfLines={1}
+                        style={[
+                          styles.playButtonText,
+                          {
+                            fontSize:
+                              fs(F.base - 4),
+                          },
+                        ]}
                       >
                         {isCurrent &&
                         audioRef.current &&
@@ -3561,6 +3570,10 @@ export default function WindowsVoiceScreen() {
                       style={[
                         styles.smallButton,
                         {
+                          flex: 1,
+                          minWidth: 0,
+                          paddingHorizontal:
+                            Math.round(5 * uiScale),
                           borderColor:
                             T.accent,
                           opacity:
@@ -3571,9 +3584,12 @@ export default function WindowsVoiceScreen() {
                       ]}
                     >
                       <Text
+                        numberOfLines={1}
                         style={{
                           color:
                             T.accent,
+                          fontSize:
+                            fs(F.base - 4),
                           fontWeight:
                             '800',
                         }}
@@ -3596,7 +3612,7 @@ export default function WindowsVoiceScreen() {
                         color:
                           T.textSecondary,
                         fontSize:
-                          F.base - 2,
+                          fs(F.base - 2),
                         fontWeight:
                           '800',
                       }}
@@ -3648,7 +3664,7 @@ export default function WindowsVoiceScreen() {
                                 color:
                                   T.accent,
                                 fontSize:
-                                  F.base - 3,
+                                  fs(F.base - 3),
                                 fontWeight:
                                   '800',
                               }}
@@ -3777,6 +3793,7 @@ export default function WindowsVoiceScreen() {
                     style={[
                       styles.managementButton,
                       {
+                        flex: 1.35,
                         borderColor:
                           T.accent,
                       },
@@ -3789,7 +3806,7 @@ export default function WindowsVoiceScreen() {
                         fontWeight:
                           '900',
                         fontSize:
-                          F.base - 2,
+                          fs(F.base - 2),
                       }}
                     >
                       ✎ {audioUi.renameLecture}
@@ -3805,6 +3822,7 @@ export default function WindowsVoiceScreen() {
                     style={[
                       styles.managementButton,
                       {
+                        flex: 1,
                         borderColor:
                           '#C94B4B',
                       },
@@ -3817,7 +3835,7 @@ export default function WindowsVoiceScreen() {
                         fontWeight:
                           '900',
                         fontSize:
-                          F.base - 2,
+                          fs(F.base - 2),
                       }}
                     >
                       🗑 {audioUi.delete}
@@ -3835,7 +3853,7 @@ export default function WindowsVoiceScreen() {
                       color:
                         T.textSecondary,
                       fontSize:
-                        F.base - 2,
+                        fs(F.base - 2),
                       fontWeight:
                         '800',
                     }}
@@ -3857,7 +3875,7 @@ export default function WindowsVoiceScreen() {
                           color:
                             T.accent,
                           fontSize:
-                            F.base - 2,
+                            fs(F.base - 2),
                           fontWeight:
                             '900',
                         }}
@@ -3913,7 +3931,7 @@ export default function WindowsVoiceScreen() {
                           color:
                             T.textSecondary,
                           fontSize:
-                            F.base - 3,
+                            fs(F.base - 3),
                           marginTop:
                             8,
                         }}
@@ -3981,7 +3999,7 @@ export default function WindowsVoiceScreen() {
                               color:
                                 T.accent,
                               fontSize:
-                                F.base - 2,
+                                fs(F.base - 2),
                               fontWeight:
                                 '900',
                             }}
@@ -3996,7 +4014,117 @@ export default function WindowsVoiceScreen() {
                     </View>
                   )}
 
-                  {openedTranscriptId ===
+                  {lecture.transcriptReady ? (
+                    <View
+                      style={
+                        styles.translationTargetRow
+                      }
+                    >
+                      <Pressable
+                        disabled={
+                          !!translatingKey
+                        }
+                        onPress={() => {
+                          setLectureTextView(
+                            'source'
+                          );
+                          setOpenedTranscriptId(
+                            lecture.id
+                          );
+                        }}
+                        style={[
+                          styles.translationTargetButton,
+                          {
+                            borderColor:
+                              T.accent,
+                            backgroundColor:
+                              lectureTextView ===
+                              'source'
+                                ? `${T.accent}18`
+                                : 'transparent',
+                            opacity:
+                              translatingKey
+                                ? 0.5
+                                : 1,
+                          },
+                        ]}
+                      >
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            color:
+                              T.accent,
+                            fontSize:
+                              fs(F.base - 5),
+                            fontWeight:
+                              '900',
+                          }}
+                        >
+                          {lecture.language
+                            .toLowerCase()
+                            .startsWith('en')
+                            ? 'English'
+                            : 'Norsk'}
+                        </Text>
+                      </Pressable>
+
+                      {(
+                        [
+                          ['uk', audioUi.ukrainian],
+                          ['ru', audioUi.russian],
+                        ] as const
+                      ).map(
+                        ([target, label]) => (
+                          <Pressable
+                            key={target}
+                            disabled={
+                              !!translatingKey
+                            }
+                            onPress={() =>
+                              void handleSelectTranslationTarget(
+                                lecture,
+                                target
+                              )
+                            }
+                            style={[
+                              styles.translationTargetButton,
+                              {
+                                borderColor:
+                                  T.accent,
+                                backgroundColor:
+                                  lectureTextView ===
+                                  target
+                                    ? `${T.accent}18`
+                                    : 'transparent',
+                                opacity:
+                                  translatingKey
+                                    ? 0.5
+                                    : 1,
+                              },
+                            ]}
+                          >
+                            <Text
+                              numberOfLines={1}
+                              style={{
+                                color:
+                                  T.accent,
+                                fontSize:
+                                  fs(F.base - 5),
+                                fontWeight:
+                                  '900',
+                              }}
+                            >
+                              {label}
+                            </Text>
+                          </Pressable>
+                        )
+                      )}
+                    </View>
+                  ) : null}
+
+                  {lectureTextView ===
+                    'source' &&
+                  openedTranscriptId ===
                     lecture.id &&
                   transcriptByLecture[
                     lecture.id
@@ -4011,7 +4139,7 @@ export default function WindowsVoiceScreen() {
                           color:
                             T.textPrimary,
                           fontSize:
-                            F.base,
+                            fs(F.base),
                           fontWeight:
                             '900',
                           marginBottom:
@@ -4073,7 +4201,7 @@ export default function WindowsVoiceScreen() {
                                     color:
                                       T.accent,
                                     fontSize:
-                                      F.base - 3,
+                                      fs(F.base - 3),
                                     fontWeight:
                                       '900',
                                     minWidth:
@@ -4092,9 +4220,9 @@ export default function WindowsVoiceScreen() {
                                     color:
                                       T.textSecondary,
                                     fontSize:
-                                      F.base,
+                                      fs(F.base),
                                     lineHeight:
-                                      24,
+                                      fs(24),
                                     flex:
                                       1,
                                   }}
@@ -4112,9 +4240,9 @@ export default function WindowsVoiceScreen() {
                             color:
                               T.textSecondary,
                             fontSize:
-                              F.base,
+                              fs(F.base),
                             lineHeight:
-                              24,
+                              fs(24),
                           }}
                         >
                           {transcriptByLecture[
@@ -4125,7 +4253,9 @@ export default function WindowsVoiceScreen() {
                     </View>
                   ) : null}
 
-                  {lecture.transcriptReady ? (
+                  {lecture.transcriptReady &&
+                  lectureTextView !==
+                    'source' ? (
                     <View
                       style={
                         styles.translationBox
@@ -4136,7 +4266,7 @@ export default function WindowsVoiceScreen() {
                           color:
                             T.textPrimary,
                           fontSize:
-                            F.base,
+                            fs(F.base),
                           fontWeight:
                             '900',
                         }}
@@ -4149,9 +4279,9 @@ export default function WindowsVoiceScreen() {
                           color:
                             T.textSecondary,
                           fontSize:
-                            F.base - 3,
+                            fs(F.base - 3),
                           lineHeight:
-                            19,
+                            fs(19),
                           marginTop:
                             5,
                         }}
@@ -4159,62 +4289,6 @@ export default function WindowsVoiceScreen() {
                         {windowsTranslationInfo}
                       </Text>
 
-                      <View
-                        style={
-                          styles.translationTargetRow
-                        }
-                      >
-                        {(
-                          [
-                            ['uk', `🇺🇦 ${audioUi.ukrainian}`],
-                            ['ru', `🇷🇺 ${audioUi.russian}`],
-                          ] as const
-                        ).map(
-                          ([target, label]) => (
-                            <Pressable
-                              key={target}
-                              disabled={
-                                !!translatingKey
-                              }
-                              onPress={() =>
-                                void handleSelectTranslationTarget(
-                                  lecture,
-                                  target
-                                )
-                              }
-                              style={[
-                                styles.translationTargetButton,
-                                {
-                                  borderColor:
-                                    T.accent,
-                                  backgroundColor:
-                                    translationTarget ===
-                                      target
-                                      ? `${T.accent}18`
-                                      : 'transparent',
-                                  opacity:
-                                    translatingKey
-                                      ? 0.5
-                                      : 1,
-                                },
-                              ]}
-                            >
-                              <Text
-                                style={{
-                                  color:
-                                    T.accent,
-                                  fontSize:
-                                    F.base - 2,
-                                  fontWeight:
-                                    '900',
-                                }}
-                              >
-                                {label}
-                              </Text>
-                            </Pressable>
-                          )
-                        )}
-                      </View>
 
                       <Pressable
                         disabled={
@@ -4269,7 +4343,7 @@ export default function WindowsVoiceScreen() {
                               color:
                                 T.accent,
                               fontSize:
-                                F.base - 2,
+                                fs(F.base - 2),
                               fontWeight:
                                 '800',
                             }}
@@ -4294,7 +4368,11 @@ export default function WindowsVoiceScreen() {
                         </View>
                       ) : null}
 
-                      {translationByLecture[
+                      {lectureTextView ===
+                        translationTarget &&
+                      openedTranscriptId ===
+                        lecture.id &&
+                      translationByLecture[
                         lecture.id
                       ]?.[
                         translationTarget
@@ -4309,7 +4387,7 @@ export default function WindowsVoiceScreen() {
                               color:
                                 T.textPrimary,
                               fontSize:
-                                F.base,
+                                fs(F.base),
                               fontWeight:
                                 '900',
                               marginBottom:
@@ -4350,7 +4428,7 @@ export default function WindowsVoiceScreen() {
                                     color:
                                       T.accent,
                                     fontSize:
-                                      F.base - 3,
+                                      fs(F.base - 3),
                                     fontWeight:
                                       '900',
                                     minWidth:
@@ -4369,9 +4447,9 @@ export default function WindowsVoiceScreen() {
                                     color:
                                       T.textSecondary,
                                     fontSize:
-                                      F.base,
+                                      fs(F.base),
                                     lineHeight:
-                                      24,
+                                      fs(24),
                                     flex:
                                       1,
                                   }}
@@ -4400,7 +4478,7 @@ export default function WindowsVoiceScreen() {
               color:
                 T.textSecondary,
               fontSize:
-                F.base - 3,
+                fs(F.base - 3),
             },
           ]}
         >
@@ -4414,8 +4492,17 @@ export default function WindowsVoiceScreen() {
   );
 }
 
-const styles =
-  StyleSheet.create({
+const createStyles = (uiScale: number) => {
+  const s = (value: number) =>
+    Math.round(value * uiScale);
+
+  const touch = (value: number) =>
+    Math.max(
+      42,
+      Math.round(value * uiScale),
+    );
+
+  return StyleSheet.create({
     screen: {
       flex:
         1,
@@ -4431,33 +4518,33 @@ const styles =
       width:
         '100%',
       maxWidth:
-        920,
+        s(920),
       alignSelf:
         'center',
       paddingHorizontal:
-        22,
+        s(22),
       paddingTop:
-        28,
+        s(28),
       paddingBottom:
-        230,
+        s(230),
     },
 
     title: {
       fontWeight:
         '900',
       marginBottom:
-        16,
+        s(16),
     },
 
     card: {
       width:
         '100%',
       borderRadius:
-        24,
+        s(24),
       borderWidth:
         1,
       padding:
-        22,
+        s(22),
       backgroundColor:
         '#FFFFFF',
     },
@@ -4466,18 +4553,18 @@ const styles =
       flexDirection:
         'row',
       gap:
-        10,
+        s(10),
       marginBottom:
-        18,
+        s(18),
     },
 
     languageButton: {
       flex:
         1,
       minHeight:
-        48,
+        touch(48),
       borderRadius:
-        14,
+        s(14),
       borderWidth:
         1.5,
       alignItems:
@@ -4488,7 +4575,7 @@ const styles =
 
     info: {
       lineHeight:
-        23,
+        s(23),
     },
 
     recordingLabel: {
@@ -4497,27 +4584,27 @@ const styles =
       textAlign:
         'center',
       marginTop:
-        8,
+        s(8),
     },
 
     timer: {
       fontSize:
-        42,
+        s(42),
       fontWeight:
         '900',
       textAlign:
         'center',
       marginTop:
-        10,
+        s(10),
       marginBottom:
-        10,
+        s(10),
     },
 
     markerBox: {
       marginTop:
-        14,
+        s(14),
       paddingTop:
-        14,
+        s(14),
       borderTopWidth:
         1,
       borderTopColor:
@@ -4528,7 +4615,7 @@ const styles =
       fontWeight:
         '800',
       marginBottom:
-        10,
+        s(10),
     },
 
     markerTypeRow: {
@@ -4537,74 +4624,74 @@ const styles =
       flexWrap:
         'wrap',
       gap:
-        8,
+        s(8),
     },
 
     markerTypeButton: {
       borderWidth:
         1,
       borderRadius:
-        999,
+        s(999),
       paddingHorizontal:
-        10,
+        s(10),
       paddingVertical:
-        7,
+        s(7),
     },
 
     outlineButton: {
       minHeight:
-        48,
+        touch(48),
       borderWidth:
         1.5,
       borderRadius:
-        14,
+        s(14),
       alignItems:
         'center',
       justifyContent:
         'center',
       marginTop:
-        12,
+        s(12),
       paddingHorizontal:
-        12,
+        s(12),
     },
 
     actionRow: {
       flexDirection:
         'row',
       flexWrap:
-        'wrap',
+        'nowrap',
       gap:
-        12,
+        s(8),
       marginTop:
-        22,
+        s(22),
     },
 
     mainButton: {
-      flexGrow:
+      flex:
         1,
-      flexBasis:
-        260,
+      minWidth:
+        0,
       minHeight:
-        58,
+        touch(58),
       borderRadius:
-        16,
+        s(16),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        14,
+        s(8),
     },
 
     liveButton: {
-      flexGrow:
+      flex:
         1,
-      flexBasis:
-        180,
+      minWidth:
+        0,
       minHeight:
-        58,
+        touch(58),
       borderRadius:
-        16,
+        s(16),
       borderWidth:
         1.5,
       alignItems:
@@ -4612,7 +4699,7 @@ const styles =
       justifyContent:
         'center',
       paddingHorizontal:
-        14,
+        s(8),
     },
 
     mainButtonText: {
@@ -4621,36 +4708,36 @@ const styles =
       fontWeight:
         '900',
       fontSize:
-        17,
+        s(17),
     },
 
     importButton: {
       minHeight:
-        52,
+        touch(52),
       borderWidth:
         1.5,
       borderRadius:
-        14,
+        s(14),
       alignItems:
         'center',
       justifyContent:
         'center',
       marginTop:
-        12,
+        s(12),
     },
 
     hint: {
       textAlign:
         'center',
       marginTop:
-        8,
+        s(8),
     },
 
     message: {
       marginTop:
-        12,
+        s(12),
       lineHeight:
-        20,
+        s(20),
     },
 
     libraryHeader: {
@@ -4661,26 +4748,26 @@ const styles =
       alignItems:
         'center',
       marginTop:
-        28,
+        s(28),
       marginBottom:
-        12,
+        s(12),
       paddingHorizontal:
-        2,
+        s(2),
     },
 
     lectureCard: {
       width:
         '100%',
       borderRadius:
-        22,
+        s(22),
       borderWidth:
         1,
       padding:
-        18,
+        s(18),
       backgroundColor:
         '#FFFFFF',
       marginBottom:
-        14,
+        s(14),
     },
 
     lectureHeader: {
@@ -4689,14 +4776,14 @@ const styles =
       alignItems:
         'center',
       gap:
-        12,
+        s(12),
     },
 
     playbackBox: {
       marginTop:
-        16,
+        s(16),
       paddingTop:
-        14,
+        s(14),
       borderTopWidth:
         1,
       borderTopColor:
@@ -4707,41 +4794,41 @@ const styles =
       flexDirection:
         'row',
       flexWrap:
-        'wrap',
+        'nowrap',
       gap:
-        8,
+        s(6),
       marginTop:
-        10,
+        s(10),
       alignItems:
         'center',
     },
 
     smallButton: {
       minHeight:
-        42,
+        s(42),
       borderWidth:
         1.2,
       borderRadius:
-        12,
+        s(12),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        12,
+        s(12),
     },
 
     playButton: {
       minHeight:
-        44,
+        s(44),
       borderRadius:
-        12,
+        s(12),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        18,
+        s(18),
     },
 
     playButtonText: {
@@ -4753,7 +4840,7 @@ const styles =
 
     savedMarkers: {
       marginTop:
-        16,
+        s(16),
     },
 
     markerWrap: {
@@ -4762,38 +4849,38 @@ const styles =
       flexWrap:
         'wrap',
       gap:
-        8,
+        s(8),
       marginTop:
-        8,
+        s(8),
     },
 
     markerChip: {
       borderWidth:
         1,
       borderRadius:
-        999,
+        s(999),
       paddingHorizontal:
-        10,
+        s(10),
       paddingVertical:
-        7,
+        s(7),
     },
 
     renameBox: {
       marginTop:
-        16,
+        s(16),
     },
 
     renameInput: {
       minHeight:
-        48,
+        s(48),
       borderWidth:
         1.3,
       borderRadius:
-        12,
+        s(12),
       paddingHorizontal:
-        12,
+        s(12),
       fontSize:
-        16,
+        s(16),
       backgroundColor:
         '#FFFFFF',
     },
@@ -4802,46 +4889,46 @@ const styles =
       flexDirection:
         'row',
       gap:
-        8,
+        s(8),
       marginTop:
-        8,
+        s(8),
     },
 
     managementRow: {
       flexDirection:
         'row',
       flexWrap:
-        'wrap',
+        'nowrap',
       gap:
-        10,
+        s(8),
       marginTop:
-        16,
+        s(10),
     },
 
     managementButton: {
-      flexGrow:
+      flex:
         1,
-      flexBasis:
-        190,
+      minWidth:
+        s(0),
       minHeight:
-        46,
+        touch(38),
       borderWidth:
         1.2,
       borderRadius:
-        12,
+        s(10),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        10,
+        s(8),
     },
 
     nextStageBox: {
       marginTop:
-        14,
+        s(10),
       paddingTop:
-        12,
+        s(10),
       borderTopWidth:
         1,
       borderTopColor:
@@ -4850,55 +4937,55 @@ const styles =
 
     whisperProgressBox: {
       marginTop:
-        12,
+        s(12),
     },
 
     progressTrack: {
       width:
         '100%',
       height:
-        8,
+        s(8),
       borderRadius:
-        999,
+        s(999),
       overflow:
         'hidden',
       marginTop:
-        10,
+        s(10),
     },
 
     progressFill: {
       height:
         '100%',
       borderRadius:
-        999,
+        s(999),
     },
 
     transcriptActionRow: {
       flexDirection:
         'row',
       flexWrap:
-        'wrap',
+        'nowrap',
       gap:
-        8,
+        s(8),
       marginTop:
-        12,
+        s(8),
     },
 
     transcriptButton: {
-      flexGrow:
-        1,
-      flexBasis:
-        210,
+      flex:
+        1.45,
+      minWidth:
+        s(0),
       minHeight:
-        46,
+        touch(40),
       borderRadius:
-        12,
+        s(10),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        12,
+        s(8),
     },
 
     transcriptButtonText: {
@@ -4907,35 +4994,35 @@ const styles =
       fontWeight:
         '900',
       fontSize:
-        15,
+        s(15),
       textAlign:
         'center',
     },
 
     transcriptOutlineButton: {
-      flexGrow:
+      flex:
         1,
-      flexBasis:
-        150,
+      minWidth:
+        s(0),
       minHeight:
-        46,
+        touch(40),
       borderWidth:
         1.2,
       borderRadius:
-        12,
+        s(10),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        12,
+        s(8),
     },
 
     transcriptPanel: {
       marginTop:
-        14,
+        s(10),
       paddingTop:
-        14,
+        s(10),
       borderTopWidth:
         1,
       borderTopColor:
@@ -4948,54 +5035,54 @@ const styles =
       alignItems:
         'flex-start',
       gap:
-        10,
+        s(10),
       paddingVertical:
-        8,
+        s(8),
       paddingHorizontal:
-        8,
+        s(8),
       borderRadius:
-        10,
+        s(10),
     },
 
     liveTargetRow: {
       flexDirection:
         'row',
       flexWrap:
-        'wrap',
+        'nowrap',
       gap:
-        8,
+        s(8),
       marginTop:
-        18,
+        s(14),
     },
 
     liveTargetButton: {
-      flexGrow:
+      flex:
         1,
-      flexBasis:
-        150,
+      minWidth:
+        0,
       minHeight:
-        42,
+        s(40),
       borderWidth:
         1.2,
       borderRadius:
-        12,
+        s(12),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        10,
+        s(6),
     },
 
     livePanel: {
       marginTop:
-        14,
+        s(14),
       borderTopWidth:
         1,
       borderTopColor:
         'rgba(127,127,127,0.14)',
       paddingTop:
-        14,
+        s(14),
     },
 
     liveHeader: {
@@ -5006,23 +5093,23 @@ const styles =
       justifyContent:
         'space-between',
       gap:
-        10,
+        s(10),
     },
 
     liveSectionTitle: {
       fontWeight:
         '900',
       marginTop:
-        16,
+        s(16),
       marginBottom:
-        6,
+        s(6),
     },
 
     translationBox: {
       marginTop:
-        18,
+        s(10),
       paddingTop:
-        16,
+        s(10),
       borderTopWidth:
         1,
       borderTopColor:
@@ -5033,57 +5120,57 @@ const styles =
       flexDirection:
         'row',
       flexWrap:
-        'wrap',
+        'nowrap',
       gap:
-        8,
+        s(6),
       marginTop:
-        12,
+        s(8),
     },
 
     translationTargetButton: {
-      flexGrow:
+      flex:
         1,
-      flexBasis:
-        150,
+      minWidth:
+        s(0),
       minHeight:
-        42,
+        touch(38),
       borderWidth:
         1.2,
       borderRadius:
-        12,
+        s(10),
       alignItems:
         'center',
       justifyContent:
         'center',
       paddingHorizontal:
-        10,
+        s(5),
     },
 
     translationButton: {
       minHeight:
-        48,
+        touch(40),
       borderRadius:
-        12,
+        s(10),
       alignItems:
         'center',
       justifyContent:
         'center',
       marginTop:
-        10,
+        s(8),
       paddingHorizontal:
-        12,
+        s(8),
     },
 
     translationProgressBox: {
       marginTop:
-        10,
+        s(10),
     },
 
     translationPanel: {
       marginTop:
-        14,
+        s(10),
       paddingTop:
-        14,
+        s(10),
       borderTopWidth:
         1,
       borderTopColor:
@@ -5094,6 +5181,7 @@ const styles =
       textAlign:
         'center',
       marginTop:
-        8,
+        s(8),
     },
   });
+};

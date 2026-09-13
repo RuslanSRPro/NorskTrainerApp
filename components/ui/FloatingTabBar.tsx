@@ -1,7 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from "expo-router/js-tabs";
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/contexts/ThemeContext';
@@ -18,13 +25,62 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   settings: 'settings',
 };
 
-const TAB_BAR_HEIGHT = 62;
-const ACTIVE_CAPSULE_WIDTH = 58;
-const ACTIVE_CAPSULE_HEIGHT = 48;
+const BASE_TAB_BAR_HEIGHT = 62;
+const BASE_ACTIVE_CAPSULE_WIDTH = 58;
+const BASE_ACTIVE_CAPSULE_HEIGHT = 48;
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { theme, themeName } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: viewportWidth } = useWindowDimensions();
+
+  const uiScale = useMemo(
+    () =>
+      Platform.OS === 'web'
+        ? Math.max(
+            0.76,
+            Math.min(
+              1.08,
+              viewportWidth / 390,
+            ),
+          )
+        : 1,
+    [viewportWidth],
+  );
+
+  const tabBarHeight =
+    Math.round(
+      BASE_TAB_BAR_HEIGHT * uiScale,
+    );
+
+  const activeCapsuleWidth =
+    Math.round(
+      BASE_ACTIVE_CAPSULE_WIDTH * uiScale,
+    );
+
+  const activeCapsuleHeight =
+    Math.max(
+      38,
+      Math.round(
+        BASE_ACTIVE_CAPSULE_HEIGHT * uiScale,
+      ),
+    );
+
+  const styles = useMemo(
+    () =>
+      createStyles(
+        uiScale,
+        tabBarHeight,
+        activeCapsuleWidth,
+        activeCapsuleHeight,
+      ),
+    [
+      uiScale,
+      tabBarHeight,
+      activeCapsuleWidth,
+      activeCapsuleHeight,
+    ],
+  );
 
   const isDark = themeName === 'dark';
   const material = isDark ? glassTokens.dark : glassTokens.light;
@@ -46,7 +102,10 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 
     Animated.parallel([
       Animated.spring(translateX, {
-        toValue: state.index * itemWidth + itemWidth / 2 - ACTIVE_CAPSULE_WIDTH / 2,
+        toValue:
+          state.index * itemWidth +
+          itemWidth / 2 -
+          activeCapsuleWidth / 2,
         useNativeDriver: true,
         speed: 22,
         bounciness: 9,
@@ -66,7 +125,13 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         }),
       ]),
     ]).start();
-  }, [state.index, itemWidth, translateX, scale]);
+  }, [
+    state.index,
+    itemWidth,
+    activeCapsuleWidth,
+    translateX,
+    scale,
+  ]);
 
   return (
     <View
@@ -74,7 +139,18 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
       style={[
         styles.wrap,
         {
-          bottom: Math.max(insets.bottom - 18, Platform.OS === 'ios' ? -8 : -4),
+          bottom:
+            Platform.OS === 'web'
+              ? Math.max(
+                  8,
+                  Math.round(12 * uiScale),
+                )
+              : Math.max(
+                  insets.bottom - 18,
+                  Platform.OS === 'ios'
+                    ? -8
+                    : -4,
+                ),
         },
       ]}
     >
@@ -162,7 +238,17 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
                 >
                   <Ionicons
                     name={iconName}
-                    size={focused ? 26 : 23}
+                    size={
+                      focused
+                        ? Math.max(
+                            20,
+                            Math.round(26 * uiScale),
+                          )
+                        : Math.max(
+                            18,
+                            Math.round(23 * uiScale),
+                          )
+                    }
                     color={focused ? theme.accent : material.iconInactive}
                   />
                 </Pressable>
@@ -175,16 +261,25 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  uiScale: number,
+  tabBarHeight: number,
+  activeCapsuleWidth: number,
+  activeCapsuleHeight: number,
+) => {
+  const s = (value: number) =>
+    Math.round(value * uiScale);
+
+  return StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: 18,
-    right: 18,
+    left: s(18),
+    right: s(18),
   },
 
   barOuter: {
-    height: TAB_BAR_HEIGHT,
-    paddingHorizontal: 8,
+    height: tabBarHeight,
+    paddingHorizontal: s(8),
     justifyContent: 'center',
   },
 
@@ -195,7 +290,7 @@ const styles = StyleSheet.create({
   },
 
   itemsRow: {
-    height: TAB_BAR_HEIGHT,
+    height: tabBarHeight,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -204,7 +299,7 @@ const styles = StyleSheet.create({
 
   item: {
     flex: 1,
-    height: TAB_BAR_HEIGHT,
+    height: tabBarHeight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -216,17 +311,18 @@ const styles = StyleSheet.create({
 
   activeCapsule: {
     position: 'absolute',
-    top: (TAB_BAR_HEIGHT - ACTIVE_CAPSULE_HEIGHT) / 2,
+    top: (tabBarHeight - activeCapsuleHeight) / 2,
     left: 0,
-    width: ACTIVE_CAPSULE_WIDTH,
-    height: ACTIVE_CAPSULE_HEIGHT,
+    width: activeCapsuleWidth,
+    height: activeCapsuleHeight,
     zIndex: 1,
   },
 
   activeCapsuleInner: {
-    width: ACTIVE_CAPSULE_WIDTH,
-    height: ACTIVE_CAPSULE_HEIGHT,
+    width: activeCapsuleWidth,
+    height: activeCapsuleHeight,
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
+};
