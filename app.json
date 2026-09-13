@@ -18,7 +18,8 @@
         "UIBackgroundModes": [
           "audio"
         ]
-      }
+      },
+      "icon": "./assets/NorskTrainer.icon"
     },
     "android": {
       "adaptiveIcon": {
