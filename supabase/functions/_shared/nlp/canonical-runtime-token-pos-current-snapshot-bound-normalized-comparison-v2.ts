@@ -805,8 +805,6 @@ function domainMatchesExpected(
   expected: CanonicalRuntimeTokenPosNormalizedLabelEqSiteAuthorityV1,
 ): boolean {
   return (
-    domain.referencedBindingDefinitionAuthorityId ===
-      expected.referencedBindingDefinitionAuthorityId &&
     domain.manifestId ===
       expected.manifestId &&
     domain.manifestCode ===
