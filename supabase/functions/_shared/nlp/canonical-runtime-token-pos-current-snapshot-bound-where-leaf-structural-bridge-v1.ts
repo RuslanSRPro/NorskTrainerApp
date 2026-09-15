@@ -1,4 +1,27 @@
 import {
+  deriveCanonicalDependencyRuntimeAuthoritiesV1,
+} from "./canonical-dependency-runtime-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingDefinitionAuthoritiesV1,
+} from "./canonical-runtime-binding-definition-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereShapeAuthoritiesV1,
+} from "./canonical-runtime-binding-where-shape-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereReferenceRootAuthoritiesV1,
+} from "./canonical-runtime-binding-where-reference-root-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereRightOperandAuthoritiesV1,
+} from "./canonical-runtime-binding-where-right-operand-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereLeftRightSiteAuthoritiesV1,
+} from "./canonical-runtime-binding-where-left-right-site-authority-v1.ts";
+import {
   deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1,
 } from "./canonical-runtime-manifest-binding-definition-authority-v1.ts";
 
@@ -31,7 +54,7 @@ export const CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_LEAF_STRUC
   "1.0.0";
 
 type ManifestRows =
-  Parameters<typeof deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1>[0];
+  Parameters<typeof deriveCanonicalDependencyRuntimeAuthoritiesV1>[0];
 
 export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridgeAuthorityV1 = {
   id: string;
@@ -48,11 +71,18 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridg
   sourceReferenceSiteKey: string;
   sourceReferencePath: string;
 
+  runtimeStructuralSiteAuthorityId: string;
+
   manifestLeafSiteAuthorityId: string;
   manifestLeafPath: string;
 
   sourceExpectedAuthority:
     CanonicalRuntimeTokenPosNormalizedLabelEqSiteAuthorityV1;
+
+  sourceRuntimeStructuralSiteAuthority:
+    ReturnType<
+      typeof deriveCanonicalRuntimeBindingWhereLeftRightSiteAuthoritiesV1
+    >["authorities"][number];
 
   sourceManifestLeafSiteAuthority:
     ReturnType<
@@ -63,8 +93,16 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridg
     manifestStructuralChainIndependentlyRederived: true;
     suppliedManifestStructuralWrapperAcceptedAsProof: false;
 
+    runtimeStructuralChainIndependentlyRederived: true;
+    suppliedRuntimeStructuralWrapperAcceptedAsProof: false;
+
     exactExpectedAuthorityRequired: true;
+    exactRuntimeStructuralSiteAuthorityRequired: true;
     exactManifestLeafSiteAuthorityRequired: true;
+
+    producerSpecificAuthorityIdsComparedOnlyWithinRuntimeFamily: true;
+    producerSpecificAuthorityIdsEquatedAcrossFamilies: false;
+    crossFamilyStructuralSourceIdentityRequired: true;
 
     sameManifestIdentityRequired: true;
     sameOwnerBindingNameRequired: true;
@@ -191,26 +229,139 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStruc
     return blocked("manifest_where_leaf_site:not_exact_ready");
   }
 
+  const runtimeDependencyAuthorities =
+    deriveCanonicalDependencyRuntimeAuthoritiesV1(
+      manifestRows,
+    );
+
+  if (
+    runtimeDependencyAuthorities.status !== "ready" ||
+    runtimeDependencyAuthorities.blockingReasons.length !== 0
+  ) {
+    return blocked("runtime_dependency_authority:not_exact_ready");
+  }
+
+  const runtimeBindings =
+    deriveCanonicalRuntimeBindingDefinitionAuthoritiesV1(
+      runtimeDependencyAuthorities.authorities,
+      manifestRows,
+    );
+
+  if (
+    runtimeBindings.status !== "ready" ||
+    runtimeBindings.blockingReasons.length !== 0
+  ) {
+    return blocked("runtime_binding_authority:not_exact_ready");
+  }
+
+  const runtimeShapes =
+    deriveCanonicalRuntimeBindingWhereShapeAuthoritiesV1(
+      runtimeBindings.authorities,
+    );
+
+  if (
+    runtimeShapes.status !== "ready" ||
+    runtimeShapes.blockingReasons.length !== 0
+  ) {
+    return blocked("runtime_where_shape:not_exact_ready");
+  }
+
+  const runtimeRoots =
+    deriveCanonicalRuntimeBindingWhereReferenceRootAuthoritiesV1(
+      runtimeShapes.authorities,
+      runtimeBindings.authorities,
+    );
+
+  if (
+    runtimeRoots.status !== "ready" ||
+    runtimeRoots.blockingReasons.length !== 0
+  ) {
+    return blocked("runtime_where_reference_root:not_exact_ready");
+  }
+
+  const runtimeRightOperands =
+    deriveCanonicalRuntimeBindingWhereRightOperandAuthoritiesV1(
+      runtimeShapes,
+    );
+
+  if (
+    runtimeRightOperands.status !== "ready" ||
+    runtimeRightOperands.blockingReasons.length !== 0
+  ) {
+    return blocked("runtime_where_right_operand:not_exact_ready");
+  }
+
+  const runtimeStructuralSites =
+    deriveCanonicalRuntimeBindingWhereLeftRightSiteAuthoritiesV1(
+      runtimeRoots,
+      runtimeRightOperands,
+    );
+
+  if (
+    runtimeStructuralSites.status !== "ready" ||
+    runtimeStructuralSites.blockingReasons.length !== 0
+  ) {
+    return blocked("runtime_where_left_right_site:not_exact_ready");
+  }
+
   const authorities:
     CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridgeAuthorityV1[] =
       [];
 
   for (const expected of expectedResult.authorities) {
-    const leafSite = exactOne(
-      leafSites.authorities,
+    const runtimeStructuralSite = exactOne(
+      runtimeStructuralSites.authorities,
       (candidate) =>
+        candidate.whereReferenceRootAuthorityId ===
+          expected.whereReferenceRootAuthorityId &&
+        candidate.whereShapeAuthorityId ===
+          expected.whereShapeAuthorityId &&
+        candidate.ownerBindingDefinitionAuthorityId ===
+          expected.ownerBindingDefinitionAuthorityId &&
+        candidate.referencedBindingDefinitionAuthorityId ===
+          expected.referencedBindingDefinitionAuthorityId &&
         candidate.manifestId === expected.manifestId &&
         candidate.manifestCode === expected.manifestCode &&
         candidate.ownerBindingName === expected.ownerBindingName &&
-        candidate.ownerBindingDefinitionAuthorityId ===
-          expected.ownerBindingDefinitionAuthorityId &&
-        candidate.referencedBindingName === expected.referencedBindingName &&
-        candidate.referencedBindingDefinitionAuthorityId ===
-          expected.referencedBindingDefinitionAuthorityId &&
-        candidate.whereShapeAuthorityId === expected.whereShapeAuthorityId &&
-        candidate.referenceRootAuthorityId ===
-          expected.whereReferenceRootAuthorityId &&
-        candidate.leftReferenceExpression === expected.referenceExpression,
+        candidate.referencedBindingName ===
+          expected.referencedBindingName &&
+        candidate.leafPath === expected.referencePath &&
+        candidate.leftReferenceExpression ===
+          expected.referenceExpression &&
+        candidate.opaqueLeftSuffix === expected.runtimeSuffix &&
+        candidate.operatorLabelOpaque === expected.rawOperatorLabel &&
+        candidate.rightOperandStructuralKind === "string" &&
+        typeof candidate.rightOperandSnapshot === "string" &&
+        candidate.rightOperandSnapshot === expected.rawPosLabelInput,
+    );
+
+    if (runtimeStructuralSite === null) {
+      return blocked(
+        `expected_site:${expected.id}:runtime_structural_site_not_exactly_one`,
+      );
+    }
+
+    const leafSite = exactOne(
+      leafSites.authorities,
+      (candidate) =>
+        candidate.manifestId === runtimeStructuralSite.manifestId &&
+        candidate.manifestCode === runtimeStructuralSite.manifestCode &&
+        candidate.ownerBindingName ===
+          runtimeStructuralSite.ownerBindingName &&
+        candidate.referencedBindingName ===
+          runtimeStructuralSite.referencedBindingName &&
+        candidate.leafPath === runtimeStructuralSite.leafPath &&
+        candidate.leftReferenceExpression ===
+          runtimeStructuralSite.leftReferenceExpression &&
+        candidate.opaqueLeftSuffix ===
+          runtimeStructuralSite.opaqueLeftSuffix &&
+        candidate.operatorLabelOpaque ===
+          runtimeStructuralSite.operatorLabelOpaque &&
+        candidate.hasRightOperand === true &&
+        runtimeStructuralSite.rightOperandStructuralKind === "string" &&
+        typeof runtimeStructuralSite.rightOperandSnapshot === "string" &&
+        candidate.rightOperandSnapshot ===
+          runtimeStructuralSite.rightOperandSnapshot,
     );
 
     if (leafSite === null) {
@@ -238,18 +389,31 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStruc
       sourceReferenceSiteKey: expected.referenceSiteKey,
       sourceReferencePath: expected.referencePath,
 
+      runtimeStructuralSiteAuthorityId:
+        runtimeStructuralSite.id,
+
       manifestLeafSiteAuthorityId: leafSite.id,
       manifestLeafPath: leafSite.leafPath,
 
       sourceExpectedAuthority: expected,
+      sourceRuntimeStructuralSiteAuthority:
+        runtimeStructuralSite,
       sourceManifestLeafSiteAuthority: leafSite,
 
       governance: {
         manifestStructuralChainIndependentlyRederived: true,
         suppliedManifestStructuralWrapperAcceptedAsProof: false,
 
+        runtimeStructuralChainIndependentlyRederived: true,
+        suppliedRuntimeStructuralWrapperAcceptedAsProof: false,
+
         exactExpectedAuthorityRequired: true,
+        exactRuntimeStructuralSiteAuthorityRequired: true,
         exactManifestLeafSiteAuthorityRequired: true,
+
+        producerSpecificAuthorityIdsComparedOnlyWithinRuntimeFamily: true,
+        producerSpecificAuthorityIdsEquatedAcrossFamilies: false,
+        crossFamilyStructuralSourceIdentityRequired: true,
 
         sameManifestIdentityRequired: true,
         sameOwnerBindingNameRequired: true,

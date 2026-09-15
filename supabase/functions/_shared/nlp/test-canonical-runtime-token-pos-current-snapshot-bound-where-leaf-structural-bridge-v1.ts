@@ -1,3 +1,26 @@
+import {
+  deriveCanonicalDependencyRuntimeAuthoritiesV1,
+} from "./canonical-dependency-runtime-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingDefinitionAuthoritiesV1,
+} from "./canonical-runtime-binding-definition-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereShapeAuthoritiesV1,
+} from "./canonical-runtime-binding-where-shape-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereReferenceRootAuthoritiesV1,
+} from "./canonical-runtime-binding-where-reference-root-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereRightOperandAuthoritiesV1,
+} from "./canonical-runtime-binding-where-right-operand-authority-v1.ts";
+
+import {
+  deriveCanonicalRuntimeBindingWhereLeftRightSiteAuthoritiesV1,
+} from "./canonical-runtime-binding-where-left-right-site-authority-v1.ts";
 import type {
   CanonicalRuntimeTokenPosStringOperandCompatibilityResultV1,
   CanonicalRuntimeTokenPosStringOperandCompatibilityV1,
@@ -54,6 +77,15 @@ const manifestRows = [{
   authoring_status: "validated",
   runtime_family: "test",
   execution_phase: "test",
+  actions: [{
+    action: "create_dependency",
+    target: "subject",
+    relation: "test-relation",
+    value: {
+      source_ref: "subject",
+      target_ref: "subject",
+    },
+  }],
   ir_spec: {
     bindings: {
       subject: {
@@ -324,81 +356,114 @@ function upstreamStringOperandResult(
 }
 
 function expectedResult(): CanonicalRuntimeTokenPosNormalizedLabelEqAuthorityResultV1 {
-  const bindings =
-    deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1(manifestRows);
-
-  const shapes =
-    deriveCanonicalRuntimeManifestBindingWhereShapeAuthoritiesV1(bindings);
-
-  const references =
-    deriveCanonicalRuntimeManifestBindingWhereReferenceExpressionShapeAuthoritiesV1(
-      shapes,
+  const dependency =
+    deriveCanonicalDependencyRuntimeAuthoritiesV1(
+      manifestRows,
     );
 
-  const roots =
-    deriveCanonicalRuntimeManifestBindingWhereReferenceRootAuthoritiesV1(
-      references,
-      bindings,
+  const runtimeBindings =
+    deriveCanonicalRuntimeBindingDefinitionAuthoritiesV1(
+      dependency.authorities,
+      manifestRows,
     );
 
-  const sites =
-    deriveCanonicalRuntimeManifestBindingWhereLeafRightOperandSiteAuthoritiesV1(
-      shapes,
-      roots,
+  const runtimeShapes =
+    deriveCanonicalRuntimeBindingWhereShapeAuthoritiesV1(
+      runtimeBindings.authorities,
+    );
+
+  const runtimeRoots =
+    deriveCanonicalRuntimeBindingWhereReferenceRootAuthoritiesV1(
+      runtimeShapes.authorities,
+      runtimeBindings.authorities,
+    );
+
+  const runtimeRightOperands =
+    deriveCanonicalRuntimeBindingWhereRightOperandAuthoritiesV1(
+      runtimeShapes,
+    );
+
+  const runtimeSites =
+    deriveCanonicalRuntimeBindingWhereLeftRightSiteAuthoritiesV1(
+      runtimeRoots,
+      runtimeRightOperands,
     );
 
   assert(
-    bindings.status === "ready" &&
-      shapes.status === "ready" &&
-      references.status === "ready" &&
-      roots.status === "ready" &&
-      sites.status === "ready" &&
-      sites.authorities.length === 1,
-    JSON.stringify({ bindings, shapes, references, roots, sites }),
+    dependency.status === "ready" &&
+      runtimeBindings.status === "ready" &&
+      runtimeShapes.status === "ready" &&
+      runtimeRoots.status === "ready" &&
+      runtimeRightOperands.status === "ready" &&
+      runtimeSites.status === "ready" &&
+      runtimeSites.authorities.length === 1,
+    JSON.stringify({
+      dependency,
+      runtimeBindings,
+      runtimeShapes,
+      runtimeRoots,
+      runtimeRightOperands,
+      runtimeSites,
+    }),
   );
 
-  const leaf = sites.authorities[0]!;
+  const site = runtimeSites.authorities[0]!;
+
+  assert(
+    site.rightOperandStructuralKind === "string" &&
+      typeof site.rightOperandSnapshot === "string",
+    JSON.stringify(site),
+  );
+
+  const siteKey = [
+    site.whereReferenceRootAuthorityId,
+    site.leafPath,
+    site.leftReferenceExpression,
+  ].join("#");
 
   const base =
     upstreamStringOperandCandidate({
       id: "runtime-string-operand-1",
-      siteKey: "runtime-reference-site-1",
-      operator: "eq",
-      pos: "NOUN",
+      siteKey,
+      operator: site.operatorLabelOpaque,
+      pos: site.rightOperandSnapshot,
     });
 
   const source: CanonicalRuntimeTokenPosStringOperandCompatibilityV1 = {
     ...base,
 
     whereReferenceRootAuthorityId:
-      leaf.referenceRootAuthorityId,
+      site.whereReferenceRootAuthorityId,
 
     whereShapeAuthorityId:
-      leaf.whereShapeAuthorityId,
+      site.whereShapeAuthorityId,
 
     ownerBindingDefinitionAuthorityId:
-      leaf.ownerBindingDefinitionAuthorityId,
+      site.ownerBindingDefinitionAuthorityId,
 
     referencedBindingDefinitionAuthorityId:
-      leaf.referencedBindingDefinitionAuthorityId,
+      site.referencedBindingDefinitionAuthorityId,
 
     manifestId:
-      leaf.manifestId,
+      site.manifestId,
 
     manifestCode:
-      leaf.manifestCode,
+      site.manifestCode,
 
     ownerBindingName:
-      leaf.ownerBindingName,
+      site.ownerBindingName,
 
     referencedBindingName:
-      leaf.referencedBindingName,
+      site.referencedBindingName,
+
+    referenceSiteKey:
+      siteKey,
 
     referencePath:
-      "runtime-reference-path-not-leaf-path",
+      site.leafPath,
 
     referenceExpression:
-      leaf.leftReferenceExpression,
+      site.leftReferenceExpression,
   };
 
   return deriveCanonicalRuntimeTokenPosNormalizedLabelEqAuthoritiesV1(
@@ -452,17 +517,17 @@ Deno.test("WHERE leaf structural bridge V1 fails closed when expected lineage is
   assert(expected.status === "ready", JSON.stringify(expected));
   assert(expected.authorities.length === 1, JSON.stringify(expected));
 
-  const forged = {
+  const forgedAuthority = {
+    ...expected.authorities[0]!,
+    whereShapeAuthorityId: "forged-where-shape-authority",
+  };
+
+  const forged: typeof expected = {
     ...expected,
-    authorities: expected.authorities.map((authority, index) =>
-      index === 0
-        ? {
-            ...authority,
-            whereShapeAuthorityId: "forged-where-shape-authority",
-          }
-        : authority
-    ),
-  } as unknown as typeof expected;
+    authorities: [
+      forgedAuthority,
+    ],
+  };
 
   const result =
     deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridgeV1(
@@ -474,7 +539,7 @@ Deno.test("WHERE leaf structural bridge V1 fails closed when expected lineage is
     result.status === "blocked" &&
       result.authorities.length === 0 &&
       result.blockingReasons.some((reason) =>
-        reason.includes("manifest_leaf_site_not_exactly_one")
+        reason.includes("runtime_structural_site_not_exactly_one")
       ),
     JSON.stringify(result),
   );

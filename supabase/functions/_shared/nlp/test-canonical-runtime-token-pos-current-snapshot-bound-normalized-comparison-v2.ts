@@ -540,6 +540,130 @@ import {
   deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundNormalizedComparisonsV2,
 } from "./canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts";
 
+
+import type {
+  CanonicalDependencyRuntimeManifestAuthorityRowV1,
+} from "./canonical-dependency-runtime-authority-v1.ts";
+
+import {
+  deriveCanonicalDependencyRuntimeAuthoritiesV1,
+} from './canonical-dependency-runtime-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1,
+} from './canonical-runtime-manifest-binding-definition-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestBindingWhereShapeAuthoritiesV1,
+} from './canonical-runtime-manifest-binding-where-shape-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestBindingWhereReferenceExpressionShapeAuthoritiesV1,
+} from './canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestBindingWhereReferenceRootAuthoritiesV1,
+} from './canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestBindingWhereLeafRightOperandSiteAuthoritiesV1,
+} from './canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestBindingEntityCompatibilitiesV1,
+} from './canonical-runtime-manifest-binding-entity-compatibility-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestBindingScopeCompatibilitiesV1,
+} from './canonical-runtime-manifest-binding-scope-compatibility-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestTokenPosSuffixPropertyCompatibilitiesV1,
+} from './canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestTokenPosStringOperandCompatibilitiesV1,
+} from './canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestTokenPosExactEqOperatorSourceCompatibilitiesV1,
+} from './canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestTokenPosExpectedNormalizedLabelEqAuthoritiesV1,
+} from './canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts';
+
+import {
+  deriveCanonicalSentenceDirectTokenOccurrenceDomainsV1,
+} from './canonical-sentence-direct-token-occurrence-domain-capability-v1.ts';
+
+import {
+  deriveCanonicalRuntimeManifestReferencedTokenSentenceDomainCompositionsV1,
+} from './canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts';
+
+import {
+  bindCanonicalRuntimeManifestReferencedTokenSentenceDomainsToSnapshotV1,
+} from './canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts';
+
+import {
+  deriveCanonicalTokenPosGraphBoundNormalizedLabelProjectionV2,
+} from './canonical-token-pos-graph-bound-normalized-label-projection-v2.ts';
+
+import {
+  compareCanonicalTokenPosNormalizedLabelEvidenceV2,
+} from './canonical-token-pos-normalized-label-comparison-evidence-v2.ts';
+
+import {
+  deriveCanonicalRuntimeTokenPosSiteOccurrenceApplicabilityEvidenceV2,
+} from './canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts';
+
+import {
+  deriveCanonicalSnapshotSentenceOccurrenceIdentityAuthorityV1,
+} from './canonical-snapshot-sentence-occurrence-identity-authority-v1.ts';
+
+import {
+  deriveCanonicalCurrentRuntimeSentenceContextAuthorityV1,
+} from './canonical-current-runtime-sentence-context-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeBindingDefinitionAuthoritiesV1,
+} from './canonical-runtime-binding-definition-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeBindingWhereShapeAuthoritiesV1,
+} from './canonical-runtime-binding-where-shape-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeBindingWhereReferenceRootAuthoritiesV1,
+} from './canonical-runtime-binding-where-reference-root-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeBindingWhereRightOperandAuthoritiesV1,
+} from './canonical-runtime-binding-where-right-operand-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeBindingWhereLeftRightSiteAuthoritiesV1,
+} from './canonical-runtime-binding-where-left-right-site-authority-v1.ts';
+
+import {
+  deriveCanonicalRuntimeBindingEntityCompatibilitiesV1,
+} from './canonical-runtime-binding-entity-compatibility-v1.ts';
+
+import {
+  deriveCanonicalRuntimeTokenPosSuffixCompatibilitiesV1,
+} from './canonical-runtime-token-pos-suffix-compatibility-v1.ts';
+
+import {
+  deriveCanonicalRuntimeTokenPosStringOperandCompatibilitiesV1,
+} from './canonical-runtime-token-pos-string-operand-compatibility-v1.ts';
+
+import type {
+  CanonicalRuntimeManifestGraphNodeTypeAuthorityV1,
+} from './canonical-runtime-manifest-binding-entity-compatibility-v1.ts';
+
+import type {
+  CanonicalRuntimeManifestScopeBoundaryAuthorityV1,
+} from './canonical-runtime-manifest-binding-scope-compatibility-v1.ts';
 function v2BaseGraph() {
   const graph = createCanonicalLanguageGraphV1_V2(
     buildCanonicalSurfaceDocumentV1_V2(
@@ -2514,6 +2638,453 @@ Deno.test(
           ) ===
           currentBefore,
       "V2 derivation is nondeterministic or mutated source evidence",
+    );
+  },
+);
+
+function realSingletonTrueManifestRow():
+  CanonicalDependencyRuntimeManifestAuthorityRowV1 {
+  return {
+    id: 'manifest-real-singleton-true',
+    code: 'test.real_singleton_true',
+    authoring_status: 'validated',
+    runtime_family: 'test',
+    execution_phase: 'test',
+    constraint_strength: 'required',
+
+    actions: [
+      {
+        action: 'create_dependency',
+        target: 'subject',
+        relation: 'test-relation',
+        value: {
+          source_ref: 'subject',
+          target_ref: 'subject',
+        },
+      },
+    ],
+
+    ir_spec: {
+      source: {
+        primary_candidate_code:
+          'test.real_singleton_true.source',
+      },
+
+      bindings: {
+        subject: {
+          entity: 'token',
+          scope: 'sentence',
+          cardinality: 'one',
+
+          where: {
+            op: 'eq',
+
+            left: {
+              ref: 'subject.pos',
+            },
+
+            right: 'noun',
+          },
+        },
+      },
+    },
+  };
+}
+
+const manifestRows = [
+  realSingletonTrueManifestRow(),
+];
+
+Deno.test(
+  "V2.15 real producer chain preserves cross-family binding-definition distinction",
+  async () => {
+const fixture = v2PosFixture({
+      labels: ['noun'],
+      statuses: ['resolved'],
+      alternativeStatus: 'resolved',
+      resolvedIndices: [0],
+    });
+const surface = buildCanonicalSurfaceDocumentV1_V2("x");
+    const graph = fixture.graph;
+    const tokenId = fixture.tokenId;
+
+    const dependencyResult =
+      deriveCanonicalDependencyRuntimeAuthoritiesV1(
+        manifestRows,
+      );
+
+    const manifestBindingResult =
+      deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1(
+        manifestRows,
+      );
+
+    const manifestWhereShapeResult =
+      deriveCanonicalRuntimeManifestBindingWhereShapeAuthoritiesV1(
+        manifestBindingResult,
+      );
+
+    const manifestReferenceExpressionResult =
+      deriveCanonicalRuntimeManifestBindingWhereReferenceExpressionShapeAuthoritiesV1(
+        manifestWhereShapeResult,
+      );
+
+    const manifestReferenceRootResult =
+      deriveCanonicalRuntimeManifestBindingWhereReferenceRootAuthoritiesV1(
+        manifestReferenceExpressionResult,
+        manifestBindingResult,
+      );
+
+    const manifestLeafRightOperandResult =
+      deriveCanonicalRuntimeManifestBindingWhereLeafRightOperandSiteAuthoritiesV1(
+        manifestWhereShapeResult,
+        manifestReferenceRootResult,
+      );
+
+    const nodeTypeAuthority:
+      CanonicalRuntimeManifestGraphNodeTypeAuthorityV1 = {
+        authorityId: 'canonical-node-type:token',
+        status: 'proven',
+        nodeType: 'token',
+        source: 'canonical_language_graph_core_v1',
+      };
+
+    const manifestEntityCompatibilityResult =
+      deriveCanonicalRuntimeManifestBindingEntityCompatibilitiesV1(
+        manifestBindingResult,
+        [nodeTypeAuthority],
+      );
+
+    const ownershipResult =
+      deriveCanonicalPosFactOwnershipAuthoritiesV1(
+        graph,
+      );
+
+    const posPropertyCapabilityResult =
+      deriveCanonicalTokenPosPropertyCapabilityV1(
+        ownershipResult,
+      );
+
+    const manifestTokenPosSuffixResult =
+      deriveCanonicalRuntimeManifestTokenPosSuffixPropertyCompatibilitiesV1(
+        manifestLeafRightOperandResult,
+        manifestEntityCompatibilityResult,
+        posPropertyCapabilityResult,
+      );
+
+    const manifestStringOperandResult =
+      deriveCanonicalRuntimeManifestTokenPosStringOperandCompatibilitiesV1(
+        manifestTokenPosSuffixResult,
+      );
+
+    const manifestExactEqResult =
+      deriveCanonicalRuntimeManifestTokenPosExactEqOperatorSourceCompatibilitiesV1(
+        manifestStringOperandResult,
+      );
+
+    const manifestExpectedResult =
+      deriveCanonicalRuntimeManifestTokenPosExpectedNormalizedLabelEqAuthoritiesV1(
+        manifestExactEqResult,
+      );
+
+    assert(
+      manifestExpectedResult.status === 'ready',
+      'manifest expected not ready: ' +
+        JSON.stringify(manifestExpectedResult),
+    );
+
+    assert(
+      manifestExpectedResult.candidates.length === 1,
+      'manifest expected candidate count=' +
+        manifestExpectedResult.candidates.length,
+    );
+
+    const actualResult =
+      await deriveCanonicalTokenPosGraphBoundNormalizedLabelProjectionV2(
+        surface,
+        graph,
+        tokenId,
+      );
+
+    const c2 =
+      compareCanonicalTokenPosNormalizedLabelEvidenceV2(
+        actualResult,
+        manifestExpectedResult.candidates[0],
+      );
+
+    const directTokenDomainResult =
+      deriveCanonicalSentenceDirectTokenOccurrenceDomainsV1(
+        graph,
+      );
+
+    const sentenceBoundaryAuthority:
+      CanonicalRuntimeManifestScopeBoundaryAuthorityV1 = {
+        authorityId: 'boundary:sentence',
+        status: 'proven',
+        boundaryLabel: 'sentence',
+        source: 'canonical_sentence_scope_boundary_capability_v1',
+      };
+
+    const manifestScopeResult =
+      deriveCanonicalRuntimeManifestBindingScopeCompatibilitiesV1(
+        manifestBindingResult,
+        [sentenceBoundaryAuthority],
+      );
+
+    const manifestReferencedDomainResult =
+      deriveCanonicalRuntimeManifestReferencedTokenSentenceDomainCompositionsV1(
+        manifestTokenPosSuffixResult,
+        manifestScopeResult,
+        directTokenDomainResult,
+      );
+
+    const snapshotDomainResult =
+      await bindCanonicalRuntimeManifestReferencedTokenSentenceDomainsToSnapshotV1(
+        surface,
+        graph,
+        manifestReferencedDomainResult,
+      );
+
+    const d2a =
+      deriveCanonicalRuntimeTokenPosSiteOccurrenceApplicabilityEvidenceV2(
+        c2,
+        snapshotDomainResult,
+      );
+
+    const snapshotIdentityResult =
+      await deriveCanonicalGraphSnapshotIdentityAuthorityV1(
+        surface,
+        graph,
+      );
+
+    assert(
+      snapshotIdentityResult.status === 'ready' &&
+        snapshotIdentityResult.authority !== undefined,
+      'snapshot identity not ready',
+    );
+
+    const sentenceOccurrenceIdentityResult =
+      await deriveCanonicalSnapshotSentenceOccurrenceIdentityAuthorityV1(
+        surface,
+        graph,
+        snapshotIdentityResult,
+      );
+
+    assert(
+      sentenceOccurrenceIdentityResult.status === 'ready' &&
+        sentenceOccurrenceIdentityResult.authorities.length === 1,
+      'sentence occurrence identity not exactly one',
+    );
+
+    const executionInput = {
+      executionInvocationId:
+        'real-canonical-singleton-true-e2e',
+      declaredCurrentSnapshotIdentityId:
+        snapshotIdentityResult.authority.snapshotIdentityId,
+      declaredCurrentSnapshotSentenceOccurrenceIdentityId:
+        sentenceOccurrenceIdentityResult.authorities[0]
+          .snapshotSentenceOccurrenceIdentityId,
+    };
+
+    const currentContextResult =
+      await deriveCanonicalCurrentRuntimeSentenceContextAuthorityV1(
+        surface,
+        graph,
+        executionInput,
+      );
+
+    const currentApplicabilityResult =
+      deriveCanonicalRuntimeTokenPosCurrentContextSiteOccurrenceApplicabilityEvidenceV1(
+        currentContextResult,
+        d2a,
+      );
+
+    const currentDomainResult =
+      deriveCanonicalRuntimeTokenPosCurrentBindingOccurrenceDomainAuthorityV1(
+        currentApplicabilityResult,
+      );
+
+    const runtimeBindingResult =
+      deriveCanonicalRuntimeBindingDefinitionAuthoritiesV1(
+        dependencyResult.authorities,
+        manifestRows,
+      );
+
+    const runtimeWhereShapeResult =
+      deriveCanonicalRuntimeBindingWhereShapeAuthoritiesV1(
+        runtimeBindingResult.authorities,
+      );
+
+    const runtimeReferenceRootResult =
+      deriveCanonicalRuntimeBindingWhereReferenceRootAuthoritiesV1(
+        runtimeWhereShapeResult.authorities,
+        runtimeBindingResult.authorities,
+      );
+
+    const runtimeRightOperandResult =
+      deriveCanonicalRuntimeBindingWhereRightOperandAuthoritiesV1(
+        runtimeWhereShapeResult,
+      );
+
+    const runtimeLeftRightResult =
+      deriveCanonicalRuntimeBindingWhereLeftRightSiteAuthoritiesV1(
+        runtimeReferenceRootResult,
+        runtimeRightOperandResult,
+      );
+
+    const runtimeEntityCompatibilityResult =
+      deriveCanonicalRuntimeBindingEntityCompatibilitiesV1(
+        runtimeBindingResult.authorities,
+        [
+          {
+            authorityId: 'canonical-node-type:token',
+            status: 'proven',
+            nodeType: 'token',
+            source: 'canonical_language_graph_core_v1',
+          },
+        ],
+      );
+
+    const runtimeTokenPosSuffixResult =
+      deriveCanonicalRuntimeTokenPosSuffixCompatibilitiesV1(
+        runtimeReferenceRootResult,
+        runtimeEntityCompatibilityResult,
+        posPropertyCapabilityResult,
+      );
+
+    const runtimeStringOperandResult =
+      deriveCanonicalRuntimeTokenPosStringOperandCompatibilitiesV1(
+        runtimeLeftRightResult,
+        runtimeTokenPosSuffixResult,
+      );
+
+    const expectedResult =
+      deriveCanonicalRuntimeTokenPosNormalizedLabelEqAuthoritiesV1(
+        runtimeStringOperandResult,
+      );
+
+    assert(
+      expectedResult.status === 'ready',
+      'runtime expected not ready: ' +
+        JSON.stringify(expectedResult),
+    );
+
+    assert(
+      expectedResult.authorities.length === 1,
+      'runtime expected count=' +
+        expectedResult.authorities.length,
+    );
+
+    v2Assert(
+      manifestExpectedResult.status ===
+        "ready" &&
+        manifestExpectedResult.candidates.length ===
+          1,
+      "real manifest expected authority was not uniquely produced",
+    );
+
+    v2Assert(
+      currentDomainResult.status ===
+        "ready" &&
+        currentDomainResult.authority.bindingOccurrenceDomains.length ===
+          1,
+      "real CURRENT binding occurrence domain was not uniquely produced",
+    );
+
+    v2Assert(
+      expectedResult.status ===
+        "ready" &&
+        expectedResult.authorities.length ===
+          1,
+      "real runtime expected authority was not uniquely produced",
+    );
+
+    const realDomain =
+      currentDomainResult.authority.bindingOccurrenceDomains[0];
+
+    const realExpected =
+      expectedResult.authorities[0];
+
+    v2Assert(
+      realDomain.manifestId ===
+          realExpected.manifestId &&
+        realDomain.manifestCode ===
+          realExpected.manifestCode &&
+        realDomain.referencedBindingName ===
+          realExpected.referencedBindingName,
+      "shared structural/source identity must match across producer families",
+    );
+
+    v2Assert(
+      realDomain.referencedBindingDefinitionAuthorityId !==
+        realExpected.referencedBindingDefinitionAuthorityId,
+      "producer-family binding-definition authority IDs must remain distinct",
+    );
+
+    v2Assert(
+      realDomain.referencedBindingDefinitionAuthorityId.startsWith(
+        "runtime-manifest-binding-definition-v1:",
+      ),
+      "CURRENT domain did not preserve manifest-family binding-definition authority",
+    );
+
+    v2Assert(
+      realExpected.referencedBindingDefinitionAuthorityId.startsWith(
+        "runtime-binding-definition-authority-v1:",
+      ),
+      "runtime expected authority did not preserve runtime-family binding-definition authority",
+    );
+
+    const comparison =
+      await deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundNormalizedComparisonsV2(
+        surface,
+        graph,
+        expectedResult,
+        currentDomainResult,
+      );
+
+    v2Assert(
+      comparison.status ===
+        "ready",
+      `real producer comparison blocked: ${
+        JSON.stringify(comparison)
+      }`,
+    );
+
+    const serializedComparison =
+      JSON.stringify(comparison);
+
+    v2Assert(
+      serializedComparison.includes(
+        '"comparisonState":"explicit_resolved_match"',
+      ),
+      `real producer comparison did not preserve explicit_resolved_match: ${
+        serializedComparison
+      }`,
+    );
+
+    v2Assert(
+      serializedComparison.includes(
+        '"booleanTruth":true',
+      ),
+      `real producer comparison did not resolve boolean TRUE: ${
+        serializedComparison
+      }`,
+    );
+
+    v2Assert(
+      !serializedComparison.includes(
+        '"bindingTruthResolved":true',
+      ) &&
+        !serializedComparison.includes(
+          '"whereEvaluationPerformed":true',
+        ) &&
+        !serializedComparison.includes(
+          '"learnerErrorClassified":true',
+        ) &&
+        !serializedComparison.includes(
+          '"graphMutationPerformed":true',
+        ),
+      "real producer regression crossed the Comparison V2 semantic ceiling",
     );
   },
 );
