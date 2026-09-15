@@ -284,6 +284,8 @@ type ChainResult = {
     enabled: boolean;
     ok: boolean;
     persisted: boolean;
+    persisted_count: number;
+    failed_lexeme_ids: string[];
     status: number;
     processed: number;
     failed: number;
@@ -1049,6 +1051,18 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
   const chainResult = buildResult(rawItems.length, stats, count, offset, limit);
   if (!v2ShadowEnabled || !v2Result) return chainResult;
 
+  const v2Rows = Array.isArray(v2Result.data?.results)
+    ? v2Result.data.results
+    : [];
+  const v2PersistedCount =
+    v2Rows.filter((row: any) => row?.persisted === true).length;
+  const v2FailedLexemeIds = v2PersistEnabled
+    ? v2Rows
+      .filter((row: any) => row?.persisted !== true)
+      .map((row: any) => row?.lexemeId)
+      .filter((value: unknown): value is string => typeof value === 'string')
+    : [];
+
   return {
     ...chainResult,
     // V2 is observation-only at this stage. Its errors are visible but never
@@ -1056,7 +1070,11 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
     forms_v2_shadow: {
       enabled: true,
       ok: v2Result.ok,
-      persisted: v2PersistEnabled && v2Result.ok,
+      persisted: v2PersistEnabled &&
+        v2Rows.length > 0 &&
+        v2PersistedCount === v2Rows.length,
+      persisted_count: v2PersistedCount,
+      failed_lexeme_ids: v2FailedLexemeIds,
       status: v2Result.status,
       processed: Number(v2Result.data?.processed ?? 0),
       failed: Number(v2Result.data?.failed ?? 0),

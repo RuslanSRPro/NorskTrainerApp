@@ -7,7 +7,7 @@ import {
   hasInternalSecretApiKey,
   hasInternalServiceAuthorization,
   isD10PersistenceEnabled,
-  type LegacyMorphologyRow,
+  lexemeDictionaryLookupQuery,
   type MorphologyPos,
   normalizeNorwegian,
   OrdbokeneClient,
@@ -30,10 +30,6 @@ type LexemeRow = {
   lemma: string;
   display_form: string | null;
   pos: MorphologyPos;
-};
-
-type LegacyRow = LegacyMorphologyRow & {
-  lexeme_id: string;
 };
 
 type ArticleBindingRow = {
@@ -93,12 +89,16 @@ Deno.serve(async (request: Request) => {
     });
 
     if (body.lookupWord) {
-      const result = await resolveOne({
-        id: "manual-lookup",
-        lemma: body.lookupWord,
-        display_form: body.lookupWord,
-        pos: body.lookupPos!,
-      }, []);
+      const result = await resolveOne(
+        {
+          id: "manual-lookup",
+          lemma: body.lookupWord,
+          display_form: body.lookupWord,
+          pos: body.lookupPos!,
+        },
+        [],
+        cleanLookupWord(body.lookupWord),
+      );
       return json({
         ok: isShadowResolvedStatus(result.status),
         worker: FUNCTION_NAME,
@@ -119,15 +119,7 @@ Deno.serve(async (request: Request) => {
     }
 
     const lexemes = (lexemeData ?? []) as LexemeRow[];
-    const { data: legacyData, error: legacyError } = await supabase
-      .from("lexeme_form_variants")
-      .select("lexeme_id, form_key, form_type, value")
-      .in("lexeme_id", lexemes.map((lexeme) => lexeme.id));
-    if (legacyError) {
-      throw new Error(`LEGACY_COMPARE_LOAD_FAILED:${legacyError.message}`);
-    }
 
-    const legacyRows = (legacyData ?? []) as LegacyRow[];
     let bindingRows: ArticleBindingRow[] = [];
     if (lexemes.length > 0) {
       const { data: bindingData, error: bindingError } = await supabase.rpc(
@@ -145,7 +137,6 @@ Deno.serve(async (request: Request) => {
       async (lexeme) => {
         const result = await resolveOne(
           lexeme,
-          legacyRows.filter((row) => row.lexeme_id === lexeme.id),
           bindingRows.filter((row) => row.lexeme_id === lexeme.id).map(
             toArticleBinding,
           ),
@@ -216,10 +207,10 @@ Deno.serve(async (request: Request) => {
 
 async function resolveOne(
   lexeme: LexemeRow,
-  legacyRows: LegacyRow[],
   articleBindings: AuthoritativeArticleBinding[] = [],
+  lookupQuery = lexemeDictionaryLookupQuery(lexeme),
 ) {
-  const query = cleanLookupWord(lexeme.display_form || lexeme.lemma);
+  const query = lookupQuery;
   const resolution = await resolveAuthoritativeMorphology({
     request: { query, pos: lexeme.pos, dictionaries: ["bm"] },
     client: new OrdbokeneClient(),
@@ -286,10 +277,11 @@ async function resolveOne(
     status = "source_lemma_mismatch";
   }
 
-  const comparison = compareAuthoritativeAndLegacyForms(
-    displayGroups,
-    legacyRows,
-  );
+  const comparison = {
+    ...compareAuthoritativeAndLegacyForms(displayGroups, []),
+    mode: "authoritative_source_only",
+    legacyCompared: false,
+  };
   return {
     lexemeId: lexeme.id,
     lemma: lexeme.lemma,

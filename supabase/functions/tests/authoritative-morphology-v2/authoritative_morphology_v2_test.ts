@@ -11,6 +11,7 @@ import {
   hasInternalServiceAuthorization,
   isD10FormsV2CanaryEnabled,
   isD10PersistenceEnabled,
+  lexemeDictionaryLookupQuery,
   OrdbokeneClient,
   parseOrdbokeneArticles,
   resolveArticleProjection,
@@ -768,6 +769,39 @@ Deno.test("25b binding rebuilds groups after co-headword filtering", () => {
     selectedForms.every((form) => !form.value.startsWith("mjølk")),
   );
 });
+Deno.test("25c persisted lookup uses lemma, never display_form", () => {
+  assertEquals(
+    lexemeDictionaryLookupQuery({
+      lemma: "energi",
+      display_form: "en ernergi",
+    }),
+    "energi",
+  );
+
+  assertEquals(
+    lexemeDictionaryLookupQuery({
+      lemma: "fotballtrening",
+      display_form: "en fotballtrenig",
+    }),
+    "fotballtrening",
+  );
+});
+
+Deno.test("25d persisted lookup rejects an empty canonical lemma", () => {
+  let message = "";
+
+  try {
+    lexemeDictionaryLookupQuery({
+      lemma: "  ",
+      display_form: "en bok",
+    });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+
+  assertEquals(message, "LEXEME_LEMMA_REQUIRED");
+});
+
 Deno.test("26 absent article binding never falls back to the first article", () => {
   const fixture = sameLemmaDifferentArticleFixture();
   assertEquals(

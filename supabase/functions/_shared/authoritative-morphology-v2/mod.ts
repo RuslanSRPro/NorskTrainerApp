@@ -1,9 +1,9 @@
 export { OrdbokeneClient } from "./client.ts";
 export type { OrdbokeneClientOptions } from "./client.ts";
 export {
+  type AppliedArticleBinding,
   applyAuthoritativeArticleBindings,
   ARTICLE_BINDING_PROVIDER_VERSION,
-  type AppliedArticleBinding,
   type AuthoritativeArticleBinding,
 } from "./article-binding.ts";
 export {
@@ -23,6 +23,7 @@ export {
   isD10PersistenceEnabled,
 } from "./internal-authorization.ts";
 export { isD10FormsV2CanaryEnabled } from "./rollout.ts";
+export { lexemeDictionaryLookupQuery } from "./lookup-identity.ts";
 export {
   buildParadigmIdentity,
   normalizeNorwegian,
