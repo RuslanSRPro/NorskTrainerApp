@@ -75,6 +75,7 @@ export function TrainingFlashcard({
             <TrainingFormsList
               forms={getAllForms(current)}
               title={ui('forms')}
+          alternativeLabel={ui('alternative_forms')}
               isDark={isDark}
               textColor={textColor}
               mutedColor={mutedColor}

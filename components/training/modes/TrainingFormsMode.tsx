@@ -83,6 +83,7 @@ export function TrainingFormsMode({
         <TrainingFormsList
           forms={getAllForms(current)}
           title={ui('all_forms')}
+          alternativeLabel={ui('alternative_forms')}
           isDark={isDark}
           textColor={textColor}
           mutedColor={mutedColor}
