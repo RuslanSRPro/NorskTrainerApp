@@ -50,13 +50,14 @@ type UiKey =
   | 'title' | 'empty_tasks' | 'save_error' | 'correct' | 'correct_answer'
   | 'context' | 'translation' | 'forms' | 'all_forms' | 'tap_to_reveal'
   | 'type_word' | 'type_form' | 'fill_gap' | 'check' | 'hint'
-  | 'next_task' | 'saving' | 'hard' | 'ok' | 'easy' | 'open_360' | 'verification';
+  | 'next_task' | 'saving' | 'hard' | 'ok' | 'easy' | 'open_360' | 'verification'
+  | 'alternative_forms';
 
 const UI_TEXT: Record<AppLanguage, Record<UiKey, string>> = {
   ua: {
     title: '🎯 Тренування', empty_tasks: 'Завдань немає.', save_error: 'Не вдалося зберегти.',
     correct: '✅ Правильно', correct_answer: '❌ Правильно:', context: 'Контекст',
-    translation: 'Переклад', forms: 'Форми', all_forms: 'Усі форми',
+    translation: 'Переклад', forms: 'Форми', all_forms: 'Усі форми', alternative_forms: 'Альтернативні',
     tap_to_reveal: 'Натисни щоб показати відповідь', type_word: 'Введи слово',
     type_form: 'Введи форму', fill_gap: 'Встав слово', check: 'Перевірити',
     hint: 'Підказка', next_task: 'Наступне', saving: 'Збереження...', hard: 'Складно',
@@ -65,7 +66,7 @@ const UI_TEXT: Record<AppLanguage, Record<UiKey, string>> = {
   en: {
     title: '🎯 Training', empty_tasks: 'No tasks.', save_error: 'Failed to save.',
     correct: '✅ Correct', correct_answer: '❌ Correct:', context: 'Context',
-    translation: 'Translation', forms: 'Forms', all_forms: 'All forms',
+    translation: 'Translation', forms: 'Forms', all_forms: 'All forms', alternative_forms: 'Alternatives',
     tap_to_reveal: 'Tap to reveal', type_word: 'Type the word', type_form: 'Type the form',
     fill_gap: 'Fill the gap', check: 'Check', hint: 'Hint', next_task: 'Next',
     saving: 'Saving...', hard: 'Hard', ok: 'OK', easy: 'Easy', open_360: '360°', verification: 'Sources',
@@ -73,7 +74,7 @@ const UI_TEXT: Record<AppLanguage, Record<UiKey, string>> = {
   no: {
     title: '🎯 Trening', empty_tasks: 'Ingen oppgaver.', save_error: 'Kunne ikke lagre.',
     correct: '✅ Riktig', correct_answer: '❌ Riktig:', context: 'Kontekst',
-    translation: 'Oversettelse', forms: 'Former', all_forms: 'Alle former',
+    translation: 'Oversettelse', forms: 'Former', all_forms: 'Alle former', alternative_forms: 'Alternative former',
     tap_to_reveal: 'Trykk for å vise', type_word: 'Skriv ordet', type_form: 'Skriv formen',
     fill_gap: 'Fyll inn', check: 'Sjekk', hint: 'Hint', next_task: 'Neste',
     saving: 'Lagrer...', hard: 'Vanskelig', ok: 'OK', easy: 'Lett', open_360: '360°', verification: 'Kilder',
@@ -232,7 +233,7 @@ export default function TrainScreen() {
       return {
         label,
         formKey,
-        value: primaryValues.join(' / '),
+        value: primaryValues.join(', '),
         primaryValues,
         alternativeValues,
       };

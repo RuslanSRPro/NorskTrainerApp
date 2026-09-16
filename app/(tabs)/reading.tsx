@@ -21,7 +21,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { SynonymsBadge } from "@/components/SynonymsBadge";
 import { Lexeme360, Lexeme360Sheet } from "@/components/Lexeme360";
-import { FormVariantsPopover } from "@/components/training/FormVariantsPopover";
+import { TrainingFormsList } from "@/components/training/TrainingFormsList";
+import type { TrainingFormItem } from "@/components/training/types";
 import { getFormTierValues, isIrregularMorphology } from "@/services/formPresentation";
 import { t } from "@/services/i18n";
 import { resolveVerification } from "@/services/verification";
@@ -171,7 +172,7 @@ function hasVerificationData(item: any){return Boolean(item?.verification_tier||
 function getVerificationDotColor(item: any){if(!hasVerificationData(item))return "";return resolveVerification(item).dot;}
 function VerificationMiniDot({item}:{item:any}){const c=getVerificationDotColor(item);if(!c)return null;return <View style={[s.miniDot,{backgroundColor:c}]}/>;}
 
-function getFormLabels(word: any):{label:string;value:string}[]{
+function getFormLabels(word: any):TrainingFormItem[]{
   const pos=(word?.pos||word?.type||word?.category||"").toLowerCase();
   const isV=pos.includes("verb"),isN=pos.includes("noun")||pos.includes("subst"),isA=pos.includes("adj");
   const definitions=isV?[
@@ -183,8 +184,16 @@ function getFormLabels(word: any):{label:string;value:string}[]{
   ]:[];
   return definitions.flatMap(([formKey,label])=>{
     const fallback=word?.verb_forms?.[formKey]||word?.noun_forms?.[formKey]||word?.adjective_forms?.[formKey]||"";
-    const values=getFormTierValues(word,formKey,fallback).primaryValues;
-    return values.length?[{label,value:values.join(" / ")}]:[];
+    const tiers=getFormTierValues(word,formKey,fallback);
+    const primaryValues=tiers.primaryValues;
+    const alternativeValues=tiers.alternativeValues;
+    return primaryValues.length?[{
+      label,
+      formKey,
+      value:primaryValues.join(", "),
+      primaryValues,
+      alternativeValues,
+    }]:[];
   });
 }
 
@@ -699,7 +708,15 @@ export default function ReadingScreen() {
             <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord?.word||previewWord?.lemma||wordQuery}</Text>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
-            <View style={s.formsBox}>{getFormLabels(previewWord||{}).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
+            <TrainingFormsList
+              forms={getFormLabels(previewWord||{})}
+              title={tr("forms")}
+              alternativeLabel={lang==="ua"?"Альтернативні":lang==="no"?"Alternative former":"Alternatives"}
+              isDark={themeName==="dark"}
+              textColor={T.textPrimary}
+              mutedColor={T.textMuted}
+              fonts={F}
+            />
             {previewWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text></View>:null}
             {previewWord?.notes_ua||previewWord?.notes?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.notes_ua||previewWord.notes}</Text></View>:null}
             <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}><Text style={[s.addBtnText,{color:T.accent}]}>{addingGlobalWord?tr("adding"):tr("add_preview_database")}</Text></Pressable>
@@ -727,12 +744,6 @@ export default function ReadingScreen() {
                   lang={lang}
                 />
 
-                <FormVariantsPopover
-                  word={selectedWord}
-                  isDark={themeName === "dark"}
-                  lang={lang}
-                />
-
                 {selectedWord?.id ? (
                   <Lexeme360
                     lexemeId={selectedWord.id}
@@ -756,7 +767,17 @@ export default function ReadingScreen() {
               </View>
             </View>
             {selectedWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{selectedWord.example}</Text></View>:null}
-            {getFormLabels(selectedWord||{}).length>0?<View style={s.formsBox}><Text style={[s.formsTitle,{color:T.textMuted}]}>{tr("forms")}</Text>{getFormLabels(selectedWord||{}).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>:null}
+            {getFormLabels(selectedWord||{}).length>0?(
+              <TrainingFormsList
+                forms={getFormLabels(selectedWord||{})}
+                title={tr("forms")}
+                alternativeLabel={lang==="ua"?"Альтернативні":lang==="no"?"Alternative former":"Alternatives"}
+                isDark={themeName==="dark"}
+                textColor={T.textPrimary}
+                mutedColor={T.textMuted}
+                fonts={F}
+              />
+            ):null}
             <Pressable style={[s.speakBtn,{backgroundColor:T.accentBg}]} onPress={()=>speakNorwegian(selectedWord?.lemma||selectedWord?.word||"")}><Text style={[s.speakBtnText,{color:T.accent}]}>🔊 {tr("pronounce")}</Text></Pressable>
             {!selectedWord?.learned?<Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingWord&&s.disabled]} disabled={addingWord} onPress={addCurrentWordToLearning}><Text style={[s.addBtnText,{color:T.accent}]}>{addingWord?tr("adding"):tr("add_to_learning")}</Text></Pressable>:<View style={[s.addBtn,{backgroundColor:T.accentBg}]}><Text style={[s.addBtnText,{color:T.accent}]}>✅ {tr("in_learning")}</Text></View>}
             <Pressable style={[s.stopBtn,{backgroundColor:T.cardAlt}]} onPress={stopSpeech}><Text style={[s.stopBtnText,{color:T.textSecondary}]}>⏹ {tr("stop_audio")}</Text></Pressable>
