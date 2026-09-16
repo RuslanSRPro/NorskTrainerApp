@@ -1,5 +1,6 @@
 import { Text, TextInput } from 'react-native';
 
+import { isIrregularMorphology } from '@/services/formPresentation';
 import { TrainingFormsList } from '../TrainingFormsList';
 import { TrainingGlassButton } from '../TrainingGlassButton';
 
@@ -65,8 +66,9 @@ export function TrainingTyping({
         <TrainingFormsList
           forms={getAllForms(current)}
           title={ui('forms')}
+          alternativeLabel={ui('alternative_forms')}
           isDark={isDark}
-          textColor={textColor}
+          textColor={isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
           mutedColor={mutedColor}
           fonts={fonts}
         />

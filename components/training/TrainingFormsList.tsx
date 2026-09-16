@@ -111,7 +111,7 @@ export function TrainingFormsList({
                         { color: alternativeColor },
                       ]}
                     >
-                      {expanded ? 'в€’' : `+${alternatives.length}`}
+                      {expanded ? '−' : `+${alternatives.length}`}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -141,7 +141,7 @@ export function TrainingFormsList({
                   </Text>
 
                   <Text style={[styles.source, { color: mutedColor }]}>
-                    OrdbГёkene
+                    Ordbøkene
                   </Text>
                 </View>
               ) : null}
@@ -228,4 +228,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 

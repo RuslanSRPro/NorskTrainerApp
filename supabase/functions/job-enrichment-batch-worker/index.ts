@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { isD10FormsV2CanaryEnabled } from '../_shared/authoritative-morphology-v2/rollout.ts';
 
 // ============================================================================
 // job-enrichment-batch-worker (v3)
@@ -34,7 +33,7 @@ import { isD10FormsV2CanaryEnabled } from '../_shared/authoritative-morphology-v
 // а маленькими группами).
 //
 // ФИКС (forms integration): добавлена цепочка 'forms' —
-// enqueueFormsEnrichment вызывает forms-enrichment-worker в job-scoped
+// enqueueFormsEnrichment вызывает authoritative V2 worker в job-scoped
 // режиме (передаёт конкретные lexeme_id текущего job'а через body.lexemeIds),
 // а не глобальный batch по алфавиту. См. VALID_CHAINS и switch ниже.
 //
@@ -280,9 +279,7 @@ type ChainResult = {
   next_offset: number | null;
   total: number | null;
   errors?: Record<string, unknown>[];
-  forms_v2_shadow?: {
-    enabled: boolean;
-    ok: boolean;
+  forms_v2?: {
     persisted: boolean;
     persisted_count: number;
     failed_lexeme_ids: string[];
@@ -974,7 +971,7 @@ async function enqueueTranslationCanonicalization(
 // у authoritative/ai_fallback — match_type='token', current_stage=
 // 'semantic_audit'), фильтрует по pos in (verb, noun, adjective) — только
 // такие POS вообще имеют парадигмы форм — и передаёт их одним батч-вызовом
-// в forms-enrichment-worker через body.lexemeIds (job-scoped режим этого
+// в authoritative V2 worker через body.lexemeIds (job-scoped режим этого
 // воркера, см. его index.ts). Та же схема, что у ai_fallback-цепочек:
 // один HTTP-вызов с массивом id вместо runChunked по одному.
 // ----------------------------------------------------------------------------
@@ -999,11 +996,12 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
     return { ...EMPTY_RESULT, has_more: hasMore, next_offset: hasMore ? offset + limit : null, total: count ?? null };
   }
 
-  // forms-enrichment-worker покрывает только verb/noun/adjective — остальные
-  // pos на этой странице не считаем ошибкой, просто у них нет форм по природе.
+  // The authoritative V2 producer is the only forms producer. Determiners are
+  // source-backed too, so they remain eligible alongside verbs, nouns and
+  // adjectives.
   const { data: posRows } = await supabase.from('lexemes').select('id, pos').in('id', lexemeIds);
   const eligibleIds = (posRows ?? [])
-    .filter((r) => ['verb', 'noun', 'adjective'].includes(r.pos))
+    .filter((r) => ['verb', 'noun', 'adjective', 'determiner'].includes(r.pos))
     .map((r) => r.id as string);
 
   if (eligibleIds.length === 0) {
@@ -1011,76 +1009,51 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
     return { ...EMPTY_RESULT, processed: rawItems.length, has_more: hasMore, next_offset: hasMore ? offset + limit : null, total: count ?? null };
   }
 
-  const v2ShadowEnabled = isD10FormsV2CanaryEnabled(
-    jobId,
-    Deno.env.get('D10_FORMS_V2_SHADOW_ENABLED'),
-    Deno.env.get('D10_FORMS_V2_CANARY_JOB_IDS'),
-  );
-  const v2PersistEnabled =
-    Deno.env.get('D10_FORMS_V2_PERSIST_ENABLED') === 'true';
-  const legacyPromise = callWorkerJson(
-    'forms-enrichment-worker',
-    { lexemeIds: eligibleIds, dryRun: false },
-  );
-  const v2Promise = v2ShadowEnabled
-    ? callWorkerJson('forms-enrichment-v2-worker', {
-      lexemeIds: eligibleIds,
-      persist: v2PersistEnabled,
-    })
-    : Promise.resolve(null);
-  const [result, v2Result] = await Promise.all([legacyPromise, v2Promise]);
-
-  const stats = result.ok
+  const result = await callWorkerJson('forms-enrichment-v2-worker', {
+    lexemeIds: eligibleIds,
+    persist: true,
+  });
+  const rows = Array.isArray(result.data?.results) ? result.data.results : [];
+  const failedRows = rows.filter((row: any) => row?.persisted !== true);
+  const persistedCount = rows.length - failedRows.length;
+  const failedLexemeIds = failedRows
+    .map((row: any) => row?.lexemeId)
+    .filter((value: unknown): value is string => typeof value === 'string');
+  const stats = result.ok && failedRows.length === 0
     ? {
-        successful: Number(result.data?.sourceVerified ?? 0) + Number(result.data?.needsReview ?? 0),
-        failed: Number(result.data?.failed ?? 0),
-        retryable: isRetryable(result.status, result.data) ? Number(result.data?.failed ?? 0) : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : Number(result.data?.failed ?? 0),
-        errors: Array.isArray(result.data?.results)
-          ? result.data.results.filter((r: any) => r.action === 'failed')
-          : [],
+        successful: persistedCount,
+        failed: 0,
+        retryable: 0,
+        permanent: 0,
+        errors: [],
       }
     : {
-        successful: 0,
-        failed: eligibleIds.length,
-        retryable: isRetryable(result.status, result.data) ? eligibleIds.length : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : eligibleIds.length,
-        errors: [{ stage: 'forms_batch_call', error: safeStringify(result.data) }],
+        successful: persistedCount,
+        failed: Math.max(failedRows.length, eligibleIds.length - persistedCount),
+        retryable: isRetryable(result.status, result.data)
+          ? Math.max(failedRows.length, eligibleIds.length - persistedCount)
+          : 0,
+        permanent: isRetryable(result.status, result.data)
+          ? 0
+          : Math.max(failedRows.length, eligibleIds.length - persistedCount),
+        errors: failedRows.length
+          ? failedRows
+          : [{ stage: 'forms_v2_batch_call', error: safeStringify(result.data) }],
       };
 
   const chainResult = buildResult(rawItems.length, stats, count, offset, limit);
-  if (!v2ShadowEnabled || !v2Result) return chainResult;
-
-  const v2Rows = Array.isArray(v2Result.data?.results)
-    ? v2Result.data.results
-    : [];
-  const v2PersistedCount =
-    v2Rows.filter((row: any) => row?.persisted === true).length;
-  const v2FailedLexemeIds = v2PersistEnabled
-    ? v2Rows
-      .filter((row: any) => row?.persisted !== true)
-      .map((row: any) => row?.lexemeId)
-      .filter((value: unknown): value is string => typeof value === 'string')
-    : [];
-
   return {
     ...chainResult,
-    // V2 is observation-only at this stage. Its errors are visible but never
-    // alter legacy completion/retry accounting.
-    forms_v2_shadow: {
-      enabled: true,
-      ok: v2Result.ok,
-      persisted: v2PersistEnabled &&
-        v2Rows.length > 0 &&
-        v2PersistedCount === v2Rows.length,
-      persisted_count: v2PersistedCount,
-      failed_lexeme_ids: v2FailedLexemeIds,
-      status: v2Result.status,
-      processed: Number(v2Result.data?.processed ?? 0),
-      failed: Number(v2Result.data?.failed ?? 0),
-      error: v2Result.ok
+    forms_v2: {
+      persisted: rows.length > 0 && persistedCount === rows.length,
+      persisted_count: persistedCount,
+      failed_lexeme_ids: failedLexemeIds,
+      status: result.status,
+      processed: Number(result.data?.processed ?? 0),
+      failed: Number(result.data?.failed ?? failedRows.length),
+      error: result.ok
         ? undefined
-        : safeStringify(v2Result.data?.error ?? 'V2 shadow failed').slice(0, 500),
+        : safeStringify(result.data?.error ?? 'V2 forms failed').slice(0, 500),
     },
   };
 }

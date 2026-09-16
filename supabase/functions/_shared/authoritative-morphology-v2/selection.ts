@@ -15,6 +15,8 @@ export const BM_WRITTEN_FORM_EVIDENCE = {
   verbAEndingProductPolicy: "product-policy:bm-written-verb-a-alternative-v1",
   queryLemmaProductPolicy: "product-policy:bm-query-lemma-default-v1",
   nounGenderProductPolicy: "product-policy:bm-masculine-card-default-v1",
+  structuralRegularityPolicy:
+    "product-policy:bm-source-structural-regularity-v1",
 } as const;
 
 type Candidate = {
@@ -49,7 +51,7 @@ type MutableGroup =
  * source-backed forms remain available as alternatives.
  */
 export class BokmalWrittenFormSelectionPolicy implements FormSelectionPolicy {
-  readonly policyVersion = "bokmal-written-display/v2";
+  readonly policyVersion = "bokmal-written-display/v3";
 
   select(
     paradigms: readonly AuthoritativeParadigm[],
@@ -79,7 +81,8 @@ export class BokmalWrittenFormSelectionPolicy implements FormSelectionPolicy {
 
         group.candidates.push({ form, paradigm });
         group.regularityMarkers.add(
-          paradigm.preference?.regularity ?? "unknown",
+          paradigm.preference?.regularity ??
+            inferParadigmRegularity(paradigm),
         );
         groups.set(key, group);
       }
@@ -149,6 +152,12 @@ export class BokmalWrittenFormSelectionPolicy implements FormSelectionPolicy {
     });
     const unique = deduplicateCandidates(tiered);
     const evidenceIds: string[] = [BM_WRITTEN_FORM_EVIDENCE.officialSource];
+    const regularityMarker = combineRegularity(group.regularityMarkers);
+    if (group.pos === "verb" && regularityMarker !== "unknown") {
+      evidenceIds.push(
+        BM_WRITTEN_FORM_EVIDENCE.structuralRegularityPolicy,
+      );
+    }
     const primary: SelectedSourceForm[] = [];
     const alternatives: SelectedSourceForm[] = [];
 
@@ -195,7 +204,7 @@ export class BokmalWrittenFormSelectionPolicy implements FormSelectionPolicy {
       formKey: group.formKey,
       primary,
       alternatives,
-      regularityMarker: combineRegularity(group.regularityMarkers),
+      regularityMarker,
       evidenceIds: [...new Set(evidenceIds)],
       policyVersion: group.policyVersion,
     };
@@ -256,6 +265,68 @@ function alternativeVariantOrder(form: SelectedSourceForm): number {
   return 0;
 }
 
+function inferParadigmRegularity(
+  paradigm: AuthoritativeParadigm,
+): RegularityMarker {
+  if (paradigm.dictionaryCode !== "bm" || paradigm.pos !== "verb") {
+    return "unknown";
+  }
+
+  const infinitives = paradigm.forms
+    .filter((form) => form.formKey === "infinitive")
+    .map((form) => normalizeNorwegian(form.value));
+  const preterites = paradigm.forms
+    .filter((form) => form.formKey === "preterite")
+    .map((form) => normalizeNorwegian(form.value));
+
+  if (infinitives.length === 0 || preterites.length === 0) {
+    return "unknown";
+  }
+
+  return preterites.every((preterite) =>
+      infinitives.some((infinitive) =>
+        isStructurallyRegularWeakPreterite(infinitive, preterite)
+      )
+    )
+    ? "regular"
+    : "irregular";
+}
+
+function isStructurallyRegularWeakPreterite(
+  infinitive: string,
+  preterite: string,
+): boolean {
+  const infinitiveStem = infinitive.length > 2 && infinitive.endsWith("e")
+    ? infinitive.slice(0, -1)
+    : infinitive;
+
+  for (const suffix of ["dde", "te", "de", "et", "a"]) {
+    if (!preterite.endsWith(suffix) || preterite.length <= suffix.length) {
+      continue;
+    }
+
+    const preteriteStem = preterite.slice(0, -suffix.length);
+    if (equivalentWeakVerbStems(infinitiveStem, preteriteStem)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function equivalentWeakVerbStems(
+  infinitiveStem: string,
+  preteriteStem: string,
+): boolean {
+  if (infinitiveStem === preteriteStem) return true;
+
+  const final = infinitiveStem.at(-1);
+  const previous = infinitiveStem.at(-2);
+
+  return final !== undefined &&
+    final === previous &&
+    infinitiveStem.slice(0, -1) === preteriteStem;
+}
 function combineRegularity(
   markers: ReadonlySet<RegularityMarker>,
 ): RegularityMarker {

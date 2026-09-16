@@ -24,7 +24,7 @@ const corsHeaders = {
 };
 
 type RequestBody = {
-  lexemeIds?: string[];      // job-scoped режим (как у forms-enrichment-worker)
+  lexemeIds?: string[];      // job-scoped режим (как у authoritative V2 forms worker)
   expressionIds?: string[];
   batchSize?: number;        // global batch режим
   dryRun?: boolean;

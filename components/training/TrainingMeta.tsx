@@ -5,7 +5,6 @@ import { VerificationBadge } from '@/components/VerificationBadge';
 import { GlassSurface } from '@/components/ui/glass/GlassSurface';
 import { AppLanguage } from '@/services/i18n';
 
-import { FormVariantsPopover } from './FormVariantsPopover';
 
 type Props = {
   current: any;
@@ -65,12 +64,6 @@ export function TrainingMeta({
             lang={appLanguage as any}
           />
         ) : null}
-
-        <FormVariantsPopover
-          word={current}
-          isDark={isDark}
-          lang={appLanguage}
-        />
 
         {hasRelations(current) ? (
           <Lexeme360

@@ -23,7 +23,7 @@ const corsHeaders = {
 const AI_ENRICHMENT_WORKER = 'ai-enrichment-worker';
 
 // ФОРМЫ-ПОДДЕРЖИВАЮЩИЕ части речи — те же три, что использует
-// forms-enrichment-worker (см. его собственный тип Pos).
+// authoritative V2 forms worker (см. его собственный тип Pos).
 const FORMS_ELIGIBLE_POS = new Set(['verb', 'noun', 'adjective']);
 
 // ============================================================================
@@ -263,17 +263,11 @@ async function hasRequiredForms(lexemeId: string, pos: string | null | undefined
     return true; // формы не нужны для этой части речи — не блокируем на этом
   }
 
-  const useV2 = Deno.env.get('D10_FORMS_READ_MODEL') === 'v2';
-  const query = useV2
-    ? supabase
-      .from('lexeme_form_display_v2')
-      .select('lexeme_id', { count: 'exact', head: true })
-      .eq('dictionary_code', 'bm')
-      .eq('lexeme_id', lexemeId)
-    : supabase
-      .from('lexeme_form_variants')
-      .select('id', { count: 'exact', head: true })
-      .eq('lexeme_id', lexemeId);
+  const query = supabase
+    .from('lexeme_form_display_v2')
+    .select('lexeme_id', { count: 'exact', head: true })
+    .eq('dictionary_code', 'bm')
+    .eq('lexeme_id', lexemeId);
   const { count, error } = await query;
 
   if (error) {
@@ -670,7 +664,7 @@ serve(async (req) => {
         }
       } else if (!w.isComplete && w.onlyMissingIsForms) {
         entry.heal_error =
-          'forms are missing but not healable via ai-enrichment-worker; waiting for forms-enrichment-worker chain';
+          'forms are missing but not healable via ai-enrichment-worker; waiting for authoritative V2 forms chain';
       }
 
       return entry;

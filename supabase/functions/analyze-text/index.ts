@@ -432,50 +432,7 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
 }
 
 async function loadVerbMaps(): Promise<VerbMaps> {
-  if (Deno.env.get('D10_FORMS_READ_MODEL') === 'v2') {
-    return await loadVerbMapsV2();
-  }
-
-  // ФИКС (22.08.2026): пагинировано превентивно через fetchAllRows() —
-  // 404 строки на момент фикса, безопасно СЕЙЧАС, но растёт с каждой
-  // сессией обогащения словаря и рано или поздно пересечёт тот же лимит
-  // PostgREST тем же самым молчаливым образом, как это уже случилось с
-  // expression_catalog/legacy lexemes. См. заголовочный комментарий файла.
-  const data = await fetchAllRows(async (from, to) => {
-    return await supabase
-      .from('verb_forms')
-      .select('infinitiv, presens, perfektum')
-      .order('lexeme_id', { ascending: true })
-      .range(from, to);
-  });
-
-  const presensToInfinitiv = new Map<string, string>();
-  const perfektumToInfinitiv = new Map<string, string>();
-
-  for (const row of data) {
-    const infinitiv = normalize(row.infinitiv ?? '');
-    const presens = normalize(row.presens ?? '');
-    const perfektum = normalize(row.perfektum ?? '');
-
-    if (infinitiv && presens) {
-      presensToInfinitiv.set(presens, infinitiv);
-    }
-
-    if (infinitiv && perfektum) {
-      perfektumToInfinitiv.set(perfektum, infinitiv);
-    }
-  }
-
-  console.log('[LOAD VERB MAPS]', {
-    total_rows: data.length,
-    presens_map_size: presensToInfinitiv.size,
-    perfektum_map_size: perfektumToInfinitiv.size,
-  });
-
-  return {
-    presensToInfinitiv,
-    perfektumToInfinitiv,
-  };
+  return await loadVerbMapsV2();
 }
 
 async function loadVerbMapsV2(): Promise<VerbMaps> {
