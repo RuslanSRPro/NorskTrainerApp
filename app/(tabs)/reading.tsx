@@ -713,7 +713,7 @@ export default function ReadingScreen() {
               title={tr("forms")}
               alternativeLabel={lang==="ua"?"Альтернативні":lang==="no"?"Alternative former":"Alternatives"}
               isDark={themeName==="dark"}
-              textColor={T.textPrimary}
+              textColor={isIrregularMorphology(previewWord) ? T.danger : T.textPrimary}
               mutedColor={T.textMuted}
               fonts={F}
             />
@@ -773,7 +773,7 @@ export default function ReadingScreen() {
                 title={tr("forms")}
                 alternativeLabel={lang==="ua"?"Альтернативні":lang==="no"?"Alternative former":"Alternatives"}
                 isDark={themeName==="dark"}
-                textColor={T.textPrimary}
+                textColor={isIrregularMorphology(selectedWord) ? T.danger : T.textPrimary}
                 mutedColor={T.textMuted}
                 fonts={F}
               />

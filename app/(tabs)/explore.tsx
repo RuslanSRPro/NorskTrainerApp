@@ -1,4 +1,4 @@
-﻿// app/(tabs)/explore.tsx
+// app/(tabs)/explore.tsx
 // Training screen — Liquid Glass UI 2.0 + preserved training logic
 
 import { useEffect, useMemo, useState } from 'react';
@@ -245,10 +245,10 @@ export default function TrainScreen() {
       const preteritum = vf.preteritum || getFormValue(w, ['preteritum', 'f2']) || '';
       const perfRaw = vf.perfektum || getFormValue(w, ['perfektum', 'f3']) || '';
       return [
-        item('Infinitiv', 'infinitiv', inf, (value) => displayLemma(value, w)),
-        item('Presens', 'presens', presens),
-        item('Preteritum', 'preteritum', preteritum),
-        item('Perfektum', 'perfektum', perfRaw, (value) => `har ${value.replace(/^har\s+/i, '')}`),
+        item('Infinitiv', 'infinitive', inf, (value) => displayLemma(value, w)),
+        item('Presens', 'present', presens),
+        item('Preteritum', 'preterite', preteritum),
+        item('Perfektum', 'past_participle', perfRaw, (value) => `har ${value.replace(/^har\s+/i, '')}`),
       ].filter(isTrainingFormItem);
     }
     if (type.includes('noun')) return [
