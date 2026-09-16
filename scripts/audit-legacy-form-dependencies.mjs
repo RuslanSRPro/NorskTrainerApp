@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const assertZero = process.argv.includes('--assert-zero');
@@ -23,10 +23,19 @@ const rules = [
   { id: 'legacy_noun_table', pattern: /\.from\(['"]noun_forms['"]\)|\bnoun_forms\s*\(/g },
   { id: 'legacy_adjective_table', pattern: /\.from\(['"]adjective_forms['"]\)|\badjective_forms\s*\(/g },
   { id: 'legacy_worker', pattern: /['"]forms-enrichment-worker['"]/g },
+  {
+    id: 'retired_compare_shadow',
+    pattern: /forms-enrichment-v2-compare-shadow/g,
+  },
+  {
+    id: 'retired_persist_canary',
+    pattern: /forms-enrichment-v2-persist-canary/g,
+  },
 ];
 
 const findings = [];
 const files = tracked.stdout.split('\0').filter(Boolean).filter((file) =>
+  existsSync(file) &&
   roots.some((root) => file.startsWith(root)) &&
   !excluded.some((prefix) => file.startsWith(prefix)) &&
   !file.endsWith('.bak')

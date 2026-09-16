@@ -6,7 +6,6 @@ import {
   compareAuthoritativeAndLegacyForms,
   hasInternalSecretApiKey,
   hasInternalServiceAuthorization,
-  isD10PersistenceEnabled,
   lexemeDictionaryLookupQuery,
   type MorphologyPos,
   normalizeNorwegian,
@@ -47,163 +46,184 @@ type RequestBody = {
   lookupWord?: string;
   lookupPos?: MorphologyPos;
   persist?: boolean;
+  backfill?: boolean;
+  offset?: number;
+  limit?: number;
 };
 
-Deno.serve(async (request: Request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders() });
-  }
-  if (request.method !== "POST") {
-    return json({ ok: false, error: "Method not allowed" }, 405);
-  }
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (!serviceRoleKey) {
-    return json({ ok: false, error: "MISSING_SUPABASE_SERVICE_ROLE_KEY" }, 500);
-  }
-  if (
-    !hasInternalSecretApiKey(
-      request.headers.get("apikey"),
-      Deno.env.get("SUPABASE_SECRET_KEYS"),
-    ) &&
-    !hasInternalServiceAuthorization(
-      request.headers.get("authorization"),
-      serviceRoleKey,
-    )
-  ) {
-    return json({ ok: false, error: "INTERNAL_SERVICE_AUTH_REQUIRED" }, 403);
-  }
-
-  try {
-    const body = await readBody(request);
+if (import.meta.main) {
+  Deno.serve(async (request: Request) => {
+    if (request.method === "OPTIONS") {
+      return new Response("ok", { headers: corsHeaders() });
+    }
+    if (request.method !== "POST") {
+      return json({ ok: false, error: "Method not allowed" }, 405);
+    }
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    if (!serviceRoleKey) {
+      return json(
+        { ok: false, error: "MISSING_SUPABASE_SERVICE_ROLE_KEY" },
+        500,
+      );
+    }
     if (
-      body.persist &&
-      !isD10PersistenceEnabled(
-        Deno.env.get("D10_FORMS_V2_PERSIST_ENABLED"),
+      !hasInternalSecretApiKey(
+        request.headers.get("apikey"),
+        Deno.env.get("SUPABASE_SECRET_KEYS"),
+      ) &&
+      !hasInternalServiceAuthorization(
+        request.headers.get("authorization"),
+        serviceRoleKey,
       )
     ) {
-      return json({ ok: false, error: "D10_PERSISTENCE_DISABLED" }, 403);
-    }
-    const supabaseUrl = requiredEnv("SUPABASE_URL");
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-    if (body.lookupWord) {
-      const result = await resolveOne(
-        {
-          id: "manual-lookup",
-          lemma: body.lookupWord,
-          display_form: body.lookupWord,
-          pos: body.lookupPos!,
-        },
-        [],
-        cleanLookupWord(body.lookupWord),
-      );
-      return json({
-        ok: isShadowResolvedStatus(result.status),
-        worker: FUNCTION_NAME,
-        mode: "manual",
-        persisted: false,
-        result,
-      }, result.status === "source_error" ? 502 : 200);
+      return json({ ok: false, error: "INTERNAL_SERVICE_AUTH_REQUIRED" }, 403);
     }
 
-    const lexemeIds = body.lexemeIds!;
-    const { data: lexemeData, error: lexemeError } = await supabase
-      .from("lexemes")
-      .select("id, lemma, display_form, pos")
-      .in("id", lexemeIds)
-      .in("pos", [...ALLOWED_POS]);
-    if (lexemeError) {
-      throw new Error(`LEXEME_LOAD_FAILED:${lexemeError.message}`);
-    }
+    try {
+      const body = await readBody(request);
+      const supabaseUrl = requiredEnv("SUPABASE_URL");
+      const supabase = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
 
-    const lexemes = (lexemeData ?? []) as LexemeRow[];
-
-    let bindingRows: ArticleBindingRow[] = [];
-    if (lexemes.length > 0) {
-      const { data: bindingData, error: bindingError } = await supabase.rpc(
-        "get_authoritative_morphology_article_bindings_v2",
-        { p_lexeme_ids: lexemes.map((lexeme) => lexeme.id) },
-      );
-      if (bindingError) {
-        throw new Error(`ARTICLE_BINDING_LOAD_FAILED:${bindingError.message}`);
-      }
-      bindingRows = (bindingData ?? []) as ArticleBindingRow[];
-    }
-    const results = await mapWithConcurrency(
-      lexemes,
-      CONCURRENCY,
-      async (lexeme) => {
+      if (body.lookupWord) {
         const result = await resolveOne(
-          lexeme,
-          bindingRows.filter((row) => row.lexeme_id === lexeme.id).map(
-            toArticleBinding,
-          ),
+          {
+            id: "manual-lookup",
+            lemma: body.lookupWord,
+            display_form: body.lookupWord,
+            pos: body.lookupPos!,
+          },
+          [],
+          cleanLookupWord(body.lookupWord),
         );
-        if (
-          body.persist && isPersistenceEligibleStatus(result.status) &&
-          result.articleProjection.publishable
-        ) {
-          const { error } = await supabase.rpc(
-            "publish_authoritative_morphology_snapshot_v2",
-            {
-              p_lexeme_id: lexeme.id,
-              p_resolution: result.resolution,
-              p_display_groups: result.displayGroups,
-              p_comparison: result.comparison,
-            },
+        return json({
+          ok: isShadowResolvedStatus(result.status),
+          worker: FUNCTION_NAME,
+          mode: "manual",
+          persisted: false,
+          result,
+        }, result.status === "source_error" ? 502 : 200);
+      }
+
+      let lexemeIds = body.lexemeIds ?? [];
+      let total: number | null = null;
+      let lexemeQuery = supabase
+        .from("lexemes")
+        .select("id, lemma, display_form, pos", { count: "exact" })
+        .in("pos", [...ALLOWED_POS]);
+      if (body.backfill) {
+        lexemeQuery = lexemeQuery
+          .order("id", { ascending: true })
+          .range(body.offset!, body.offset! + body.limit! - 1);
+      } else {
+        lexemeQuery = lexemeQuery.in("id", lexemeIds);
+      }
+      const { data: lexemeData, error: lexemeError, count } = await lexemeQuery;
+      if (lexemeError) {
+        throw new Error(`LEXEME_LOAD_FAILED:${lexemeError.message}`);
+      }
+
+      const lexemes = (lexemeData ?? []) as LexemeRow[];
+      if (body.backfill) {
+        lexemeIds = lexemes.map((lexeme) => lexeme.id);
+        total = count ?? 0;
+      }
+
+      let bindingRows: ArticleBindingRow[] = [];
+      if (lexemes.length > 0) {
+        const { data: bindingData, error: bindingError } = await supabase.rpc(
+          "get_authoritative_morphology_article_bindings_v2",
+          { p_lexeme_ids: lexemes.map((lexeme) => lexeme.id) },
+        );
+        if (bindingError) {
+          throw new Error(
+            `ARTICLE_BINDING_LOAD_FAILED:${bindingError.message}`,
           );
-          if (error) {
+        }
+        bindingRows = (bindingData ?? []) as ArticleBindingRow[];
+      }
+      const results = await mapWithConcurrency(
+        lexemes,
+        CONCURRENCY,
+        async (lexeme) => {
+          const result = await resolveOne(
+            lexeme,
+            bindingRows.filter((row) => row.lexeme_id === lexeme.id).map(
+              toArticleBinding,
+            ),
+          );
+          if (
+            body.persist && isPersistenceEligibleStatus(result.status) &&
+            result.articleProjection.publishable
+          ) {
+            const { error } = await supabase.rpc(
+              "publish_authoritative_morphology_snapshot_v2",
+              {
+                p_lexeme_id: lexeme.id,
+                p_resolution: result.resolution,
+                p_display_groups: result.displayGroups,
+                p_comparison: result.comparison,
+              },
+            );
+            if (error) {
+              return {
+                ...compactResult(result),
+                status: "persistence_error",
+                persisted: false,
+                error: compactError(error.message),
+              };
+            }
+            return { ...compactResult(result), persisted: true };
+          }
+          if (body.persist && result.status === "ambiguous_source_articles") {
             return {
               ...compactResult(result),
-              status: "persistence_error",
+              status: "persistence_blocked_source_identity",
               persisted: false,
-              error: compactError(error.message),
+              error: "SOURCE_ARTICLE_PROJECTIONS_DIVERGE",
             };
           }
-          return { ...compactResult(result), persisted: true };
-        }
-        if (body.persist && result.status === "ambiguous_source_articles") {
-          return {
-            ...compactResult(result),
-            status: "persistence_blocked_source_identity",
-            persisted: false,
-            error: "SOURCE_ARTICLE_PROJECTIONS_DIVERGE",
-          };
-        }
-        return { ...compactResult(result), persisted: false };
-      },
-    );
+          return { ...compactResult(result), persisted: false };
+        },
+      );
 
-    const missingIds = lexemeIds.filter(
-      (id) => !lexemes.some((lexeme) => lexeme.id === id),
-    );
-    const failed = results.filter((result) =>
-      !isShadowResolvedStatus(result.status)
-    ).length +
-      missingIds.length;
+      const missingIds = lexemeIds.filter(
+        (id) => !lexemes.some((lexeme) => lexeme.id === id),
+      );
+      const failed = results.filter((result) =>
+        !isShadowResolvedStatus(result.status)
+      ).length +
+        missingIds.length;
 
-    return json({
-      ok: failed === 0,
-      worker: FUNCTION_NAME,
-      mode: body.persist ? "persist" : "shadow",
-      dictionaries: ["bm"],
-      processed: results.length,
-      failed,
-      missingLexemeIds: missingIds,
-      results,
-    }, 200);
-  } catch (error) {
-    return json({
-      ok: false,
-      worker: FUNCTION_NAME,
-      error: compactError(
-        error instanceof Error ? error.message : String(error),
-      ),
-    }, 400);
-  }
-});
+      const nextOffset = body.backfill &&
+          body.offset! + lexemes.length < (total ?? 0)
+        ? body.offset! + lexemes.length
+        : null;
+      return json({
+        ok: failed === 0,
+        worker: FUNCTION_NAME,
+        mode: body.persist ? "persist" : "shadow",
+        dictionaries: ["bm"],
+        processed: results.length,
+        failed,
+        missingLexemeIds: missingIds,
+        total,
+        hasMore: nextOffset !== null,
+        nextOffset,
+        results,
+      }, 200);
+    } catch (error) {
+      return json({
+        ok: false,
+        worker: FUNCTION_NAME,
+        error: compactError(
+          error instanceof Error ? error.message : String(error),
+        ),
+      }, 400);
+    }
+  });
+}
 
 async function resolveOne(
   lexeme: LexemeRow,
@@ -309,12 +329,13 @@ function compactResult(result: Awaited<ReturnType<typeof resolveOne>>) {
   };
 }
 
-async function readBody(
+export async function readBody(
   request: Request,
 ): Promise<Required<Pick<RequestBody, "persist">> & RequestBody> {
   const payload: unknown = await request.json();
   if (!isRecord(payload)) throw new Error("JSON_OBJECT_REQUIRED");
   const persist = payload.persist === true;
+  const backfill = payload.backfill === true;
   const lookupWord = typeof payload.lookupWord === "string"
     ? payload.lookupWord.trim()
     : undefined;
@@ -323,6 +344,18 @@ async function readBody(
     if (!lookupPos) throw new Error("LOOKUP_POS_REQUIRED");
     if (persist) throw new Error("MANUAL_LOOKUP_CANNOT_PERSIST");
     return { lookupWord, lookupPos, persist };
+  }
+
+  if (backfill) {
+    const offset = Number(payload.offset ?? 0);
+    const limit = Number(payload.limit ?? MAX_LEXEMES);
+    if (!Number.isInteger(offset) || offset < 0) {
+      throw new Error("BACKFILL_OFFSET_MUST_BE_NON_NEGATIVE_INTEGER");
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LEXEMES) {
+      throw new Error(`BACKFILL_LIMIT_MUST_BE_1_TO_${MAX_LEXEMES}`);
+    }
+    return { backfill, offset, limit, persist };
   }
 
   if (!Array.isArray(payload.lexemeIds)) throw new Error("LEXEME_IDS_REQUIRED");

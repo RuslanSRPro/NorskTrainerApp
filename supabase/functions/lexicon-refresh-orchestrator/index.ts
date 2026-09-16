@@ -13,7 +13,6 @@ const WORKER_NAME = 'lexicon-refresh-orchestrator';
 type EntityTable =
   | 'expression_catalog'
   | 'lexemes'
-  | 'lexeme_form_variants'
   | 'lexeme_relations'
   | 'semantic_unit_relations'
   | 'lexeme_semantic_enrichment'
@@ -234,15 +233,6 @@ async function getBatch(
       .select('*')
       .neq('last_verification_run', runId)
       .order('lemma', { ascending: true })
-      .limit(batchSize);
-  }
-
-  if (entityTable === 'lexeme_form_variants') {
-    return await supabase
-      .from('lexeme_form_variants')
-      .select('*')
-      .neq('last_verification_run', runId)
-      .order('normalized_value', { ascending: true })
       .limit(batchSize);
   }
 
