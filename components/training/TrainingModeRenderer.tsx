@@ -10,6 +10,7 @@ import {
 } from './modes';
 
 import { TrainingInfoBlock } from './TrainingInfoBlock';
+import type { TrainingDensity } from './TrainingCard';
 import { TrainingTask } from './types';
 
 type Props = {
@@ -38,6 +39,7 @@ type Props = {
   selectChoice: (option: string) => void;
   setTypedAnswer: (value: string) => void;
   checkTyped: () => void;
+  density?: TrainingDensity;
 };
 
 export function TrainingModeRenderer({
@@ -62,6 +64,7 @@ export function TrainingModeRenderer({
   selectChoice,
   setTypedAnswer,
   checkTyped,
+  density = 'normal',
 }: Props) {
   if (currentTask.mode === 'flashcards') {
     return (
@@ -79,6 +82,7 @@ export function TrainingModeRenderer({
           getTranslation={getTranslation}
           getAllForms={getAllForms}
           speakCurrentTask={speakCurrentTask}
+          density={density}
         />
 
         {feedback ? (
