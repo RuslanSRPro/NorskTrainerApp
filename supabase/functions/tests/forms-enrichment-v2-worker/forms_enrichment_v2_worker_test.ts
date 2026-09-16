@@ -16,13 +16,56 @@ Deno.test("V2 backfill accepts a bounded persistent page", async () => {
       persist: true,
       offset: 50,
       limit: 25,
+      verifyPersisted: false,
     })),
     {
       backfill: true,
       persist: true,
       offset: 50,
       limit: 25,
+      verifyPersisted: false,
     },
+  );
+});
+
+Deno.test("persisted verification accepts explicit IDs without persistence", async () => {
+  assertEquals(
+    await readBody(request({
+      lexemeIds: ["lexeme-a", "lexeme-a", "lexeme-b"],
+      verifyPersisted: true,
+    })),
+    {
+      lexemeIds: ["lexeme-a", "lexeme-b"],
+      persist: false,
+      verifyPersisted: true,
+    },
+  );
+});
+
+Deno.test("persisted verification rejects persistence", async () => {
+  await assertRejects(
+    () =>
+      readBody(request({
+        lexemeIds: ["lexeme-a"],
+        verifyPersisted: true,
+        persist: true,
+      })),
+    Error,
+    "VERIFY_PERSISTED_CANNOT_PERSIST",
+  );
+});
+
+Deno.test("persisted verification rejects implicit backfill pages", async () => {
+  await assertRejects(
+    () =>
+      readBody(request({
+        backfill: true,
+        verifyPersisted: true,
+        offset: 0,
+        limit: 25,
+      })),
+    Error,
+    "VERIFY_PERSISTED_REQUIRES_EXPLICIT_LEXEME_IDS",
   );
 });
 

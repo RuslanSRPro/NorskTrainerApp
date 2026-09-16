@@ -13,6 +13,10 @@ import {
   resolveArticleProjection,
   resolveAuthoritativeMorphology,
 } from "../_shared/authoritative-morphology-v2/mod.ts";
+import {
+  comparePersistedProjection,
+  type PersistedFormDisplayRow,
+} from "../_shared/authoritative-morphology-v2/persisted-parity.ts";
 
 const FUNCTION_NAME = "forms-enrichment-v2-worker";
 const MAX_LEXEMES = 25;
@@ -46,6 +50,7 @@ type RequestBody = {
   lookupWord?: string;
   lookupPos?: MorphologyPos;
   persist?: boolean;
+  verifyPersisted?: boolean;
   backfill?: boolean;
   offset?: number;
   limit?: number;
@@ -143,6 +148,19 @@ if (import.meta.main) {
         }
         bindingRows = (bindingData ?? []) as ArticleBindingRow[];
       }
+      let persistedRows: PersistedFormDisplayRow[] = [];
+      if (body.verifyPersisted && lexemes.length > 0) {
+        const { data, error } = await supabase
+          .from("lexeme_form_display_v2")
+          .select(
+            "lexeme_id,dictionary_code,article_id,article_ids,pos,lemma,form_key,primary_values,alternative_values,regularity_marker,policy_version",
+          )
+          .in("lexeme_id", lexemes.map((lexeme) => lexeme.id));
+        if (error) {
+          throw new Error(`PERSISTED_PROJECTION_LOAD_FAILED:${error.message}`);
+        }
+        persistedRows = (data ?? []) as PersistedFormDisplayRow[];
+      }
       const results = await mapWithConcurrency(
         lexemes,
         CONCURRENCY,
@@ -153,6 +171,19 @@ if (import.meta.main) {
               toArticleBinding,
             ),
           );
+          if (body.verifyPersisted) {
+            return {
+              ...compactResult(result),
+              persisted: false,
+              parity: comparePersistedProjection(
+                result.displayGroups,
+                persistedRows.filter((row) => row.lexeme_id === lexeme.id),
+                result.status,
+                result.articleProjection.publishable,
+                result.articleIds,
+              ),
+            };
+          }
           if (
             body.persist && isPersistenceEligibleStatus(result.status) &&
             result.articleProjection.publishable
@@ -203,7 +234,11 @@ if (import.meta.main) {
       return json({
         ok: failed === 0,
         worker: FUNCTION_NAME,
-        mode: body.persist ? "persist" : "shadow",
+        mode: body.verifyPersisted
+          ? "verify_persisted"
+          : body.persist
+          ? "persist"
+          : "shadow",
         dictionaries: ["bm"],
         processed: results.length,
         failed,
@@ -331,11 +366,20 @@ function compactResult(result: Awaited<ReturnType<typeof resolveOne>>) {
 
 export async function readBody(
   request: Request,
-): Promise<Required<Pick<RequestBody, "persist">> & RequestBody> {
+): Promise<
+  Required<Pick<RequestBody, "persist" | "verifyPersisted">> & RequestBody
+> {
   const payload: unknown = await request.json();
   if (!isRecord(payload)) throw new Error("JSON_OBJECT_REQUIRED");
   const persist = payload.persist === true;
+  const verifyPersisted = payload.verifyPersisted === true;
   const backfill = payload.backfill === true;
+  if (persist && verifyPersisted) {
+    throw new Error("VERIFY_PERSISTED_CANNOT_PERSIST");
+  }
+  if (backfill && verifyPersisted) {
+    throw new Error("VERIFY_PERSISTED_REQUIRES_EXPLICIT_LEXEME_IDS");
+  }
   const lookupWord = typeof payload.lookupWord === "string"
     ? payload.lookupWord.trim()
     : undefined;
@@ -343,7 +387,10 @@ export async function readBody(
   if (lookupWord) {
     if (!lookupPos) throw new Error("LOOKUP_POS_REQUIRED");
     if (persist) throw new Error("MANUAL_LOOKUP_CANNOT_PERSIST");
-    return { lookupWord, lookupPos, persist };
+    if (verifyPersisted) {
+      throw new Error("MANUAL_LOOKUP_CANNOT_VERIFY_PERSISTED");
+    }
+    return { lookupWord, lookupPos, persist, verifyPersisted };
   }
 
   if (backfill) {
@@ -355,7 +402,7 @@ export async function readBody(
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LEXEMES) {
       throw new Error(`BACKFILL_LIMIT_MUST_BE_1_TO_${MAX_LEXEMES}`);
     }
-    return { backfill, offset, limit, persist };
+    return { backfill, offset, limit, persist, verifyPersisted };
   }
 
   if (!Array.isArray(payload.lexemeIds)) throw new Error("LEXEME_IDS_REQUIRED");
@@ -363,7 +410,7 @@ export async function readBody(
   if (lexemeIds.length === 0 || lexemeIds.length > MAX_LEXEMES) {
     throw new Error(`LEXEME_IDS_MUST_CONTAIN_1_TO_${MAX_LEXEMES}`);
   }
-  return { lexemeIds, persist };
+  return { lexemeIds, persist, verifyPersisted };
 }
 
 function parsePos(value: unknown): MorphologyPos | undefined {
