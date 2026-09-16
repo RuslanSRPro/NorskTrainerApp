@@ -49,9 +49,9 @@ export const glassEngine = {
 };
 
 export function getGlassDensity(variant: GlassSurfaceVariant) {
-  return glassEngine.density[variant] ?? glassEngine.density.default;
+  return (glassEngine.density as Partial<Record<GlassSurfaceVariant | 'default', number>>)[variant] ?? glassEngine.density.default;
 }
 
 export function getGlassReflectionOpacity(variant: GlassSurfaceVariant) {
-  return glassEngine.reflection[variant] ?? glassEngine.reflection.default;
+  return (glassEngine.reflection as Partial<Record<GlassSurfaceVariant | 'default', number>>)[variant] ?? glassEngine.reflection.default;
 }

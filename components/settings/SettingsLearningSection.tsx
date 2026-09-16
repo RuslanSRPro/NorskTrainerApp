@@ -77,7 +77,7 @@ export function SettingsLearningSection({ lang }: Props) {
       ? current.filter((item) => item !== value)
       : [...current, value];
 
-    const finalNext = next.length ? next : ['all'];
+    const finalNext: CategoryFilter[] = next.length ? next : ['all'];
 
     updateSetting('category_filters', finalNext);
     updateSetting('category_filter', finalNext[0]);

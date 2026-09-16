@@ -22,6 +22,8 @@ export function GlassPressable({
   pressedScale = 0.97,
   onPressIn,
   onPressOut,
+  hitSlop = 4,
+  pressRetentionOffset = 12,
   ...props
 }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -48,6 +50,8 @@ export function GlassPressable({
   return (
     <Pressable
       {...props}
+      hitSlop={hitSlop}
+      pressRetentionOffset={pressRetentionOffset}
       style={style}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}

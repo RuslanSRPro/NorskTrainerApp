@@ -2,6 +2,8 @@ import { Text, View } from 'react-native';
 
 import { TrainingMode } from '@/services/settings';
 
+import { GlassControlGroup } from '@/components/ui/glass/GlassControlGroup';
+
 import { TrainingGlassButton } from './TrainingGlassButton';
 import { TrainingGradeButton } from './TrainingGradeButton';
 
@@ -41,7 +43,7 @@ export function TrainingBottomBar({
           <Text style={s.savingText}>{ui('saving')}</Text>
         ) : null}
 
-        <View style={s.gradeRow}>
+        <GlassControlGroup spacing={8} style={s.gradeRow}>
           <TrainingGradeButton
             label={ui('hard')}
             tone="hard"
@@ -65,7 +67,7 @@ export function TrainingBottomBar({
             disabled={savingReview}
             onPress={() => onGrade('Easy')}
           />
-        </View>
+        </GlassControlGroup>
       </View>
     );
   }

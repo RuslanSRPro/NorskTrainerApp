@@ -38,6 +38,7 @@ import { t, AppLanguage } from '@/services/i18n';
 import { useSettingsStore } from '@/store/settingsStore';
 import { addLexemeToLearningFromSupabase } from '@/services/api';
 import { fetchFormsMap } from '@/services/formReadModel';
+import { GlassOverlay } from '@/components/ui/glass/GlassOverlay';
 import {
   Lexeme360Carousel,
   type Lexeme360CarouselItem,
@@ -1044,6 +1045,7 @@ function Lexeme360Content({
 
   return (
     <View style={styles.sheet}>
+      <GlassOverlay material="overlay" shape="sheet" radius={24} />
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.headerTop}>
@@ -1389,7 +1391,7 @@ const styles = StyleSheet.create({
     height: '93%',
   },
   sheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '100%',

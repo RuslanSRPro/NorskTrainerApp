@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   optionTitle: {
-    fontWeight: '850',
+    fontWeight: '800',
   },
   subtitle: {
     marginTop: 3,

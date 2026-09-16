@@ -16,6 +16,7 @@ import {
 
 import type { AppLanguage } from '@/services/i18n';
 import { t } from '@/services/i18n';
+import { GlassOverlay } from '@/components/ui/glass/GlassOverlay';
 
 export type Lexeme360CarouselItem = {
   id: string;
@@ -362,6 +363,7 @@ export function Lexeme360Carousel({
               disabled={isCandidate}
               onPress={() => onSelect?.(item.id, displayLemma)}
             >
+              <GlassOverlay material="card" shape="card" radius={24} />
               <View style={styles.cardHeader}>
                 <View style={[styles.badge, visual.badge]}>
                   <Text style={[styles.badgeText, visual.badgeText]}>{label}</Text>
@@ -522,7 +524,7 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     marginRight: CARD_GAP,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'rgba(248,250,252,0.28)',
     borderRadius: 22,
     padding: 16,
     borderWidth: 2,

@@ -1,9 +1,8 @@
-﻿import { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomeBackground } from '@/components/home/HomeBackground';
-import { useWallpaper } from '@/components/home/useWallpaper';
 
 type Props = {
   children: ReactNode;
@@ -11,10 +10,8 @@ type Props = {
 };
 
 export function AppPage({ children, dark = false }: Props) {
-  const { wallpaper, customUri } = useWallpaper();
-
   return (
-    <HomeBackground wallpaper={wallpaper} customUri={customUri} dark={dark}>
+    <HomeBackground dark={dark}>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {children}

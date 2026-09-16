@@ -1,10 +1,12 @@
 import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { GlassMaterialVariant, GlassShapeVariant, glassTokens } from '@/design-system/glass';
 import { glassEngine } from '@/design-system/glassEngine';
+import { canUseNativeLiquidGlass } from '@/design-system/glassCapabilities';
 
 import { GlassReflection } from './GlassReflection';
 
@@ -76,8 +78,7 @@ function withAlpha(color: string, glassOpacity: number) {
   return color;
 }
 
-export function GlassMaterial({
-  children,
+function FallbackGlassVisual({
   material,
   shape,
   dark = false,
@@ -366,17 +367,52 @@ export function GlassMaterial({
 
         <GlassReflection radius={radius} opacity={reflectionOpacity} enabled={highlight} />
 
-        {children}
       </View>
     </BlurView>
   );
 }
 
+
+export function GlassMaterial(props: Props) {
+  const { children, contentStyle, radius, surfaceTint, material, dark } = props;
+  const nativeGlass = canUseNativeLiquidGlass();
+
+  return (
+    <View style={[styles.materialHost, { borderRadius: radius }]} pointerEvents="box-none">
+      {nativeGlass ? (
+        <GlassView
+          pointerEvents="none"
+          isInteractive={false}
+          colorScheme={dark ? 'dark' : 'light'}
+          glassEffectStyle={material === 'light' ? 'clear' : 'regular'}
+          tintColor={surfaceTint}
+          style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+        />
+      ) : (
+        <FallbackGlassVisual {...props} contentStyle={undefined} />
+      )}
+      <View style={[styles.content, { borderRadius: radius }, contentStyle]} pointerEvents="box-none">
+        {children}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  materialHost: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  content: {
+    position: 'relative',
+    zIndex: 1,
+  },
   blur: {
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
   },
   inner: {
+    flex: 1,
     position: 'relative',
     overflow: 'hidden',
   },

@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontWeight: '850',
+    fontWeight: '800',
   },
   value: {
     fontWeight: '900',

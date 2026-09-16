@@ -36,10 +36,10 @@ export function SettingsWallpaperSection({ lang }: Props) {
 
   const options = useMemo(
     () => [
-      { id: 'default', title: 'Default' },
-      { id: 'fjord', title: 'Fjord' },
+      { id: 'theme_light', title: 'Default' },
+      { id: 'fjord_cloudy', title: 'Fjord' },
       { id: 'aurora', title: 'Aurora' },
-      { id: 'forest', title: 'Forest' },
+      { id: 'gradient_forest', title: 'Forest' },
       { id: 'custom', title: choosePhotoTitle },
       ...(customUri ? [{ id: 'removeCustom', title: removePhotoTitle }] : []),
     ],
@@ -50,11 +50,11 @@ export function SettingsWallpaperSection({ lang }: Props) {
     if (customUri) return choosePhotoTitle;
 
     switch (wallpaper) {
-      case 'fjord':
+      case 'fjord_cloudy':
         return 'Fjord';
       case 'aurora':
         return 'Aurora';
-      case 'forest':
+      case 'gradient_forest':
         return 'Forest';
       default:
         return 'Default';

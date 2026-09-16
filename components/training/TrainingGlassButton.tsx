@@ -1,66 +1,25 @@
-import { Pressable, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
+import { StyleProp, TextStyle, ViewStyle } from 'react-native';
 
-import { GlassSurface } from '@/components/ui/glass/GlassSurface';
+import { GlassControl } from '@/components/ui/glass/GlassControl';
 
 type Props = {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  isDark: boolean;
-  primary?: boolean;
-  style?: StyleProp<ViewStyle>;
-  contentStyle?: StyleProp<ViewStyle>;
-  textStyle?: StyleProp<TextStyle>;
+  label: string; onPress: () => void; disabled?: boolean; isDark: boolean; primary?: boolean;
+  style?: StyleProp<ViewStyle>; contentStyle?: StyleProp<ViewStyle>; textStyle?: StyleProp<TextStyle>;
 };
 
-export function TrainingGlassButton({
-  label,
-  onPress,
-  disabled = false,
-  isDark,
-  primary = false,
-  style,
-  contentStyle,
-  textStyle,
-}: Props) {
+export function TrainingGlassButton({ label, onPress, disabled = false, isDark, primary = false, style, contentStyle, textStyle }: Props) {
   return (
-    <Pressable onPress={onPress} disabled={disabled}>
-      <GlassSurface
-        variant="button"
-        dark={isDark}
-        material={primary ? 'button' : 'floating'}
-        style={[styles.outer, style, disabled && styles.disabled]}
-        contentStyle={[
-          styles.inner,
-          primary && styles.primaryInner,
-          contentStyle,
-        ]}
-      >
-        <Text style={[styles.text, textStyle]}>{label}</Text>
-      </GlassSurface>
-    </Pressable>
+    <GlassControl
+      label={label}
+      onPress={onPress}
+      disabled={disabled}
+      dark={isDark}
+      tone={primary ? 'accent' : 'neutral'}
+      size="regular"
+      material={primary ? 'solid' : 'floating'}
+      style={style}
+      contentStyle={contentStyle}
+      textStyle={textStyle}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  outer: {},
-  inner: {
-    minHeight: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryInner: {
-    backgroundColor: 'rgba(10,132,255,0.42)',
-  },
-  text: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-});

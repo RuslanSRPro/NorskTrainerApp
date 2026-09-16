@@ -102,11 +102,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   accentGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.9,
   },
   lensDepth: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   innerRing: {
     position: 'absolute',

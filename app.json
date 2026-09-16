@@ -1,96 +1,98 @@
-{
-  "expo": {
-    "name": "NorskTrainerApp",
-    "slug": "NorskTrainerApp",
-    "version": "1.0.10",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "norsktrainerapp",
-    "userInterfaceStyle": "automatic",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.ruslanrs.norsktrainer",
-      "infoPlist": {
-        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
-        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone.",
-        "NSPhotoLibraryUsageDescription": "This app may access your photo library only when you choose to select an image.",
-        "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [
-          "audio"
-        ]
-      },
-      "icon": "./assets/NorskTrainer.icon"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.ruslanrs.NorskTrainerApp",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ],
-      "expo-speech-recognition",
-      "expo-font",
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone.",
-          "enableBackgroundRecording": true
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "deploymentTarget": "16.4"
-          }
-        }
-      ],
-      "expo-image",
-      "expo-web-browser",
-      "expo-asset",
-      "expo-status-bar",
-      "expo-sharing"
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "1939392b-c40a-45a9-945f-d0f8e593bd55"
-      }
-    },
-    "owner": "ruslanrs",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/1939392b-c40a-45a9-945f-d0f8e593bd55"
-    }
-  }
+﻿{
+    "expo":  {
+                 "name":  "NorskTrainerApp",
+                 "slug":  "NorskTrainerApp",
+                 "version":  "1.0.10",
+                 "orientation":  "portrait",
+                 "icon":  "./assets/images/icon.png",
+                 "scheme":  "norsktrainerapp",
+                 "userInterfaceStyle":  "automatic",
+                 "ios":  {
+                             "supportsTablet":  true,
+                             "bundleIdentifier":  "com.ruslanrs.norsktrainer",
+                             "infoPlist":  {
+                                               "NSSpeechRecognitionUsageDescription":  "Allow $(PRODUCT_NAME) to use speech recognition.",
+                                               "NSMicrophoneUsageDescription":  "Allow $(PRODUCT_NAME) to use the microphone.",
+                                               "NSPhotoLibraryUsageDescription":  "This app may access your photo library only when you choose to select an image.",
+                                               "ITSAppUsesNonExemptEncryption":  false,
+                                               "UIBackgroundModes":  [
+                                                                         "audio"
+                                                                     ]
+                                           },
+                             "icon":  "./assets/images/icon.png"
+                         },
+                 "android":  {
+                                 "adaptiveIcon":  {
+                                                      "backgroundColor":  "#E6F4FE",
+                                                      "foregroundImage":  "./assets/images/android-icon-foreground.png",
+                                                      "backgroundImage":  "./assets/images/android-icon-background.png",
+                                                      "monochromeImage":  "./assets/images/android-icon-monochrome.png"
+                                                  },
+                                 "predictiveBackGestureEnabled":  false,
+                                 "package":  "com.ruslanrs.NorskTrainerApp",
+                                 "permissions":  [
+                                                     "android.permission.RECORD_AUDIO"
+                                                 ]
+                             },
+                 "web":  {
+                             "output":  "static",
+                             "favicon":  "./assets/images/favicon.png"
+                         },
+                 "plugins":  [
+                                 "expo-router",
+                                 [
+                                     "expo-splash-screen",
+                                     {
+                                         "image":  "./assets/images/splash-icon.png",
+                                         "imageWidth":  200,
+                                         "resizeMode":  "contain",
+                                         "backgroundColor":  "#ffffff",
+                                         "dark":  {
+                                                      "backgroundColor":  "#000000"
+                                                  }
+                                     }
+                                 ],
+                                 "expo-speech-recognition",
+                                 "expo-font",
+                                 [
+                                     "expo-audio",
+                                     {
+                                         "microphonePermission":  "Allow $(PRODUCT_NAME) to use the microphone.",
+                                         "enableBackgroundRecording":  true
+                                     }
+                                 ],
+                                 [
+                                     "expo-build-properties",
+                                     {
+                                         "ios":  {
+                                                     "deploymentTarget":  "16.4"
+                                                 }
+                                     }
+                                 ],
+                                 "expo-image",
+                                 "expo-web-browser",
+                                 "expo-asset",
+                                 "expo-status-bar",
+                                 "expo-sharing"
+                             ],
+                 "experiments":  {
+                                     "typedRoutes":  true,
+                                     "reactCompiler":  true
+                                 },
+                 "extra":  {
+                               "router":  {
+
+                                          },
+                               "eas":  {
+                                           "projectId":  "1939392b-c40a-45a9-945f-d0f8e593bd55"
+                                       }
+                           },
+                 "owner":  "ruslanrs",
+                 "runtimeVersion":  {
+                                        "policy":  "appVersion"
+                                    },
+                 "updates":  {
+                                 "url":  "https://u.expo.dev/1939392b-c40a-45a9-945f-d0f8e593bd55"
+                             }
+             }
 }

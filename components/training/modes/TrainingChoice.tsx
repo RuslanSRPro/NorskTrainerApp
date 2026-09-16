@@ -1,6 +1,6 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { GlassSurface } from '@/components/ui/glass/GlassSurface';
+import { GlassControl } from '@/components/ui/glass/GlassControl';
 import { isIrregularMorphology } from '@/services/formPresentation';
 import { TrainingFormsList } from '../TrainingFormsList';
 
@@ -55,20 +55,18 @@ export function TrainingChoice({
 
       <View style={s.choiceGrid}>
         {options?.map((option) => (
-          <Pressable
+          <GlassControl
             key={option}
             onPress={() => selectChoice(option)}
             disabled={savingReview || reviewSaved}
+            dark={isDark}
+            size="regular"
+            material="tile"
+            style={s.choiceBtn}
+            contentStyle={s.choiceInner}
           >
-            <GlassSurface
-              variant="tile"
-              dark={isDark}
-              style={[s.choiceBtn, reviewSaved && s.disabled]}
-              contentStyle={s.choiceInner}
-            >
-              <Text style={s.choiceText}>{option}</Text>
-            </GlassSurface>
-          </Pressable>
+            <Text style={s.choiceText}>{option}</Text>
+          </GlassControl>
         ))}
       </View>
 

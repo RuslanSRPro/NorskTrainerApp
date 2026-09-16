@@ -1,4 +1,4 @@
-﻿import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { GlassLens } from '@/components/ui/glass/GlassLens';
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   title: {
     minHeight: 36,
     fontSize: 14,
-    fontWeight: '850',
+    fontWeight: '800',
     lineHeight: 18,
     marginBottom: 3,
   },
