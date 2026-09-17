@@ -744,7 +744,9 @@ export default function ReadingScreen() {
                   lang={lang}
                 />
 
-                {selectedWord?.id ? (
+                {selectedWord?.id &&
+        selectedWord?.lexeme360_available === true &&
+        Number(selectedWord?.lexeme360_display_relation_count ?? 0) > 0 ? (
                   <Lexeme360
                     lexemeId={selectedWord.id}
                     lemma={selectedWord.lemma||selectedWord.word}

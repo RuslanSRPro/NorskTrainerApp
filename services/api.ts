@@ -21,7 +21,13 @@ const LEXEME_SELECT = `
   dictionary_status, dictionary_exclusion_reason, is_learning_lexeme,
   translation_ua, translation_en, example, notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
-  relations_count, synonyms,
+  relations_count,
+  lexeme360_root_lemma,
+  lexeme360_ready_count,
+  lexeme360_candidate_count,
+  lexeme360_display_relation_count,
+  lexeme360_available,
+  synonyms,
   verification, verification_tier, verification_status, source_verified,
   verification_evidence, source, enrichment_status, enrichment_error,
   expression_data (
@@ -103,6 +109,14 @@ function mapLexemeRow(item: any, forms?: FormsBundle) {
     // видит trainingEngine.hasRelations(w) — само поле уже запрашивается
     // выше (LEXEME_SELECT), но терялось именно на этом шаге маппинга.
     relations_count: item.relations_count ?? 0,
+    // Materialized by the expression_catalog trigger; no client family probe.
+    lexeme360_root_lemma: item.lexeme360_root_lemma || null,
+    lexeme360_ready_count: Number(item.lexeme360_ready_count ?? 0),
+    lexeme360_candidate_count: Number(item.lexeme360_candidate_count ?? 0),
+    lexeme360_display_relation_count: Number(
+      item.lexeme360_display_relation_count ?? 0,
+    ),
+    lexeme360_available: item.lexeme360_available === true,
     status:   item.status         || 'New',
     source:   item.source         || '',
     dictionary_status: item.dictionary_status || 'active',
