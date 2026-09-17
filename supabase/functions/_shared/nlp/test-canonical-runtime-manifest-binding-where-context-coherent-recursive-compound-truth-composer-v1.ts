@@ -34,41 +34,172 @@ function assert(
 
 function leafNode(
   path: string,
-) {
+): CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1[
+  "authorities"
+][number]["root"] {
+  const sourceNode = {
+    shape: "leaf_operator" as const,
+    path,
+    operatorLabel: "eq",
+    leftOperandSnapshot: {
+      ref: "token.pos",
+    },
+    hasRightOperand: true,
+    rightOperandSnapshot: "NOUN",
+    rawSnapshot: {
+      op: "eq",
+      left: {
+        ref: "token.pos",
+      },
+      right: "NOUN",
+    },
+  };
+
   return {
     shape: "leaf_operator",
     path,
-    operatorLabel: "eq",
+    operatorLabel: sourceNode.operatorLabel,
+    leftOperandSnapshot: sourceNode.leftOperandSnapshot,
+    hasRightOperand: sourceNode.hasRightOperand,
+    rightOperandSnapshot: sourceNode.rightOperandSnapshot,
+    rawSnapshot: sourceNode.rawSnapshot,
+    sourceNode,
+    sourceKind: "a4_6a1_leaf_passthrough",
+    syntheticStructuralUpgrade: false,
   };
 }
 
 function compoundNode(
   path: string,
   operatorKey: "all" | "any" | "not",
-  children: unknown[],
-) {
+  children:
+    CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1[
+      "authorities"
+    ][number]["root"][],
+): CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1[
+  "authorities"
+][number]["root"] {
+  if (operatorKey === "not") {
+    const sourceNode = {
+      shape: "unclassified" as const,
+      path,
+      rawSnapshot: {
+        not: null,
+      },
+    };
+
+    return {
+      shape: "compound_operator",
+      path,
+      operatorKey,
+      encoding: "unary_object",
+      childCount: children.length,
+      children,
+      rawSnapshot: sourceNode.rawSnapshot,
+      sourceNode,
+      sourceKind: "a4_6a1_unclassified_unary_not",
+      syntheticStructuralUpgrade: true,
+    };
+  }
+
+  const sourceNode = {
+    shape: "compound_array_group" as const,
+    path,
+    compoundKey: operatorKey,
+    rawSnapshot: {
+      [operatorKey]: [],
+    },
+    children: [],
+  };
+
   return {
     shape: "compound_operator",
-
     path,
-
     operatorKey,
-
-    encoding: operatorKey ===
-        "not"
-      ? "unary_object"
-      : "array",
-
+    encoding: "array",
     childCount: children.length,
-
     children,
+    rawSnapshot: sourceNode.rawSnapshot,
+    sourceNode,
+    sourceKind: "a4_6a1_compound_array_group",
+    syntheticStructuralUpgrade: false,
   };
 }
 
 function authority(
   id: string,
-  root: unknown,
-) {
+  root:
+    CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1[
+      "authorities"
+    ][number]["root"],
+): CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1[
+  "authorities"
+][number] {
+  const sourceWhereShapeAuthority:
+    CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1[
+      "authorities"
+    ][number]["sourceWhereShapeAuthority"] = {
+      id: `where-shape-authority-${id}`,
+
+      status: "candidate",
+
+      bindingDefinitionAuthorityId: `binding-authority-${id}`,
+
+      manifestId: `manifest-${id}`,
+
+      manifestCode: `manifest-code-${id}`,
+
+      bindingName: `binding-${id}`,
+
+      root: {
+        shape: "unclassified",
+        path: "$",
+        rawSnapshot: null,
+      },
+
+      unclassifiedPaths: ["$"],
+
+      governance: {
+        exactA43a1ResultRequired: true,
+        exactManifestBindingDefinitionAuthorityRequired: true,
+        whereClauseConsumedFromA43a1: true,
+        whereClauseReadOnly: true,
+        whereShapeOnly: true,
+        rawSnapshotPreserved: true,
+        structuralPathIdentityPreserved: true,
+        runtimeOperatorVocabularyHardcoded: false,
+        compoundKeyVocabularyHardcoded: false,
+        operatorSemanticsResolved: false,
+        compoundSemanticsResolved: false,
+        compoundBooleanCompositionExecuted: false,
+        referenceSemanticsResolved: false,
+        dottedReferenceTraversalPerformed: false,
+        leftOperandSemanticsResolved: false,
+        rightOperandSemanticsResolved: false,
+        canonicalFactOwnershipResolved: false,
+        comparisonPerformed: false,
+        valueCoercionPerformed: false,
+        caseNormalizationPerformed: false,
+        occurrenceDomainResolved: false,
+        occurrenceEnumerationPerformed: false,
+        occurrenceFilteringPerformed: false,
+        occurrenceBindingPerformed: false,
+        sentenceMembershipResolved: false,
+        runtimeScopeExecutionPerformed: false,
+        cardinalitySemanticsResolved: false,
+        cardinalityEnforcementPerformed: false,
+        actionFamilySemanticsResolved: false,
+        roleSemanticsResolved: false,
+        grammaticalFunctionResolved: false,
+        subjectOfRelationInferred: false,
+        candidateOnly: true,
+        winnerSelected: false,
+        graphMutationPerformed: false,
+        learnerErrorClassified: false,
+        frozenGrammarReadOnly: true,
+      },
+    };
+
   return {
     id,
 
@@ -79,26 +210,64 @@ function authority(
 
     authorityKind: "runtime_language_structural_specification",
 
-    sourceWhereShapeAuthority: {},
+    decisionStatus: "normative",
 
-    bindingDefinitionAuthorityId: `binding-authority-${id}`,
+    sourceWhereShapeAuthorityId: sourceWhereShapeAuthority.id,
 
-    manifestId: `manifest-${id}`,
+    sourceWhereShapeAuthority,
 
-    manifestCode: `manifest-code-${id}`,
+    bindingDefinitionAuthorityId:
+      sourceWhereShapeAuthority.bindingDefinitionAuthorityId,
 
-    bindingName: `binding-${id}`,
+    manifestId: sourceWhereShapeAuthority.manifestId,
+
+    manifestCode: sourceWhereShapeAuthority.manifestCode,
+
+    bindingName: sourceWhereShapeAuthority.bindingName,
 
     root,
 
     unsupportedPaths: [],
 
-    governance: {},
+    governance: {
+      exactA46a1ResultRequired: true,
+      exactA46a1AuthorityRequired: true,
+      sourceA46a1AuthorityObjectPreservedWithoutReconstruction: true,
+      sourceStructuralPathIdentityPreserved: true,
+      sourceRawSnapshotConsumedReadOnly: true,
+      sourceRawSnapshotMutated: false,
+      allArrayEncodingRecognized: true,
+      anyArrayEncodingRecognized: true,
+      allMinimumArity: 2,
+      anyMinimumArity: 2,
+      unaryObjectNotEncodingRecognized: true,
+      unaryNotLeafChildStructuralUpgradeExplicit: true,
+      unknownCompoundKeysRemainUnsupported: true,
+      unsupportedShapeIsBooleanFalse: false,
+      emptyGroupTruthInferred: false,
+      singletonGroupTruthInferred: false,
+      operatorTruthSemanticsResolved: false,
+      compoundTruthComposed: false,
+      compoundBooleanCompositionExecuted: false,
+      shortCircuitExecuted: false,
+      leafTruthResolved: false,
+      manifestConditionTruthResolved: false,
+      cardinalitySemanticsResolved: false,
+      cardinalityEnforcementPerformed: false,
+      occurrenceSelectionPerformed: false,
+      winnerSelected: false,
+      graphMutationPerformed: false,
+      learnerErrorClassified: false,
+      frozenGrammarReadOnly: true,
+    },
   };
 }
 
 function shapeResult(
-  authorities: unknown[],
+  authorities:
+    CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1[
+      "authorities"
+    ],
 ): CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1 {
   return {
     producer:
@@ -108,14 +277,10 @@ function shapeResult(
       CANONICAL_RUNTIME_MANIFEST_BINDING_WHERE_COMPOUND_OPERATOR_SHAPE_EXTENSION_VERSION_V1,
 
     status: "ready",
-
-    specificationId:
-      CANONICAL_RUNTIME_MANIFEST_BINDING_WHERE_COMPOUND_OPERATOR_SHAPE_SPECIFICATION_ID_V1,
-
     authorities,
 
     blockingReasons: [],
-  } as unknown as CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1;
+  };
 }
 
 function leafEvidence(
@@ -1038,6 +1203,11 @@ Deno.test("A4.6a1f.25 absent root is outside composable structural domain", () =
     {
       shape: "absent",
       path: "$",
+      sourceNode: {
+        shape: "absent",
+        path: "$",
+      },
+      sourceKind: "a4_6a1_absent_passthrough",
     },
   );
 
@@ -1055,6 +1225,13 @@ Deno.test("A4.6a1f.26 unsupported root is outside composable structural domain",
     {
       shape: "unsupported",
       path: "$",
+      reason: "unclassified_shape_not_supported",
+      rawSnapshot: null,
+      sourceNode: {
+        shape: "unclassified",
+        path: "$",
+        rawSnapshot: null,
+      },
     },
   );
 
