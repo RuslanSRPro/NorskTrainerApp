@@ -1448,18 +1448,11 @@ export function composeCanonicalRuntimeManifestBindingWhereContextCoherentRecurs
     CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionResultV1,
   sourceLeafEvidence: readonly ExternalLeafEvidenceV1[],
 ): CanonicalRuntimeManifestBindingWhereContextCoherentRecursiveCompoundTruthComposerResultV1 {
-  const sourceRecord = sourceShapeResult as unknown as Record<
-    string,
-    unknown
-  >;
-
   if (
     sourceShapeResult.producer !==
       CANONICAL_RUNTIME_MANIFEST_BINDING_WHERE_COMPOUND_OPERATOR_SHAPE_EXTENSION_V1 ||
     sourceShapeResult.producerVersion !==
       CANONICAL_RUNTIME_MANIFEST_BINDING_WHERE_COMPOUND_OPERATOR_SHAPE_EXTENSION_VERSION_V1 ||
-    sourceRecord.specificationId !==
-      CANONICAL_RUNTIME_MANIFEST_BINDING_WHERE_COMPOUND_OPERATOR_SHAPE_SPECIFICATION_ID_V1 ||
     sourceShapeResult.status !==
       "ready" ||
     sourceShapeResult.blockingReasons.length !==
