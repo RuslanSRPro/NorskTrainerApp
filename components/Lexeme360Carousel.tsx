@@ -54,7 +54,8 @@ type Props = {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(350, SCREEN_WIDTH - 56);
-const CARD_HEIGHT = Math.min(382, Math.max(320, Math.round(SCREEN_HEIGHT * 0.43)));
+const CARD_HEIGHT = Math.min(360, Math.max(304, Math.round(SCREEN_HEIGHT * 0.40)));
+const NAV_GAP = 18;
 const CARD_GAP = 12;
 const SNAP = CARD_WIDTH + CARD_GAP;
 
@@ -659,7 +660,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    marginTop: 10,
+    marginTop: NAV_GAP,
+    paddingBottom: 6,
+    minHeight: 40,
   },
   navButton: {
     width: 34,

@@ -34,6 +34,7 @@ export function TrainingCard(props: Props) {
   } = props;
 
   const isFlashcard = currentTask.mode === 'flashcards';
+  const isAdaptiveMode = isFlashcard || currentTask.mode === 'choice';
   const [density, setDensity] = useState<TrainingDensity>('normal');
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -48,10 +49,10 @@ export function TrainingCard(props: Props) {
   const overflow = viewportHeight > 0 && contentHeight > viewportHeight + 4;
 
   useEffect(() => {
-    if (!isFlashcard || !overflow || density === 'dense') return;
+    if (!isAdaptiveMode || !overflow || density === 'dense') return;
     const timer = setTimeout(() => setDensity((value) => nextDensity(value)), 0);
     return () => clearTimeout(timer);
-  }, [contentHeight, viewportHeight, overflow, density, isFlashcard]);
+  }, [contentHeight, viewportHeight, overflow, density, isAdaptiveMode]);
 
   const contentStyle = useMemo(() => [
     s.cardInner,
@@ -72,7 +73,7 @@ export function TrainingCard(props: Props) {
             style={styles.scroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            scrollEnabled={!isFlashcard || (density === 'dense' && overflow)}
+            scrollEnabled={!isAdaptiveMode || (density === 'dense' && overflow)}
             bounces={density === 'dense' && overflow}
             onScroll={handleScroll}
             scrollEventThrottle={32}
@@ -100,7 +101,7 @@ export function TrainingCard(props: Props) {
             />
           </ScrollView>
 
-          {isFlashcard && density === 'dense' && overflow && !atBottom ? (
+          {isAdaptiveMode && density === 'dense' && overflow && !atBottom ? (
             <View pointerEvents="none" style={[styles.overflowCue, isDark && styles.overflowCueDark]} />
           ) : null}
         </View>
