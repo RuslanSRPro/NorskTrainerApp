@@ -155,6 +155,7 @@ function mapLexemeRow(item: any, forms?: FormsBundle) {
     adjective_forms:  forms?.adjective_forms || null,
     form_primary: forms?.form_primary || {},
     form_alternatives: forms?.form_alternatives || {},
+    accepted_articles: forms?.accepted_articles || [],
     has_form_alternatives: forms?.has_form_alternatives || false,
     regularity_marker: forms?.regularity_marker || 'unknown',
     forms_read_model: forms?.forms_read_model || null,

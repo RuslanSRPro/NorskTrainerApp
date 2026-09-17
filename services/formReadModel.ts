@@ -36,7 +36,7 @@ async function fetchV2FormsMap(
       const { data, error } = await supabase
         .from('lexeme_form_display_v2')
         .select(
-          'lexeme_id, form_key, primary_values, alternative_values, regularity_marker, display_order',
+          'lexeme_id, form_key, primary_values, alternative_values, accepted_articles, regularity_marker, display_order',
         )
         .in('lexeme_id', idBatch)
         .eq('dictionary_code', 'bm')

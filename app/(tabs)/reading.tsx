@@ -23,7 +23,13 @@ import { SynonymsBadge } from "@/components/SynonymsBadge";
 import { Lexeme360, Lexeme360Sheet } from "@/components/Lexeme360";
 import { TrainingFormsList } from "@/components/training/TrainingFormsList";
 import type { TrainingFormItem } from "@/components/training/types";
-import { getFormTierValues, isIrregularMorphology } from "@/services/formPresentation";
+import {
+  formatDisplayLemma,
+  formatInfinitive,
+  formatNounIndefinite,
+  getFormTierValues,
+  isIrregularMorphology,
+} from "@/services/formPresentation";
 import { t } from "@/services/i18n";
 import { resolveVerification } from "@/services/verification";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -185,8 +191,13 @@ function getFormLabels(word: any):TrainingFormItem[]{
   return definitions.flatMap(([formKey,label])=>{
     const fallback=word?.verb_forms?.[formKey]||word?.noun_forms?.[formKey]||word?.adjective_forms?.[formKey]||"";
     const tiers=getFormTierValues(word,formKey,fallback);
-    const primaryValues=tiers.primaryValues;
-    const alternativeValues=tiers.alternativeValues;
+    const decorate=(value:string)=>isV&&formKey==="infinitiv"
+      ?formatInfinitive(value)
+      :isN&&formKey==="ubest_entall"
+      ?formatNounIndefinite(value,word)
+      :value;
+    const primaryValues=tiers.primaryValues.map(decorate);
+    const alternativeValues=tiers.alternativeValues.map(decorate);
     return primaryValues.length?[{
       label,
       formKey,
@@ -705,7 +716,7 @@ export default function ReadingScreen() {
         {visible:!!previewWord,onClose:()=>{stopSpeech();setPreviewWord(null);},content:(
           <>
             <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("word_preview_modal")}</Text>
-            <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord?.word||previewWord?.lemma||wordQuery}</Text>
+            <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{formatDisplayLemma(previewWord?.word||previewWord?.lemma||wordQuery,previewWord)}</Text>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
             <TrainingFormsList
@@ -726,7 +737,7 @@ export default function ReadingScreen() {
         )},
         {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},content:(
           <>
-            <Text style={[s.modalWord,{color:isIrregularMorphology(selectedWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{selectedWord?.lemma||selectedWord?.word}</Text>
+            <Text style={[s.modalWord,{color:isIrregularMorphology(selectedWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)}</Text>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>

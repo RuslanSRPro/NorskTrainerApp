@@ -18,7 +18,12 @@ import { getLearningWordsFromSupabase, saveReviewToSupabase } from '@/services/a
 import { TrainingMode } from '@/services/settings';
 import { speakNorwegian, speakNorwegianForms, stopSpeech } from '@/services/speech';
 import { AppLanguage } from '@/services/i18n';
-import { getFormTierValues } from '@/services/formPresentation';
+import {
+  formatDisplayLemma,
+  formatInfinitive,
+  formatNounIndefinite,
+  getFormTierValues,
+} from '@/services/formPresentation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -163,24 +168,7 @@ export default function TrainScreen() {
   }
 
   function displayLemma(lemma: string, w?: any) {
-    const text = String(lemma || '').trim();
-
-    const pos = String(
-      w?.type ||
-      w?.category ||
-      w?.pos ||
-      ''
-    ).toLowerCase();
-
-    if (
-      pos.includes('verb') &&
-      text &&
-      !/^å\s/i.test(text)
-    ) {
-      return `å ${text}`;
-    }
-
-    return text;
+    return formatDisplayLemma(lemma, w);
   }
 
   function getMainWord(w: any) {
@@ -245,14 +233,19 @@ export default function TrainScreen() {
       const preteritum = vf.preteritum || getFormValue(w, ['preteritum', 'f2']) || '';
       const perfRaw = vf.perfektum || getFormValue(w, ['perfektum', 'f3']) || '';
       return [
-        item('Infinitiv', 'infinitive', inf, (value) => displayLemma(value, w)),
+        item('Infinitiv', 'infinitive', inf, formatInfinitive),
         item('Presens', 'present', presens),
         item('Preteritum', 'preterite', preteritum),
         item('Perfektum', 'past_participle', perfRaw, (value) => `har ${value.replace(/^har\s+/i, '')}`),
       ].filter(isTrainingFormItem);
     }
     if (type.includes('noun')) return [
-      item('Ubest. entall', 'ubest_entall', nf.ubest_entall || getFormValue(w, ['ubest_entall', 'indef_sg']) || w?.word || w?.lemma || ''),
+      item(
+        'Ubest. entall',
+        'ubest_entall',
+        nf.ubest_entall || getFormValue(w, ['ubest_entall', 'indef_sg']) || w?.word || w?.lemma || '',
+        (value) => formatNounIndefinite(value, w),
+      ),
       item('Bestemt entall', 'best_entall', nf.best_entall || getFormValue(w, ['best_entall', 'f1']) || ''),
       item('Ubest. flt.', 'ubest_flertall', nf.ubest_flertall || getFormValue(w, ['ubest_flertall', 'f2']) || ''),
       item('Bestemt flt.', 'best_flertall', nf.best_flertall || getFormValue(w, ['best_flertall', 'f3']) || ''),
