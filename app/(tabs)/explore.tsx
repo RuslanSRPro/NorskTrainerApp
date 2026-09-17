@@ -194,7 +194,7 @@ export default function TrainScreen() {
   function getFormTask(w: any) {
     const type = String(w?.type || w?.category || w?.pos || '').toLowerCase();
     const answer = (formKey: string, fallbackValue: string) =>
-      getFormTierValues(w, formKey, fallbackValue).primaryValues.join(' / ');
+      getFormTierValues(w, formKey, fallbackValue).primaryValues.join(', ');
     const forms = type.includes('verb') ? [
       { label: 'Presens', value: answer('presens', getFormValue(w, ['presens', 'f1'])) },
       { label: 'Preteritum', value: answer('preteritum', getFormValue(w, ['preteritum', 'f2'])) },
