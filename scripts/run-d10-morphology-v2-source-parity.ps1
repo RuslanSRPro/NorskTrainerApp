@@ -45,12 +45,16 @@ try {
     $pageHeaders = @{
       apikey = $secret
       Authorization = "Bearer $secret"
-      Range = "$rangeStart-$($rangeStart + $pageSize - 1)"
+
     }
     $uri = "$($SupabaseUrl.TrimEnd('/'))/rest/v1/lexeme_form_display_v2" +
-      '?select=lexeme_id,pos&pos=in.(noun,adjective)&order=lexeme_id.asc'
-    $page = @(Invoke-RestMethod -Uri $uri -Headers $pageHeaders -Method Get -TimeoutSec 180)
-    foreach ($row in $page) { $displayRows.Add($row) }
+      "?select=lexeme_id,pos&pos=in.(noun,adjective)&order=lexeme_id.asc&limit=$pageSize&offset=$rangeStart"
+    $rawPage = Invoke-RestMethod -Uri $uri -Headers $pageHeaders -Method Get -UserAgent 'NorskTrainer-D10-Source-Parity/1.0' -TimeoutSec 180
+    $page = [Collections.Generic.List[object]]::new()
+    foreach ($row in $rawPage) {
+      $page.Add($row)
+      $displayRows.Add($row)
+    }
     if ($page.Count -lt $pageSize) { break }
     $rangeStart += $pageSize
   }
@@ -74,7 +78,7 @@ try {
       ConvertTo-Json -Compress
     $response = Invoke-RestMethod `
       -Uri "$($SupabaseUrl.TrimEnd('/'))/functions/v1/forms-enrichment-v2-worker" `
-      -Method Post -Headers $headers -ContentType 'application/json; charset=utf-8' `
+      -Method Post -Headers $headers -UserAgent 'NorskTrainer-D10-Source-Parity/1.0' -ContentType 'application/json; charset=utf-8' `
       -Body ([Text.Encoding]::UTF8.GetBytes($payload)) -TimeoutSec 180
     if ($response.mode -ne 'verify_persisted') { throw 'Unexpected worker mode.' }
     foreach ($row in @($response.results)) {
