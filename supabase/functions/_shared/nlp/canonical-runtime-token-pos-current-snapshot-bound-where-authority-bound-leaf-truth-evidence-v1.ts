@@ -9,6 +9,12 @@ import {
   type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridgeAuthorityV1,
   deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridgeV1,
 } from "./canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts";
+import {
+  CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_FILTERED_FALSE_CONDITION_EVIDENCE_V1,
+  CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_FILTERED_FALSE_CONDITION_EVIDENCE_VERSION_V1,
+  type CanonicalRuntimeTokenPosCurrentSnapshotBoundFilteredFalseConditionEvidenceV1,
+  deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundFilteredFalseConditionEvidenceV1,
+} from "./canonical-runtime-token-pos-current-snapshot-bound-filtered-false-condition-evidence-v1.ts";
 
 import {
   deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1,
@@ -81,7 +87,10 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAuthorityBoundLeafT
     snapshotTokenOccurrenceIdentityId: string;
 
     sourceBoundConditionMemberEvidence:
-      CanonicalRuntimeTokenPosCurrentSnapshotBoundBoundConditionMemberEvidenceV1;
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundBoundConditionMemberEvidenceV1 | null;
+
+    sourceFilteredFalseConditionEvidence:
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundFilteredFalseConditionEvidenceV1 | null;
 
     sourceStructuralBridgeAuthority:
       CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafStructuralBridgeAuthorityV1;
@@ -134,9 +143,15 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAuthorityBoundLeafT
       manifestLeafPathTakenOnlyFromStructuralBridge: true;
       sourceReferencePathTreatedAsLeafPath: false;
 
-      exactlyOneBoundMemberRequiredForLeafTruthMaterialization: true;
+      exactlyOneBoundMemberRequiredWhenBoundMemberSuppliesLeafTruth: true;
       emptyBoundCollectionTruthInferred: false;
       multipleBoundMemberTruthAggregated: false;
+
+      filteredFalseEvidencePublicDerivationReexecuted: true;
+      suppliedFilteredFalseWrapperAcceptedAsProof: false;
+      emptyBoundCollectionRequiresExactFilteredFalseEvidenceForResolvedFalse: true;
+      absenceOfFilteredFalseEvidenceTreatedAsFalse: false;
+      multipleFilteredFalseEvidenceAggregated: false;
 
       membersEveryBooleanTruthUsed: false;
       membersSomeBooleanTruthUsed: false;
@@ -263,8 +278,10 @@ function exactStructuralAuthorityMatchesBridge(
 }
 
 function truthDispositionFromBoundMember(
-  member:
-    CanonicalRuntimeTokenPosCurrentSnapshotBoundBoundConditionMemberEvidenceV1,
+  member: {
+    booleanTruthResolved: boolean;
+    booleanTruth: boolean | null;
+  },
 ): "resolved_true" | "resolved_false" | null {
   if (
     member.booleanTruthResolved !== true
@@ -285,6 +302,170 @@ function truthDispositionFromBoundMember(
   }
 
   return null;
+}
+
+export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafTruthDecisionV1<TMember, TFilteredFalse> =
+  | {
+    status: "resolved";
+    truthDisposition: "resolved_true" | "resolved_false";
+    member: TMember | null;
+    filteredFalseEvidence: TFilteredFalse | null;
+  }
+  | {
+    status: "blocked";
+    blockingReason: string;
+  };
+
+export function decideCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafTruthV1<
+  TMember extends Pick<
+    CanonicalRuntimeTokenPosCurrentSnapshotBoundBoundConditionMemberEvidenceV1,
+    | "boundConditionMemberEvidenceId"
+    | "booleanTruthResolved"
+    | "booleanTruth"
+  >,
+  TFilteredFalse extends {
+    filteredFalseConditionEvidenceId: string;
+    expectedSiteAuthorityId: string;
+    bindingDefinitionAuthorityId: string;
+    manifestId: string;
+    manifestCode: string;
+    referencedBindingName: string;
+    snapshotIdentityId: string;
+    snapshotSentenceOccurrenceIdentityId: string;
+  },
+>(
+  collection: {
+    boundConditionCollectionId: string;
+    memberCount: number;
+    members: readonly TMember[];
+  },
+  domain: {
+    boundConditionDomainEvidenceId: string;
+    expectedSiteAuthorityId: string;
+    bindingDefinitionAuthorityId: string;
+    manifestId: string;
+    manifestCode: string;
+    referencedBindingName: string;
+    snapshotIdentityId: string;
+    snapshotSentenceOccurrenceIdentityId: string;
+  },
+  filteredFalseEvidence: readonly TFilteredFalse[],
+): CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafTruthDecisionV1<TMember, TFilteredFalse> {
+  if (
+    collection.memberCount !==
+      collection.members.length
+  ) {
+    return {
+      status: "blocked",
+      blockingReason:
+        `bound_condition_collection:member_count_mismatch:${collection.boundConditionCollectionId}`,
+    };
+  }
+
+  if (
+    collection.memberCount > 1
+  ) {
+    return {
+      status: "blocked",
+      blockingReason:
+        `bound_condition_collection:multiple_member_truth_aggregation_not_specified:${collection.boundConditionCollectionId}`,
+    };
+  }
+
+  if (
+    collection.memberCount === 1
+  ) {
+    const singletonMember =
+      collection.members[0];
+
+    if (!singletonMember) {
+      return {
+        status: "blocked",
+        blockingReason:
+          `bound_condition_collection:singleton_member_missing:${collection.boundConditionCollectionId}`,
+      };
+    }
+
+    const truthDisposition =
+      truthDispositionFromBoundMember(
+        singletonMember,
+      );
+
+    if (
+      truthDisposition === null
+    ) {
+      return {
+        status: "blocked",
+        blockingReason:
+          `bound_condition_member:truth_not_resolved:${singletonMember.boundConditionMemberEvidenceId}`,
+      };
+    }
+
+    return {
+      status: "resolved",
+      truthDisposition,
+      member: singletonMember,
+      filteredFalseEvidence: null,
+    };
+  }
+
+  const filteredFalseMatches =
+    filteredFalseEvidence.filter(
+      (candidate) =>
+        candidate.expectedSiteAuthorityId ===
+          domain.expectedSiteAuthorityId &&
+        candidate.bindingDefinitionAuthorityId ===
+          domain.bindingDefinitionAuthorityId &&
+        candidate.manifestId ===
+          domain.manifestId &&
+        candidate.manifestCode ===
+          domain.manifestCode &&
+        candidate.referencedBindingName ===
+          domain.referencedBindingName &&
+        candidate.snapshotIdentityId ===
+          domain.snapshotIdentityId &&
+        candidate.snapshotSentenceOccurrenceIdentityId ===
+          domain.snapshotSentenceOccurrenceIdentityId,
+    );
+
+  if (
+    filteredFalseMatches.length === 0
+  ) {
+    return {
+      status: "blocked",
+      blockingReason:
+        `bound_condition_collection:empty_truth_not_specified:${collection.boundConditionCollectionId}`,
+    };
+  }
+
+  if (
+    filteredFalseMatches.length !== 1
+  ) {
+    return {
+      status: "blocked",
+      blockingReason:
+        `filtered_false_condition:not_exactly_one:${domain.boundConditionDomainEvidenceId}`,
+    };
+  }
+
+  const exactFilteredFalse =
+    filteredFalseMatches[0];
+
+  if (!exactFilteredFalse) {
+    return {
+      status: "blocked",
+      blockingReason:
+        `filtered_false_condition:singleton_missing:${domain.boundConditionDomainEvidenceId}`,
+    };
+  }
+
+  return {
+    status: "resolved",
+    truthDisposition: "resolved_false",
+    member: null,
+    filteredFalseEvidence:
+      exactFilteredFalse,
+  };
 }
 
 export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAuthorityBoundLeafTruthEvidenceV1(
@@ -326,6 +507,29 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAut
       "bound_condition:not_exact_ready",
       ...boundCondition.blockingReasons.map(
         (reason) => `bound_condition:${reason}`,
+      ),
+    ]);
+  }
+
+  const filteredFalse =
+    await deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundFilteredFalseConditionEvidenceV1(
+      surface,
+      graph,
+      expectedResult,
+      currentDomainResult,
+      dependencyAuthorities,
+      manifestRows,
+    );
+
+  if (
+    filteredFalse.status !== "ready" ||
+    filteredFalse.authority === null ||
+    filteredFalse.blockingReasons.length !== 0
+  ) {
+    return blocked([
+      "filtered_false_condition:not_exact_ready",
+      ...filteredFalse.blockingReasons.map(
+        (reason) => `filtered_false_condition:${reason}`,
       ),
     ]);
   }
@@ -423,44 +627,30 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAut
 
     const collection = domain.boundConditionCollection;
 
-    if (
-      collection.memberCount !==
-        collection.members.length
-    ) {
-      return blocked([
-        `bound_condition_collection:member_count_mismatch:${collection.boundConditionCollectionId}`,
-      ]);
-    }
+    const truthDecision =
+      decideCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereLeafTruthV1(
+        collection,
+        domain,
+        filteredFalse.authority.evidence,
+      );
 
     if (
-      collection.memberCount !== 1
+      truthDecision.status === "blocked"
     ) {
       return blocked([
-        collection.memberCount === 0
-          ? `bound_condition_collection:empty_truth_not_specified:${collection.boundConditionCollectionId}`
-          : `bound_condition_collection:multiple_member_truth_aggregation_not_specified:${collection.boundConditionCollectionId}`,
+        truthDecision.blockingReason,
       ]);
     }
 
-    const member = collection.members[0];
+    const member =
+      truthDecision.member;
 
-    if (!member) {
-      return blocked([
-        `bound_condition_collection:singleton_member_missing:${collection.boundConditionCollectionId}`,
-      ]);
-    }
+    const filteredFalseEvidence =
+      truthDecision.filteredFalseEvidence;
 
-    const truthDisposition = truthDispositionFromBoundMember(
-      member,
-    );
+    const truthDisposition =
+      truthDecision.truthDisposition;
 
-    if (
-      truthDisposition === null
-    ) {
-      return blocked([
-        `bound_condition_member:truth_not_resolved:${member.boundConditionMemberEvidenceId}`,
-      ]);
-    }
 
     const bridgeMatches = bridge.authorities.filter(
       (candidate) =>
@@ -533,21 +723,72 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAut
     const leafNode: LeafNode = node;
 
     if (
-      member.expectedSiteAuthorityId !==
-        domain.expectedSiteAuthorityId ||
-      member.bindingDefinitionAuthorityId !==
-        domain.bindingDefinitionAuthorityId ||
-      member.snapshotIdentityId !==
-        domain.snapshotIdentityId ||
-      member.snapshotSentenceOccurrenceIdentityId !==
-        domain.snapshotSentenceOccurrenceIdentityId
+      member !== null &&
+      (
+        member.expectedSiteAuthorityId !==
+          domain.expectedSiteAuthorityId ||
+        member.bindingDefinitionAuthorityId !==
+          domain.bindingDefinitionAuthorityId ||
+        member.snapshotIdentityId !==
+          domain.snapshotIdentityId ||
+        member.snapshotSentenceOccurrenceIdentityId !==
+          domain.snapshotSentenceOccurrenceIdentityId
+      )
     ) {
       return blocked([
         `bound_condition_member:domain_lineage_mismatch:${member.boundConditionMemberEvidenceId}`,
       ]);
     }
 
-    const sourceEvidenceId = member.boundConditionMemberEvidenceId;
+    let sourceEvidenceId: string;
+    let sourceSnapshotIdentityId: string;
+    let sourceSnapshotSentenceOccurrenceIdentityId: string;
+    let sourceSnapshotTokenOccurrenceIdentityId: string;
+
+    if (member !== null) {
+      sourceEvidenceId =
+        member.boundConditionMemberEvidenceId;
+
+      sourceSnapshotIdentityId =
+        member.snapshotIdentityId;
+
+      sourceSnapshotSentenceOccurrenceIdentityId =
+        member.snapshotSentenceOccurrenceIdentityId;
+
+      sourceSnapshotTokenOccurrenceIdentityId =
+        member.snapshotTokenOccurrenceIdentityId;
+    } else if (filteredFalseEvidence !== null) {
+      sourceEvidenceId =
+        filteredFalseEvidence.filteredFalseConditionEvidenceId;
+
+      sourceSnapshotIdentityId =
+        filteredFalseEvidence.snapshotIdentityId;
+
+      sourceSnapshotSentenceOccurrenceIdentityId =
+        filteredFalseEvidence.snapshotSentenceOccurrenceIdentityId;
+
+      sourceSnapshotTokenOccurrenceIdentityId =
+        filteredFalseEvidence.snapshotTokenOccurrenceIdentityId;
+    } else {
+      return blocked([
+        `leaf_truth_decision:resolved_without_source_evidence:${domain.boundConditionDomainEvidenceId}`,
+      ]);
+    }
+
+    const sourceProducer =
+      member !== null
+        ? CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_BOUND_CONDITION_EVIDENCE_V1
+        : CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_FILTERED_FALSE_CONDITION_EVIDENCE_V1;
+
+    const sourceProducerVersion =
+      member !== null
+        ? CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_BOUND_CONDITION_EVIDENCE_VERSION_V1
+        : CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_FILTERED_FALSE_CONDITION_EVIDENCE_VERSION_V1;
+
+    const sourceEvidenceObject =
+      member !== null
+        ? member
+        : filteredFalseEvidence;
 
     const childTruthEvidenceId = [
       CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_AUTHORITY_BOUND_LEAF_TRUTH_EVIDENCE_V1,
@@ -567,15 +808,13 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAut
 
         truthDisposition,
 
-        sourceProducer:
-          CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_BOUND_CONDITION_EVIDENCE_V1,
+        sourceProducer,
 
-        sourceProducerVersion:
-          CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_BOUND_CONDITION_EVIDENCE_VERSION_V1,
+        sourceProducerVersion,
 
         sourceEvidenceId,
 
-        sourceEvidenceObject: member,
+        sourceEvidenceObject,
 
         provenance: {
           exactStructuralNodePathClaimed: true,
@@ -647,7 +886,7 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAut
         CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_AUTHORITY_BOUND_LEAF_TRUTH_EVIDENCE_V1,
         domain.boundConditionDomainEvidenceId,
         structuralBridge.id,
-        member.boundConditionMemberEvidenceId,
+        sourceEvidenceId,
       ].join(":"),
 
       status:
@@ -679,15 +918,19 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAut
 
       structuralNodePath: structuralBridge.manifestLeafPath,
 
-      snapshotIdentityId: member.snapshotIdentityId,
+      snapshotIdentityId:
+        sourceSnapshotIdentityId,
 
       snapshotSentenceOccurrenceIdentityId:
-        member.snapshotSentenceOccurrenceIdentityId,
+        sourceSnapshotSentenceOccurrenceIdentityId,
 
       snapshotTokenOccurrenceIdentityId:
-        member.snapshotTokenOccurrenceIdentityId,
+        sourceSnapshotTokenOccurrenceIdentityId,
 
       sourceBoundConditionMemberEvidence: member,
+
+      sourceFilteredFalseConditionEvidence:
+        filteredFalseEvidence,
 
       sourceStructuralBridgeAuthority: structuralBridge,
 
@@ -758,9 +1001,15 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAut
         manifestLeafPathTakenOnlyFromStructuralBridge: true,
         sourceReferencePathTreatedAsLeafPath: false,
 
-        exactlyOneBoundMemberRequiredForLeafTruthMaterialization: true,
+        exactlyOneBoundMemberRequiredWhenBoundMemberSuppliesLeafTruth: true,
         emptyBoundCollectionTruthInferred: false,
         multipleBoundMemberTruthAggregated: false,
+
+        filteredFalseEvidencePublicDerivationReexecuted: true,
+        suppliedFilteredFalseWrapperAcceptedAsProof: false,
+        emptyBoundCollectionRequiresExactFilteredFalseEvidenceForResolvedFalse: true,
+        absenceOfFilteredFalseEvidenceTreatedAsFalse: false,
+        multipleFilteredFalseEvidenceAggregated: false,
 
         membersEveryBooleanTruthUsed: false,
         membersSomeBooleanTruthUsed: false,

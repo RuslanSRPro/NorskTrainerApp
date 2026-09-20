@@ -215,15 +215,27 @@ Deno.test(
 
     assert(
       source.includes(
-        "collection.memberCount !== 1",
+        "collection.memberCount > 1",
       ) &&
+        source.includes(
+          "collection.memberCount === 1",
+        ) &&
+        source.includes(
+          "filteredFalseMatches.length === 0",
+        ) &&
         source.includes(
           "empty_truth_not_specified",
         ) &&
         source.includes(
+          "filteredFalseMatches.length !== 1",
+        ) &&
+        source.includes(
+          "filtered_false_condition:not_exactly_one",
+        ) &&
+        source.includes(
           "multiple_member_truth_aggregation_not_specified",
         ),
-      "0/1/N fail-closed boundary missing",
+      "0/1/N fail-closed boundary with exact filtered-FALSE zero-member path missing",
     );
   },
 );
@@ -302,12 +314,21 @@ Deno.test(
 
     assert(
       source.includes(
-        'collection.memberCount === 0',
+        "filteredFalseMatches.length === 0",
       ) &&
         source.includes(
           "bound_condition_collection:empty_truth_not_specified",
+        ) &&
+        source.includes(
+          "filteredFalseMatches.length !== 1",
+        ) &&
+        source.includes(
+          "filtered_false_condition:not_exactly_one",
+        ) &&
+        source.includes(
+          'truthDisposition: "resolved_false"',
         ),
-      "existing empty bound-collection fail-closed contract was lost",
+      "empty bound collection must remain fail-closed unless exactly one joined filtered-FALSE evidence proves resolved FALSE",
     );
 
     assert(
