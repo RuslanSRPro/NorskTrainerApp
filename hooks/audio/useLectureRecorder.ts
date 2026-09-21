@@ -433,11 +433,52 @@ export function useLectureRecorder(
               entry
             );
 
+          const segmentsDirectory =
+            new Directory(
+              entry,
+              '.audio-segments'
+            );
+
+          let hasRecoverableSegments = false;
+
+          if (segmentsDirectory.exists) {
+            try {
+              hasRecoverableSegments =
+                segmentsDirectory
+                  .list()
+                  .some(item =>
+                    item instanceof File &&
+                    item.name.endsWith('.m4a')
+                  );
+            } catch {
+              hasRecoverableSegments = false;
+            }
+          }
+
+          let rollbackCandidate: File | null = null;
+
+          try {
+            rollbackCandidate =
+              entry
+                .list()
+                .find(item =>
+                  item instanceof File &&
+                  item.name.startsWith(
+                    'audio-rollback-'
+                  ) &&
+                  item.name.endsWith('.m4a')
+                ) as File | undefined || null;
+          } catch {
+            rollbackCandidate = null;
+          }
+
           const needsRecovery =
             metadata.recordingState ===
               'recording' ||
             metadata.recordingState ===
               'interrupted' ||
+            hasRecoverableSegments ||
+            !!rollbackCandidate ||
             !metadata.id;
 
           if (!needsRecovery) {
@@ -458,7 +499,8 @@ export function useLectureRecorder(
             metadata.recordingState ===
               'recording' ||
             metadata.recordingState ===
-              'interrupted'
+              'interrupted' ||
+            hasRecoverableSegments
           ) {
             const expectedAudioName =
               metadata.audioFile ||
@@ -496,11 +538,87 @@ export function useLectureRecorder(
             }
           }
 
-          const audio =
+          let audio =
             findAudioFile(
               entry,
               metadata
             );
+
+          if (!audio && rollbackCandidate) {
+            try {
+              const rollbackValidation =
+                await LectureRecorder
+                  .validateRecording(
+                    rollbackCandidate.uri
+                  );
+
+              if (
+                rollbackValidation.valid &&
+                rollbackValidation.playable
+              ) {
+                const recoveredAudio =
+                  new File(
+                    entry,
+                    'audio.m4a'
+                  );
+
+                await rollbackCandidate
+                  .copy(recoveredAudio);
+
+                const recoveredValidation =
+                  await LectureRecorder
+                    .validateRecording(
+                      recoveredAudio.uri
+                    );
+
+                if (
+                  recoveredValidation.valid &&
+                  recoveredValidation.playable
+                ) {
+                  audio = {
+                    file: recoveredAudio,
+                    name: 'audio.m4a',
+                  };
+
+                  if (__DEV__) {
+                    devConsole.log(
+                      'LECTURE ROLLBACK RECOVERY',
+                      {
+                        id:
+                          metadata.id ||
+                          entry.name,
+                        rollbackFile:
+                          rollbackCandidate.name,
+                      }
+                    );
+                  }
+                }
+                else if (recoveredAudio.exists) {
+                  recoveredAudio.delete();
+                }
+              }
+            } catch (error) {
+              const failedRecoveredAudio =
+                new File(
+                  entry,
+                  'audio.m4a'
+                );
+
+              if (
+                !audio &&
+                failedRecoveredAudio.exists
+              ) {
+                try {
+                  failedRecoveredAudio.delete();
+                } catch {}
+              }
+
+              devConsole.warn(
+                'Could not recover lecture rollback audio:',
+                error
+              );
+            }
+          }
 
           if (!audio) {
             const id =

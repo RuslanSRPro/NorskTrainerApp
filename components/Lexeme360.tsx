@@ -388,22 +388,57 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
 
   if (error || !data) return null;
 
-  const forms = (await fetchFormsMap([effectiveId])).get(effectiveId);
+  // ФИКС: раньше 5 запросов ниже (formsMap, entity_translations,
+  // entity_examples, RPC ready-выражений, RPC кандидатов) шли строго
+  // последовательно — await один за другим. Ни один из них не зависит от
+  // результата другого (все читают только по effectiveId/lexemeId), но
+  // из-за последовательности на мобильной сети открытие карточки занимало
+  // 5-10 секунд (5 round-trip'ов подряд вместо одного параллельного
+  // "залпа"). Запускаем их через Promise.all.
+  const [
+    formsMap,
+    { data: allTranslations },
+    { data: examplesData },
+    { data: readyExpressions, error: readyExpressionsError },
+    { data: candidateExpressions, error: candidateExpressionsError },
+  ] = await Promise.all([
+    fetchFormsMap([effectiveId]),
+    supabase
+      .from('entity_translations')
+      .select(
+        'language_code, translation, sense_rank, translation_rank, source, translation_type',
+      )
+      .eq('lexeme_id', effectiveId)
+      .in('translation_type', ['primary', 'expression_primary', 'definition'])
+      .order('source')
+      .order('sense_rank', { ascending: true, nullsFirst: false })
+      .order('translation_rank', { ascending: true }),
+    supabase
+      .from('entity_examples')
+      .select('example_text, translation_uk, cefr_level, source')
+      .eq('lexeme_id', effectiveId)
+      .eq('language_code', 'nb')
+      .limit(3),
+    supabase.rpc('get_lexeme360_ready_expressions_v2', {
+      p_lexeme_id: lexemeId,
+    }),
+    supabase.rpc('get_lexeme360_candidate_expressions_v2', {
+      p_lexeme_id: lexemeId,
+    }),
+  ]);
+
+  const forms = formsMap.get(effectiveId);
+
+  if (readyExpressionsError) {
+    console.log('Lexeme360 ready expressions RPC error:', readyExpressionsError);
+  }
+  if (candidateExpressionsError) {
+    console.log('Lexeme360 candidate expressions error:', candidateExpressionsError);
+  }
 
   const lemma = normalizeText((data as any).lemma);
 
   // 2. Translations + definitions from the new enrichment layer.
-  const { data: allTranslations } = await supabase
-    .from('entity_translations')
-    .select(
-      'language_code, translation, sense_rank, translation_rank, source, translation_type',
-    )
-    .eq('lexeme_id', effectiveId)
-    .in('translation_type', ['primary', 'expression_primary', 'definition'])
-    .order('source')
-    .order('sense_rank', { ascending: true, nullsFirst: false })
-    .order('translation_rank', { ascending: true });
-
   const translations = allTranslations ?? [];
 
   const pickBest = (lang: string, type: 'primary' | 'expression_primary') => {
@@ -469,14 +504,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       source: row.source || 'wiktionary',
     }));
 
-  // 3. Examples from entity_examples.
-  const { data: examplesData } = await supabase
-    .from('entity_examples')
-    .select('example_text, translation_uk, cefr_level, source')
-    .eq('lexeme_id', effectiveId)
-    .eq('language_code', 'nb')
-    .limit(3);
-
+  // 3. Examples from entity_examples. (query issued above, in parallel.)
   const examples: ExampleRow[] = (examplesData ?? [])
     .map((row: any) => ({
       text: normalizeText(row.example_text),
@@ -495,15 +523,8 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
   //
   // We read through a SECURITY DEFINER RPC to avoid RLS issues on internal
   // relation/registry tables and to keep the client query simple.
-
-  const { data: readyExpressions, error: readyExpressionsError } =
-    await supabase.rpc('get_lexeme360_ready_expressions_v2', {
-      p_lexeme_id: lexemeId,
-    });
-
-  if (readyExpressionsError) {
-    console.log('Lexeme360 ready expressions RPC error:', readyExpressionsError);
-  }
+  // (RPC issued above, in parallel, together with the other independent
+  // lookups; readyExpressionsError already logged above.)
 
   const expressionRows = (readyExpressions ?? []) as any[];
 
@@ -533,20 +554,24 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
   let relations: RelatedItem[] = [];
 
   if (targetLexemeIds.length > 0) {
-    const { data: targetTranslations } = await supabase
-      .from('entity_translations')
-      .select('expression_id, language_code, translation, sense_rank, translation_rank')
-      .in('expression_id', targetExpressionIds)
-      .in('translation_type', ['primary', 'expression_primary'])
-      .eq('translation_rank', 1)
-      .order('sense_rank', { ascending: true, nullsFirst: false });
-
-    const { data: targetExamples } = await supabase
-      .from('entity_examples')
-      .select('expression_id, example_text')
-      .in('expression_id', targetExpressionIds)
-      .eq('language_code', 'nb')
-      .order('created_at', { ascending: false });
+    // ФИКС: эти два запроса тоже независимы друг от друга — параллелим
+    // по той же причине, что и основной блок выше.
+    const [{ data: targetTranslations }, { data: targetExamples }] =
+      await Promise.all([
+        supabase
+          .from('entity_translations')
+          .select('expression_id, language_code, translation, sense_rank, translation_rank')
+          .in('expression_id', targetExpressionIds)
+          .in('translation_type', ['primary', 'expression_primary'])
+          .eq('translation_rank', 1)
+          .order('sense_rank', { ascending: true, nullsFirst: false }),
+        supabase
+          .from('entity_examples')
+          .select('expression_id, example_text')
+          .in('expression_id', targetExpressionIds)
+          .eq('language_code', 'nb')
+          .order('created_at', { ascending: false }),
+      ]);
 
     // Обе карты теперь ключуются по expression_id — именно так реально
     // хранятся эти данные в БД.
@@ -628,15 +653,8 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       .filter((item): item is RelatedItem => Boolean(item));
   }
 
-  const { data: candidateExpressions, error: candidateExpressionsError } =
-    await supabase.rpc('get_lexeme360_candidate_expressions_v2', {
-      p_lexeme_id: lexemeId,
-    });
-
-  if (candidateExpressionsError) {
-    console.log('Lexeme360 candidate expressions error:', candidateExpressionsError);
-  }
-
+  // (RPC issued above, in parallel; candidateExpressionsError already
+  // logged above.)
   const candidateRelations: RelatedItem[] = ((candidateExpressions ?? []) as any[])
     .map((row, index) => {
       const id = normalizeText(row.id);
@@ -1125,6 +1143,23 @@ export function Lexeme360({
   const [learnedRelationIds, setLearnedRelationIds] = useState<Set<string>>(
     new Set(),
   );
+
+  // ФИКС: Lexeme360 не размонтируется между карточками тренировки
+  // (TrainingMeta рендерит его без key, привязанного к слову), поэтому
+  // при смене lexemeId старое `data` оставалось в состоянии. open() ниже
+  // проверяет `if (data || loading) return` и, видя непустой data от
+  // ПРЕДЫДУЩЕГО слова, просто показывал его повторно вместо нового
+  // запроса — отсюда "чужой кандидат" или "пусто" на новом слове.
+  // Sheet-версия ниже (Lexeme360Sheet) уже делает такой сброс через
+  // useEffect([lexemeId]) — здесь его не было. Правильное семейство и
+  // так уже точно известно на сервере (lexeme360_available /
+  // lexeme360_display_relation_count материализованы заранее); этот
+  // эффект лишь гарантирует, что при открытии НОВОГО слова будет сделан
+  // свежий (лёгкий, по индексу) запрос вместо показа чужого кэша.
+  useEffect(() => {
+    setData(null);
+    setLearnedRelationIds(new Set());
+  }, [lexemeId]);
 
   const visible = externalVisible !== undefined ? externalVisible : internalVisible;
 

@@ -353,23 +353,24 @@ public final class LectureRecorderModule: Module {
           destinationURL
         )
 
-      if
-        (existingValidation["valid"] as? Bool) == true,
-        (existingValidation["playable"] as? Bool) == true
-      {
-        self.removeDirectoryIfPresent(
-          self.segmentsDirectoryURL(
-            for: destinationURL
-          )
-        )
-        promise.resolve(existingValidation)
-        return
-      }
-
       let segmentsDirectoryURL =
         self.segmentsDirectoryURL(
           for: destinationURL
         )
+
+      let hasSegmentsDirectory =
+        FileManager.default.fileExists(
+          atPath: segmentsDirectoryURL.path
+        )
+
+      if
+        (existingValidation["valid"] as? Bool) == true,
+        (existingValidation["playable"] as? Bool) == true,
+        !hasSegmentsDirectory
+      {
+        promise.resolve(existingValidation)
+        return
+      }
 
       self.writerQueue.async { [weak self] in
         guard let self else { return }
@@ -409,7 +410,8 @@ public final class LectureRecorderModule: Module {
 
         self.mergeSegments(
           segmentURLs,
-          to: destinationURL
+          to: destinationURL,
+          protectExistingRecording: true
         ) { result in
           DispatchQueue.main.async {
             switch result {
@@ -1239,8 +1241,10 @@ public final class LectureRecorderModule: Module {
     }
 
     let validation =
-      validateAudioFile(
-        partURL
+      validateAudioFileWithRetry(
+        partURL,
+        attempts: 8,
+        delaySeconds: 0.10
       )
 
     guard
@@ -1467,6 +1471,7 @@ public final class LectureRecorderModule: Module {
   private func mergeSegments(
     _ segmentURLs: [URL],
     to destinationURL: URL,
+    protectExistingRecording: Bool = false,
     completion: @escaping (Result<[String: Any], Error>) -> Void
   ) {
     mergeQueue.async { [weak self] in
@@ -1577,8 +1582,10 @@ public final class LectureRecorderModule: Module {
           switch exporter.status {
           case .completed:
             let temporaryValidation =
-              self.validateAudioFile(
-                temporaryURL
+              self.validateAudioFileWithRetry(
+                temporaryURL,
+                attempts: 8,
+                delaySeconds: 0.10
               )
 
             guard
@@ -1600,36 +1607,113 @@ public final class LectureRecorderModule: Module {
               return
             }
 
-            do {
+            let existingValidation =
+              self.validateAudioFileWithRetry(
+                destinationURL,
+                attempts: 8,
+                delaySeconds: 0.10
+              )
+
+            if
+              protectExistingRecording,
+              (existingValidation["valid"] as? Bool) == true,
+              (existingValidation["playable"] as? Bool) == true,
+              let existingDurationMillis =
+                existingValidation["durationMillis"] as? Int,
+              let recoveredDurationMillis =
+                temporaryValidation["durationMillis"] as? Int,
+              recoveredDurationMillis + 1000 < existingDurationMillis
+            {
               self.removeFileIfPresent(
-                destinationURL
+                temporaryURL
               )
 
-              try FileManager.default.moveItem(
-                at: temporaryURL,
-                to: destinationURL
+              completion(
+                .failure(
+                  self.makeNSError(
+                    code: "ERR_RECOVERY_CANDIDATE_SHORTER",
+                    message: "Recovered audio is shorter than the existing playable recording; the existing recording and recovery segments were preserved."
+                  )
+                )
               )
+              return
+            }
 
-              let finalValidation =
-                self.validateAudioFile(
-                  destinationURL
+            do {
+              let fileManager = FileManager.default
+              let destinationExisted =
+                fileManager.fileExists(
+                  atPath: destinationURL.path
                 )
 
-              guard
-                (finalValidation["valid"] as? Bool) == true,
-                (finalValidation["playable"] as? Bool) == true
-              else {
-                throw self.makeNSError(
-                  code: "ERR_INVALID_FINAL_M4A",
-                  message: "The final merged M4A is not playable."
+              let rollbackURL =
+                destinationURL
+                  .deletingLastPathComponent()
+                  .appendingPathComponent(
+                    "audio-rollback-\(UUID().uuidString).m4a"
+                  )
+
+              if destinationExisted {
+                try fileManager.moveItem(
+                  at: destinationURL,
+                  to: rollbackURL
                 )
               }
 
-              completion(
-                .success(
-                  finalValidation
+              do {
+                try fileManager.moveItem(
+                  at: temporaryURL,
+                  to: destinationURL
                 )
-              )
+
+                let finalValidation =
+                  self.validateAudioFileWithRetry(
+                    destinationURL,
+                    attempts: 8,
+                    delaySeconds: 0.10
+                  )
+
+                guard
+                  (finalValidation["valid"] as? Bool) == true,
+                  (finalValidation["playable"] as? Bool) == true
+                else {
+                  throw self.makeNSError(
+                    code: "ERR_INVALID_FINAL_M4A",
+                    message: "The final merged M4A is not playable."
+                  )
+                }
+
+                if destinationExisted {
+                  self.removeFileIfPresent(
+                    rollbackURL
+                  )
+                }
+
+                completion(
+                  .success(
+                    finalValidation
+                  )
+                )
+
+              } catch {
+                self.removeFileIfPresent(
+                  destinationURL
+                )
+
+                if
+                  destinationExisted,
+                  fileManager.fileExists(
+                    atPath: rollbackURL.path
+                  )
+                {
+                  try? fileManager.moveItem(
+                    at: rollbackURL,
+                    to: destinationURL
+                  )
+                }
+
+                throw error
+              }
 
             } catch {
               completion(
@@ -1676,6 +1760,43 @@ public final class LectureRecorderModule: Module {
     }
   }
 
+  private func validateAudioFileWithRetry(
+    _ url: URL,
+    attempts: Int,
+    delaySeconds: TimeInterval
+  ) -> [String: Any] {
+    let totalAttempts = max(1, attempts)
+    var lastValidation = validateAudioFile(url)
+
+    if
+      (lastValidation["valid"] as? Bool) == true,
+      (lastValidation["playable"] as? Bool) == true
+    {
+      return lastValidation
+    }
+
+    guard totalAttempts > 1 else {
+      return lastValidation
+    }
+
+    for _ in 1..<totalAttempts {
+      if delaySeconds > 0 {
+        Thread.sleep(forTimeInterval: delaySeconds)
+      }
+
+      lastValidation = validateAudioFile(url)
+
+      if
+        (lastValidation["valid"] as? Bool) == true,
+        (lastValidation["playable"] as? Bool) == true
+      {
+        return lastValidation
+      }
+    }
+
+    return lastValidation
+  }
+
   private func promoteRecoverablePartialSegments(
     in directoryURL: URL
   ) {
@@ -1702,8 +1823,10 @@ public final class LectureRecorderModule: Module {
 
     for partURL in partials {
       let validation =
-        validateAudioFile(
-          partURL
+        validateAudioFileWithRetry(
+          partURL,
+          attempts: 12,
+          delaySeconds: 0.15
         )
 
       guard
