@@ -1236,16 +1236,30 @@ export default function VoiceScreen() {
         );
 
 
+        await resetRecordingState();
+
+
+        /*
+         * stopRecording() may already have finalized audio or
+         * preserved recoverable segments before a later JS-side
+         * validation failed. Reconcile the lecture directory now
+         * so a recoverable recording does not remain hidden until
+         * the next screen mount or app restart.
+         */
         try {
 
-          await cancelRecording();
+          await recoverInterruptedRecordings();
 
-        } catch {
-          // Recorder may already have finished or been absent.
+        } catch (recoveryError) {
+
+          devConsole.error(
+            'Lecture recovery after failed stop error:',
+            recoveryError
+          );
         }
 
 
-        await resetRecordingState();
+        loadLectures();
 
 
         Alert.alert(
