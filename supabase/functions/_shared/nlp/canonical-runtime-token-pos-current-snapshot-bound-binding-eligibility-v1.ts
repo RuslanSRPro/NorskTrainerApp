@@ -15,6 +15,20 @@ import {
   deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundCardinalityEnforcementV1,
 } from "./canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts";
 
+import {
+  deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereDirectAllOccurrenceCoherenceEvidenceV1,
+} from "./canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts";
+import {
+  deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1,
+} from "./canonical-runtime-manifest-binding-definition-authority-v1.ts";
+import {
+  deriveCanonicalRuntimeManifestBindingWhereShapeAuthoritiesV1,
+} from "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts";
+import {
+  deriveCanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionsV1,
+  type CanonicalRuntimeManifestCompoundOperatorShapeNodeV1,
+} from "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts";
+
 // CURRENT Snapshot-Bound Binding Eligibility V1
 //
 // Ownership boundary:
@@ -510,6 +524,80 @@ export async function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundBindingE
     ]);
   }
 
+  const bindingDefinitions =
+    deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1(manifestRows);
+
+  if (
+    bindingDefinitions.status !== "ready" ||
+    bindingDefinitions.blockingReasons.length !== 0
+  ) {
+    return blockedResult([
+      "direct_all_occurrence_coherence:binding_definition:not_exact_ready",
+    ]);
+  }
+
+  const whereShapes =
+    deriveCanonicalRuntimeManifestBindingWhereShapeAuthoritiesV1(
+      bindingDefinitions,
+    );
+
+  if (
+    whereShapes.status !== "ready" ||
+    whereShapes.blockingReasons.length !== 0
+  ) {
+    return blockedResult([
+      "direct_all_occurrence_coherence:where_shape:not_exact_ready",
+    ]);
+  }
+
+  const compoundShapes =
+    deriveCanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionsV1(
+      whereShapes,
+    );
+
+  if (
+    compoundShapes.status !== "ready" ||
+    compoundShapes.blockingReasons.length !== 0
+  ) {
+    return blockedResult([
+      "direct_all_occurrence_coherence:compound_shape:not_exact_ready",
+    ]);
+  }
+
+  const containsAll = (
+    node: CanonicalRuntimeManifestCompoundOperatorShapeNodeV1,
+  ): boolean =>
+    node.shape === "compound_operator" &&
+    (
+      node.operatorKey === "all" ||
+      node.children.some(containsAll)
+    );
+
+  if (compoundShapes.authorities.some((authority) => containsAll(authority.root))) {
+    const coherenceResult =
+      await deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereDirectAllOccurrenceCoherenceEvidenceV1(
+        surface,
+        graph,
+        expectedResult,
+        currentDomainResult,
+        manifestRows,
+      );
+
+    if (coherenceResult.status !== "ready") {
+      return blockedResult([
+        "direct_all_occurrence_coherence:not_exact_ready",
+        ...coherenceResult.blockingReasons.map(
+          (reason) => `direct_all_occurrence_coherence:${reason}`,
+        ),
+      ]);
+    }
+
+    if (coherenceResult.authority.coherenceFailureCount > 0) {
+      return blockedResult([
+        "direct_all_occurrence_coherence:no_shared_occurrence",
+      ]);
+    }
+  }
   const enforcementResult =
     await deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundCardinalityEnforcementV1(
       surface,
