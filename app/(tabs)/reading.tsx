@@ -27,6 +27,7 @@ import { getFormTierValues, isIrregularMorphology } from "@/services/formPresent
 import { t } from "@/services/i18n";
 import { resolveVerification } from "@/services/verification";
 import { useTheme } from "@/contexts/ThemeContext";
+import { CompoundWordText } from "@/components/CompoundWordText";
 
 type WordStatus = "learned" | "in_base" | "unknown";
 type AnalysisSource = "pwa" | "ai";
@@ -705,7 +706,13 @@ export default function ReadingScreen() {
         {visible:!!previewWord,onClose:()=>{stopSpeech();setPreviewWord(null);},content:(
           <>
             <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("word_preview_modal")}</Text>
-            <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord?.word||previewWord?.lemma||wordQuery}</Text>
+            <CompoundWordText
+  value={previewWord?.word||previewWord?.lemma||wordQuery}
+  word={previewWord}
+  style={[s.modalWord,{fontSize:F.word}]}
+  mainColor={isIrregularMorphology(previewWord)?T.danger:T.textPrimary}
+  componentColor={T.accent}
+/>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
             <TrainingFormsList
@@ -726,7 +733,13 @@ export default function ReadingScreen() {
         )},
         {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},content:(
           <>
-            <Text style={[s.modalWord,{color:isIrregularMorphology(selectedWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{selectedWord?.lemma||selectedWord?.word}</Text>
+            <CompoundWordText
+  value={selectedWord?.lemma||selectedWord?.word}
+  word={selectedWord}
+  style={[s.modalWord,{fontSize:F.word}]}
+  mainColor={isIrregularMorphology(selectedWord)?T.danger:T.textPrimary}
+  componentColor={T.accent}
+/>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>

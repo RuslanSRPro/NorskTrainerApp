@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 
 import { GlassControl } from '@/components/ui/glass/GlassControl';
 import { isIrregularMorphology } from '@/services/formPresentation';
+import { CompoundWordText } from '@/components/CompoundWordText';
 import { TrainingFormsList } from '../TrainingFormsList';
 
 type Props = {
@@ -41,17 +42,16 @@ export function TrainingChoice({
 }: Props) {
   return (
     <>
-      <Text
-        style={[
-          s.word,
-          isIrregularMorphology(current) && {
-            color: isDark ? '#FF7373' : '#C62828',
-          },
-        ]}
+      <CompoundWordText
+        value={getMainWord(current)}
+        word={current}
+        style={s.word}
         onPress={speakCurrentTask}
-      >
-        {getMainWord(current)}
-      </Text>
+        mainColor={isIrregularMorphology(current)
+          ? (isDark ? '#FF7373' : '#C62828')
+          : textColor}
+        componentColor={textColor}
+      />
 
       <View style={s.choiceGrid}>
         {options?.map((option) => (

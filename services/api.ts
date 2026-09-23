@@ -1003,7 +1003,7 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
   );
 
   const keys = Array.from(new Set([original, normalized, withoutPrefix].filter(Boolean)));
-  if (!keys.length) return { found: false, item: null };
+  if (!keys.length) return { found: false, item: null, items: [] };
 
   for (const key of keys) {
     const { data, error } = await supabase
@@ -1011,13 +1011,13 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
       .select(LEXEME_SELECT)
       .eq('is_learning_lexeme', true)
       .or(`lemma.eq.${key},display_form.eq.${key}`)
-      .limit(1)
-      .maybeSingle();
+      .order('pos', { ascending: true })
+      .order('id', { ascending: true });
 
     if (error) throw new Error(error.message);
-    if (data) {
-      const [item] = await mapLexemeRows([data]);
-      return { found: true, item: item ?? null };
+    if (data?.length) {
+      const items = await mapLexemeRows(data);
+      return { found: true, item: items[0] ?? null, items };
     }
   }
 
@@ -1027,17 +1027,17 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
       .select(LEXEME_SELECT)
       .eq('is_learning_lexeme', true)
       .or(`lemma.ilike.${key},display_form.ilike.${key}`)
-      .limit(1)
-      .maybeSingle();
+      .order('pos', { ascending: true })
+      .order('id', { ascending: true });
 
     if (error) throw new Error(error.message);
-    if (data) {
-      const [item] = await mapLexemeRows([data]);
-      return { found: true, item: item ?? null };
+    if (data?.length) {
+      const items = await mapLexemeRows(data);
+      return { found: true, item: items[0] ?? null, items };
     }
   }
 
-  return { found: false, item: null };
+  return { found: false, item: null, items: [] };
 }
 
 // ============================================================
