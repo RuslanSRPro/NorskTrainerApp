@@ -906,11 +906,7 @@ function sameLemmaDifferentArticleFixture(): {
     pos: "verb",
     paradigmId: "1",
     lemma: "være",
-    isCompound: false,
-    compoundParts: ["være"],
-    headword: "være",
-    morphologySourceLemma: "være",
-    paradigmTags: ["VERB"],
+paradigmTags: ["VERB"],
     inflectionGroup: "VERB_fixture",
     standardisation: "STANDARD",
     forms: [
