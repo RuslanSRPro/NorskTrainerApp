@@ -73,6 +73,9 @@ export class BokmalWrittenFormSelectionPolicy implements FormSelectionPolicy {
           articleId: paradigm.articleId,
           pos: paradigm.pos,
           lemma: paradigm.lemma,
+          isCompound: paradigm.isCompound,
+          compoundParts: paradigm.compoundParts,
+          headword: paradigm.headword,
           formKey: form.formKey,
           policyVersion: this.policyVersion,
           candidates: [],
@@ -201,6 +204,9 @@ export class BokmalWrittenFormSelectionPolicy implements FormSelectionPolicy {
           normalizeNorwegian(paradigm.lemma) === normalizedQuery
         )!.paradigm.lemma
         : group.lemma,
+      isCompound: group.isCompound,
+      compoundParts: group.compoundParts,
+      headword: group.headword,
       formKey: group.formKey,
       primary,
       alternatives,

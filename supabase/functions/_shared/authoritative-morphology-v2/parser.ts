@@ -48,6 +48,12 @@ export function parseOrdbokeneArticles(
       // Ordbøkene may expose only the final component in `final_lexeme`
       // (for example hestehov -> hov), so it must remain a fallback.
       const lemmaValue = firstString(lemma.lemma, lemma.final_lexeme) ?? "";
+      const finalLexeme = firstString(lemma.final_lexeme) ?? lemmaValue;
+      const isCompound = normalizeNorwegian(lemmaValue) !==
+        normalizeNorwegian(finalLexeme);
+      const compoundParts = isCompound
+        ? splitCompoundParts(lemmaValue, finalLexeme)
+        : [lemmaValue];
       const paradigmInfo = asRecords(lemma.paradigm_info);
 
       for (const paradigm of paradigmInfo) {
@@ -73,6 +79,10 @@ export function parseOrdbokeneArticles(
           paradigmId,
           paradigmTags,
           pos,
+          isCompound,
+          compoundParts,
+          headword: finalLexeme,
+          morphologySourceLemma: finalLexeme,
         });
 
         let sourceOrdinal = target.forms.length;
@@ -112,6 +122,10 @@ function makeParadigm(args: {
   paradigmId: string;
   paradigmTags: string[];
   pos: MorphologyPos;
+  isCompound: boolean;
+  compoundParts: string[];
+  headword: string;
+  morphologySourceLemma: string;
 }): MutableParadigm {
   return {
     identity: args.identity,
@@ -127,12 +141,27 @@ function makeParadigm(args: {
     pos: args.pos,
     paradigmId: args.paradigmId,
     lemma: args.lemma,
+    isCompound: args.isCompound,
+    compoundParts: args.compoundParts,
+    headword: args.headword,
+    morphologySourceLemma: args.morphologySourceLemma,
     paradigmTags: args.paradigmTags,
     inflectionGroup: firstString(args.paradigm.inflection_group),
     standardisation: firstString(args.paradigm.standardisation),
     forms: [],
     preference: null,
   };
+}
+
+function splitCompoundParts(lemma: string, headword: string): string[] {
+  const normalizedLemma = normalizeNorwegian(lemma);
+  const normalizedHeadword = normalizeNorwegian(headword);
+  if (!normalizedHeadword || !normalizedLemma.endsWith(normalizedHeadword)) {
+    return [lemma, headword];
+  }
+  const prefixLength = lemma.length - headword.length;
+  const prefix = lemma.slice(0, prefixLength);
+  return prefix ? [prefix, headword] : [lemma];
 }
 
 function detectPos(tags: readonly string[]): MorphologyPos | null {

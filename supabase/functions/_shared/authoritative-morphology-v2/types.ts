@@ -72,6 +72,10 @@ export type AuthoritativeParadigm = {
   pos: MorphologyPos;
   paradigmId: string;
   lemma: string;
+  isCompound: boolean;
+  compoundParts: string[];
+  headword: string;
+  morphologySourceLemma: string;
   paradigmTags: string[];
   inflectionGroup: string | null;
   standardisation: string | null;
@@ -99,6 +103,9 @@ export type FormDisplayGroup = {
   articleId: string;
   pos: MorphologyPos;
   lemma: string;
+  isCompound: boolean;
+  compoundParts: string[];
+  headword: string;
   formKey: string;
   primary: SelectedSourceForm[];
   alternatives: SelectedSourceForm[];
