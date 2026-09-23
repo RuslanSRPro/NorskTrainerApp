@@ -9,6 +9,7 @@ import {
   type FormPreferenceProvider,
   hasInternalSecretApiKey,
   hasInternalServiceAuthorization,
+  isAuthoritativeLookupForm,
   isD10FormsV2CanaryEnabled,
   isD10PersistenceEnabled,
   lexemeDictionaryLookupQuery,
@@ -75,6 +76,9 @@ function displayGroup(
     articleId,
     pos: "verb",
     lemma: "test",
+    isCompound: false,
+    compoundParts: ["test"],
+    headword: "test",
     formKey,
     primary: primaryValues.map((value) => selected(value, "primary")),
     alternatives: alternativeValues.map((value) =>
@@ -670,6 +674,30 @@ Deno.test("24 differing same-POS articles remain ambiguous", () => {
   assertEquals(resolution.alternativeCount, 0);
 });
 
+Deno.test("24b inflected forms and homonyms remain authoritative per paradigm", () => {
+  const paradigms = [
+    {
+      lemma: "legge",
+      forms: [{ value: "la", normalizedValue: "la" }],
+    },
+    {
+      lemma: "la",
+      forms: [{ value: "la", normalizedValue: "la" }],
+    },
+  ];
+
+  assertEquals(isAuthoritativeLookupForm("la", paradigms, (value) => value), true);
+  assertEquals(
+    isAuthoritativeLookupForm(
+      "gleder",
+      [{ lemma: "glede", forms: [{ value: "gleder", normalizedValue: "gleder" }] }],
+      (value) => value,
+    ),
+    true,
+  );
+  assertEquals(isAuthoritativeLookupForm("unknown", paradigms, (value) => value), false);
+});
+
 Deno.test("25 explicit evidence binding selects være article 69211", () => {
   const fixture = sameLemmaDifferentArticleFixture();
   const applied = applyAuthoritativeArticleBindings(
@@ -867,6 +895,10 @@ function sameLemmaDifferentArticleFixture(): {
   ): AuthoritativeParadigm => ({
     identity: `bm|${articleId}|v%C3%A6re|verb|1`,
     source: "Ordbokene",
+    isCompound: false,
+    compoundParts: ["være"],
+    headword: "være",
+    morphologySourceLemma: "være",
     dictionaryCode: "bm",
     dictionaryName: "Bokmålsordboka",
     articleId,
