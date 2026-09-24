@@ -4,6 +4,7 @@ import {
   type AuthoritativeArticleBinding,
   buildAuthoritativeDisplayGroups,
   compareAuthoritativeAndLegacyForms,
+  isAuthoritativeLookupForm,
   hasInternalSecretApiKey,
   hasInternalServiceAuthorization,
   lexemeDictionaryLookupQuery,
@@ -324,9 +325,10 @@ async function resolveOne(
   }
   if (
     effectiveResolution.paradigms.length > 0 &&
-    !effectiveResolution.paradigms.some((paradigm) =>
-      normalizeNorwegian(paradigm.lemma) ===
-        effectiveResolution.lookup.normalizedQuery
+    !isAuthoritativeLookupForm(
+      query,
+      effectiveResolution.paradigms,
+      normalizeNorwegian,
     )
   ) {
     status = "source_lemma_mismatch";
