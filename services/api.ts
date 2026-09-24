@@ -159,6 +159,10 @@ function mapLexemeRow(item: any, forms?: FormsBundle) {
     has_form_alternatives: forms?.has_form_alternatives || false,
     regularity_marker: forms?.regularity_marker || 'unknown',
     forms_read_model: forms?.forms_read_model || null,
+    isCompound: forms?.is_compound ?? false,
+    compoundParts: forms?.compound_parts ?? [],
+    headword: forms?.headword ?? null,
+    morphologySourceLemma: forms?.morphology_source_lemma ?? null,
   };
 }
 

@@ -247,7 +247,8 @@ export default function ReadingScreen() {
   const tr = useMemo(()=>makeReadingTranslator(lang),[lang]);
 
   const [text,setText]=useState("");
-  const [wordQuery,setWordQuery]=useState("");
+  const wordQuery=text;
+  const setWordQuery=setText;
   const [wordSearchMessage,setWordSearchMessage]=useState("");
   const [loading,setLoading]=useState(false);
   const [wordLoading,setWordLoading]=useState(false);
@@ -380,7 +381,7 @@ export default function ReadingScreen() {
   },[]);
   // ─────────────────────────────────────────────────────────────────────
 
-  function clearText(){setText("");setAnalysis([]);setSentences([]);setError("");setSelectedWord(null);setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");setAddingWord(false);setActiveSource(null);setAnalyzerResult(null);setAnalyzerCandidates([]);setAnalyzerMessage("");clearJobTracking();}
+  function clearText(){setText("");setAnalysis([]);setSentences([]);setError("");setSelectedWord(null);setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");setAddingWord(false);setActiveSource(null);setAnalyzerResult(null);setAnalyzerCandidates([]);setAnalyzerMessage("");setWordSearchMessage("");setWordMatches([]);setPreviewWord(null);clearJobTracking();}
   function clearWordSearch(){setWordQuery("");setWordSearchMessage("");setPreviewWord(null);setWordMatches([]);setSelectedWord(null);}
   function openSentence(sentence:string){setSelectedSentence(sentence);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");}
 
@@ -441,7 +442,10 @@ export default function ReadingScreen() {
 
   async function checkWord(){
     try{
-      const queries=String(wordQuery||"").split(",").map(v=>normalizeToken(v)).filter(Boolean);
+      if (/[.!?\n]/.test(wordQuery) || /\s+/.test(wordQuery.trim()) && !wordQuery.split(',').every(v=>/^(?:å|en|ei|et)?\s*\S+$/.test(v.trim()))) {
+        await runAnalysis("pwa");return;
+      }
+      const queries=Array.from(new Set(String(wordQuery||"").split(",").map(v=>normalizeToken(v)).filter(Boolean)));
       if(!queries.length){setWordSearchMessage(tr("enter_word_to_check"));return;}
       setWordLoading(true);setWordSearchMessage("");setSelectedWord(null);setWordMatches([]);setPreviewWord(null);
       const found:any[]=[];let firstUnknown:string|null=null;
@@ -452,7 +456,7 @@ export default function ReadingScreen() {
         }else if(!firstUnknown){firstUnknown=query;}
       }
       setWordMatches(found);
-      if(found.length){setSelectedWord(found[0]);setWordSearchMessage(tr("word_found"));return;}
+      if(found.length){setWordSearchMessage(firstUnknown ? `${tr("word_found")} · ${tr("not_in_base")}: ${firstUnknown}` : tr("word_found"));return;}
       if(firstUnknown){
         const r=await inspectWordViaAppsScript(firstUnknown);
         if(r?.preview){setPreviewWord(r.preview);setWordSearchMessage(tr("new_word_review_preview"));return;}
@@ -468,7 +472,7 @@ export default function ReadingScreen() {
       setWordLoading(true);const lookup=await searchLexemeInSupabase(q);
       if(lookup?.found&&lookup?.items?.length){
         const items=lookup.items.map((item:any)=>({...item,learned:false,ua:item.ua||item.translation_ua||"",en:item.en||item.translation_en||"",category:item.type||item.category||"",searchQuery:q}));
-        setWordMatches(items);setSelectedWord(items[0]);setWordSearchMessage(tr("word_found"));return;
+        setWordMatches(items);setWordSearchMessage(tr("word_found"));return;
       }
       const r=await inspectWordViaAppsScript(q);
       if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||r.item.translation_ua||"",en:r.item.en||r.item.translation_en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
@@ -566,41 +570,6 @@ export default function ReadingScreen() {
         <Text style={[s.title,{color:T.textPrimary,fontSize:20}]}>{tr("reading_title")}</Text>
         <Text style={[s.subtitle,{color:T.textSecondary,fontSize:F.base}]}>{tr("reading_subtitle")}</Text>
 
-        {/* Word check card */}
-        <View style={s.card}>
-          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
-          <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("word_analysis_title")}</Text>
-          <TextInput style={[s.wordInput,{backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={wordQuery} onChangeText={setWordQuery} placeholder={tr("word_input_placeholder")} placeholderTextColor={T.textMuted} autoCapitalize="none"/>
-          <View style={s.actionsRow}>
-            <Pressable style={[s.btn,{backgroundColor:T.accent,flex:1},wordLoading&&s.disabled]} disabled={wordLoading||!wordQuery.trim()} onPress={checkWord}>
-              <Text style={[s.btnText]}>{wordLoading?tr("searching"):tr("check")}</Text>
-            </Pressable>
-            <Pressable style={[s.clearBtn,{backgroundColor:T.cardAlt}]} onPress={clearWordSearch}>
-              <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{tr("clear")}</Text>
-            </Pressable>
-          </View>
-          {previewWord?(<View style={[s.previewBox,{backgroundColor:T.cardAlt}]}>
-            <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+3}]}>{tr("word_preview_title")}</Text>
-            <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord.word}</Text>
-            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
-            <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord.type||previewWord.category||""}{previewWord.gender?` · ${previewWord.gender}`:""}</Text>
-            <View style={s.formsBox}>{getFormLabels(previewWord).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
-            {previewWord.example?(<View style={[s.exBox,{backgroundColor:T.cardInner}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text></View>):null}
-            <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}>
-              <Text style={[s.addBtnText,{color:T.accent}]}>{addingGlobalWord?tr("adding"):tr("add_preview_database")}</Text>
-            </Pressable>
-          </View>):null}
-          {wordSearchMessage?(<View style={[s.msgBox,{backgroundColor:T.accentBg}]}><Text style={[s.msgText,{color:T.textPrimary,fontSize:F.base}]}>{wordSearchMessage}</Text></View>):null}
-          {wordMatches.length>1?(<View style={[s.msgBox,{backgroundColor:T.cardAlt}]}>
-            <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>Velg ordklasse:</Text>
-            {wordMatches.map((item:any,index:number)=>(
-              <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:selectedWord?.id===item.id?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>setSelectedWord(item)}>
-                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {item.pos||item.category||item.type||""}</Text>
-              </Pressable>
-            ))}
-          </View>):null}
-        </View>
-
         {/* Text analysis card */}
         <View style={s.card}>
           <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
@@ -623,6 +592,31 @@ export default function ReadingScreen() {
             ):null}
           </View>
           <TextInput style={[s.textArea,{backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={text} onChangeText={setText} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
+          <View style={s.actionsRow}>
+            <Pressable style={[s.btn,{backgroundColor:T.accent,flex:1},wordLoading&&s.disabled]} disabled={wordLoading||!text.trim()||pwaLoading||aiTextLoading} onPress={checkWord}>
+              <Text style={s.btnText}>{wordLoading?tr("searching"):tr("check")}</Text>
+            </Pressable>
+          </View>
+          {previewWord?(<View style={[s.previewBox,{backgroundColor:T.cardAlt}]}>
+            <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+3}]}>{tr("word_preview_title")}</Text>
+            <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord.word}</Text>
+            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
+            <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord.type||previewWord.category||""}{previewWord.gender?` · ${previewWord.gender}`:""}</Text>
+            <View style={s.formsBox}>{getFormLabels(previewWord).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
+            {previewWord.example?(<View style={[s.exBox,{backgroundColor:T.cardInner}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text></View>):null}
+            <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}>
+              <Text style={[s.addBtnText,{color:T.accent}]}>{addingGlobalWord?tr("adding"):tr("add_preview_database")}</Text>
+            </Pressable>
+          </View>):null}
+          {wordSearchMessage?(<View style={[s.msgBox,{backgroundColor:T.accentBg}]}><Text style={[s.msgText,{color:T.textPrimary,fontSize:F.base}]}>{wordSearchMessage}</Text></View>):null}
+          {wordMatches.length>0?(<View style={[s.msgBox,{backgroundColor:T.cardAlt}]}>
+            <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>Velg ordklasse:</Text>
+            {wordMatches.map((item:any,index:number)=>(
+              <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:selectedWord?.id===item.id?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>setSelectedWord(item)}>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {item.pos||item.category||item.type||""}</Text>
+              </Pressable>
+            ))}
+          </View>):null}
           <View style={s.actionsCol}>
             <Pressable style={[s.pwaBtn,{backgroundColor:T.accentBg},pwaLoading&&s.disabled]} disabled={pwaLoading||aiTextLoading||!text.trim()} onPress={()=>runAnalysis("pwa")}>
               <Text style={[s.pwaBtnText,{color:T.accent}]}>{pwaLoading?tr("pwa_analyzing"):tr("pwa_analysis")}</Text>

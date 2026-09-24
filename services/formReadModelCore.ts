@@ -10,6 +10,10 @@ export type FormsBundle = {
   has_form_alternatives: boolean;
   regularity_marker: 'regular' | 'irregular' | 'suppletive' | 'unknown';
   forms_read_model: FormsReadModel;
+  is_compound: boolean;
+  compound_parts: string[];
+  headword: string | null;
+  morphology_source_lemma: string | null;
 };
 
 export type V2FormRow = {
@@ -20,6 +24,10 @@ export type V2FormRow = {
   accepted_articles?: string[] | null;
   regularity_marker: FormsBundle['regularity_marker'] | null;
   display_order?: number | null;
+  is_compound?: boolean | null;
+  compound_parts?: string[] | null;
+  headword?: string | null;
+  morphology_source_lemma?: string | null;
 };
 
 const FORM_KEY_ALIASES: Record<string, string> = {
@@ -117,6 +125,12 @@ export function buildV2Bundles(rows: V2FormRow[]): Map<string, FormsBundle> {
       bundle.regularity_marker,
       row.regularity_marker ?? 'unknown',
     );
+    if (row.is_compound && row.headword && (row.compound_parts?.length ?? 0) >= 2) {
+      bundle.is_compound = true;
+      bundle.compound_parts = row.compound_parts!;
+      bundle.headword = row.headword;
+      bundle.morphology_source_lemma = row.morphology_source_lemma ?? null;
+    }
     // Compatibility fields intentionally expose only the first ordered
     // primary value. The complete source-backed arrays remain available via
     // form_primary/form_alternatives for a later, explicit UI design.
@@ -168,6 +182,10 @@ function emptyBundle(readModel: FormsReadModel): FormsBundle {
     has_form_alternatives: false,
     regularity_marker: 'unknown',
     forms_read_model: readModel,
+    is_compound: false,
+    compound_parts: [],
+    headword: null,
+    morphology_source_lemma: null,
   };
 }
 
