@@ -39,9 +39,9 @@ export function TrainingFlashcard({
           value={getMainWord(current)}
           word={current}
           style={s.word}
-          mainColor={isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
+          mainColor={current?.isCompound||current?.is_compound||isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
           componentColor={isDark ? '#D69A72' : '#A85F38'}
-          separatorColor={isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
+          separatorColor={isDark ? '#FF6B6B' : '#D92D20'}
         />
       </Text>
 

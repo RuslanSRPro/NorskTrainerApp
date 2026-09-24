@@ -64,10 +64,11 @@ export function TrainingChoice({
           },
         ]}
         onPress={speakCurrentTask}
-        mainColor={isIrregularMorphology(current)
+        mainColor={current?.isCompound||current?.is_compound||isIrregularMorphology(current)
           ? (isDark ? '#FF7373' : '#C62828')
           : textColor}
-        componentColor={textColor}
+        componentColor={isDark ? '#D69A72' : '#A85F38'}
+        separatorColor={isDark ? '#FF7373' : '#C62828'}
       />
 
       <View style={[s.choiceGrid, compact && { gap: 8 }, dense && { gap: 6 }]}>

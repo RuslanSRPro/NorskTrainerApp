@@ -591,7 +591,7 @@ export default function ReadingScreen() {
               </Pressable>
             ):null}
           </View>
-          <TextInput style={[s.textArea,{backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={text} onChangeText={setText} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
+          <TextInput style={[s.textArea,{backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={text} onChangeText={(value)=>{setText(value);setWordMatches([]);setWordSearchMessage("");setPreviewWord(null);}} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
           <View style={s.actionsRow}>
             <Pressable style={[s.btn,{backgroundColor:T.accent,flex:1},wordLoading&&s.disabled]} disabled={wordLoading||!text.trim()||pwaLoading||aiTextLoading} onPress={checkWord}>
               <Text style={s.btnText}>{wordLoading?tr("searching"):tr("check")}</Text>
@@ -618,9 +618,6 @@ export default function ReadingScreen() {
             ))}
           </View>):null}
           <View style={s.actionsCol}>
-            <Pressable style={[s.pwaBtn,{backgroundColor:T.accentBg},pwaLoading&&s.disabled]} disabled={pwaLoading||aiTextLoading||!text.trim()} onPress={()=>runAnalysis("pwa")}>
-              <Text style={[s.pwaBtnText,{color:T.accent}]}>{pwaLoading?tr("pwa_analyzing"):tr("pwa_analysis")}</Text>
-            </Pressable>
             <Pressable style={[s.aiBtn,aiTextLoading&&s.disabled]} disabled={pwaLoading||aiTextLoading||!text.trim()} onPress={()=>runAnalysis("ai")}>
               <Text style={s.aiBtnText}>{aiTextLoading?tr("ai_analyzing"):tr("ai_analysis")}</Text>
             </Pressable>
@@ -745,7 +742,7 @@ export default function ReadingScreen() {
         {visible:!!previewWord,onClose:()=>{stopSpeech();setPreviewWord(null);},content:(
           <>
             <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("word_preview_modal")}</Text>
-            <CompoundWordText value={formatDisplayLemma(previewWord?.word||previewWord?.lemma||wordQuery,previewWord)} word={previewWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={isIrregularMorphology(previewWord)?T.danger:T.textPrimary} componentColor={T.accent} />
+            <CompoundWordText value={formatDisplayLemma(previewWord?.word||previewWord?.lemma||wordQuery,previewWord)} word={previewWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={previewWord?.isCompound||previewWord?.is_compound||isIrregularMorphology(previewWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
             <TrainingFormsList
@@ -766,7 +763,7 @@ export default function ReadingScreen() {
         )},
         {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},content:(
           <>
-            <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={T.accent} />
+            <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={selectedWord?.isCompound||selectedWord?.is_compound||isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
