@@ -113,6 +113,7 @@ export function TrainingModeRenderer({
           getAllForms={getAllForms}
           speakCurrentTask={speakCurrentTask}
           selectChoice={selectChoice}
+          density={density}
         />
 
         {feedback ? (

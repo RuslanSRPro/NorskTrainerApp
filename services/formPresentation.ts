@@ -15,7 +15,52 @@ type FormWord = {
   form_alternatives?: Record<string, unknown> | null;
   regularity_marker?: string | null;
   forms_read_model?: string | null;
+  accepted_articles?: unknown;
+  type?: string | null;
+  category?: string | null;
+  pos?: string | null;
 };
+
+const NOUN_ARTICLE_ORDER = ['en', 'ei', 'et'] as const;
+
+export function acceptedNounArticles(
+  word: FormWord | null | undefined,
+): string[] {
+  const source = Array.isArray(word?.accepted_articles)
+    ? word.accepted_articles.map(String)
+    : [];
+  const normalized = new Set(
+    source.map((value) => value.trim().toLowerCase()).filter(Boolean),
+  );
+  return NOUN_ARTICLE_ORDER.filter((article) => normalized.has(article));
+}
+
+export function formatInfinitive(value: string): string {
+  const bare = String(value || '').trim().replace(/^å\s+/i, '');
+  return bare ? `å ${bare}` : '';
+}
+
+export function formatNounIndefinite(
+  value: string,
+  word: FormWord | null | undefined,
+): string {
+  const raw = String(value || '').trim();
+  const bare = raw.replace(/^(en|ei|et)\s+/i, '').trim();
+  const articles = acceptedNounArticles(word);
+  return bare && articles.length > 0 ? `${articles.join('/')} ${bare}` : raw;
+}
+
+export function formatDisplayLemma(
+  value: string,
+  word: FormWord | null | undefined,
+): string {
+  const pos = String(word?.pos || word?.type || word?.category || '')
+    .trim()
+    .toLowerCase();
+  if (pos.includes('verb')) return formatInfinitive(value);
+  if (pos.includes('noun')) return formatNounIndefinite(value, word);
+  return String(value || '').trim();
+}
 
 export function getFormTierValues(
   word: FormWord | null | undefined,

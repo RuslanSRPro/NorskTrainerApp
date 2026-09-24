@@ -199,13 +199,6 @@ function normalizeText(value: unknown): string {
   return String(value ?? '').trim();
 }
 
-function normalizeRootLemma(value: unknown): string {
-  return normalizeText(value)
-    .replace(/^å\s+/i, '')
-    .toLowerCase()
-    .trim();
-}
-
 function resolveLang(
   lang?: AppLanguage | string | null,
   isUaLegacy?: boolean,
@@ -320,7 +313,8 @@ function shouldIncludeInLexeme360(subtype: unknown): boolean {
 // статус вроде 'deleted'/'obsolete' (например, запись помечена устаревшей
 // после ручной модерации), это должно блокировать показ независимо от
 // того, насколько subtype выглядит легитимным. Сейчас текущие RPC
-// (get_lexeme360_ready_expressions / get_lexeme360_candidate_expressions)
+// (get_lexeme360_ready_expressions_v2 /
+// get_lexeme360_candidate_expressions_v2)
 // такого поля не возвращают — проверка сейчас no-op, но готова к моменту,
 // когда поле появится, без необходимости искать этот код заново.
 function isDeletedOrObsoleteStatus(status: unknown): boolean {
@@ -372,66 +366,10 @@ function getMeaningExtensionSubtitle(lang: AppLanguage) {
 // ── Data fetch ───────────────────────────────────────────────────────────────
 
 async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
-  // 0. ФИКС v4: раньше шапка (лемма/POS/CEFR/переводы/формы) всегда
-  // подгружалась ДЛЯ ТОГО lexemeId, что был передан в компонент — если
-  // открывали "ta til" (саму expression), шапка показывала "å ta til".
-  //
-  // ВАЖНО: expression_catalog.lexeme_id указывает на САМУ expression (её
-  // собственную карточку, когда та "стала словом"), а НЕ на корень — это
-  // выяснилось только после того, как предыдущая версия фикса (через
-  // root_lexeme_id из RPC) вернула тот же id, что и на входе, ничего не
-  // меняя, и полностью сломала карусель (root_lemma снова стал "ta til").
-  //
-  // Поэтому здесь два независимых шага:
-  //   1. resolvedRootLemma (текст) — источник истины для поиска семьи
-  //      ниже, всегда берётся из RPC, не зависит от шага 2;
-  //   2. effectiveId — best-effort поиск id САМОЙ корневой лексемы через
-  //      обычный текстовый select по lexemes.lemma (эта таблица, в
-  //      отличие от expression_catalog, не блокируется RLS для клиента —
-  //      подтверждено остальным кодом этого файла, читающим её напрямую).
-  //      Если корень с таким именем не найден как отдельная лексема —
-  //      remains lexemeId, шапка покажет исходную expression, но карусель
-  //      всё равно будет работать благодаря шагу 1.
-  let effectiveId = lexemeId;
-  let resolvedRootLemma = '';
-
-  const { data: originalRow } = await supabase
-    .from('lexemes')
-    .select('lemma')
-    .eq('id', lexemeId)
-    .maybeSingle();
-
-  const originalLemma = normalizeText(originalRow?.lemma);
-
-  if (originalLemma) {
-    const { data: rootInfo, error: rootLemmaError } = await supabase.rpc(
-      'get_lexeme360_root_lemma',
-      { p_lemma: originalLemma },
-    );
-
-    if (rootLemmaError) {
-      console.log('Lexeme360 root lemma RPC error:', rootLemmaError);
-    }
-
-    const rootRow = Array.isArray(rootInfo) ? rootInfo[0] : rootInfo;
-    resolvedRootLemma = normalizeText(rootRow?.root_lemma);
-
-    if (
-      resolvedRootLemma &&
-      normalizeRootLemma(resolvedRootLemma) !== normalizeRootLemma(originalLemma)
-    ) {
-      const { data: rootLexemeRow } = await supabase
-        .from('lexemes')
-        .select('id')
-        .eq('lemma', resolvedRootLemma)
-        .limit(1)
-        .maybeSingle();
-
-      if (rootLexemeRow?.id) {
-        effectiveId = rootLexemeRow.id;
-      }
-    }
-  }
+  // Family resolution is UUID-based. The database resolves either an exact
+  // root lexeme or every root bound to an expression lexeme. No text lookup,
+  // client polling or homonym guessing occurs here.
+  const effectiveId = lexemeId;
 
   // 1. Core lexeme. Morphology is loaded through the single configured
   // read model below; nested legacy tables are intentionally not embedded.
@@ -558,19 +496,9 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
   // We read through a SECURITY DEFINER RPC to avoid RLS issues on internal
   // relation/registry tables and to keep the client query simple.
 
-  // ФИКС v4: используем resolvedRootLemma из шага "0." — он приходит
-  // напрямую из RPC и не зависит от того, удалось ли найти отдельную
-  // lexemes-запись для корня (шаг "б" в комментарии выше). Раньше здесь
-  // бралась lemma из уже загруженных данных effectiveId — если поиск
-  // корневой лексемы по тексту не находил совпадения, effectiveId
-  // оставался равен исходному lexemeId, lemma оставалась "ta til", и
-  // семья снова не находилась, несмотря на то, что RPC корень правильно
-  // резолвила.
-  const rootLemma = normalizeRootLemma(resolvedRootLemma || lemma);
-
   const { data: readyExpressions, error: readyExpressionsError } =
-    await supabase.rpc('get_lexeme360_ready_expressions', {
-      p_root_lemma: rootLemma,
+    await supabase.rpc('get_lexeme360_ready_expressions_v2', {
+      p_lexeme_id: lexemeId,
     });
 
   if (readyExpressionsError) {
@@ -701,9 +629,9 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
   }
 
   const { data: candidateExpressions, error: candidateExpressionsError } =
-  await supabase.rpc('get_lexeme360_candidate_expressions', {
-    p_root_lemma: rootLemma,
-  });
+    await supabase.rpc('get_lexeme360_candidate_expressions_v2', {
+      p_lexeme_id: lexemeId,
+    });
 
   if (candidateExpressionsError) {
     console.log('Lexeme360 candidate expressions error:', candidateExpressionsError);

@@ -67,8 +67,7 @@ serve(async (req) => {
 
     let parentLexemeQuery = supabase
       .from('lexemes')
-      .select('id, lemma, pos')
-      .limit(1);
+      .select('id, lemma, pos');
 
     if (parentLexemeId) {
       parentLexemeQuery = parentLexemeQuery.eq('id', parentLexemeId);
@@ -110,10 +109,44 @@ serve(async (req) => {
         );
       }
 
-      parentLexemeQuery = parentLexemeQuery.eq(
-        'lemma',
-        normalizeKey(String(cacheRow.lemma)),
-      );
+      const normalizedParentLemma = normalizeKey(String(cacheRow.lemma));
+      const { data: aliases, error: aliasError } = await supabase
+        .from('lexeme_headword_aliases_v2')
+        .select('lexeme_id, normalized_headword, pos')
+        .eq('dictionary_code', parentDictionaryCode)
+        .eq('article_id', parentArticleId)
+        .eq('normalized_headword', normalizedParentLemma)
+        .eq('is_active', true);
+
+      if (aliasError) {
+        return jsonResponse(
+          {
+            ok: false,
+            stage: 'resolve_parent_article_identity',
+            error: aliasError.message,
+            details: aliasError,
+          },
+          500,
+        );
+      }
+
+      const rootIds = [...new Set((aliases ?? []).map((row: any) => row.lexeme_id))];
+      if (rootIds.length !== 1) {
+        return jsonResponse(
+          {
+            ok: false,
+            stage: 'resolve_parent_article_identity',
+            error: 'Parent article did not resolve to exactly one root lexeme',
+            parent_article_id: parentArticleId,
+            parent_dictionary_code: parentDictionaryCode,
+            parent_lemma: normalizedParentLemma,
+            root_count: rootIds.length,
+          },
+          409,
+        );
+      }
+
+      parentLexemeQuery = parentLexemeQuery.eq('id', rootIds[0]);
     }
 
     const { data: parentLexemes, error: parentError } =
@@ -128,6 +161,20 @@ serve(async (req) => {
           details: parentError,
         },
         500,
+      );
+    }
+
+    const uniqueParentIds = [...new Set((parentLexemes ?? []).map((row) => row.id))];
+    if (uniqueParentIds.length > 1) {
+      return jsonResponse(
+        {
+          ok: false,
+          stage: 'load_parent_lexeme',
+          error: 'Parent lexeme identity is ambiguous; provide parent_lexeme_id or source article identity',
+          parent_lemma: parentLemmaInput,
+          parent_count: uniqueParentIds.length,
+        },
+        409,
       );
     }
 
@@ -210,7 +257,7 @@ serve(async (req) => {
 
     const results = [];
 
-    for (const candidate of candidates ?? []) {
+    for (const candidate of (candidates ?? []) as any[]) {
       const targetText = normalizeKey(
         candidate.normalized_key ?? candidate.lemma,
       );
@@ -279,11 +326,34 @@ serve(async (req) => {
         );
       }
 
+      const { data: boundRootLexemeId, error: bindingError } =
+        await supabase.rpc('bind_lexeme360_expression_root_v2', {
+          p_expression_id: candidate.promoted_expression_id,
+          p_parent_article_id: candidate.parent_article_id,
+          p_dictionary_code: candidate.parent_dictionary_code,
+          p_parent_lemma: candidate.parent_lemma,
+        });
+
+      if (bindingError) {
+        return jsonResponse(
+          {
+            ok: false,
+            stage: 'bind_root_identity',
+            candidate_id: candidate.id,
+            target_expression_id: candidate.promoted_expression_id,
+            error: bindingError.message,
+            details: bindingError,
+          },
+          500,
+        );
+      }
+
       results.push({
         candidate_id: candidate.id,
         target_text: targetText,
         target_expression_id: candidate.promoted_expression_id,
         relation_id: insertedRelation.id,
+        root_lexeme_id: boundRootLexemeId,
         action: 'upserted_relation',
         relation_type: relationPayload.relation_type,
       });

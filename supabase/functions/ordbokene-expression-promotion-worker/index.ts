@@ -58,6 +58,32 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    async function bindRootIdentity(
+      expressionId: string,
+      candidate: any,
+    ): Promise<string | null> {
+      const { data, error } = await supabase.rpc(
+        'bind_lexeme360_expression_root_v2',
+        {
+          p_expression_id: expressionId,
+          p_parent_article_id: candidate.parent_article_id,
+          p_dictionary_code: candidate.parent_dictionary_code,
+          p_parent_lemma: candidate.parent_lemma,
+        },
+      );
+
+      if (error) {
+        throw Object.assign(new Error('bind_root_identity_failed'), {
+          stage: 'bind_root_identity',
+          candidate_id: candidate.id,
+          expression_id: expressionId,
+          details: error,
+        });
+      }
+
+      return typeof data === 'string' ? data : null;
+    }
+
     const { data: candidates, error: candidateError } = await supabase
       .from('ordbokene_expression_candidates')
       .select(
@@ -73,6 +99,8 @@ serve(async (req) => {
           'status',
           'promoted_expression_id',
           'parent_lemma',            // used as root_lemma in expression_catalog
+          'parent_article_id',
+          'parent_dictionary_code',
         ].join(', '),
       )
       .eq('status', 'candidate')
@@ -169,7 +197,7 @@ serve(async (req) => {
       return { ordbokeneStatusBackfilled, rootLemmaBackfilled };
     }
 
-    for (const candidate of candidates ?? []) {
+    for (const candidate of (candidates ?? []) as any[]) {
       const normalizedKey = normalizeKey(
         candidate.normalized_key ?? candidate.lemma,
       );
@@ -221,6 +249,9 @@ serve(async (req) => {
               reviewReason,
               existingExpression,
             );
+          const rootLexemeId = dryRun
+            ? null
+            : await bindRootIdentity(existingExpression.id, candidate);
 
           results.push({
             candidate_id: candidate.id,
@@ -232,6 +263,7 @@ serve(async (req) => {
             root_lemma: rootLemma,
             action: dryRun ? 'would_mark_duplicate' : 'marked_duplicate',
             expression_id: existingExpression.id,
+            root_lexeme_id: rootLexemeId,
             ordbokene_status_backfilled: ordbokeneStatusBackfilled,
             root_lemma_backfilled: rootLemmaBackfilled,
           });
@@ -383,6 +415,9 @@ serve(async (req) => {
                 winnerExpression,
                 'Promotion lost a race condition with a concurrent insert; recovered as duplicate.',
               );
+            const rootLexemeId = dryRun
+              ? null
+              : await bindRootIdentity(winnerExpression.id, candidate);
 
             results.push({
               candidate_id: candidate.id,
@@ -394,6 +429,7 @@ serve(async (req) => {
               root_lemma: rootLemma,
               action: 'marked_duplicate_after_race',
               expression_id: winnerExpression.id,
+              root_lexeme_id: rootLexemeId,
               ordbokene_status_backfilled: ordbokeneStatusBackfilled,
               root_lemma_backfilled: rootLemmaBackfilled,
             });
@@ -451,6 +487,23 @@ serve(async (req) => {
         );
       }
 
+      let rootLexemeId: string | null = null;
+      try {
+        rootLexemeId = await bindRootIdentity(insertedExpression.id, candidate);
+      } catch (e: any) {
+        return jsonResponse(
+          {
+            ok: false,
+            stage: e.stage ?? 'bind_root_identity',
+            candidate_id: candidate.id,
+            expression_id: insertedExpression.id,
+            error: e.message,
+            details: e.details,
+          },
+          500,
+        );
+      }
+
       results.push({
         candidate_id: candidate.id,
         lemma: candidate.lemma,
@@ -461,6 +514,7 @@ serve(async (req) => {
         root_lemma: rootLemma,
         action: 'promoted',
         expression_id: insertedExpression.id,
+        root_lexeme_id: rootLexemeId,
       });
     }
 

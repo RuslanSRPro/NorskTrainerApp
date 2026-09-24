@@ -1,4 +1,5 @@
 import { TrainingMode } from '@/services/settings';
+import { formatDisplayLemma } from '@/services/formPresentation';
 
 export type TrainingTask = {
   id: string;
@@ -79,12 +80,7 @@ export function isVerbLike(w: any) {
 }
 
 export function displayLemma(v: string, w?: any) {
-  const raw = String(v || '').trim();
-
-  if (!raw) return raw;
-  if (/^å\s+/i.test(raw)) return raw;
-
-  return isVerbLike(w) ? `å ${raw}` : raw;
+  return formatDisplayLemma(v, w);
 }
 
 export function getNestedFirst(v: any) {
@@ -190,9 +186,8 @@ export function hasVerification(w: any) {
 
 export function hasRelations(w: any) {
   return Boolean(
-    w?.relations_count > 0 ||
-      w?.has_relations ||
-      (Array.isArray(w?.relations) && w.relations.length > 0),
+    w?.lexeme360_available === true &&
+      Number(w?.lexeme360_display_relation_count ?? 0) > 0,
   );
 }
 

@@ -23,10 +23,17 @@ import { SynonymsBadge } from "@/components/SynonymsBadge";
 import { Lexeme360, Lexeme360Sheet } from "@/components/Lexeme360";
 import { TrainingFormsList } from "@/components/training/TrainingFormsList";
 import type { TrainingFormItem } from "@/components/training/types";
-import { getFormTierValues, isIrregularMorphology } from "@/services/formPresentation";
+import {
+  formatDisplayLemma,
+  formatInfinitive,
+  formatNounIndefinite,
+  getFormTierValues,
+  isIrregularMorphology,
+} from "@/services/formPresentation";
 import { t } from "@/services/i18n";
 import { resolveVerification } from "@/services/verification";
 import { useTheme } from "@/contexts/ThemeContext";
+import { GlassOverlay } from "@/components/ui/glass/GlassOverlay";
 import { CompoundWordText } from "@/components/CompoundWordText";
 
 type WordStatus = "learned" | "in_base" | "unknown";
@@ -186,8 +193,13 @@ function getFormLabels(word: any):TrainingFormItem[]{
   return definitions.flatMap(([formKey,label])=>{
     const fallback=word?.verb_forms?.[formKey]||word?.noun_forms?.[formKey]||word?.adjective_forms?.[formKey]||"";
     const tiers=getFormTierValues(word,formKey,fallback);
-    const primaryValues=tiers.primaryValues;
-    const alternativeValues=tiers.alternativeValues;
+    const decorate=(value:string)=>isV&&formKey==="infinitiv"
+      ?formatInfinitive(value)
+      :isN&&formKey==="ubest_entall"
+      ?formatNounIndefinite(value,word)
+      :value;
+    const primaryValues=tiers.primaryValues.map(decorate);
+    const alternativeValues=tiers.alternativeValues.map(decorate);
     return primaryValues.length?[{
       label,
       formKey,
@@ -538,9 +550,10 @@ export default function ReadingScreen() {
         <Text style={[s.subtitle,{color:T.textSecondary,fontSize:F.base}]}>{tr("reading_subtitle")}</Text>
 
         {/* Word check card */}
-        <View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+        <View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
           <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("word_analysis_title")}</Text>
-          <TextInput style={[s.wordInput,{backgroundColor:T.inputBg,borderColor:T.border,color:T.textPrimary}]} value={wordQuery} onChangeText={setWordQuery} placeholder={tr("word_input_placeholder")} placeholderTextColor={T.textMuted} autoCapitalize="none"/>
+          <TextInput style={[s.wordInput,{backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={wordQuery} onChangeText={setWordQuery} placeholder={tr("word_input_placeholder")} placeholderTextColor={T.textMuted} autoCapitalize="none"/>
           <View style={s.actionsRow}>
             <Pressable style={[s.btn,{backgroundColor:T.accent,flex:1},wordLoading&&s.disabled]} disabled={wordLoading||!wordQuery.trim()} onPress={checkWord}>
               <Text style={[s.btnText]}>{wordLoading?tr("searching"):tr("check")}</Text>
@@ -564,7 +577,8 @@ export default function ReadingScreen() {
         </View>
 
         {/* Text analysis card */}
-        <View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+        <View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
           <View style={s.cardHeaderRow}>
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4,marginBottom:0}]}>{tr("text_analysis_title")}</Text>
             {/* ДОБАВЛЕНО (05.08.2026): иконка прогресса фоновой обработки.
@@ -583,7 +597,7 @@ export default function ReadingScreen() {
               </Pressable>
             ):null}
           </View>
-          <TextInput style={[s.textArea,{backgroundColor:T.inputBg,borderColor:T.border,color:T.textPrimary}]} value={text} onChangeText={setText} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
+          <TextInput style={[s.textArea,{backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={text} onChangeText={setText} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
           <View style={s.actionsCol}>
             <Pressable style={[s.pwaBtn,{backgroundColor:T.accentBg},pwaLoading&&s.disabled]} disabled={pwaLoading||aiTextLoading||!text.trim()} onPress={()=>runAnalysis("pwa")}>
               <Text style={[s.pwaBtnText,{color:T.accent}]}>{pwaLoading?tr("pwa_analyzing"):tr("pwa_analysis")}</Text>
@@ -619,7 +633,8 @@ export default function ReadingScreen() {
         </>):null}
 
         {/* Candidates */}
-        {analyzerCandidates.length>0?(<View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+        {analyzerCandidates.length>0?(<View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
           <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{activeSource==="ai"?tr("ai_candidates"):tr("pwa_candidates")}</Text>
           <Text style={[s.methodText,{color:T.textSecondary,fontSize:F.base}]}>{tr("candidates_summary",{inBase:inBaseCandidatesCount,unknown:unknownCandidatesCount,selected:selectedCandidates.length})}</Text>
           <View style={s.actionsRow}>
@@ -660,7 +675,8 @@ export default function ReadingScreen() {
         </View>):null}
 
         {/* Known */}
-        {analyzerResult?(<View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+        {analyzerResult?(<View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
           <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("already_in_base_by_analyzer")}</Text>
           {(analyzerResult.known||[]).length===0?<Text style={[s.emptyText,{color:T.textMuted}]}>{tr("nothing_found")}</Text>:
             (analyzerResult.known||[]).slice(0,80).map((item:any,i:number)=>(
@@ -673,17 +689,20 @@ export default function ReadingScreen() {
 
         {/* Methodology + sentences + word map */}
         {analysis.length>0?(<>
-          <View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+          <View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("text_methodology")}</Text>
             <Text style={[s.methodText,{color:T.textSecondary,fontSize:F.base}]}>{tr("unique_words_not_in_base",{count:uniqueUnknownWords.length})}</Text>
             <Text style={[s.methodText,{color:T.textSecondary,fontSize:F.base}]}>{tr("words_in_base_not_learned",{count:uniqueInBaseWords.length})}</Text>
             <Text style={[s.methodText,{color:T.textSecondary,fontSize:F.base}]}>{tr("database_coverage",{coverage:stats.coverage})}</Text>
           </View>
-          <View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+          <View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("sentences")}</Text>
             {sentences.map((sentence,i)=>(<Pressable key={`${sentence}-${i}`} style={[s.sentenceCard,{backgroundColor:T.cardAlt}]} onPress={()=>openSentence(sentence)}><Text style={[s.sentenceText,{color:T.textSecondary,fontSize:F.base}]}>{sentence}</Text></Pressable>))}
           </View>
-          <View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+          <View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("word_map")}</Text>
             <View style={s.wordWrap}>
               {analysis.map((item,i)=>(<TouchableOpacity key={`${item.text}-${i}`} activeOpacity={0.7} onPress={()=>{if(item.lexeme){setSelectedWord(item.lexeme);return;}inspectUnknownWord(item.normalized);}}
@@ -693,7 +712,8 @@ export default function ReadingScreen() {
               </TouchableOpacity>))}
             </View>
           </View>
-          <View style={[s.card,{backgroundColor:T.card,borderColor:T.border}]}>
+          <View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("not_in_base_section")}</Text>
             {uniqueUnknownWords.length===0?<Text style={[s.emptyText,{color:T.textMuted}]}>{tr("no_new_words_found")}</Text>:
               uniqueUnknownWords.slice(0,80).map((item,i)=>(<Pressable key={`${item}-${i}`} onPress={()=>inspectUnknownWord(item)}><Text style={[s.unknownItem,{color:T.danger,borderBottomColor:T.border,fontSize:F.base}]}>{item}</Text></Pressable>))}
@@ -706,13 +726,7 @@ export default function ReadingScreen() {
         {visible:!!previewWord,onClose:()=>{stopSpeech();setPreviewWord(null);},content:(
           <>
             <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("word_preview_modal")}</Text>
-            <CompoundWordText
-  value={previewWord?.word||previewWord?.lemma||wordQuery}
-  word={previewWord}
-  style={[s.modalWord,{fontSize:F.word}]}
-  mainColor={isIrregularMorphology(previewWord)?T.danger:T.textPrimary}
-  componentColor={T.accent}
-/>
+            <CompoundWordText value={formatDisplayLemma(previewWord?.word||previewWord?.lemma||wordQuery,previewWord)} word={previewWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={isIrregularMorphology(previewWord)?T.danger:T.textPrimary} componentColor={T.accent} />
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
             <TrainingFormsList
@@ -733,13 +747,7 @@ export default function ReadingScreen() {
         )},
         {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},content:(
           <>
-            <CompoundWordText
-  value={selectedWord?.lemma||selectedWord?.word}
-  word={selectedWord}
-  style={[s.modalWord,{fontSize:F.word}]}
-  mainColor={isIrregularMorphology(selectedWord)?T.danger:T.textPrimary}
-  componentColor={T.accent}
-/>
+            <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={T.accent} />
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
@@ -757,7 +765,9 @@ export default function ReadingScreen() {
                   lang={lang}
                 />
 
-                {selectedWord?.id ? (
+                {selectedWord?.id &&
+        selectedWord?.lexeme360_available === true &&
+        Number(selectedWord?.lexeme360_display_relation_count ?? 0) > 0 ? (
                   <Lexeme360
                     lexemeId={selectedWord.id}
                     lemma={selectedWord.lemma||selectedWord.word}
@@ -816,7 +826,8 @@ export default function ReadingScreen() {
       ].map(({visible,onClose,content},i)=>(
         <Modal key={i} visible={visible} transparent animationType="fade">
           <View style={s.modalOverlay}>
-            <View style={[s.modalCard,{backgroundColor:T.card}]}>
+            <View style={s.modalCard}>
+            <GlassOverlay dark={themeName === "dark"} material="overlay" shape="sheet" radius={28} />
               <ScrollView style={s.modalScroll} contentContainerStyle={s.modalScrollContent} showsVerticalScrollIndicator={false}>
                 {content}
               </ScrollView>
@@ -831,7 +842,8 @@ export default function ReadingScreen() {
           показательны, см. комментарий у getJobChainProgress в api.ts). */}
       <Modal visible={showJobModal} transparent animationType="fade" onRequestClose={closeJobModal}>
         <View style={s.modalOverlay}>
-          <View style={[s.modalCard,{backgroundColor:T.card}]}>
+          <View style={s.modalCard}>
+            <GlassOverlay dark={themeName === "dark"} material="overlay" shape="sheet" radius={28} />
             <ScrollView style={s.modalScroll} contentContainerStyle={s.modalScrollContent} showsVerticalScrollIndicator={false}>
               <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("job_progress_title")}</Text>
 
@@ -876,7 +888,8 @@ export default function ReadingScreen() {
 
       <Modal visible={show360} transparent animationType="slide" onRequestClose={()=>setShow360(false)} statusBarTranslucent>
         <Pressable style={s.overlay360} onPress={()=>setShow360(false)}>
-          <Pressable onPress={e=>e.stopPropagation()} style={[s.sheet360,{backgroundColor:T.card}]}>
+          <Pressable onPress={e=>e.stopPropagation()} style={s.sheet360}>
+            <GlassOverlay dark={themeName === "dark"} material="overlay" shape="sheet" radius={24} />
             {word360&&<Lexeme360Sheet lexemeId={word360.id} lemma={word360.lemma} pos={word360.pos} lang={lang} onClose={()=>setShow360(false)} onSelectWord={(id,lemma)=>{setShow360(false);setSelectedWord({id,word:lemma,lemma});}}/>}
           </Pressable>
         </Pressable>
@@ -890,9 +903,9 @@ function Stat({label,value}:{label:string;value:string|number}){
 }
 
 const s=StyleSheet.create({
-  content:{paddingTop:70,paddingHorizontal:20,paddingBottom:120},
+  content:{paddingTop:70,paddingHorizontal:18,paddingBottom:120},
   title:{fontWeight:"900",marginBottom:10},subtitle:{lineHeight:24,marginBottom:20},
-  card:{borderRadius:22,padding:18,marginBottom:18,borderWidth:0.5},
+  card:{borderRadius:22,padding:18,marginBottom:18,overflow:"hidden",backgroundColor:"transparent"},
   cardHeaderRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:14},
   sectionTitle:{fontWeight:"900",marginBottom:14},
   // ДОБАВЛЕНО (05.08.2026): пилюля-иконка прогресса job'а
@@ -902,8 +915,8 @@ const s=StyleSheet.create({
   jobStatusIcon:{fontSize:22},jobStatusText:{fontWeight:"800",fontSize:15,flex:1},
   chainRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingVertical:10,borderBottomWidth:0.5,borderRadius:8,paddingHorizontal:6},
   chainLabel:{fontSize:14,fontWeight:"700"},chainCount:{fontSize:13,fontWeight:"900"},
-  wordInput:{borderWidth:0.5,borderRadius:16,padding:14,fontWeight:"700",marginBottom:14},
-  textArea:{minHeight:160,borderWidth:0.5,borderRadius:16,padding:14,fontWeight:"600",marginBottom:14},
+  wordInput:{borderWidth:1,borderRadius:16,padding:14,fontWeight:"700",marginBottom:14},
+  textArea:{minHeight:160,borderWidth:1,borderRadius:16,padding:14,fontWeight:"600",marginBottom:14},
   actionsRow:{flexDirection:"row",gap:10,marginTop:4},actionsCol:{gap:10},
   btn:{borderRadius:16,paddingVertical:16},btnText:{color:"#fff",textAlign:"center",fontSize:16,fontWeight:"900"},
   clearBtn:{borderRadius:16,paddingHorizontal:18,justifyContent:"center"},clearBtnText:{fontSize:15,fontWeight:"800",textAlign:"center"},
@@ -938,7 +951,7 @@ const s=StyleSheet.create({
   emptyText:{lineHeight:24},error:{padding:14,borderRadius:12,marginBottom:20},
   miniDot:{width:8,height:8,borderRadius:99,borderWidth:0.5,borderColor:"rgba(0,0,0,0.15)"},
   modalOverlay:{flex:1,backgroundColor:"rgba(0,0,0,0.45)",justifyContent:"center",alignItems:"center",padding:24},
-  modalCard:{width:"100%",maxHeight:"88%",borderRadius:28,overflow:"hidden"},
+  modalCard:{width:"100%",maxHeight:"88%",borderRadius:28,overflow:"hidden",backgroundColor:"transparent"},
   modalScroll:{width:"100%"},modalScrollContent:{padding:24,paddingBottom:28},
   modalLabel:{fontWeight:"900",marginBottom:8},modalWord:{fontWeight:"900"},
   modalTrans:{marginTop:10,fontWeight:"800",lineHeight:28},
@@ -955,6 +968,6 @@ const s=StyleSheet.create({
   stopBtn:{marginTop:14,borderRadius:16,paddingVertical:16},stopBtnText:{textAlign:"center",fontSize:16,fontWeight:"900"},
   closeBtn:{marginTop:14,borderRadius:16,paddingVertical:16},closeBtnText:{color:"#fff",textAlign:"center",fontSize:16,fontWeight:"900"},
   overlay360:{flex:1,backgroundColor:"rgba(0,0,0,0.5)",justifyContent:"flex-end"},
-  sheet360:{height:"80%",borderTopLeftRadius:24,borderTopRightRadius:24,overflow:"hidden"},
+  sheet360:{height:"80%",borderTopLeftRadius:24,borderTopRightRadius:24,overflow:"hidden",backgroundColor:"transparent"},
   prompt:{fontWeight:"700"},
 });

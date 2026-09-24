@@ -6,6 +6,7 @@ export type FormsBundle = {
   adjective_forms: Record<string, string>;
   form_primary: Record<string, string[]>;
   form_alternatives: Record<string, string[]>;
+  accepted_articles: string[];
   has_form_alternatives: boolean;
   regularity_marker: 'regular' | 'irregular' | 'suppletive' | 'unknown';
   forms_read_model: FormsReadModel;
@@ -16,6 +17,7 @@ export type V2FormRow = {
   form_key: string;
   primary_values: string[] | null;
   alternative_values: string[] | null;
+  accepted_articles?: string[] | null;
   regularity_marker: FormsBundle['regularity_marker'] | null;
   display_order?: number | null;
 };
@@ -107,6 +109,10 @@ export function buildV2Bundles(rows: V2FormRow[]): Map<string, FormsBundle> {
     bundle.form_primary[canonical] = mergedPrimary;
     bundle.form_alternatives[canonical] = mergedAlternatives;
     bundle.has_form_alternatives ||= mergedAlternatives.length > 0;
+    bundle.accepted_articles = orderedArticles([
+      ...bundle.accepted_articles,
+      ...(row.accepted_articles ?? []),
+    ]);
     bundle.regularity_marker = combineRegularity(
       bundle.regularity_marker,
       row.regularity_marker ?? 'unknown',
@@ -158,10 +164,21 @@ function emptyBundle(readModel: FormsReadModel): FormsBundle {
     adjective_forms: {},
     form_primary: {},
     form_alternatives: {},
+    accepted_articles: [],
     has_form_alternatives: false,
     regularity_marker: 'unknown',
     forms_read_model: readModel,
   };
+}
+
+function orderedArticles(values: string[]): string[] {
+  const order = ['en', 'ei', 'et'];
+  const unique = new Set(
+    values.map((value) => String(value).trim().toLowerCase()).filter((value) =>
+      order.includes(value)
+    ),
+  );
+  return order.filter((article) => unique.has(article));
 }
 
 function setCompatibilityValue(

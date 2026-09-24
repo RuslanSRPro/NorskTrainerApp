@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { GlassControl } from '@/components/ui/glass/GlassControl';
 import { isIrregularMorphology } from '@/services/formPresentation';
 import { CompoundWordText } from '@/components/CompoundWordText';
+import type { TrainingDensity } from '../TrainingCard';
 import { TrainingFormsList } from '../TrainingFormsList';
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
   getAllForms: (w: any) => { label: string; value: string }[];
   speakCurrentTask: () => void;
   selectChoice: (option: string) => void;
+  density?: TrainingDensity;
 };
 
 export function TrainingChoice({
@@ -39,13 +41,28 @@ export function TrainingChoice({
   getAllForms,
   speakCurrentTask,
   selectChoice,
+  density = 'normal',
 }: Props) {
+  const compact = density !== 'normal';
+  const dense = density === 'dense';
   return (
     <>
       <CompoundWordText
         value={getMainWord(current)}
         word={current}
-        style={s.word}
+        style={[
+          s.word,
+          compact && {
+            fontSize: Math.max(32, fonts.word * 0.9),
+            lineHeight: Math.max(37, fonts.word * 1.02),
+            marginBottom: 9,
+          },
+          dense && {
+            fontSize: Math.max(30, fonts.word * 0.84),
+            lineHeight: Math.max(35, fonts.word * 0.96),
+            marginBottom: 6,
+          },
+        ]}
         onPress={speakCurrentTask}
         mainColor={isIrregularMorphology(current)
           ? (isDark ? '#FF7373' : '#C62828')
@@ -53,7 +70,7 @@ export function TrainingChoice({
         componentColor={textColor}
       />
 
-      <View style={s.choiceGrid}>
+      <View style={[s.choiceGrid, compact && { gap: 8 }, dense && { gap: 6 }]}>
         {options?.map((option) => (
           <GlassControl
             key={option}
@@ -62,10 +79,10 @@ export function TrainingChoice({
             dark={isDark}
             size="regular"
             material="tile"
-            style={s.choiceBtn}
-            contentStyle={s.choiceInner}
+            style={[s.choiceBtn, dense && { minHeight: 44 }]}
+            contentStyle={[s.choiceInner, compact && { paddingVertical: 10 }, dense && { paddingVertical: 8 }]}
           >
-            <Text style={s.choiceText}>{option}</Text>
+            <Text style={[s.choiceText, compact && { fontSize: Math.max(15, fonts.base * 0.94) }, dense && { fontSize: Math.max(14, fonts.base * 0.88) }]}>{option}</Text>
           </GlassControl>
         ))}
       </View>
@@ -79,6 +96,7 @@ export function TrainingChoice({
           textColor={isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
           mutedColor={mutedColor}
           fonts={fonts}
+          density={density}
         />
       ) : null}
     </>
