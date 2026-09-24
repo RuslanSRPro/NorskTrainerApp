@@ -301,9 +301,26 @@ export function extractCanonicalTamMorphSourceFactsV1(
           )
         : undefined;
 
-    // v1.48 A3 authorizes exactly one explicit source feature.
-    // No generic feature-name interpretation is allowed here.
-    if (tense !== 'Past') {
+    const verbForm =
+      canonicalFeatures
+        ? stringValue(
+            canonicalFeatures['VerbForm'],
+          )
+        : undefined;
+
+    // v1.48 A4 finite-tense boundary.
+    //
+    // Production registry rows prove that both finite forms and
+    // participles may carry Tense. Tense alone therefore cannot
+    // authorize predicate-tense evidence.
+    //
+    // Authorized tuples:
+    //   VerbForm=Fin + Tense=Past
+    //   VerbForm=Fin + Tense=Pres
+    if (
+      verbForm !== 'Fin' ||
+      (tense !== 'Past' && tense !== 'Pres')
+    ) {
       rejected.push({
         predicateId: predicate.id,
         reason: 'no_authorized_feature',
@@ -313,7 +330,7 @@ export function extractCanonicalTamMorphSourceFactsV1(
 
     sourceFacts.push({
       id:
-        `tam-source:morph:${predicate.id}:${morph.id}:Tense=Past`,
+        `tam-source:morph:${predicate.id}:${morph.id}:VerbForm=Fin:Tense=${tense}`,
 
       predicateId:
         predicate.id,
@@ -325,10 +342,10 @@ export function extractCanonicalTamMorphSourceFactsV1(
         'grammar_morph_form_registry_v1',
 
       sourceKey:
-        'Tense',
+        'FiniteTense',
 
       sourceValue:
-        'Past',
+        tense,
 
       sourceId:
         morph.id,
@@ -355,5 +372,6 @@ export function extractCanonicalTamMorphSourceFactsV1(
     rejected,
   };
 }
+
 
 

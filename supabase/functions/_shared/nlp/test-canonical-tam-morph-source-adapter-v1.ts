@@ -181,7 +181,7 @@ Deno.test(
     );
 
     assert(
-      fact.sourceKey === 'Tense' &&
+      fact.sourceKey === 'FiniteTense' &&
       fact.sourceValue === 'Past',
       'explicit source feature must be preserved',
     );
@@ -261,12 +261,44 @@ Deno.test(
 );
 
 Deno.test(
-  'TAM A3 does not generalize an unauthorized explicit Tense value',
+  'TAM A4 extracts finite present tense from explicit registry features',
   () => {
     const result =
       extractCanonicalTamMorphSourceFactsV1(
         graph({
           canonicalFeatures: {
+            VerbForm: 'Fin',
+            Tense: 'Pres',
+          },
+        }),
+      );
+
+    assert(
+      result.rejected.length === 0,
+      'finite present must be accepted',
+    );
+
+    assert(
+      result.sourceFacts.length === 1,
+      'expected one finite present source fact',
+    );
+
+    assert(
+      result.sourceFacts[0].sourceKey === 'FiniteTense' &&
+      result.sourceFacts[0].sourceValue === 'Pres',
+      'finite present tuple must be preserved',
+    );
+  },
+);
+
+Deno.test(
+  'TAM A4 rejects present participle as predicate present tense',
+  () => {
+    const result =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            VerbForm: 'Part',
             Tense: 'Pres',
           },
         }),
@@ -274,13 +306,64 @@ Deno.test(
 
     assert(
       result.sourceFacts.length === 0,
-      'A3 currently authorizes Past only',
+      'present participle must not fabricate predicate tense',
     );
 
     assert(
       result.rejected[0]?.reason ===
         'no_authorized_feature',
-      'expected no authorized feature',
+      'expected finite-tense rejection',
+    );
+  },
+);
+
+Deno.test(
+  'TAM A4 rejects past participle as predicate past tense',
+  () => {
+    const result =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            VerbForm: 'Part',
+            Tense: 'Past',
+          },
+        }),
+      );
+
+    assert(
+      result.sourceFacts.length === 0,
+      'past participle must not fabricate predicate tense',
+    );
+
+    assert(
+      result.rejected[0]?.reason ===
+        'no_authorized_feature',
+      'expected finite-tense rejection',
+    );
+  },
+);
+
+Deno.test(
+  'TAM A4 rejects Tense=Past without explicit VerbForm=Fin',
+  () => {
+    const result =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            Tense: 'Past',
+          },
+        }),
+      );
+
+    assert(
+      result.sourceFacts.length === 0,
+      'Tense alone must not authorize predicate tense',
+    );
+
+    assert(
+      result.rejected[0]?.reason ===
+        'no_authorized_feature',
+      'expected missing finite-form rejection',
     );
   },
 );
@@ -372,16 +455,16 @@ Deno.test(
 
     const mapping:
       CanonicalTamSourceMappingRuleV1 = {
-        id: 'tam-map:registry:Tense=Past',
+        id: 'tam-map:registry:FiniteTense=Past',
         sourceKind:
           'grammar_morph_form_registry_v1',
-        sourceKey: 'Tense',
+        sourceKey: 'FiniteTense',
         sourceValue: 'Past',
         scope: 'predicate',
         dimension: 'tense',
         value: 'past',
         provenanceIds: [
-          'prov:tam-map:Tense=Past',
+          'prov:tam-map:FiniteTense=Past',
         ],
       };
 
@@ -423,6 +506,73 @@ Deno.test(
 );
 
 Deno.test(
+  'TAM A4 finite present maps through A2 only by explicit exact mapping',
+  () => {
+    const extracted =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            VerbForm: 'Fin',
+            Tense: 'Pres',
+          },
+        }),
+      );
+
+    assert(
+      extracted.sourceFacts.length === 1,
+      'expected finite present source fact',
+    );
+
+    const mapping:
+      CanonicalTamSourceMappingRuleV1 = {
+        id: 'tam-map:registry:FiniteTense=Pres',
+        sourceKind:
+          'grammar_morph_form_registry_v1',
+        sourceKey: 'FiniteTense',
+        sourceValue: 'Pres',
+        scope: 'predicate',
+        dimension: 'tense',
+        value: 'present',
+        provenanceIds: [
+          'prov:tam-map:FiniteTense=Pres',
+        ],
+      };
+
+    const mapped =
+      mapCanonicalTamSourceFactsV1(
+        extracted.sourceFacts,
+        [mapping],
+      );
+
+    assert(
+      mapped.rejected.length === 0,
+      'explicit finite-present mapping must succeed',
+    );
+
+    assert(
+      mapped.evidenceFacts.length === 1,
+      'expected one mapped TAM evidence fact',
+    );
+
+    assert(
+      mapped.evidenceFacts[0].predicateId === 'predicate:1' &&
+      mapped.evidenceFacts[0].headTokenId === 'tok:1',
+      'occurrence identity must survive A2 mapping',
+    );
+
+    assert(
+      mapped.evidenceFacts[0].dimension === 'tense' &&
+      mapped.evidenceFacts[0].value === 'present',
+      'expected explicit tense=present',
+    );
+
+    assert(
+      mapped.evidenceFacts[0].status === 'candidate',
+      'A4 must not resolve TAM',
+    );
+  },
+);
+Deno.test(
   'TAM A3 without an explicit A2 mapping does not create TAM semantics',
   () => {
     const extracted =
@@ -448,4 +598,5 @@ Deno.test(
     );
   },
 );
+
 
