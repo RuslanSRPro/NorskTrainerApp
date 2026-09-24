@@ -390,121 +390,131 @@ export default function VoiceScreen() {
         }
 
 
-        const metadata =
-          readMetadata(entry);
+        try {
 
-        const audio =
-          findAudioFile(
-            entry,
-            metadata
-          );
+          const metadata =
+            readMetadata(entry);
 
-        if (!audio) {
-          continue;
-        }
+          const audio =
+            findAudioFile(
+              entry,
+              metadata
+            );
 
-
-        const transcriptFile =
-          new File(
-            entry,
-            'transcript.txt'
-          );
-
-        let characters =
-          metadata.characters ?? 0;
-
-        if (
-          characters === 0 &&
-          transcriptFile.exists
-        ) {
-
-          try {
-            characters =
-              transcriptFile
-                .textSync()
-                .length;
-          } catch {
-            characters = 0;
+          if (!audio) {
+            continue;
           }
-        }
 
 
-        const durationMillis =
-          metadata.durationMillis ?? 0;
+          const transcriptFile =
+            new File(
+              entry,
+              'transcript.txt'
+            );
 
-        const markers =
-          readLectureMarkers(
-            entry
-          );
+          let characters =
+            metadata.characters ?? 0;
 
-        const transcriptSegments =
-          readTranscriptSegments(
-            entry
-          );
-
-        const transcription =
-          metadata.transcription ??
-          getDefaultTranscription(
-            durationMillis
-          );
-
-
-        items.push({
-
-          id:
-            metadata.id ||
-            entry.name,
-
-          createdAt:
-            metadata.createdAt ??
-            null,
-
-          durationMillis,
-
-          language:
-            normalizeLectureLanguage(
-              metadata.language
-            ),
-
-          title:
-            typeof metadata.title ===
-              'string' &&
-            metadata.title.trim()
-              ? metadata.title.trim()
-              : null,
-
-          audioUri:
-            audio.file.uri,
-
-          audioFileName:
-            audio.name,
-
-          transcriptUri:
+          if (
+            characters === 0 &&
             transcriptFile.exists
-              ? transcriptFile.uri
-              : null,
+          ) {
 
-          transcriptReady:
-            transcriptFile.exists,
+            try {
+              characters =
+                transcriptFile
+                  .textSync()
+                  .length;
+            } catch {
+              characters = 0;
+            }
+          }
 
-          characters,
 
-          audioBytes:
-            metadata.audioBytes ??
-            audio.file.size,
+          const durationMillis =
+            metadata.durationMillis ?? 0;
 
-          recordingState:
-            metadata.recordingState ??
-            'ready',
+          const markers =
+            readLectureMarkers(
+              entry
+            );
 
-          interruptionReason:
-            metadata.interruptionReason ??
-            null,
+          const transcriptSegments =
+            readTranscriptSegments(
+              entry
+            );
 
-          transcription,
-          markers,
-          transcriptSegments,
-        });
+          const transcription =
+            metadata.transcription ??
+            getDefaultTranscription(
+              durationMillis
+            );
+
+
+          items.push({
+
+            id:
+              metadata.id ||
+              entry.name,
+
+            createdAt:
+              metadata.createdAt ??
+              null,
+
+            durationMillis,
+
+            language:
+              normalizeLectureLanguage(
+                metadata.language
+              ),
+
+            title:
+              typeof metadata.title ===
+                'string' &&
+              metadata.title.trim()
+                ? metadata.title.trim()
+                : null,
+
+            audioUri:
+              audio.file.uri,
+
+            audioFileName:
+              audio.name,
+
+            transcriptUri:
+              transcriptFile.exists
+                ? transcriptFile.uri
+                : null,
+
+            transcriptReady:
+              transcriptFile.exists,
+
+            characters,
+
+            audioBytes:
+              metadata.audioBytes ??
+              audio.file.size,
+
+            recordingState:
+              metadata.recordingState ??
+              'ready',
+
+            interruptionReason:
+              metadata.interruptionReason ??
+              null,
+
+            transcription,
+            markers,
+            transcriptSegments,
+          });
+
+        } catch (entryError) {
+          devConsole.error(
+            'LECTURE LOAD ERROR',
+            entry.name,
+            entryError
+          );
+        }
       }
 
 
@@ -718,9 +728,19 @@ export default function VoiceScreen() {
 
 
   useEffect(() => {
+    loadLectures();
+
     void (
       async () => {
-        await recoverInterruptedRecordings();
+        try {
+          await recoverInterruptedRecordings();
+        } catch (error) {
+          devConsole.error(
+            'Startup lecture recovery error:',
+            error
+          );
+        }
+
         loadLectures();
       }
     )();
