@@ -231,6 +231,34 @@ Deno.test("05c compound headword is not replaced by final lexeme", () => {
   );
 });
 
+Deno.test("05d compound metadata survives display-group selection", () => {
+  const paradigms = parseOrdbokeneArticles([{
+    dictionaryCode: "bm",
+    articleId: "23444",
+    sourceUrl: "https://ord.uib.no/bm/article/23444.json",
+    payload: {
+      lemmas: [{
+        lemma: "hestehov",
+        final_lexeme: "hov",
+        paradigm_info: [{
+          tags: ["NOUN", "Masc"],
+          paradigm_id: 1,
+          inflection: [
+            { word_form: "hestehov", tags: ["Sing", "Ind"] },
+          ],
+        }],
+      }],
+    },
+  }]);
+
+  const groups = new BokmalWrittenFormSelectionPolicy().select(paradigms);
+  assertEquals(groups.length, 1);
+  assertEquals(groups[0].lemma, "hestehov");
+  assertEquals(groups[0].isCompound, true);
+  assertEquals(groups[0].compoundParts, ["heste", "hov"]);
+  assertEquals(groups[0].headword, "hov");
+});
+
 Deno.test("06 Nynorsk få keeps adjective degrees separate from verbs", () => {
   const paradigms = parseOrdbokeneArticles(FA_CORPUS);
   const adjectives = paradigms.filter((item) => item.pos === "adjective");
@@ -907,7 +935,11 @@ function sameLemmaDifferentArticleFixture(): {
     pos: "verb",
     paradigmId: "1",
     lemma: "være",
-    paradigmTags: ["VERB"],
+    isCompound: false,
+    compoundParts: ["være"],
+    headword: "være",
+    morphologySourceLemma: "være",
+paradigmTags: ["VERB"],
     inflectionGroup: "VERB_fixture",
     standardisation: "STANDARD",
     forms: [

@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 
 import { isIrregularMorphology } from '@/services/formPresentation';
+import { CompoundWordText } from '@/components/CompoundWordText';
 
 import type { TrainingDensity } from '../TrainingCard';
 import { TrainingFormsList } from '../TrainingFormsList';
@@ -34,7 +35,14 @@ export function TrainingFlashcard({
         ]}
         onPress={speakCurrentTask}
       >
-        {getMainWord(current)}
+        <CompoundWordText
+          value={getMainWord(current)}
+          word={current}
+          style={s.word}
+          mainColor={isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
+          componentColor={isDark ? '#D69A72' : '#A85F38'}
+          separatorColor={isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
+        />
       </Text>
 
       {current.example ? (

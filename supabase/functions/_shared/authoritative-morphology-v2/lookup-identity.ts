@@ -14,3 +14,25 @@ export function lexemeDictionaryLookupQuery(
   if (!lemma) throw new Error("LEXEME_LEMMA_REQUIRED");
   return lemma;
 }
+export type AuthoritativeLookupParadigm = {
+  lemma: string;
+  forms: readonly {
+    value: string;
+    normalizedValue?: string;
+  }[];
+};
+
+/** Accept a canonical lemma or an official form from that same paradigm. */
+export function isAuthoritativeLookupForm(
+  query: string,
+  paradigms: readonly AuthoritativeLookupParadigm[],
+  normalize: (value: string) => string,
+): boolean {
+  const normalizedQuery = normalize(query);
+  return paradigms.some((paradigm) =>
+    normalize(paradigm.lemma) === normalizedQuery ||
+    paradigm.forms.some((form) =>
+      (form.normalizedValue || normalize(form.value)) === normalizedQuery
+    )
+  );
+}

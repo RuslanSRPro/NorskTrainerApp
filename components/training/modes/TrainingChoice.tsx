@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 
 import { GlassControl } from '@/components/ui/glass/GlassControl';
 import { isIrregularMorphology } from '@/services/formPresentation';
+import { CompoundWordText } from '@/components/CompoundWordText';
 import type { TrainingDensity } from '../TrainingCard';
 import { TrainingFormsList } from '../TrainingFormsList';
 
@@ -46,19 +47,28 @@ export function TrainingChoice({
   const dense = density === 'dense';
   return (
     <>
-      <Text
+      <CompoundWordText
+        value={getMainWord(current)}
+        word={current}
         style={[
           s.word,
-          compact && { fontSize: Math.max(32, fonts.word * 0.9), lineHeight: Math.max(37, fonts.word * 1.02), marginBottom: 9 },
-          dense && { fontSize: Math.max(30, fonts.word * 0.84), lineHeight: Math.max(35, fonts.word * 0.96), marginBottom: 6 },
-          isIrregularMorphology(current) && {
-            color: isDark ? '#FF7373' : '#C62828',
+          compact && {
+            fontSize: Math.max(32, fonts.word * 0.9),
+            lineHeight: Math.max(37, fonts.word * 1.02),
+            marginBottom: 9,
+          },
+          dense && {
+            fontSize: Math.max(30, fonts.word * 0.84),
+            lineHeight: Math.max(35, fonts.word * 0.96),
+            marginBottom: 6,
           },
         ]}
         onPress={speakCurrentTask}
-      >
-        {getMainWord(current)}
-      </Text>
+        mainColor={isIrregularMorphology(current)
+          ? (isDark ? '#FF7373' : '#C62828')
+          : textColor}
+        componentColor={textColor}
+      />
 
       <View style={[s.choiceGrid, compact && { gap: 8 }, dense && { gap: 6 }]}>
         {options?.map((option) => (

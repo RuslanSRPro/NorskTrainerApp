@@ -23,7 +23,10 @@ export {
   isD10PersistenceEnabled,
 } from "./internal-authorization.ts";
 export { isD10FormsV2CanaryEnabled } from "./rollout.ts";
-export { lexemeDictionaryLookupQuery } from "./lookup-identity.ts";
+export {
+  lexemeDictionaryLookupQuery,
+  isAuthoritativeLookupForm,
+} from "./lookup-identity.ts";
 export {
   buildParadigmIdentity,
   normalizeNorwegian,
