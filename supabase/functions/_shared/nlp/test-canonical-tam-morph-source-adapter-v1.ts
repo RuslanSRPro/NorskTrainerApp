@@ -573,6 +573,180 @@ Deno.test(
   },
 );
 Deno.test(
+  'TAM A5 extracts finite imperative mood from explicit registry features',
+  () => {
+    const result =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            VerbForm: 'Fin',
+            Mood: 'Imp',
+          },
+        }),
+      );
+
+    assert(
+      result.rejected.length === 0,
+      'finite imperative must be accepted',
+    );
+
+    assert(
+      result.sourceFacts.length === 1,
+      'expected one finite imperative source fact',
+    );
+
+    assert(
+      result.sourceFacts[0].sourceKey === 'FiniteMood' &&
+      result.sourceFacts[0].sourceValue === 'Imp',
+      'finite imperative tuple must be preserved',
+    );
+
+    assert(
+      result.sourceFacts[0].predicateId === 'predicate:1' &&
+      result.sourceFacts[0].headTokenId === 'tok:1',
+      'imperative occurrence identity must be preserved',
+    );
+  },
+);
+
+Deno.test(
+  'TAM A5 rejects imperative mood without explicit VerbForm=Fin',
+  () => {
+    const result =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            Mood: 'Imp',
+          },
+        }),
+      );
+
+    assert(
+      result.sourceFacts.length === 0,
+      'Mood alone must not authorize predicate mood',
+    );
+
+    assert(
+      result.rejected[0]?.reason ===
+        'no_authorized_feature',
+      'expected missing finite-form rejection',
+    );
+  },
+);
+
+Deno.test(
+  'TAM A5 rejects imperative mood on a non-finite occurrence',
+  () => {
+    const result =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            VerbForm: 'Part',
+            Mood: 'Imp',
+          },
+        }),
+      );
+
+    assert(
+      result.sourceFacts.length === 0,
+      'non-finite Mood=Imp must fail closed',
+    );
+
+    assert(
+      result.rejected[0]?.reason ===
+        'no_authorized_feature',
+      'expected non-finite mood rejection',
+    );
+  },
+);
+
+Deno.test(
+  'TAM A5 finite imperative maps through A2 only by explicit exact mapping',
+  () => {
+    const extracted =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            VerbForm: 'Fin',
+            Mood: 'Imp',
+          },
+        }),
+      );
+
+    assert(
+      extracted.sourceFacts.length === 1,
+      'expected finite imperative source fact',
+    );
+
+    const mapping:
+      CanonicalTamSourceMappingRuleV1 = {
+        id: 'tam-map:registry:FiniteMood=Imp',
+        sourceKind:
+          'grammar_morph_form_registry_v1',
+        sourceKey: 'FiniteMood',
+        sourceValue: 'Imp',
+        scope: 'predicate',
+        dimension: 'mood',
+        value: 'imperative',
+        provenanceIds: [
+          'prov:tam-map:FiniteMood=Imp',
+        ],
+      };
+
+    const mapped =
+      mapCanonicalTamSourceFactsV1(
+        extracted.sourceFacts,
+        [mapping],
+      );
+
+    assert(
+      mapped.rejected.length === 0,
+      'explicit imperative mapping must succeed',
+    );
+
+    assert(
+      mapped.evidenceFacts.length === 1,
+      'expected one mapped mood evidence fact',
+    );
+
+    assert(
+      mapped.evidenceFacts[0].dimension === 'mood' &&
+      mapped.evidenceFacts[0].value === 'imperative',
+      'expected explicit mood=imperative',
+    );
+
+    assert(
+      mapped.evidenceFacts[0].status === 'candidate',
+      'A5 must not resolve TAM',
+    );
+  },
+);
+
+Deno.test(
+  'TAM A5 does not infer construction-scoped TenseProfile in morph adapter',
+  () => {
+    const result =
+      extractCanonicalTamMorphSourceFactsV1(
+        graph({
+          canonicalFeatures: {
+            TenseProfile: 'PresentPerfect',
+          },
+        }),
+      );
+
+    assert(
+      result.sourceFacts.length === 0,
+      'construction TenseProfile is outside morph adapter authority',
+    );
+
+    assert(
+      result.rejected[0]?.reason ===
+        'no_authorized_feature',
+      'TenseProfile must fail closed here',
+    );
+  },
+);
+Deno.test(
   'TAM A3 without an explicit A2 mapping does not create TAM semantics',
   () => {
     const extracted =
@@ -598,5 +772,6 @@ Deno.test(
     );
   },
 );
+
 
 

@@ -308,19 +308,23 @@ export function extractCanonicalTamMorphSourceFactsV1(
           )
         : undefined;
 
-    // v1.48 A4 finite-tense boundary.
+    const mood =
+      canonicalFeatures
+        ? stringValue(
+            canonicalFeatures['Mood'],
+          )
+        : undefined;
+
+    // v1.48 A4/A5 finite TAM boundary.
     //
-    // Production registry rows prove that both finite forms and
-    // participles may carry Tense. Tense alone therefore cannot
-    // authorize predicate-tense evidence.
-    //
-    // Authorized tuples:
+    // Production registry authority explicitly provides:
     //   VerbForm=Fin + Tense=Past
     //   VerbForm=Fin + Tense=Pres
-    if (
-      verbForm !== 'Fin' ||
-      (tense !== 'Past' && tense !== 'Pres')
-    ) {
+    //   VerbForm=Fin + Mood=Imp
+    //
+    // Participial tense and non-finite mood must not become
+    // predicate-level TAM evidence.
+    if (verbForm !== 'Fin') {
       rejected.push({
         predicateId: predicate.id,
         reason: 'no_authorized_feature',
@@ -328,37 +332,83 @@ export function extractCanonicalTamMorphSourceFactsV1(
       continue;
     }
 
-    sourceFacts.push({
-      id:
-        `tam-source:morph:${predicate.id}:${morph.id}:VerbForm=Fin:Tense=${tense}`,
+    const evidenceIds =
+      uniqueStrings([
+        ...morph.evidenceIds,
+        ...phrase.evidenceIds,
+        ...predicate.evidenceIds,
+      ]);
 
-      predicateId:
-        predicate.id,
+    let emitted = false;
 
-      headTokenId:
-        predicateHead,
+    if (tense === 'Past' || tense === 'Pres') {
+      sourceFacts.push({
+        id:
+          `tam-source:morph:${predicate.id}:${morph.id}:VerbForm=Fin:Tense=${tense}`,
 
-      sourceKind:
-        'grammar_morph_form_registry_v1',
+        predicateId:
+          predicate.id,
 
-      sourceKey:
-        'FiniteTense',
+        headTokenId:
+          predicateHead,
 
-      sourceValue:
-        tense,
+        sourceKind:
+          'grammar_morph_form_registry_v1',
 
-      sourceId:
-        morph.id,
+        sourceKey:
+          'FiniteTense',
 
-      evidenceIds:
-        uniqueStrings([
-          ...morph.evidenceIds,
-          ...phrase.evidenceIds,
-          ...predicate.evidenceIds,
-        ]),
+        sourceValue:
+          tense,
 
-      provenanceIds,
-    });
+        sourceId:
+          morph.id,
+
+        evidenceIds,
+
+        provenanceIds,
+      });
+
+      emitted = true;
+    }
+
+    if (mood === 'Imp') {
+      sourceFacts.push({
+        id:
+          `tam-source:morph:${predicate.id}:${morph.id}:VerbForm=Fin:Mood=Imp`,
+
+        predicateId:
+          predicate.id,
+
+        headTokenId:
+          predicateHead,
+
+        sourceKind:
+          'grammar_morph_form_registry_v1',
+
+        sourceKey:
+          'FiniteMood',
+
+        sourceValue:
+          'Imp',
+
+        sourceId:
+          morph.id,
+
+        evidenceIds,
+
+        provenanceIds,
+      });
+
+      emitted = true;
+    }
+
+    if (!emitted) {
+      rejected.push({
+        predicateId: predicate.id,
+        reason: 'no_authorized_feature',
+      });
+    }
   }
 
   return {
@@ -372,6 +422,7 @@ export function extractCanonicalTamMorphSourceFactsV1(
     rejected,
   };
 }
+
 
 
 
