@@ -13,7 +13,7 @@ import {
   addLexemeToLearningFromSupabase, addPreviewWordViaAppsScript,
   addExpressionCandidateToSupabase, analyzeTextViaAppsScript,
   boostReadingLexemeHitsInSupabase, getReadingLexemesFromSupabase,
-  inspectWordViaAppsScript, translateSentenceWithAI,
+  inspectWordViaAppsScript, searchLexemeInSupabase, translateSentenceWithAI,
   getJobProgress, getJobChainProgress, getJobStatus,
 } from "@/services/api";
 import { speakNorwegian, stopSpeech } from "@/services/speech";
@@ -262,6 +262,7 @@ export default function ReadingScreen() {
   const [analyzerCandidates,setAnalyzerCandidates]=useState<AnalyzerCandidate[]>([]);
   const [analyzerMessage,setAnalyzerMessage]=useState("");
   const [selectedWord,setSelectedWord]=useState<any>(null);
+  const [wordMatches,setWordMatches]=useState<any[]>([]);
   const [selectedSentence,setSelectedSentence]=useState<string|null>(null);
   const [sentenceAI,setSentenceAI]=useState<SentenceAIResult|null>(null);
   const [sentenceUsage,setSentenceUsage]=useState<any>(null);
@@ -380,7 +381,7 @@ export default function ReadingScreen() {
   // ─────────────────────────────────────────────────────────────────────
 
   function clearText(){setText("");setAnalysis([]);setSentences([]);setError("");setSelectedWord(null);setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");setAddingWord(false);setActiveSource(null);setAnalyzerResult(null);setAnalyzerCandidates([]);setAnalyzerMessage("");clearJobTracking();}
-  function clearWordSearch(){setWordQuery("");setWordSearchMessage("");setPreviewWord(null);}
+  function clearWordSearch(){setWordQuery("");setWordSearchMessage("");setPreviewWord(null);setWordMatches([]);setSelectedWord(null);}
   function openSentence(sentence:string){setSelectedSentence(sentence);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");}
 
   async function buildLocalDictionary(){
@@ -440,20 +441,36 @@ export default function ReadingScreen() {
 
   async function checkWord(){
     try{
-      const nq=normalizeToken(wordQuery);if(!nq){setWordSearchMessage(tr("enter_word_to_check"));return;}
-      setWordLoading(true);setWordSearchMessage("");setSelectedWord(null);setPreviewWord(null);
-      const r=await inspectWordViaAppsScript(nq);
-      if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||r.item.translation_ua||"",en:r.item.en||r.item.translation_en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
-      if(r?.preview){setPreviewWord(r.preview);setWordSearchMessage(tr("new_word_review_preview"));return;}
-      setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
+      const queries=String(wordQuery||"").split(",").map(v=>normalizeToken(v)).filter(Boolean);
+      if(!queries.length){setWordSearchMessage(tr("enter_word_to_check"));return;}
+      setWordLoading(true);setWordSearchMessage("");setSelectedWord(null);setWordMatches([]);setPreviewWord(null);
+      const found:any[]=[];let firstUnknown:string|null=null;
+      for(const query of queries){
+        const r=await searchLexemeInSupabase(query);
+        if(r?.found&&Array.isArray(r.items)&&r.items.length){
+          found.push(...r.items.map((item:any)=>({...item,learned:false,ua:item.ua||item.translation_ua||"",en:item.en||item.translation_en||"",category:item.type||item.category||"",searchQuery:query})));
+        }else if(!firstUnknown){firstUnknown=query;}
+      }
+      setWordMatches(found);
+      if(found.length){setSelectedWord(found[0]);setWordSearchMessage(tr("word_found"));return;}
+      if(firstUnknown){
+        const r=await inspectWordViaAppsScript(firstUnknown);
+        if(r?.preview){setPreviewWord(r.preview);setWordSearchMessage(tr("new_word_review_preview"));return;}
+        setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
+      }
     }catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setWordLoading(false);}
   }
 
   async function inspectUnknownWord(value:string){
     const q=normalizeToken(value);if(!q)return;
-    setWordQuery(q);setPreviewWord(null);setSelectedWord(null);setWordSearchMessage("");
+    setWordQuery(q);setPreviewWord(null);setSelectedWord(null);setWordMatches([]);setWordSearchMessage("");
     try{
-      setWordLoading(true);const r=await inspectWordViaAppsScript(q);
+      setWordLoading(true);const lookup=await searchLexemeInSupabase(q);
+      if(lookup?.found&&lookup?.items?.length){
+        const items=lookup.items.map((item:any)=>({...item,learned:false,ua:item.ua||item.translation_ua||"",en:item.en||item.translation_en||"",category:item.type||item.category||"",searchQuery:q}));
+        setWordMatches(items);setSelectedWord(items[0]);setWordSearchMessage(tr("word_found"));return;
+      }
+      const r=await inspectWordViaAppsScript(q);
       if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||r.item.translation_ua||"",en:r.item.en||r.item.translation_en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
       if(r?.preview){setPreviewWord(r.preview);setWordSearchMessage(tr("preview_ready"));return;}
       setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
@@ -574,6 +591,14 @@ export default function ReadingScreen() {
             </Pressable>
           </View>):null}
           {wordSearchMessage?(<View style={[s.msgBox,{backgroundColor:T.accentBg}]}><Text style={[s.msgText,{color:T.textPrimary,fontSize:F.base}]}>{wordSearchMessage}</Text></View>):null}
+          {wordMatches.length>1?(<View style={[s.msgBox,{backgroundColor:T.cardAlt}]}>
+            <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>Velg ordklasse:</Text>
+            {wordMatches.map((item:any,index:number)=>(
+              <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:selectedWord?.id===item.id?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>setSelectedWord(item)}>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {item.pos||item.category||item.type||""}</Text>
+              </Pressable>
+            ))}
+          </View>):null}
         </View>
 
         {/* Text analysis card */}
