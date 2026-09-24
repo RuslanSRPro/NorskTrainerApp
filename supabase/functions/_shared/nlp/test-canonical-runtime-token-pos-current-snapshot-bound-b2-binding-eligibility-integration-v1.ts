@@ -1244,4 +1244,181 @@ if (
   );
 }
 // B2_BINDING_ELIGIBILITY_PROBE_END
+
+// B2_TRANSITIVE_BLOCKING_REGRESSION_BEGIN
+const b2PublicInputs = [
+  surface,
+  graph,
+  normalized,
+  b2CurrentDomain,
+  dependency.authorities,
+  rows,
+] as const;
+
+const b2FinalBindingModule = await import(
+  "./canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts"
+);
+const b2BoundConditionModule = await import(
+  "./canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts"
+);
+const b2LeafTruthModule = await import(
+  "./canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts"
+);
+const b2RecursiveWhereModule = await import(
+  "./canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts"
+);
+
+const b2PublicStages = [
+  {
+    name: "final-runtime-binding",
+    run: () =>
+      b2FinalBindingModule
+        .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundFinalRuntimeBindingV1(
+          ...b2PublicInputs
+        ),
+  },
+  {
+    name: "bound-condition-evidence",
+    run: () =>
+      b2BoundConditionModule
+        .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundBoundConditionEvidenceV1(
+          ...b2PublicInputs
+        ),
+  },
+  {
+    name: "authority-bound-leaf-truth",
+    run: () =>
+      b2LeafTruthModule
+        .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereAuthorityBoundLeafTruthEvidenceV1(
+          ...b2PublicInputs
+        ),
+  },
+  {
+    name: "recursive-where",
+    run: () =>
+      b2RecursiveWhereModule
+        .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereContextCoherentRecursiveCompoundTruthV1(
+          ...b2PublicInputs
+        ),
+  },
+];
+
+for (const stage of b2PublicStages) {
+  const result = await stage.run();
+
+  if (
+    result.status !== "blocked" ||
+    !result.blockingReasons.some((reason) =>
+      reason.includes(b2ExpectedReason)
+    )
+  ) {
+    throw new Error(
+      `B2 transitive regression failed at ${stage.name}: ` +
+        JSON.stringify(result),
+    );
+  }
+}
+  // B2_OWNER_FINAL_ROOT_REGRESSION_BEGIN
+  const b2ManifestBindingModule = await import(
+    "./canonical-runtime-manifest-binding-definition-authority-v1.ts"
+  );
+  const b2ScopeModule = await import(
+    "./canonical-runtime-manifest-binding-scope-compatibility-v1.ts"
+  );
+  const b2DirectDomainModule = await import(
+    "./canonical-sentence-direct-token-occurrence-domain-capability-v1.ts"
+  );
+  const b2OwnerModule = await import(
+    "./canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts"
+  );
+  const b2FinalRootModule = await import(
+    "./canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts"
+  );
+
+  const b2ManifestBindings =
+    b2ManifestBindingModule
+      .deriveCanonicalRuntimeManifestBindingDefinitionAuthoritiesV1(rows);
+
+  const b2SentenceBoundary = {
+    authorityId: "boundary:sentence",
+    status: "proven" as const,
+    boundaryLabel: "sentence" as const,
+    source: "canonical_sentence_scope_boundary_capability_v1" as const,
+  };
+
+  const b2ManifestScope =
+    b2ScopeModule.deriveCanonicalRuntimeManifestBindingScopeCompatibilitiesV1(
+      b2ManifestBindings,
+      [b2SentenceBoundary],
+    );
+
+  const b2DirectTokenDomains =
+    b2DirectDomainModule.deriveCanonicalSentenceDirectTokenOccurrenceDomainsV1(
+      graph,
+    );
+
+  const b2RecursiveWhere = await b2RecursiveWhereModule
+    .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereContextCoherentRecursiveCompoundTruthV1(
+      ...b2PublicInputs
+    );
+
+  if (
+    b2RecursiveWhere.status !== "blocked" ||
+    !b2RecursiveWhere.blockingReasons.some((reason) =>
+      reason.includes(b2ExpectedReason)
+    )
+  ) {
+    throw new Error(
+      "B2 recursive WHERE did not preserve blocking reason: " +
+        JSON.stringify(b2RecursiveWhere),
+    );
+  }
+
+  const b2Owner = b2OwnerModule
+    .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereOwnerBindingOccurrenceProvenanceV1(
+      b2RecursiveWhere,
+      b2ManifestScope,
+      b2DirectTokenDomains,
+      snapshotResult,
+    );
+
+  if (
+    b2Owner.status !== "blocked" ||
+    !b2Owner.blockingReasons.some((reason) =>
+      reason.includes(b2ExpectedReason)
+    )
+  ) {
+    throw new Error(
+      "B2 owner provenance did not preserve blocking reason: " +
+        JSON.stringify(b2Owner),
+    );
+  }
+
+  const b2FinalRoot = b2FinalRootModule
+    .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereFinalRootTruthDecisionV1(
+      b2Owner,
+    );
+
+  if (
+    b2FinalRoot.status !== "blocked" ||
+    !b2FinalRoot.blockingReasons.some((reason) =>
+      reason.includes(b2ExpectedReason)
+    ) ||
+    b2FinalRoot.decisions.length !== 0
+  ) {
+    throw new Error(
+      "B2 final root truth did not preserve blocked state: " +
+        JSON.stringify(b2FinalRoot),
+    );
+  }
+
+  console.log("B2_OWNER_FINAL_ROOT=" + JSON.stringify({
+    ownerStatus: b2Owner.status,
+    ownerReasonPreserved: true,
+    finalRootStatus: b2FinalRoot.status,
+    finalRootReasonPreserved: true,
+    finalRootDecisionCount: b2FinalRoot.decisions.length,
+  }));
+  // B2_OWNER_FINAL_ROOT_REGRESSION_END
+// B2_TRANSITIVE_BLOCKING_REGRESSION_END
 });
