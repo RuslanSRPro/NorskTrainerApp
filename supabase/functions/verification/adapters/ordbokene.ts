@@ -9,6 +9,14 @@ import {
   shouldCheckOrdbokeneComponent,
   type SourceLookupResult,
 } from './shared.ts';
+import { OrdbokeneClient } from '../../_shared/authoritative-morphology-v2/client.ts';
+import {
+  normalizeNorwegian,
+  parseOrdbokeneArticles,
+} from '../../_shared/authoritative-morphology-v2/parser.ts';
+import { isAuthoritativeLookupForm } from '../../_shared/authoritative-morphology-v2/lookup-identity.ts';
+
+const MORPHOLOGY_POS = new Set(['verb', 'noun', 'adjective', 'determiner']);
 
 function norwegianLemmaVariants(word: string): string[] {
   const variants = new Set<string>([word]);
@@ -29,9 +37,67 @@ function norwegianLemmaVariants(word: string): string[] {
 export async function checkOrdbokeneLive(
   lemma: string,
   displayForm: string,
+  pos?: string | null,
 ): Promise<SourceLookupResult> {
   const query = lemma || displayForm;
   const tokens = getTokens(query);
+
+  // Token verification must use the same Bokmål article search as D10:
+  // exact lookup, inflected-form fallback, article fetch, POS and form check.
+  // Do not treat a suggestion or a truncated spelling variant as this POS.
+  if (tokens.length === 1 && (!pos || MORPHOLOGY_POS.has(pos))) {
+    const lookup = await new OrdbokeneClient().lookup(query, ['bm']);
+    const paradigms = parseOrdbokeneArticles(lookup.articles).filter(
+      (paradigm) =>
+        (!pos || paradigm.pos === pos) &&
+        isAuthoritativeLookupForm(query, [paradigm], normalizeNorwegian),
+    );
+    const articleIds = [...new Set(paradigms.map((paradigm) => paradigm.articleId))];
+    if (lookup.errors.length) {
+      return {
+        source: 'Ordbokene', checked: true, found: false,
+        quality: 'error', registered_entry: false,
+        whole_unit_match: false, component_match: false, usage_match: false,
+        urls: lookup.errors.map((error) => error.url),
+        evidence_label: 'Ordbokene article fetch incomplete',
+        error: lookup.errors.map((error) => error.message).join('; '),
+      };
+    }
+    if (articleIds.length === 1) {
+      return {
+        source: 'Ordbokene',
+        checked: true,
+        found: true,
+        quality: 'registered_entry',
+        registered_entry: true,
+        whole_unit_match: true,
+        component_match: false,
+        usage_match: false,
+        urls: [...new Set(paradigms.map((paradigm) => paradigm.articleUrl))],
+        evidence_label: `Ordbokene Bokmål ${pos ?? paradigms[0].pos}: ${articleIds[0]}`,
+        raw_preview: {
+          dictionary_code: 'bm',
+          pos: pos ?? paradigms[0].pos,
+          article_ids: articleIds,
+          lookup_scope: lookup.scopeUsed,
+          candidate_article_count: lookup.articleReferences.length,
+        },
+      };
+    }
+    return {
+      source: 'Ordbokene', checked: true, found: false,
+      quality: 'not_found', registered_entry: false,
+      whole_unit_match: false, component_match: false, usage_match: false,
+      urls: lookup.articleReferences.map((reference) =>
+        `https://ord.uib.no/${reference.dictionaryCode}/article/${reference.articleId}.json`
+      ),
+      evidence_label: articleIds.length > 1
+        ? 'Ambiguous Bokmål articles; no article selected'
+        : `No matching Bokmål ${pos ?? 'part of speech'} article or official form`,
+      raw_preview: { dictionary_code: 'bm', pos, lookup_scope: lookup.scopeUsed,
+        candidate_article_ids: articleIds },
+    };
+  }
 
   const exactArticlesUrl = `https://ord.uib.no/api/articles?w=${encodeURIComponent(
     query,

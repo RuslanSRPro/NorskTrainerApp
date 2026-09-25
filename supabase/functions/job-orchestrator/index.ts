@@ -311,7 +311,11 @@ serve(async (req) => {
     let jobsQuery = supabase
       .from('lexeme_processing_jobs')
       .select('*')
-      .in('status', ['pending', 'processing', 'ready'])
+      // Explicit recovery may resume a job that source-check progress
+      // prematurely marked done before promotion ran.
+      .in('status', requestedJobId
+        ? ['pending', 'processing', 'ready', 'done']
+        : ['pending', 'processing', 'ready'])
       .order('created_at', {
         ascending: true,
       });
@@ -335,6 +339,19 @@ serve(async (req) => {
 
     for (const job of jobs ?? []) {
       const jobId = job.id;
+
+      if (job.status === 'done') {
+        const { count, error } = await supabase
+          .from('lexeme_processing_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('job_id', jobId)
+          .eq('current_stage', 'source_checks');
+        if (error) throw error;
+        if (!count) {
+          processedJobs.push({ job_id: jobId, action: 'skipped', reason: 'no unpromoted items' });
+          continue;
+        }
+      }
 
       // ДОБАВЛЕНО (04.08.2026): лок против параллельного выполнения
       // job-orchestrator для одного и того же job_id.

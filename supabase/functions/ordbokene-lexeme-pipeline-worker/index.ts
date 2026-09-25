@@ -1,4 +1,10 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { OrdbokeneClient } from '../_shared/authoritative-morphology-v2/client.ts';
+import {
+  normalizeNorwegian,
+  parseOrdbokeneArticles,
+} from '../_shared/authoritative-morphology-v2/parser.ts';
+import { isAuthoritativeLookupForm } from '../_shared/authoritative-morphology-v2/lookup-identity.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,11 +99,33 @@ async function invokeFunction(
 async function lookupOrdbokeneArticleId(
   lemma: string,
   dictionaryCode: string,
+  pos?: string | null,
 ) {
   const normalizedLemma = normalizeKey(lemma);
 
+  if (dictionaryCode === 'bm' && pos &&
+    ['verb', 'noun', 'adjective', 'determiner'].includes(pos)) {
+    const lookup = await new OrdbokeneClient().lookup(normalizedLemma, ['bm']);
+    const articleIds = [...new Set(parseOrdbokeneArticles(lookup.articles)
+      .filter((paradigm) =>
+        paradigm.pos === pos &&
+        isAuthoritativeLookupForm(normalizedLemma, [paradigm], normalizeNorwegian)
+      ).map((paradigm) => paradigm.articleId))];
+    if (lookup.errors.length > 0) {
+      throw new Error(`Ordbokene article fetch incomplete for ${normalizedLemma}`);
+    }
+    const lookupUrl = `https://ord.uib.no/api/articles?w=${encodeURIComponent(normalizedLemma)}&dict=bm&scope=${lookup.scopeUsed}`;
+    return {
+      found: articleIds.length === 1,
+      ambiguous: articleIds.length > 1,
+      article_id: articleIds.length === 1 ? Number(articleIds[0]) : null,
+      lookup_url: lookupUrl,
+      raw_lookup: { dictionary_code: 'bm', pos, article_ids: articleIds },
+    };
+  }
+
   const lookupUrl =
-    `https://ord.uib.no/api/articles?w=${encodeURIComponent(normalizedLemma)}&dict=bm,nn&scope=e`;
+    `https://ord.uib.no/api/articles?w=${encodeURIComponent(normalizedLemma)}&dict=${encodeURIComponent(dictionaryCode)}&scope=e`;
 
   const response = await fetch(lookupUrl);
   const text = await response.text();
@@ -117,9 +145,10 @@ async function lookupOrdbokeneArticleId(
 
   const articleIds = data?.articles?.[dictionaryCode];
 
-  if (!Array.isArray(articleIds) || articleIds.length === 0) {
+  if (!Array.isArray(articleIds) || articleIds.length !== 1) {
     return {
       found: false,
+      ambiguous: Array.isArray(articleIds) && articleIds.length > 1,
       article_id: null,
       lookup_url: lookupUrl,
       raw_lookup: data,
@@ -128,6 +157,7 @@ async function lookupOrdbokeneArticleId(
 
   return {
     found: true,
+    ambiguous: false,
     article_id: Number(articleIds[0]),
     lookup_url: lookupUrl,
     raw_lookup: data,
@@ -389,6 +419,7 @@ serve(async (req) => {
       body.lemma == null ? null : normalizeKey(String(body.lemma));
 
     const dictionaryCode = String(body.dictionary_code ?? 'bm').trim();
+    const requestedPos = body.pos == null ? null : String(body.pos).trim();
 
     let articleId =
       body.article_id == null ? null : Number(body.article_id);
@@ -422,10 +453,30 @@ serve(async (req) => {
 
     const steps: Record<string, unknown> = {};
 
+    if (articleId && inputLemma && requestedPos && dictionaryCode === 'bm') {
+      const lookup = await new OrdbokeneClient().lookup(inputLemma, ['bm']);
+      const confirmedIds = new Set(parseOrdbokeneArticles(lookup.articles)
+        .filter((paradigm) =>
+          paradigm.pos === requestedPos &&
+          isAuthoritativeLookupForm(inputLemma, [paradigm], normalizeNorwegian)
+        ).map((paradigm) => Number(paradigm.articleId)));
+      if (lookup.errors.length > 0 || !confirmedIds.has(articleId)) {
+        return jsonResponse({
+          ok: false,
+          error: 'PROVIDED_ARTICLE_IDENTITY_MISMATCH',
+          lemma: inputLemma,
+          pos: requestedPos,
+          article_id: articleId,
+          matching_article_ids: [...confirmedIds],
+        }, 409);
+      }
+    }
+
     if (!articleId && inputLemma) {
       const lookup = await lookupOrdbokeneArticleId(
         inputLemma,
         dictionaryCode,
+        requestedPos,
       );
 
       steps.article_lookup = {
@@ -433,6 +484,7 @@ serve(async (req) => {
         lemma: inputLemma,
         dictionary_code: dictionaryCode,
         found: lookup.found,
+        ambiguous: lookup.ambiguous,
         article_id: lookup.article_id,
         lookup_url: lookup.lookup_url,
         raw_lookup: lookup.raw_lookup,
@@ -447,14 +499,15 @@ serve(async (req) => {
           dictionary_code: dictionaryCode,
           entity_mode: body.item_type === 'expression' ? 'expression' : 'unknown',
           ordbokene_status: 'not_listed',
-          diagnostic_status: 'article_not_found',
+          diagnostic_status: lookup.ambiguous ? 'ambiguous_articles' : 'article_not_found',
           confidence: 1,
           dry_run: dryRun,
           compact,
           run_resolver: runResolver,
           steps,
-          note:
-            'No Ordbokene article found. This is valid negative source evidence, not a technical error.',
+          note: lookup.ambiguous
+            ? 'Multiple articles match this lemma and POS; no article was selected.'
+            : 'No matching Ordbokene article found; no article was selected.',
         });
       }
 
@@ -517,7 +570,7 @@ serve(async (req) => {
     const entityMode =
       body.entity_mode != null
         ? String(body.entity_mode)
-        : parentLexemeIdFromCache
+        : parentLexemeId || parentLexemeIdFromCache
           ? 'lexeme'
           : 'expression';
 

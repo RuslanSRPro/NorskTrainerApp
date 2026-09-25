@@ -794,6 +794,18 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       const unpromotedRemaining = Number(result.data?.unpromoted_items_remaining ?? 0);
 
       if (unpromotedRemaining > 0) {
+        // recalculate_job_progress can mark the job done while source-check
+        // items are still waiting for promotion. Keep it discoverable by cron.
+        const resumed = await updateJobStatus(jobId, 'processing');
+        if (!resumed) {
+          return {
+            job_id: jobId,
+            stage: state.stage,
+            step: 'job-completion-auditor',
+            classification: 'retryable_error',
+            reason: 'could not resume job with unpromoted items',
+          };
+        }
         state.stage = 'orchestrator';
         state.audit_offset = 0;
         state.last_error = null;

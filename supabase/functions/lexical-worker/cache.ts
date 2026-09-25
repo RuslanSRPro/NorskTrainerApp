@@ -28,6 +28,14 @@ import type { SourceCheck, LookupResult } from './types.ts';
 const LOOKUP_CACHE_ADAPTER_VERSION =
   'lexical-worker-v2-full-refresh-2026-07-08';
 
+function cacheVersion(check: SourceCheck): string {
+  if (check.source === 'Ordbokene' && check.query_type === 'token') {
+    // Cache evidence depends on the requested POS and the new D10 lookup.
+    return `lexical-worker-ordbokene-bm-pos-v1:${check.pos ?? 'unknown'}`;
+  }
+  return LOOKUP_CACHE_ADAPTER_VERSION;
+}
+
 export async function getCachedLookup(
   supabase: any,
   check: SourceCheck,
@@ -39,7 +47,7 @@ export async function getCachedLookup(
       p_query: check.query,
       p_query_type: check.query_type,
       p_adapter_version:
-        LOOKUP_CACHE_ADAPTER_VERSION,
+        cacheVersion(check),
     },
   );
 
@@ -102,7 +110,7 @@ export async function saveLookupCache(
         result.error ?? null,
 
       p_adapter_version:
-        LOOKUP_CACHE_ADAPTER_VERSION,
+        cacheVersion(check),
     },
   );
 }

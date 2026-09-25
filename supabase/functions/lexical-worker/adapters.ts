@@ -32,7 +32,7 @@ export async function lookupSource(
       check.source === 'NAOB'
         ? await checkNAOBLive(query, query)
         : check.source === 'Ordbokene'
-          ? await checkOrdbokeneLive(query, query)
+          ? await checkOrdbokeneLive(query, query, check.pos)
           : check.source === 'Wiktionary'
             ? await checkWiktionaryLive(query, query)
             : check.source === 'Språkrådet'

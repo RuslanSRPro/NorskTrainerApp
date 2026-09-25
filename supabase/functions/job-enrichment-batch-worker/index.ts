@@ -377,9 +377,44 @@ async function enqueueOrdbokeneEnrichment(jobId: string, offset: number, limit: 
 
   const items = (promotedItems ?? []).filter((item) => item.normalized_lemma ?? item.surface_form);
 
+  // Keep the POS and the exact article established by the lexical check.
+  // Expression candidates deliberately have no lexeme ID yet.
+  const lexemeIds = [...new Set(items.map((item) => item.lexeme_id).filter(Boolean))];
+  const { data: posRows, error: posError } = lexemeIds.length
+    ? await supabase.from('lexemes').select('id, pos').in('id', lexemeIds)
+    : { data: [], error: null };
+  if (posError) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_pos', error: safeStringify(posError) }] };
+  const posByLexeme = new Map((posRows ?? []).map((row: any) => [row.id, row.pos]));
+
+  const { data: articleChecks, error: checksError } = items.length
+    ? await supabase.from('lexeme_source_checks')
+      .select('item_id, evidence, registered_entry')
+      .in('item_id', items.map((item) => item.id))
+      .eq('source', 'Ordbokene')
+    : { data: [], error: null };
+  if (checksError) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_article_checks', error: safeStringify(checksError) }] };
+  const articleByItem = new Map<string, number>();
+  for (const check of articleChecks ?? []) {
+    const preview = (check.evidence as any)?.raw_preview;
+    const ids = preview?.article_ids;
+    if (check.registered_entry === true && preview?.dictionary_code === 'bm' &&
+      Array.isArray(ids) && ids.length === 1 && Number.isSafeInteger(Number(ids[0]))) {
+      articleByItem.set(check.item_id, Number(ids[0]));
+    }
+  }
+
   const stats = await runChunked(items, CONCURRENCY, (item) => {
     const lemma = item.normalized_lemma ?? item.surface_form;
-    return callWorkerJson('ordbokene-lexeme-pipeline-worker', { lemma, parent_lexeme_id: item.lexeme_id ?? null, dry_run: false });
+    const isLexeme = item.match_type === 'token' && Boolean(item.lexeme_id);
+    return callWorkerJson('ordbokene-lexeme-pipeline-worker', {
+      lemma,
+      parent_lexeme_id: isLexeme ? item.lexeme_id : null,
+      entity_mode: isLexeme ? 'lexeme' : 'expression',
+      pos: isLexeme ? posByLexeme.get(item.lexeme_id) ?? null : null,
+      article_id: isLexeme ? articleByItem.get(item.id) ?? null : null,
+      dictionary_code: 'bm',
+      dry_run: false,
+    });
   });
 
   return buildResult(items.length, stats, count, offset, limit);

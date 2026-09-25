@@ -19,6 +19,8 @@ export type SourceCheck = {
 
   query: string;
   query_type: string;
+  // Loaded from the processing item for the Ordbøkene check; absent for other sources.
+  pos?: string | null;
 
   attempt_count: number;
   max_attempts: number;

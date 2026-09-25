@@ -59,6 +59,15 @@ Deno.serve(async (req) => {
 
     for (const check of (checks ?? []) as SourceCheck[]) {
       try {
+        if (check.source === 'Ordbokene' && check.query_type === 'token') {
+          const { data: item, error: itemError } = await supabase
+            .from('lexeme_processing_items')
+            .select('pos')
+            .eq('id', check.item_id)
+            .single();
+          if (itemError) throw itemError;
+          check.pos = item.pos;
+        }
         await processSourceCheck(supabase, check);
 
         results.push({
