@@ -91,6 +91,34 @@ const ENRICHMENT_CHAINS = [
 
 type Chain = (typeof ENRICHMENT_CHAINS)[number];
 
+// Store deferred pages in the existing JSONB offsets so a single failed item
+// cannot keep the entire job at the same offset indefinitely.
+const RETRY_PAGE_PREFIX = '__d10_retry_page__';
+const MAX_DEFERRED_PAGE_ATTEMPTS = 3;
+
+function retryPageKey(chain: Chain, offset: number): string {
+  return `${RETRY_PAGE_PREFIX}${chain}__${offset}`;
+}
+
+function pendingRetryPages(offsets: Record<string, number>): Array<{
+  chain: Chain;
+  offset: number;
+  key: string;
+  attempts: number;
+}> {
+  return Object.entries(offsets).flatMap(([key, attempts]) => {
+    if (!key.startsWith(RETRY_PAGE_PREFIX)) return [];
+    const suffix = key.slice(RETRY_PAGE_PREFIX.length);
+    const separator = suffix.lastIndexOf('__');
+    if (separator < 0) return [];
+    const chain = suffix.slice(0, separator) as Chain;
+    const offset = Number(suffix.slice(separator + 2));
+    if (!ENRICHMENT_CHAINS.includes(chain) || !Number.isSafeInteger(offset) || offset < 0) return [];
+    return [{ chain, offset, key, attempts }];
+  }).sort((a, b) => ENRICHMENT_CHAINS.indexOf(a.chain) - ENRICHMENT_CHAINS.indexOf(b.chain) || a.offset - b.offset);
+}
+
+
 type WorkerCallResult = {
   ok: boolean;
   status: number;
@@ -655,8 +683,17 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
   }
 
   if (state.stage === 'enrichment') {
-    const chain: Chain = ENRICHMENT_CHAINS[state.enrichment_chain_index % ENRICHMENT_CHAINS.length];
-    const offset = state.enrichment_offsets[chain] ?? 0;
+    const retryPage = state.enrichment_chain_index >= ENRICHMENT_CHAINS.length
+      ? pendingRetryPages(state.enrichment_offsets)[0]
+      : undefined;
+    if (state.enrichment_chain_index >= ENRICHMENT_CHAINS.length && !retryPage) {
+      state.stage = 'audit';
+      state.last_error = null;
+      await saveState(state);
+      return { job_id: jobId, stage: state.stage, classification: 'success' };
+    }
+    const chain: Chain = retryPage?.chain ?? ENRICHMENT_CHAINS[state.enrichment_chain_index];
+    const offset = retryPage?.offset ?? state.enrichment_offsets[chain] ?? 0;
 
     // ДОБАВЛЕНО (05.08.2026): точечно больший limit для двух AI-цепочек —
     // см. комментарий у AI_FALLBACK_BATCH_LIMIT/AI_FALLBACK_CHAINS выше.
@@ -690,16 +727,61 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     }
 
     if (classification === 'retryable_error') {
+      // Only move past a page when the batch worker returned a complete,
+      // structured page result. Network errors and failed page loads stay put.
+      const processed = Number(result.data?.processed);
+      const failed = Number(result.data?.failed);
+      const next = result.data?.next_offset;
+      const hasMore = result.data?.has_more;
+      const completePage = !result.network_error && processed > 0 &&
+        failed > 0 && Number(result.data?.retryable) === failed &&
+        (hasMore === true || hasMore === false) &&
+        (hasMore === false || (Number.isSafeInteger(next) && next > offset));
+
+      if (completePage) {
+        const key = retryPage?.key ?? retryPageKey(chain, offset);
+        const attempts = retryPage ? (state.enrichment_offsets[key] ?? 0) + 1 : 0;
+        if (attempts >= MAX_DEFERRED_PAGE_ATTEMPTS) {
+          state.stage = 'needs_manual_review';
+          state.last_error = `enrichment[${chain}] page ${offset}: ${MAX_DEFERRED_PAGE_ATTEMPTS} deferred retries failed: ${safeStringify(result.data)}`;
+          await saveState(state);
+          await updateJobStatus(jobId, 'needs_manual_review', {
+            supervisor_last_error: state.last_error,
+            supervisor_failed_step: `enrichment[${chain}]`,
+          });
+          return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`, classification: 'blocked_manual_review' };
+        }
+        state.enrichment_offsets[key] = attempts;
+        if (!retryPage) {
+          state.enrichment_offsets[chain] = hasMore ? Number(next) : offset + processed;
+          if (!hasMore) state.enrichment_chain_index++;
+        }
+        // Failed pages are retried after all chains, so downstream forms for
+        // the successful items do not wait for one timed-out item.
+        state.last_error = null;
+        await saveState(state);
+        return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`,
+          classification: 'retryable_error', deferred_page: offset, failed,
+          detail: result.data };
+      }
       state.last_error = safeStringify(result.data ?? result.network_error);
       await saveState(state);
+      return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`,
+        classification, detail: result.network_error ?? result.data };
+    }
 
-      return {
-        job_id: jobId,
-        stage: state.stage,
-        step: `enrichment[${chain}]`,
-        classification,
-        detail: result.network_error ?? result.data,
-      };
+    if (retryPage) {
+      delete state.enrichment_offsets[retryPage.key];
+      // Replay downstream chains for the lexeme whose upstream page just
+      // recovered. Their calls must run again before auditing completion.
+      for (let i = ENRICHMENT_CHAINS.indexOf(chain) + 1; i < ENRICHMENT_CHAINS.length; i++) {
+        state.enrichment_offsets[ENRICHMENT_CHAINS[i]] = 0;
+      }
+      state.enrichment_chain_index = ENRICHMENT_CHAINS.indexOf(chain) + 1;
+      state.last_error = null;
+      await saveState(state);
+      return { job_id: jobId, stage: state.stage,
+        step: `enrichment[${chain}]`, classification: 'success', recovered_page: offset };
     }
 
     const hasMore = Boolean(result.data?.has_more);
@@ -711,10 +793,12 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     if (!hasMore) {
       const nextIndex = state.enrichment_chain_index + 1;
 
-      if (nextIndex >= ENRICHMENT_CHAINS.length) {
+      // Defer audit until every failed page has been retried. Keeping the
+      // index at length lets the next tick process the pending retry pages.
+      state.enrichment_chain_index = nextIndex;
+      if (nextIndex >= ENRICHMENT_CHAINS.length &&
+        pendingRetryPages(state.enrichment_offsets).length === 0) {
         state.stage = 'audit';
-      } else {
-        state.enrichment_chain_index = nextIndex;
       }
     }
 
