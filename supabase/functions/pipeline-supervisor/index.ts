@@ -95,6 +95,14 @@ type Chain = (typeof ENRICHMENT_CHAINS)[number];
 // cannot keep the entire job at the same offset indefinitely.
 const RETRY_PAGE_PREFIX = '__d10_retry_page__';
 const MAX_DEFERRED_PAGE_ATTEMPTS = 3;
+const MISSING_OFFICIAL_FORMS_PREFIX = '__d10_missing_official_forms__';
+
+function missingOfficialForms(offsets: Record<string, number>): string[] {
+  return Object.keys(offsets)
+    .filter((key) => key.startsWith(MISSING_OFFICIAL_FORMS_PREFIX))
+    .map((key) => key.slice(MISSING_OFFICIAL_FORMS_PREFIX.length));
+}
+
 
 function retryPageKey(chain: Chain, offset: number): string {
   return `${RETRY_PAGE_PREFIX}${chain}__${offset}`;
@@ -687,10 +695,18 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       ? pendingRetryPages(state.enrichment_offsets)[0]
       : undefined;
     if (state.enrichment_chain_index >= ENRICHMENT_CHAINS.length && !retryPage) {
-      state.stage = 'audit';
-      state.last_error = null;
+      const missing = missingOfficialForms(state.enrichment_offsets);
+      state.stage = missing.length ? 'needs_manual_review' : 'audit';
+      state.last_error = missing.length
+        ? `No official Bokmål article/forms for ${missing.length} lexemes: ${missing.slice(0, 12).join(', ')}`
+        : null;
       await saveState(state);
-      return { job_id: jobId, stage: state.stage, classification: 'success' };
+      if (missing.length) await updateJobStatus(jobId, 'needs_manual_review', {
+        supervisor_last_error: state.last_error,
+        supervisor_failed_step: 'enrichment[forms]',
+        forms_missing_official_article_ids: missing,
+      });
+      return { job_id: jobId, stage: state.stage, classification: missing.length ? 'blocked_manual_review' : 'success' };
     }
     const chain: Chain = retryPage?.chain ?? ENRICHMENT_CHAINS[state.enrichment_chain_index];
     const offset = retryPage?.offset ?? state.enrichment_offsets[chain] ?? 0;
@@ -707,6 +723,52 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     });
 
     const classification = classifyWorkerResult(result);
+
+    // A missing official article is an honest no-forms outcome, not a
+    // transport failure. Visit the other pages before reporting the job as
+    // incomplete; never fabricate forms or mark the job completed.
+    const formErrors = Array.isArray(result.data?.errors) ? result.data.errors : [];
+    const processedForms = Number(result.data?.processed);
+    const missingOnly = chain === 'forms' && !result.network_error &&
+      processedForms > 0 && Number(result.data?.failed) === formErrors.length &&
+      formErrors.length > 0 && Number(result.data?.retryable) === 0 &&
+      result.data?.permanent === formErrors.length &&
+      (result.data?.has_more === true || result.data?.has_more === false) &&
+      (result.data?.has_more === false ||
+        (Number.isSafeInteger(result.data?.next_offset) && result.data.next_offset > offset)) &&
+      formErrors.every((item: any) => item?.status === 'not_found' &&
+        item?.persisted === false &&
+        item?.articleProjection?.status === 'no_source_article' &&
+        Array.isArray(item?.articleIds) && item.articleIds.length === 0 &&
+        typeof item?.lexemeId === 'string');
+
+    if (missingOnly) {
+      for (const item of formErrors) {
+        state.enrichment_offsets[`${MISSING_OFFICIAL_FORMS_PREFIX}${item.lexemeId}`] = 1;
+      }
+      if (retryPage) delete state.enrichment_offsets[retryPage.key];
+      else {
+        state.enrichment_offsets[chain] = result.data.has_more
+          ? result.data.next_offset : offset + processedForms;
+        if (!result.data.has_more) state.enrichment_chain_index++;
+      }
+      const atEnd = state.enrichment_chain_index >= ENRICHMENT_CHAINS.length &&
+        pendingRetryPages(state.enrichment_offsets).length === 0;
+      const missing = missingOfficialForms(state.enrichment_offsets);
+      state.stage = atEnd ? 'needs_manual_review' : 'enrichment';
+      state.last_error = atEnd
+        ? `No official Bokmål article/forms for ${missing.length} lexemes: ${missing.slice(0, 12).join(', ')}`
+        : null;
+      await saveState(state);
+      if (atEnd) await updateJobStatus(jobId, 'needs_manual_review', {
+        supervisor_last_error: state.last_error,
+        supervisor_failed_step: 'enrichment[forms]',
+        forms_missing_official_article_ids: missing,
+      });
+      return { job_id: jobId, stage: state.stage, step: 'enrichment[forms]',
+        classification: atEnd ? 'blocked_manual_review' : 'success',
+        no_official_article: formErrors.length, next_offset: state.enrichment_offsets[chain] };
+    }
 
     if (classification === 'permanent_error' || classification === 'blocked_manual_review') {
       state.stage = 'needs_manual_review';
@@ -798,11 +860,19 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       state.enrichment_chain_index = nextIndex;
       if (nextIndex >= ENRICHMENT_CHAINS.length &&
         pendingRetryPages(state.enrichment_offsets).length === 0) {
-        state.stage = 'audit';
+        const missing = missingOfficialForms(state.enrichment_offsets);
+        state.stage = missing.length ? 'needs_manual_review' : 'audit';
+        if (missing.length) state.last_error =
+          `No official Bokmål article/forms for ${missing.length} lexemes: ${missing.slice(0, 12).join(', ')}`;
       }
     }
 
     await saveState(state);
+    if (state.stage === 'needs_manual_review') await updateJobStatus(jobId, 'needs_manual_review', {
+      supervisor_last_error: state.last_error,
+      supervisor_failed_step: 'enrichment[forms]',
+      forms_missing_official_article_ids: missingOfficialForms(state.enrichment_offsets),
+    });
 
     return {
       job_id: jobId,
