@@ -1,4 +1,4 @@
-﻿// Norsk Trainer — Canonical TAM Source Mapping V1
+// Norsk Trainer — Canonical TAM Source Mapping V1
 //
 // v1.48 A2
 //
@@ -203,18 +203,11 @@ export function mapCanonicalTamSourceFactsV1(
       continue;
     }
 
-    if (exactMatches.length > 1) {
-      rejected.push({
-        sourceFactId: factId,
-        reason:
-          'ambiguous_exact_mapping',
-      });
-      continue;
-    }
-
-    const mapping = exactMatches[0];
-
-    if (!validMapping(mapping)) {
+    if (
+      exactMatches.some(
+        (mapping) => !validMapping(mapping),
+      )
+    ) {
       rejected.push({
         sourceFactId: factId,
         reason: 'invalid_mapping',
@@ -222,13 +215,13 @@ export function mapCanonicalTamSourceFactsV1(
       continue;
     }
 
-    const mappingProvenance =
-      uniqueStrings(
-        mapping.provenanceIds,
-      );
-
     if (
-      mappingProvenance.length === 0
+      exactMatches.some(
+        (mapping) =>
+          uniqueStrings(
+            mapping.provenanceIds,
+          ).length === 0,
+      )
     ) {
       rejected.push({
         sourceFactId: factId,
@@ -238,56 +231,107 @@ export function mapCanonicalTamSourceFactsV1(
       continue;
     }
 
-    const sourceProvenance =
-      uniqueStrings([
-        fact.sourceId,
-        ...(fact.provenanceIds ?? []),
-        ...mappingProvenance,
-      ]);
+    const mappingsByDimension =
+      new Map<
+        string,
+        CanonicalTamSourceMappingRuleV1[]
+      >();
 
-    evidenceFacts.push({
-      id:
-        `tam:mapped:${mapping.id}:${fact.id}`,
+    for (const mapping of exactMatches) {
+      const dimensionMappings =
+        mappingsByDimension.get(
+          mapping.dimension,
+        ) ?? [];
 
-      predicateId:
-        fact.predicateId,
+      dimensionMappings.push(mapping);
 
-      headTokenId:
-        fact.headTokenId,
-
-      dimension:
+      mappingsByDimension.set(
         mapping.dimension,
+        dimensionMappings,
+      );
+    }
 
-      value:
-        mapping.value,
+    if (
+      [...mappingsByDimension.values()]
+        .some(
+          (dimensionMappings) =>
+            dimensionMappings.length > 1,
+        )
+    ) {
+      rejected.push({
+        sourceFactId: factId,
+        reason:
+          'ambiguous_exact_mapping',
+      });
+      continue;
+    }
 
-      status: 'candidate',
+    const orderedMappings =
+      [...exactMatches].sort(
+        (a, b) =>
+          a.dimension.localeCompare(
+            b.dimension,
+          ) ||
+          a.id.localeCompare(b.id),
+      );
 
-      sourceIds:
+    for (const mapping of orderedMappings) {
+      const mappingProvenance =
+        uniqueStrings(
+          mapping.provenanceIds,
+        );
+
+      const sourceProvenance =
         uniqueStrings([
           fact.sourceId,
-          mapping.id,
-        ]),
+          ...(fact.provenanceIds ?? []),
+          ...mappingProvenance,
+        ]);
 
-      evidenceIds:
-        uniqueStrings(
-          fact.evidenceIds,
-        ),
+      evidenceFacts.push({
+        id:
+          `tam:mapped:${mapping.id}:${fact.id}`,
 
-      provenanceIds:
-        sourceProvenance,
+        predicateId:
+          fact.predicateId,
 
-      payload: {
-        mappingId: mapping.id,
-        sourceFactId: fact.id,
-        sourceKind: fact.sourceKind,
-        sourceKey: fact.sourceKey,
-        sourceValue:
-          fact.sourceValue,
-        sourceScope:
-          mapping.scope,
-      },
-    });
+        headTokenId:
+          fact.headTokenId,
+
+        dimension:
+          mapping.dimension,
+
+        value:
+          mapping.value,
+
+        status: 'candidate',
+
+        sourceIds:
+          uniqueStrings([
+            fact.sourceId,
+            mapping.id,
+          ]),
+
+        evidenceIds:
+          uniqueStrings(
+            fact.evidenceIds,
+          ),
+
+        provenanceIds:
+          sourceProvenance,
+
+        payload: {
+          mappingId: mapping.id,
+          sourceFactId: fact.id,
+          sourceKind: fact.sourceKind,
+          sourceKey: fact.sourceKey,
+          sourceValue:
+            fact.sourceValue,
+          sourceScope:
+            mapping.scope,
+        },
+      });
+    }
   }
 
   return {
@@ -301,4 +345,3 @@ export function mapCanonicalTamSourceFactsV1(
     rejected,
   };
 }
-

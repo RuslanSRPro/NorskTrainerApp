@@ -1,4 +1,4 @@
-﻿import {
+import {
   mapCanonicalTamSourceFactsV1,
   type CanonicalTamSourceFactV1,
   type CanonicalTamSourceMappingRuleV1,
@@ -11,6 +11,19 @@ function assert(
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function assertEquals(
+  actual: unknown,
+  expected: unknown,
+): void {
+  const actualJson = JSON.stringify(actual);
+  const expectedJson = JSON.stringify(expected);
+
+  assert(
+    actualJson === expectedJson,
+    `Expected ${expectedJson}, got ${actualJson}`,
+  );
 }
 
 function sourceFact(
@@ -213,39 +226,134 @@ Deno.test(
 );
 
 Deno.test(
-  'TAM A2 rejects ambiguous exact mappings instead of choosing a winner',
+  'TAM A2 allows independent dimensions for one exact source selector',
   () => {
     const result =
       mapCanonicalTamSourceFactsV1(
-        [sourceFact()],
+        [
+          sourceFact(),
+        ],
         [
           mapping({
-            id: 'mapping:a',
+            id: 'map:tense',
+            dimension: 'tense-axis',
+            value: 'tense-value',
           }),
           mapping({
-            id: 'mapping:b',
-            dimension:
-              'another_dimension',
-            value:
-              'another_value',
+            id: 'map:aspect',
+            dimension: 'aspect-axis',
+            value: 'aspect-value',
           }),
         ],
       );
 
-    assert(
-      result.evidenceFacts.length === 0,
-      'ambiguous mappings must not produce evidence',
-    );
+    assertEquals(result.rejected, []);
 
-    assert(
-      result.rejected.length === 1 &&
-      result.rejected[0].reason ===
-        'ambiguous_exact_mapping',
-      'A2 must not choose an implicit winner',
+    assertEquals(
+      result.evidenceFacts.map(
+        (fact) => ({
+          dimension: fact.dimension,
+          value: fact.value,
+        }),
+      ),
+      [
+        {
+          dimension: 'aspect-axis',
+          value: 'aspect-value',
+        },
+        {
+          dimension: 'tense-axis',
+          value: 'tense-value',
+        },
+      ],
     );
   },
 );
 
+Deno.test(
+  'TAM A2 rejects multiple mappings inside one exact dimension',
+  () => {
+    const result =
+      mapCanonicalTamSourceFactsV1(
+        [
+          sourceFact(),
+        ],
+        [
+          mapping({
+            id: 'map:a',
+            dimension: 'same-axis',
+            value: 'value:a',
+          }),
+          mapping({
+            id: 'map:b',
+            dimension: 'same-axis',
+            value: 'value:b',
+          }),
+        ],
+      );
+
+    assertEquals(
+      result.evidenceFacts,
+      [],
+    );
+
+    assertEquals(
+      result.rejected,
+      [
+        {
+          sourceFactId: 'source-fact:1',
+          reason:
+            'ambiguous_exact_mapping',
+        },
+      ],
+    );
+  },
+);
+
+Deno.test(
+  'TAM A2 same-dimension ambiguity fails the whole source fact',
+  () => {
+    const result =
+      mapCanonicalTamSourceFactsV1(
+        [
+          sourceFact(),
+        ],
+        [
+          mapping({
+            id: 'map:aspect',
+            dimension: 'aspect-axis',
+            value: 'aspect-value',
+          }),
+          mapping({
+            id: 'map:tense-a',
+            dimension: 'tense-axis',
+            value: 'tense:a',
+          }),
+          mapping({
+            id: 'map:tense-b',
+            dimension: 'tense-axis',
+            value: 'tense:b',
+          }),
+        ],
+      );
+
+    assertEquals(
+      result.evidenceFacts,
+      [],
+    );
+
+    assertEquals(
+      result.rejected,
+      [
+        {
+          sourceFactId: 'source-fact:1',
+          reason:
+            'ambiguous_exact_mapping',
+        },
+      ],
+    );
+  },
+);
 Deno.test(
   'TAM A2 preserves source and mapping provenance',
   () => {
@@ -321,4 +429,3 @@ Deno.test(
     );
   },
 );
-
