@@ -45,6 +45,12 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const limit = Math.min(Number(body.limit ?? 20), 100);
     const dryRun = Boolean(body.dry_run ?? true);
+    const parentArticleId = Number(body.parent_article_id);
+    const parentDictionaryCode = String(body.parent_dictionary_code ?? '').trim();
+    if (!Number.isSafeInteger(parentArticleId) || parentArticleId <= 0 ||
+      !['bm', 'nn'].includes(parentDictionaryCode)) {
+      return jsonResponse({ ok: false, error: 'PARENT_ARTICLE_IDENTITY_REQUIRED' }, 400);
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -105,6 +111,8 @@ serve(async (req) => {
       )
       .eq('status', 'candidate')
       .eq('candidate_kind', 'expression')
+      .eq('parent_article_id', parentArticleId)
+      .eq('parent_dictionary_code', parentDictionaryCode)
       .is('promoted_expression_id', null)
       .order('created_at', { ascending: true })
       .limit(limit);

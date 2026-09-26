@@ -167,6 +167,9 @@ const CONCURRENCY = 3;
 // pipeline-supervisor (45000мс) на вызов ЭТОЙ функции целиком — иначе
 // гонка таймаутов (см. шапку файла).
 const WORKER_TIMEOUT_MS = 20000;
+// This pipeline calls several internal workers sequentially. The observed
+// complete få/18820 run took 29.2 s; keep below supervisor's 45 s budget.
+const ORDBOKENE_PIPELINE_TIMEOUT_MS = 36000;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
@@ -415,7 +418,7 @@ async function enqueueOrdbokeneEnrichment(jobId: string, offset: number, limit: 
       dictionary_code: 'bm',
       dry_run: false,
       force_refresh: true,
-    });
+    }, ORDBOKENE_PIPELINE_TIMEOUT_MS);
   });
 
   return buildResult(items.length, stats, count, offset, limit);
