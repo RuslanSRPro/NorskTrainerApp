@@ -19,6 +19,7 @@ export type SourceCheck = {
 
   query: string;
   query_type: string;
+  surface_form?: string | null;
   // Loaded from the processing item for the Ordbøkene check; absent for other sources.
   pos?: string | null;
 

@@ -95,67 +95,8 @@ async function fetchAllRows<T = any>(
   return results;
 }
 
-// ДОБАВЛЕНО (02.08.2026): фикс дублирования source_checks для уже
-// верифицированных слов/выражений. См. verification-architecture doc
-// (02.08.2026) и promote_verification_results_for_job() для контекста
-// значений tier/status на lexemes/expression_catalog.
-const TARGET_VERIFICATION_VERSION = 5;
-
-// ФИКС (15.08.2026): skip_source_checks раньше был безусловным для любого
-// verified_dictionary+version>=5 слова — навсегда закрывал единственный
-// путь, которым Step Б (expand_multi_pos_occurrences_for_job) узнаёт о
-// втором потенциальном POS: source_checks для этого слова просто больше
-// никогда не создавались, сколько бы раз оно ни встречалось в новых
-// текстах. Подтверждённый пример слепой зоны: "lett" (adjective,
-// verified) потенциально омонимичен с "lete" (verb, past_participle=lett)
-// — это никогда не всплывёт через свежий NAOB-evidence, потому что
-// source_checks для "lett" не создаются с момента первой верификации.
-//
-// Полный отказ от skip убивает весь смысл оптимизации (снова 5 запросов
-// к источникам на каждое слово при каждой встрече). Вместо этого — малый
-// шанс полной переверификации при каждой встрече уже известного слова:
-// не гарантия обнаружить омонимию быстро, но при повторных встречах
-// слова в разных текстах со временем даёт Step Б реальный шанс сработать,
-// сохраняя ~95% экономии на span'ах, где переверификация не выпала.
-const HOMONYM_RECHECK_PROBABILITY = 0.05;
-
-function shouldForceHomonymRecheck(): boolean {
-  return Math.random() < HOMONYM_RECHECK_PROBABILITY;
-}
-
-// ФИКС (02.08.2026, вторая итерация): читаем сырые verification_tier/
-// verification_status, а НЕ score-based enum `verification` — на
-// expression_catalog нет триггера, который бы пересчитывал этот enum
-// автоматически (recompute_expression_score() ни на одном триггере не
-// висит, проверено через information_schema.triggers), в отличие от
-// lexemes, где verification гарантированно свежий (lexemes_sync_verification).
-//
-// ФИКС (02.08.2026, третья итерация): читать один только verification_status
-// тоже было ошибкой — в promote_verification_results_for_job() ветка
-// 'multi_source' проверяется РАНЬШЕ best_rank>=4, поэтому best_rank=3
-// (tier='usage_evidence', самое слабое совпадение) при нескольких
-// согласных источниках тоже даёт status='multi_source'. Status-only
-// пропустил бы повторную проверку для выражений, подтверждённых только
-// по примеру употребления, а не по словарной статье — это заметно мягче
-// порога, согласованного для lexemes. Функция ниже — точное зеркало уже
-// задокументированного правила триггера trg_recompute_lexeme_verification()
-// на lexemes, а не новый порог.
-function isSufficientlyVerifiedExpression(
-  tier: string | null,
-  status: string | null,
-): boolean {
-  if (status === 'usage_verified') return true;
-
-  if (
-    (tier === 'dictionary_entry' || tier === 'dictionary_match') &&
-    (status === 'multi_source' || status === 'authoritative')
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
+// Audit is the current ingestion contract. The future read route must never
+// enter this job-writing pipeline before a user confirms persistence.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1156,6 +1097,21 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
     const body = await req.json().catch(() => ({}));
     const text = String(body.text || '').trim();
 
+    // analysis_mode is separate from the parser's existing mode=word_list.
+    // Audit is the current production contract: every submitted occurrence
+    // gets fresh source checks and job-scoped enrichment. Read mode will
+    // return a preview and require an explicit user selection before any
+    // persistence; never let it fall through to the job-writing path.
+    const analysisMode = body.analysis_mode ?? 'audit';
+    if (analysisMode !== 'audit' && analysisMode !== 'read') {
+      return Response.json({ ok: false, error: 'INVALID_ANALYSIS_MODE' },
+        { status: 400, headers: corsHeaders });
+    }
+    if (analysisMode === 'read') {
+      return Response.json({ ok: false, error: 'READ_MODE_NOT_READY' },
+        { status: 501, headers: corsHeaders });
+    }
+
     const isolatedMode = body.mode === 'word_list';
 
     console.log('[ENCODING DEBUG] raw text:', text);
@@ -1239,7 +1195,7 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
     if (resolvedLexemeIds.length > 0) {
       const { data: lexemeData } = await supabase
         .from('lexemes')
-        .select('id, cefr_level, frequency_rank, frequency_ipm, verification, verification_version')
+        .select('id, cefr_level, frequency_rank, frequency_ipm')
         .in('id', resolvedLexemeIds);
 
       if (lexemeData?.length) {
@@ -1250,8 +1206,6 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
               cefr_level: l.cefr_level ?? null,
               frequency_rank: l.frequency_rank ?? null,
               frequency_ipm: l.frequency_ipm ?? null,
-              verification: l.verification ?? null,
-              verification_version: l.verification_version ?? null,
             },
           ])
         );
@@ -1265,61 +1219,12 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
             (item as any).frequency_rank = meta.frequency_rank;
             (item as any).frequency_ipm = meta.frequency_ipm;
 
-            if (
-              meta.verification === 'verified_dictionary' &&
-              (meta.verification_version ?? 0) >= TARGET_VERIFICATION_VERSION
-            ) {
-              if (shouldForceHomonymRecheck()) {
-                (item as any)._homonym_recheck_forced = true;
-              } else {
-                (item as any).skip_source_checks = true;
-              }
-            }
           }
         }
       }
     }
 
-    const resolvedExpressionIds = plannedItems
-      .map((i) => i.expression_id)
-      .filter((id): id is string => Boolean(id));
-
-    if (resolvedExpressionIds.length > 0) {
-      const { data: expressionData } = await supabase
-        .from('expression_catalog')
-        .select('id, verification_status, verification_tier, verification_version')
-        .in('id', resolvedExpressionIds);
-
-      if (expressionData?.length) {
-        const expressionMap = new Map(
-          expressionData.map((e) => [
-            e.id,
-            {
-              verification_status: e.verification_status ?? null,
-              verification_tier: e.verification_tier ?? null,
-              verification_version: e.verification_version ?? null,
-            },
-          ])
-        );
-
-        for (const item of plannedItems) {
-          if (item.expression_id && expressionMap.has(item.expression_id)) {
-            const meta = expressionMap.get(item.expression_id)!;
-
-            if (
-              isSufficientlyVerifiedExpression(meta.verification_tier, meta.verification_status) &&
-              (meta.verification_version ?? 0) >= TARGET_VERIFICATION_VERSION
-            ) {
-              if (shouldForceHomonymRecheck()) {
-                (item as any)._homonym_recheck_forced = true;
-              } else {
-                (item as any).skip_source_checks = true;
-              }
-            }
-          }
-        }
-      }
-    }
+    // Every expression also receives fresh job-scoped source checks.
 
     const {
       expressionItems,
@@ -1350,7 +1255,7 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
           source_checks_per_item: SOURCES.length,
           skipped_already_verified: skippedAlreadyVerified,
           homonym_rechecks_forced: homonymRechecksForced,
-          homonym_recheck_probability: HOMONYM_RECHECK_PROBABILITY,
+          homonym_recheck_probability: 1,
           isolated_mode: isolatedMode,
           surface_resolver: true,
           compound_normalization: true,

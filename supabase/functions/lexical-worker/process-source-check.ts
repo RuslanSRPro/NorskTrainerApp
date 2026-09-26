@@ -4,7 +4,7 @@ import type {
   LookupResult,
 } from './types.ts';
 
-import { getCachedLookup, saveLookupCache } from './cache.ts';
+import { saveLookupCache } from './cache.ts';
 import { lookupSource } from './adapters.ts';
 
 function sanitizeEvidence(
@@ -134,18 +134,11 @@ export async function processSourceCheck(
   supabase: any,
   check: SourceCheck,
 ): Promise<void> {
-  let result: LookupResult | null =
-    await getCachedLookup(supabase, check);
-
-  if (!result) {
-    result = await lookupSource(check);
-
-    await saveLookupCache(
-      supabase,
-      check,
-      result,
-    );
-  }
+  // Current production mode is audit: always ask the source again. The
+  // cache receives fresh evidence for later read-mode use, but is never
+  // treated as a completed audit check.
+  const result: LookupResult = await lookupSource(check);
+  await saveLookupCache(supabase, check, result);
 
   const evidence = {
     ...sanitizeEvidence(result.evidence),

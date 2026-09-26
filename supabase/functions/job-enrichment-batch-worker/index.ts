@@ -414,6 +414,7 @@ async function enqueueOrdbokeneEnrichment(jobId: string, offset: number, limit: 
       article_id: isLexeme ? articleByItem.get(item.id) ?? null : null,
       dictionary_code: 'bm',
       dry_run: false,
+      force_refresh: true,
     });
   });
 
@@ -439,7 +440,7 @@ async function enqueueNaobEnrichment(jobId: string, offset: number, limit: numbe
 
   const stats = await runChunked(items, CONCURRENCY, (item) => {
     const expressionLemma = item.normalized_lemma ?? item.surface_form;
-    return callWorkerJson('naob-pipeline-worker', { expression_lemma: expressionLemma, update_catalog: true });
+    return callWorkerJson('naob-pipeline-worker', { expression_lemma: expressionLemma, update_catalog: true, force_refresh: true });
   });
 
   return buildResult(items.length, stats, count, offset, limit);
@@ -705,7 +706,7 @@ async function enqueueAuthoritativeEnrichment(jobId: string, offset: number, lim
 
   const stats = await runChunked(items, CONCURRENCY, (item) => {
     const lemma = item.normalized_lemma ?? item.surface_form;
-    return callWorkerJson('authoritative-enrichment-pipeline-worker', { item_type: 'lexeme', lemma, lexeme_id: item.lexeme_id, force_refresh: false });
+    return callWorkerJson('authoritative-enrichment-pipeline-worker', { item_type: 'lexeme', lemma, lexeme_id: item.lexeme_id, force_refresh: true });
   });
 
   return buildResult(items.length, stats, count, offset, limit);
@@ -1167,14 +1168,8 @@ async function enqueueNeighborhoodEnrichment(jobId: string, depth: number, offse
   const allNeighbors = await discoverMeaningExtensions(frontier);
   if (!allNeighbors.length) return { ...EMPTY_RESULT, depth };
 
-  const { data: alreadyEnriched } = await supabase
-    .from('entity_translations')
-    .select('lexeme_id')
-    .in('lexeme_id', allNeighbors)
-    .eq('source', 'lexin');
-
-  const enrichedSet = new Set((alreadyEnriched ?? []).map((t) => t.lexeme_id));
-  const toEnrich = allNeighbors.filter((id) => !enrichedSet.has(id));
+  // In audit mode, an existing translation is not proof of fresh evidence.
+  const toEnrich = allNeighbors;
   const pageIds = toEnrich.slice(offset, offset + limit);
 
   if (!pageIds.length) return { ...EMPTY_RESULT, total: toEnrich.length, depth };
@@ -1184,7 +1179,7 @@ async function enqueueNeighborhoodEnrichment(jobId: string, depth: number, offse
 
   const stats = await runChunked(items, CONCURRENCY, async (target) => {
     const authoritative = await callWorkerJson('authoritative-enrichment-pipeline-worker', {
-      item_type: 'lexeme', lemma: target.lemma, lexeme_id: target.id, force_refresh: false,
+      item_type: 'lexeme', lemma: target.lemma, lexeme_id: target.id, force_refresh: true,
     });
     if (!authoritative.ok) return authoritative;
     return callWorkerJson('ai-enrichment-worker', { lexeme_id: target.id, dry_run: false, limit: 1 });

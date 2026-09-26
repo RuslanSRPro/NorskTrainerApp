@@ -430,6 +430,12 @@ serve(async (req) => {
     const dryRun = Boolean(body.dry_run ?? true);
     const compact = Boolean(body.compact ?? true);
     const runResolver = Boolean(body.run_resolver ?? true);
+    const forceRefresh = body.force_refresh === true;
+    const startedAt = Date.now();
+    const markStage = (stage: string) => console.log(JSON.stringify({
+      event: 'd10_ordbokene_stage', lemma: inputLemma,
+      article_id: articleId, stage, elapsed_ms: Date.now() - startedAt,
+    }));
 
     const maxPromotionBatches = Math.min(
       Number(body.max_promotion_batches ?? 10),
@@ -536,7 +542,9 @@ serve(async (req) => {
     const articleFetch = await invokeFunction('ordbokene-article-fetcher', {
       article_id: articleId,
       dictionary_code: dictionaryCode,
+      force_refresh: forceRefresh,
     });
+    markStage('article_fetch');
 
     steps.article_fetch = compact
       ? compactFunctionResult(articleFetch)
@@ -718,6 +726,7 @@ serve(async (req) => {
         dry_run: false,
       },
     );
+    markStage('expression_extraction');
 
     steps.expression_extraction = compact
       ? compactFunctionResult(expressionExtraction)
@@ -805,6 +814,7 @@ serve(async (req) => {
     }
 
     steps.expression_promotion = promotionRuns;
+    markStage('expression_promotion');
 
     const subArticlePayload: Record<string, unknown> = {
       parent_article_id: articleId,
@@ -825,6 +835,7 @@ serve(async (req) => {
       'ordbokene-sub-article-relation-worker',
       subArticlePayload,
     );
+    markStage('has_expression_relations');
 
     steps.has_expression_relations = compact
       ? compactFunctionResult(hasExpressionRelations)
@@ -850,6 +861,7 @@ serve(async (req) => {
         dry_run: dryRun,
       },
     );
+    markStage('article_ref_relations');
 
     steps.article_ref_relations = compact
       ? compactFunctionResult(articleRefRelations)
@@ -911,6 +923,7 @@ serve(async (req) => {
       }
 
       steps.relation_resolver = resolverRuns;
+      markStage('relation_resolver');
 
       const failedResolver = resolverRuns.find((run: any) => !run.ok);
 
