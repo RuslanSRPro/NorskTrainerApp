@@ -136,6 +136,7 @@ function finalBindingRuntimeOccurrence(
 function finalBindingRuntimeFinalWhereFixture(
   disposition: "satisfied" | "rejected" | "uncertain",
   occurrences: ReturnType<typeof finalBindingRuntimeOccurrence>[],
+cardinality: string,
 ) {
   const ownerBindingDefinitionAuthorityId =
     "runtime-binding-definition-authority-v1:manifest-code-1:owner";
@@ -171,7 +172,64 @@ function finalBindingRuntimeFinalWhereFixture(
     occurrences,
 
     sourceRootCandidate: {},
-    sourceStructuralAuthority: {},
+    sourceStructuralAuthority: {
+      id: "structural-1",
+      bindingDefinitionAuthorityId: ownerBindingDefinitionAuthorityId,
+      sourceWhereShapeAuthorityId: "structural-1",
+      sourceWhereShapeAuthority: {
+        id: "structural-1",
+        bindingDefinitionAuthorityId: ownerBindingDefinitionAuthorityId,
+        sourceBindingDefinitionAuthority: {
+          id: ownerBindingDefinitionAuthorityId,
+          status: "candidate",
+          manifestId: "manifest-id-1",
+          manifestCode: "manifest-code-1",
+          runtimeFamilyLabel: null,
+          executionPhaseLabel: null,
+          bindingName: "owner",
+          bindingDefinition: {
+            entity: "token",
+            scope: "sentence",
+            cardinality,
+          },
+          entityLabel: "token",
+          scopeLabel: "sentence",
+          cardinalityLabel: cardinality,
+          whereClause: null,
+          rawManifestSnapshot: {},
+          governance: {
+            exactValidatedManifestRequired: true,
+            exactManifestIdentityRequired: true,
+            manifestLocalBindingsOnly: true,
+            actionAuthorityRequired: false,
+            actionFamilySemanticsResolved: false,
+            runtimeFamilyLabelPreservedOpaque: true,
+            executionPhaseLabelPreservedOpaque: true,
+            runtimeFamilySemanticsResolved: false,
+            executionPhaseSemanticsResolved: false,
+            bindingNamePreservedOpaque: true,
+            bindingDefinitionPreservedOpaque: true,
+            entityLabelPreservedOpaque: true,
+            scopeLabelPreservedOpaque: true,
+            cardinalityLabelPreservedOpaque: true,
+            whereClausePreservedOpaque: true,
+            entitySemanticsResolved: false,
+            scopeSemanticsResolved: false,
+            cardinalitySemanticsResolved: false,
+            whereSemanticsResolved: false,
+            referenceSemanticsResolved: false,
+            occurrenceEnumerationPerformed: false,
+            occurrenceBindingPerformed: false,
+            winnerSelected: false,
+            graphMutationPerformed: false,
+            productionActivationAssumed: false,
+            learnerErrorClassified: false,
+            candidateOnly: true,
+            frozenGrammarReadOnly: true,
+          },
+        },
+      },
+    },
     sourceScopeCompatibility: {},
     sourceDirectDomain: {},
     sourceSnapshotAuthority: {},
@@ -232,12 +290,14 @@ function finalBindingRuntimeFinalWhereFixture(
 function finalBindingRuntimeSurvivorResult(
   disposition: "satisfied" | "rejected" | "uncertain",
   occurrences: ReturnType<typeof finalBindingRuntimeOccurrence>[],
+cardinality: string,
 ) {
   return deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerSurvivorSetV1(
     finalBindingRuntimeFinalWhereFixture(
       disposition,
       occurrences,
-    ),
+    cardinality,
+),
   );
 }
 
@@ -309,6 +369,7 @@ Deno.test("runtime final binding: ready singleton creates exact one-member OWNER
   const survivorResult = finalBindingRuntimeSurvivorResult(
     "satisfied",
     [finalBindingRuntimeOccurrence("token-1", "snapshot-token-1")],
+    "one",
   );
 
   const result = deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerFinalRuntimeBindingV1(
@@ -348,7 +409,11 @@ Deno.test("runtime final binding: ready singleton creates exact one-member OWNER
 });
 
 Deno.test("runtime final binding: ready zero OWNER occurrences bind empty collection without occurrence binding", () => {
-  const survivorResult = finalBindingRuntimeSurvivorResult("satisfied", []);
+  const survivorResult = finalBindingRuntimeSurvivorResult(
+    "satisfied",
+    [],
+    "zero_or_more",
+  );
 
   const result = deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerFinalRuntimeBindingV1(
     survivorResult,
@@ -381,6 +446,7 @@ Deno.test("runtime final binding: unresolved OWNER projection remains explicitly
   const survivorResult = finalBindingRuntimeSurvivorResult(
     "uncertain",
     [finalBindingRuntimeOccurrence("token-1", "snapshot-token-1")],
+    "one",
   );
 
   const result = deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerFinalRuntimeBindingV1(
@@ -411,6 +477,7 @@ Deno.test("runtime final binding: cardinality violation remains explicitly not b
       finalBindingRuntimeOccurrence("token-1", "snapshot-token-1"),
       finalBindingRuntimeOccurrence("token-2", "snapshot-token-2"),
     ],
+    "one",
   );
 
   const result = deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerFinalRuntimeBindingV1(
@@ -442,6 +509,7 @@ Deno.test("runtime final binding: multiple OWNER occurrences preserve exact orde
       finalBindingRuntimeOccurrence("token-1", "snapshot-token-1"),
       finalBindingRuntimeOccurrence("token-2", "snapshot-token-2"),
     ],
+    "one_or_more",
   );
 
   const result = deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerFinalRuntimeBindingV1(

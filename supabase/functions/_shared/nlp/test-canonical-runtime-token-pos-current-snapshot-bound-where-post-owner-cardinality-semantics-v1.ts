@@ -18,13 +18,43 @@ import type {
 
 function survivorResult(
   survivingOccurrenceCount = 2,
+  cardinality = "one",
 ): CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerSurvivorSetResultV1 {
+  const ownerBindingDefinitionAuthorityId =
+    "runtime-manifest-binding-definition-v1:manifest-id-1:manifest-code-1:owner";
+
+  const bindingDefinition = {
+    entity: "token",
+    scope: "sentence",
+    cardinality,
+  };
+
+  const sourceBindingDefinitionAuthority = {
+    id: ownerBindingDefinitionAuthorityId,
+    status: "ready",
+    manifestId: "manifest-id-1",
+    manifestCode: "manifest-code-1",
+    bindingName: "owner",
+    bindingDefinition,
+  };
+
+  const sourceWhereShapeAuthority = {
+    id: "structural-1",
+    bindingDefinitionAuthorityId: ownerBindingDefinitionAuthorityId,
+    sourceBindingDefinitionAuthority,
+  };
+
+  const sourceStructuralAuthority = {
+    id: "structural-1",
+    bindingDefinitionAuthorityId: ownerBindingDefinitionAuthorityId,
+    sourceWhereShapeAuthority,
+  };
+
   const ownerDomain = {
     ownerBindingOccurrenceDomainId: "owner-domain-1",
     status: "proven_owner_binding_occurrence_domain",
     structuralAuthorityId: "structural-1",
-    ownerBindingDefinitionAuthorityId:
-      "runtime-binding-definition-authority-v1:manifest-code-1:owner",
+    ownerBindingDefinitionAuthorityId,
     manifestId: "manifest-id-1",
     manifestCode: "manifest-code-1",
     ownerBindingName: "owner",
@@ -34,6 +64,7 @@ function survivorResult(
     sentenceNodeId: "sentence-1",
     occurrenceCount: 2,
     occurrences: [],
+    sourceStructuralAuthority,
   };
 
   return {
@@ -48,8 +79,7 @@ function survivorResult(
         survivorDomainId: "survivor-domain-1",
         status: "proven_post_where_owner_survivor_domain",
         structuralAuthorityId: "structural-1",
-        ownerBindingDefinitionAuthorityId:
-          "runtime-binding-definition-authority-v1:manifest-code-1:owner",
+        ownerBindingDefinitionAuthorityId,
         snapshotIdentityId: "snapshot-1",
         snapshotSentenceOccurrenceIdentityId: "sentence-occurrence-1",
         graphDocumentId: "graph-1",
@@ -151,7 +181,7 @@ Deno.test("OWNER cardinality semantics one resolves 1..1 from exact OWNER bindin
 
   assertEquals(
     domain.ownerBindingDefinitionAuthorityId,
-    "runtime-binding-definition-authority-v1:manifest-code-1:owner",
+    "runtime-manifest-binding-definition-v1:manifest-id-1:manifest-code-1:owner",
   );
   assertEquals(domain.cardinalityLabel, "one");
   assertEquals(domain.minimum, 1);
@@ -166,7 +196,7 @@ Deno.test("OWNER cardinality semantics one resolves 1..1 from exact OWNER bindin
 Deno.test("OWNER cardinality semantics one_or_more resolves 1..unbounded", () => {
   const result =
     deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerCardinalitySemanticsV1(
-      survivorResult(),
+      survivorResult(2, "one_or_more"),
       [dependencyAuthority()],
       [manifestRow("one_or_more")],
     );
@@ -187,7 +217,7 @@ Deno.test("OWNER cardinality semantics one_or_more resolves 1..unbounded", () =>
 Deno.test("OWNER cardinality semantics zero_or_more resolves 0..unbounded", () => {
   const result =
     deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerCardinalitySemanticsV1(
-      survivorResult(0),
+      survivorResult(0, "zero_or_more"),
       [dependencyAuthority()],
       [manifestRow("zero_or_more")],
     );
@@ -236,7 +266,7 @@ Deno.test("survivor count cannot change OWNER cardinality semantics", () => {
 Deno.test("unsupported OWNER cardinality label blocks instead of defaulting", () => {
   const result =
     deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerCardinalitySemanticsV1(
-      survivorResult(),
+      survivorResult(2, "optional"),
       [dependencyAuthority()],
       [manifestRow("optional")],
     );
@@ -258,7 +288,7 @@ Deno.test("missing exact OWNER binding authority blocks", () => {
       ? source.survivorDomains.map((domain) => ({
         ...domain,
         ownerBindingDefinitionAuthorityId:
-          "runtime-binding-definition-authority-v1:manifest-code-1:missing",
+          "runtime-manifest-binding-definition-v1:manifest-id-1:manifest-code-1:missing",
       }))
       : [],
   } as CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerSurvivorSetResultV1;

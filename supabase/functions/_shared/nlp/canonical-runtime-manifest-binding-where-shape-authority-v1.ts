@@ -97,6 +97,9 @@ export type CanonicalRuntimeManifestBindingWhereShapeAuthorityV1 = {
 
   bindingDefinitionAuthorityId: string;
 
+  sourceBindingDefinitionAuthority:
+    CanonicalRuntimeManifestBindingDefinitionAuthorityV1;
+
   manifestId: string;
 
   manifestCode: string;
@@ -111,6 +114,8 @@ export type CanonicalRuntimeManifestBindingWhereShapeAuthorityV1 = {
     exactA43a1ResultRequired: true;
 
     exactManifestBindingDefinitionAuthorityRequired: true;
+
+    sourceBindingDefinitionAuthorityPreservedWithoutReconstruction: true;
 
     whereClauseConsumedFromA43a1: true;
 
@@ -538,6 +543,8 @@ function governance(): CanonicalRuntimeManifestBindingWhereShapeAuthorityV1[
 
     exactManifestBindingDefinitionAuthorityRequired: true,
 
+    sourceBindingDefinitionAuthorityPreservedWithoutReconstruction: true,
+
     whereClauseConsumedFromA43a1: true,
 
     whereClauseReadOnly: true,
@@ -703,6 +710,8 @@ export function deriveCanonicalRuntimeManifestBindingWhereShapeAuthoritiesV1(
           status: "candidate",
 
           bindingDefinitionAuthorityId: bindingAuthority.id,
+
+          sourceBindingDefinitionAuthority: bindingAuthority,
 
           manifestId: bindingAuthority.manifestId,
 

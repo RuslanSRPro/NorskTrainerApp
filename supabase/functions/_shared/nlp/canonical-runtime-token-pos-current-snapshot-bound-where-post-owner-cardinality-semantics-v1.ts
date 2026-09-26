@@ -197,6 +197,60 @@ function exactCardinalitySemantics(
   }
 }
 
+type CanonicalOpaqueJsonRecord = {
+  [key: string]: unknown;
+};
+
+function canonicalOpaqueJsonValue(
+  value: unknown,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map(
+      canonicalOpaqueJsonValue,
+    );
+  }
+
+  if (
+    value !== null &&
+    typeof value === "object"
+  ) {
+    const record =
+      value as CanonicalOpaqueJsonRecord;
+
+    const out: CanonicalOpaqueJsonRecord = {};
+
+    for (
+      const key of Object.keys(
+        record,
+      ).sort()
+    ) {
+      out[key] =
+        canonicalOpaqueJsonValue(
+          record[key],
+        );
+    }
+
+    return out;
+  }
+
+  return value;
+}
+
+function sameCanonicalOpaqueJson(
+  left: unknown,
+  right: unknown,
+): boolean {
+  return JSON.stringify(
+    canonicalOpaqueJsonValue(
+      left,
+    ),
+  ) === JSON.stringify(
+    canonicalOpaqueJsonValue(
+      right,
+    ),
+  );
+}
+
 function exactBindingGovernance(
   binding: CanonicalRuntimeBindingDefinitionAuthorityV1,
 ): boolean {
@@ -265,8 +319,36 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwner
     const ownerBindingDefinitionAuthorityId =
       survivorDomain.ownerBindingDefinitionAuthorityId;
 
+    const ownerOccurrenceDomain = survivorDomain.sourceFinalWhereDecision
+      .sourceOwnerBindingOccurrenceDomain;
+
+    const ownerManifestBindingAuthority =
+      ownerOccurrenceDomain.sourceStructuralAuthority
+        .sourceWhereShapeAuthority
+        .sourceBindingDefinitionAuthority;
+
+    if (
+      ownerBindingDefinitionAuthorityId !==
+        ownerOccurrenceDomain.sourceStructuralAuthority
+          .bindingDefinitionAuthorityId ||
+      ownerBindingDefinitionAuthorityId !==
+        ownerManifestBindingAuthority.id
+    ) {
+      blockingReasons.push(
+        `owner_binding_definition_authority:${ownerBindingDefinitionAuthorityId}:not_exact_unique_match`,
+      );
+      continue;
+    }
+
     const bindingMatches = bindingResult.authorities.filter(
-      (binding) => binding.id === ownerBindingDefinitionAuthorityId,
+      (binding) =>
+        binding.manifestId === ownerOccurrenceDomain.manifestId &&
+        binding.manifestCode === ownerOccurrenceDomain.manifestCode &&
+        binding.bindingName === ownerOccurrenceDomain.ownerBindingName &&
+        sameCanonicalOpaqueJson(
+          binding.bindingDefinition,
+          ownerManifestBindingAuthority.bindingDefinition,
+        ),
     );
 
     if (bindingMatches.length !== 1) {
@@ -284,9 +366,6 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwner
       );
       continue;
     }
-
-    const ownerOccurrenceDomain = survivorDomain.sourceFinalWhereDecision
-      .sourceOwnerBindingOccurrenceDomain;
 
     if (
       binding.manifestId !== ownerOccurrenceDomain.manifestId ||

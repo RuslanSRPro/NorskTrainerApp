@@ -205,6 +205,7 @@ function readinessRuntimeOccurrence(
 function readinessRuntimeFinalWhereFixture(
   disposition: "satisfied" | "rejected" | "uncertain",
   occurrences: ReturnType<typeof readinessRuntimeOccurrence>[],
+  cardinality: "one" | "one_or_more" | "zero_or_more",
 ) {
   const ownerBindingDefinitionAuthorityId =
     "runtime-binding-definition-authority-v1:manifest-code-1:owner";
@@ -240,7 +241,64 @@ function readinessRuntimeFinalWhereFixture(
     occurrences,
 
     sourceRootCandidate: {},
-    sourceStructuralAuthority: {},
+    sourceStructuralAuthority: {
+      id: "structural-1",
+      bindingDefinitionAuthorityId: ownerBindingDefinitionAuthorityId,
+      sourceWhereShapeAuthorityId: "structural-1",
+      sourceWhereShapeAuthority: {
+        id: "structural-1",
+        bindingDefinitionAuthorityId: ownerBindingDefinitionAuthorityId,
+        sourceBindingDefinitionAuthority: {
+          id: ownerBindingDefinitionAuthorityId,
+          status: "candidate",
+          manifestId: "manifest-id-1",
+          manifestCode: "manifest-code-1",
+          runtimeFamilyLabel: null,
+          executionPhaseLabel: null,
+          bindingName: "owner",
+          bindingDefinition: {
+            entity: "token",
+            scope: "sentence",
+            cardinality,
+          },
+          entityLabel: "token",
+          scopeLabel: "sentence",
+          cardinalityLabel: cardinality,
+          whereClause: null,
+          rawManifestSnapshot: {},
+          governance: {
+            exactValidatedManifestRequired: true,
+            exactManifestIdentityRequired: true,
+            manifestLocalBindingsOnly: true,
+            actionAuthorityRequired: false,
+            actionFamilySemanticsResolved: false,
+            runtimeFamilyLabelPreservedOpaque: true,
+            executionPhaseLabelPreservedOpaque: true,
+            runtimeFamilySemanticsResolved: false,
+            executionPhaseSemanticsResolved: false,
+            bindingNamePreservedOpaque: true,
+            bindingDefinitionPreservedOpaque: true,
+            entityLabelPreservedOpaque: true,
+            scopeLabelPreservedOpaque: true,
+            cardinalityLabelPreservedOpaque: true,
+            whereClausePreservedOpaque: true,
+            entitySemanticsResolved: false,
+            scopeSemanticsResolved: false,
+            cardinalitySemanticsResolved: false,
+            whereSemanticsResolved: false,
+            referenceSemanticsResolved: false,
+            occurrenceEnumerationPerformed: false,
+            occurrenceBindingPerformed: false,
+            winnerSelected: false,
+            graphMutationPerformed: false,
+            productionActivationAssumed: false,
+            learnerErrorClassified: false,
+            candidateOnly: true,
+            frozenGrammarReadOnly: true,
+          },
+        },
+      },
+    },
     sourceScopeCompatibility: {},
     sourceDirectDomain: {},
     sourceSnapshotAuthority: {},
@@ -301,11 +359,13 @@ function readinessRuntimeFinalWhereFixture(
 function readinessRuntimeSurvivorResult(
   disposition: "satisfied" | "rejected" | "uncertain",
   occurrences: ReturnType<typeof readinessRuntimeOccurrence>[],
+  cardinality: "one" | "one_or_more" | "zero_or_more",
 ) {
   return deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerSurvivorSetV1(
     readinessRuntimeFinalWhereFixture(
       disposition,
       occurrences,
+      cardinality,
     ),
   );
 }
@@ -382,6 +442,7 @@ function deriveReadinessRuntimeFixture(
   const survivorResult = readinessRuntimeSurvivorResult(
     disposition,
     occurrences,
+    cardinality,
   );
 
   assertEquals(
