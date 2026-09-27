@@ -182,7 +182,7 @@ export const QUALITY_TO_TIER: Record<string, VerificationTier> = {
   learner_dictionary: 'usage_evidence',
   exact_expression_match: 'usage_evidence',
   usage_example_match: 'usage_evidence',
-  search_page_match: 'component_match',
+  search_page_match: 'ai_candidate',
   component_match: 'component_match',
   ai_suggestion: 'ai_candidate',
 };
@@ -294,6 +294,34 @@ export function stringifySources(value?: string | string[] | null): string {
   return normalizeSourceList(value).join('+');
 }
 
+function verifiedEvidence(source: string, raw: SourceEvidence): SourceEvidence {
+  const item: SourceEvidence = { ...raw, source };
+  const original = String(item.evidence?.original_quality ?? item.quality ?? '');
+  const preview = String(item.evidence?.raw_preview ?? item.raw_preview ?? '').toLowerCase();
+  const label = String(item.evidence?.evidence_label ?? item.evidence_label ?? '').toLowerCase();
+  const noResults = /gav\s+ingen\s+treff|0\s+treff|finnes ikke som oppslagsord/.test(preview);
+
+  if (noResults) {
+    return { ...item, found: false, quality: 'not_found', registered_entry: false,
+      whole_unit_match: false, component_match: false, usage_match: false };
+  }
+  if (source === 'Ordbokene' &&
+      (label.includes('suggestion') || original === 'exact_expression_match') &&
+      !item.registered_entry && !item.article_id) {
+    return { ...item, quality: 'search_page_match', whole_unit_match: false, usage_match: false };
+  }
+  // The Sprakradet adapter previously counted the search form and navigation
+  // as a normative reference. Its ?s= page alone cannot prove usage.
+  if (source === 'Språkrådet' && preview.includes('du søkte etter')) {
+    return { ...item, quality: 'search_page_match', whole_unit_match: false,
+      component_match: false, usage_match: false };
+  }
+  if (original && ['strong', 'medium', 'weak'].includes(String(item.quality))) {
+    item.quality = original;
+  }
+  return item;
+}
+
 export function normalizeEvidence(evidence: VerificationEvidence): Array<[string, SourceEvidence]> {
   if (!evidence) return [];
 
@@ -301,14 +329,14 @@ export function normalizeEvidence(evidence: VerificationEvidence): Array<[string
     return evidence
       .map((item, index) => {
         const source = item?.source || `source_${index + 1}`;
-        return [String(source), item || {}] as [string, SourceEvidence];
+        return [String(source), verifiedEvidence(String(source), item || {})] as [string, SourceEvidence];
       })
       .filter(([, item]) => Boolean(item));
   }
 
   return Object.entries(evidence)
     .filter(([, item]) => Boolean(item))
-    .map(([source, item]) => [source, item || {}]);
+    .map(([source, item]) => [source, verifiedEvidence(source, item || {})]);
 }
 
 export function isFoundEvidence(item?: SourceEvidence | null): boolean {
@@ -405,9 +433,6 @@ export function normalizeTier(value?: VerificationTier | string | null): Verific
 export function inferVerificationTier(input?: VerificationInput | null): VerificationTier {
   if (!input) return 'ai_candidate';
 
-  const explicit = input.verification_tier ?? input.tier;
-  if (explicit) return normalizeTier(explicit);
-
   const evidenceEntries = normalizeEvidence(input.verification_evidence ?? input.evidence);
   const foundEvidence = evidenceEntries.filter(([, item]) => isFoundEvidence(item));
 
@@ -416,6 +441,14 @@ export function inferVerificationTier(input?: VerificationInput | null): Verific
   for (const [, item] of foundEvidence) {
     tier = chooseStrongerTier(tier, getEvidenceTier(item));
   }
+
+  // Stored tiers from earlier runs can represent a search suggestion as a
+  // dictionary match. When evidence is present, the evidence is authoritative
+  // for the UI, including when none of its rows actually confirms the unit.
+  if (evidenceEntries.length > 0) return tier;
+
+  const explicit = input.verification_tier ?? input.tier;
+  if (explicit) return normalizeTier(explicit);
 
   const registeredSources = normalizeSourceList(input.registered_sources);
   const usageSources = normalizeSourceList(input.usage_sources);
@@ -451,16 +484,16 @@ export function inferVerificationTier(input?: VerificationInput | null): Verific
 export function resolveVerificationConfidence(input?: VerificationInput | null): number {
   if (!input) return 10;
 
+  const evidenceEntries = normalizeEvidence(input.verification_evidence ?? input.evidence);
+  if (evidenceEntries.length > 0) {
+    const qualified = evidenceEntries.filter(([, item]) => isFoundEvidence(item) &&
+      getEvidenceTier(item) !== 'ai_candidate');
+    return qualified.length ? Math.max(...qualified.map(([, item]) => getEvidenceQualityScore(item))) : 10;
+  }
+
   const explicit = Number(input.verification_confidence);
   if (Number.isFinite(explicit) && explicit > 0) {
     return explicit <= 1 ? Math.round(explicit * 100) : Math.round(Math.min(explicit, 100));
-  }
-
-  const foundEvidence = normalizeEvidence(input.verification_evidence ?? input.evidence)
-    .filter(([, item]) => isFoundEvidence(item));
-
-  if (foundEvidence.length > 0) {
-    return Math.max(...foundEvidence.map(([, item]) => getEvidenceQualityScore(item)));
   }
 
   const tier = inferVerificationTier(input);
@@ -538,10 +571,11 @@ export function resolveVerification(
   const strongSources = foundSources.filter(([, item]) => getEvidenceQualityScore(item) >= 60);
   const weakSources = foundSources.filter(([, item]) => getEvidenceQualityScore(item) < 60);
 
-  const sourceVerified =
-    stringifySources(input?.source_verified ?? input?.sourceVerified) ||
-    stringifySources(input?.registered_sources) ||
-    foundSources.map(([source]) => source).join('+');
+  const sourceVerified = evidenceEntries.length > 0
+    ? foundSources.filter(([, item]) => getEvidenceTier(item) !== 'ai_candidate')
+      .map(([source]) => source).join('+')
+    : stringifySources(input?.source_verified ?? input?.sourceVerified) ||
+      stringifySources(input?.registered_sources);
 
   const group = getVerificationGroup(tier, confidence);
   const label = getTierLabel(tier, l);

@@ -975,6 +975,24 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         };
       }
 
+      const admissionBlocked = Number(result.data?.admission_blocked_items ?? 0);
+      if (admissionBlocked > 0) {
+        state.stage = 'needs_manual_review';
+        state.last_error = `${admissionBlocked} items ended at admission_gate without promotion`;
+        await saveState(state);
+        await updateJobStatus(jobId, 'needs_manual_review', {
+          supervisor_last_error: state.last_error,
+          admission_blocked_items: admissionBlocked,
+        });
+        return {
+          job_id: jobId,
+          stage: state.stage,
+          step: 'job-completion-auditor',
+          classification: 'blocked_manual_review',
+          admission_blocked_items: admissionBlocked,
+        };
+      }
+
       const stillIncomplete = Number(result.data?.items_still_incomplete_after_heal ?? 0);
 
       if (stillIncomplete > 0) {

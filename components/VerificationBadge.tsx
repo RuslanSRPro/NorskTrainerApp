@@ -22,6 +22,7 @@ import type {
 
 import {
   getQualityLabel,
+  normalizeEvidence,
   resolveVerification,
 } from '@/services/verification';
 
@@ -42,7 +43,7 @@ const UI = {
     accessibilityPrefix: 'Верифікація',
     accessibilitySuffix: 'Натисни, щоб переглянути деталі.',
     confirmed_by: 'ДЖЕРЕЛА ТА РІВЕНЬ ПІДТВЕРДЖЕННЯ',
-    registered_in: 'Зареєстровано в',
+    registered_in: 'Джерела підтвердження',
     registered: 'зареєстровано',
     close: 'Закрити',
     no_evidence: 'Авторитетні джерела поки не підтвердили цей вираз.',
@@ -52,7 +53,7 @@ const UI = {
     accessibilityPrefix: 'Verification',
     accessibilitySuffix: 'Tap for details.',
     confirmed_by: 'SOURCES AND VERIFICATION LEVEL',
-    registered_in: 'Registered in',
+    registered_in: 'Sources with evidence',
     registered: 'registered',
     close: 'Close',
     no_evidence: 'No authoritative sources confirmed this expression yet.',
@@ -62,7 +63,7 @@ const UI = {
     accessibilityPrefix: 'Verifisering',
     accessibilitySuffix: 'Trykk for detaljer.',
     confirmed_by: 'KILDER OG BEKREFTELSESNIVÅ',
-    registered_in: 'Registrert i',
+    registered_in: 'Kilder med belegg',
     registered: 'registrert',
     close: 'Lukk',
     no_evidence: 'Ingen autoritative kilder har bekreftet dette uttrykket ennå.',
@@ -170,13 +171,14 @@ function getQualityExplanation(
   const isUsage = item.usage_match === true;
 
   if (lang === 'ua') {
-    if (isRegistered || quality === 'registered_entry' || quality === 'structured_entry_match') return 'Окремий словниковий запис';
+    if (isRegistered || quality === 'registered_entry') return 'Окрема словникова стаття';
+    if (quality === 'structured_entry_match') return 'Підтверджена підстаття виразу';
     if (quality === 'learner_dictionary') return 'Запис у навчальному словнику';
     if (quality === 'normative_reference') return 'Нормативне підтвердження';
     if (isWhole || quality === 'exact_expression_match') return 'Знайдено як цілісну одиницю';
     if (isUsage || quality === 'usage_example_match') return 'Знайдено у прикладах уживання';
     if (isComponent || quality === 'component_match') return 'Компоненти підтверджені';
-    if (quality === 'search_page_match') return 'Знайдено через пошук у джерелі';
+    if (quality === 'search_page_match') return 'Пошукова підказка, статтю не підтверджено';
     if (quality === 'not_found') return 'Джерело перевірено, збігу не знайдено';
     if (quality === 'error') return 'Джерело не відповіло або сталася помилка';
     if (quality === 'not_checked') return 'Джерело ще не перевірено';
@@ -185,13 +187,14 @@ function getQualityExplanation(
   }
 
   if (lang === 'no') {
-    if (isRegistered || quality === 'registered_entry' || quality === 'structured_entry_match') return 'Egen ordbokartikkel';
+    if (isRegistered || quality === 'registered_entry') return 'Egen ordbokartikkel';
+    if (quality === 'structured_entry_match') return 'Bekreftet underartikkel for uttrykket';
     if (quality === 'learner_dictionary') return 'Oppslag i læringsordbok';
     if (quality === 'normative_reference') return 'Normativ bekreftelse';
     if (isWhole || quality === 'exact_expression_match') return 'Funnet som hel enhet';
     if (isUsage || quality === 'usage_example_match') return 'Funnet i brukseksempler';
     if (isComponent || quality === 'component_match') return 'Komponenter bekreftet';
-    if (quality === 'search_page_match') return 'Funnet via søk i kilden';
+    if (quality === 'search_page_match') return 'Søkeforslag; artikkel ikke bekreftet';
     if (quality === 'not_found') return 'Kilden er sjekket, men ingen treff ble funnet';
     if (quality === 'error') return 'Kilden svarte ikke eller ga feil';
     if (quality === 'not_checked') return 'Kilden er ikke sjekket ennå';
@@ -199,13 +202,14 @@ function getQualityExplanation(
     return 'Kildedata funnet';
   }
 
-  if (isRegistered || quality === 'registered_entry' || quality === 'structured_entry_match') return 'Separate dictionary entry';
+  if (isRegistered || quality === 'registered_entry') return 'Separate dictionary entry';
+  if (quality === 'structured_entry_match') return 'Verified expression subarticle';
   if (quality === 'learner_dictionary') return 'Learner dictionary entry';
   if (quality === 'normative_reference') return 'Normative confirmation';
   if (isWhole || quality === 'exact_expression_match') return 'Found as a whole unit';
   if (isUsage || quality === 'usage_example_match') return 'Found in usage examples';
   if (isComponent || quality === 'component_match') return 'Components verified';
-  if (quality === 'search_page_match') return 'Found through source search';
+  if (quality === 'search_page_match') return 'Search suggestion; article unconfirmed';
   if (quality === 'not_found') return 'Source checked, no match found';
   if (quality === 'error') return 'Source unavailable or returned an error';
   if (quality === 'not_checked') return 'Source not checked yet';
@@ -228,8 +232,7 @@ function getQualityStatusStyle(quality: EvidenceQuality, item: SourceEvidence) {
     item.whole_unit_match ||
     item.usage_match ||
     quality === 'exact_expression_match' ||
-    quality === 'usage_example_match' ||
-    quality === 'search_page_match'
+    quality === 'usage_example_match'
   ) {
     return 'medium';
   }
@@ -396,6 +399,9 @@ function EvidenceRow({
     ? sanitizeEvidenceLabel(item.evidence_label)
     : '';
   const explanation = getQualityExplanation(item, quality, lang);
+  const articleId = quality === 'structured_entry_match' || item.registered_entry === true
+    ? item.article_id ?? item.evidence?.article_id
+    : null;
   const statusStyle = getQualityStatusStyle(quality, item);
 
   return (
@@ -441,6 +447,10 @@ function EvidenceRow({
 
           <Text style={styles.evidenceExplanation}>{explanation}</Text>
 
+          {articleId != null ? (
+            <Text style={styles.evidenceExplanation}>{`Ordbøkene BM #${String(articleId)}`}</Text>
+          ) : null}
+
           {safeEvidenceLabel ? (
             <Text style={styles.evidenceLabel}>{safeEvidenceLabel}</Text>
           ) : null}
@@ -478,6 +488,8 @@ export function VerificationBadge({
     },
     safeLang
   );
+  const searchSuggestions = normalizeEvidence(evidence)
+    .filter(([, item]) => item.quality === 'search_page_match');
 
   // ФИКС: раньше badge был просто цветной точкой 10px (size='sm') почти
   // без отступов (paddingHorizontal: 0 для badgeSm) — реальная область
@@ -573,6 +585,10 @@ export function VerificationBadge({
                   {tr('no_evidence', safeLang)}
                 </Text>
               )}
+
+              {searchSuggestions.map(([source, item]) => (
+                <EvidenceRow key={`suggestion-${source}`} source={source} item={item} lang={safeLang} />
+              ))}
 
               {verification.sourceVerified ? (
                 <View style={styles.verifiedSummary}>

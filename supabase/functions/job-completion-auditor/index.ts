@@ -323,6 +323,19 @@ async function countUnpromotedItems(jobId: string): Promise<number> {
   return count ?? 0;
 }
 
+// Terminal admission decisions are not pending lexical work. Keep them
+// separate from source_checks so the supervisor does not retry them forever.
+async function countAdmissionBlockedItems(jobId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('lexeme_processing_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('job_id', jobId)
+    .eq('current_stage', 'admission_gate')
+    .eq('result_summary->>promotion_status', 'not_promoted');
+  if (error) throw new Error(`admission blocked count failed: ${safeStringify(error)}`);
+  return count ?? 0;
+}
+
 type AuditItem = {
   kind: 'lexeme' | 'expression';
   id: string;
@@ -691,6 +704,7 @@ serve(async (req) => {
     // на каждой промежуточной странице, только когда решается финальный
     // вопрос "весь job готов или нет".
     const unpromotedItemsRemaining = hasMore ? 0 : await countUnpromotedItems(jobId);
+    const admissionBlockedItems = hasMore ? 0 : await countAdmissionBlockedItems(jobId);
 
     await supabase
       .rpc('append_job_summary_field', {
@@ -705,6 +719,7 @@ serve(async (req) => {
           batch_healed: healedCount,
           batch_still_incomplete_after_heal: stillIncompleteAfterHeal.length,
           unpromoted_items_remaining: unpromotedItemsRemaining,
+          admission_blocked_items: admissionBlockedItems,
           has_more: hasMore,
           next_offset: nextOffset,
           total_items_in_job: totalCount ?? null,
@@ -738,6 +753,7 @@ serve(async (req) => {
       items_healed: healedCount,
       items_still_incomplete_after_heal: stillIncompleteAfterHeal.length,
       unpromoted_items_remaining: unpromotedItemsRemaining,
+      admission_blocked_items: admissionBlockedItems,
       audit_errors: auditErrors.length,
       audited,
       errors: auditErrors,

@@ -1,9 +1,6 @@
 import {
   containsExactPhrase,
-  countTokenHits,
   fetchWithTimeout,
-  getTokens,
-  includesAny,
   makeLookup,
   normalizeHtmlText,
   preview,
@@ -41,31 +38,15 @@ export async function checkSpraakradetLive(
     const html = await res.text();
     const text = normalizeHtmlText(html);
     const exact = containsExactPhrase(text, query);
-    const tokens = getTokens(query);
-    const tokenHits = countTokenHits(text, tokens);
 
     const noResults =
       /ingen\s+treff\s+på/i.test(text) ||
       /ingen\s+resultater\s+for/i.test(text) ||
       /0\s+treff/i.test(text) ||
-      text.includes('søket gav ingen treff') ||
+      /gav\s+ingen\s+treff/i.test(text) ||
       text.includes('fant ingen treff');
 
     const emptyPage = text.length < 500;
-
-    const normativeMarkers = includesAny(text, [
-      'språkspørsmål og svar',
-      'korrekt språk',
-      'rettskriving',
-      'skriveregler',
-      'ordbøkene',
-      'bokmålsordboka',
-      'nynorskordboka',
-      'klarspråk',
-      'språkrådet svarer',
-      'normering',
-      'skrivemåte',
-    ]);
 
     if (noResults || emptyPage) {
       return makeLookup(
@@ -82,38 +63,6 @@ export async function checkSpraakradetLive(
       );
     }
 
-    if (exact && normativeMarkers) {
-      return {
-        source: 'Språkrådet',
-        checked: true,
-        found: true,
-        quality: 'normative_reference',
-        registered_entry: false,
-        whole_unit_match: false,
-        component_match: false,
-        usage_match: true,
-        urls,
-        evidence_label: 'Språkrådet: exact normative reference found',
-        raw_preview: preview(text.slice(0, 700)),
-      };
-    }
-
-    if (tokens.length >= 2 && tokenHits >= 2 && normativeMarkers) {
-      return {
-        source: 'Språkrådet',
-        checked: true,
-        found: true,
-        quality: 'normative_reference',
-        registered_entry: false,
-        whole_unit_match: false,
-        component_match: true,
-        usage_match: true,
-        urls,
-        evidence_label: `Språkrådet: normative token match ${tokenHits}/${tokens.length}`,
-        raw_preview: preview(text.slice(0, 700)),
-      };
-    }
-
     if (exact) {
       return {
         source: 'Språkrådet',
@@ -123,9 +72,9 @@ export async function checkSpraakradetLive(
         registered_entry: false,
         whole_unit_match: false,
         component_match: false,
-        usage_match: true,
+        usage_match: false,
         urls,
-        evidence_label: 'Språkrådet: exact search-page match, not enough normative markers',
+        evidence_label: 'Språkrådet: search-page echo only; no independent usage evidence',
         raw_preview: preview(text.slice(0, 700)),
       };
     }
