@@ -890,6 +890,22 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
   if (state.stage === 'audit') {
     const previousLastError = state.last_error;
 
+    // A newly created expression starts as a grey candidate. Only the
+    // job-scoped, exact BM subarticle binding may admit it for learning.
+    // Retry is safe: the RPC only updates false -> true and refreshes roots
+    // whose members actually changed.
+    if (state.audit_offset === 0) {
+      const { data: admission, error: admissionError } = await supabase.rpc(
+        'admit_verified_job_expressions_v1', { p_job_id: jobId },
+      );
+      if (admissionError || admission?.ok !== true) {
+        state.last_error = `expression admission failed: ${safeStringify(admissionError ?? admission)}`;
+        await saveState(state);
+        return { job_id: jobId, stage: state.stage, step: 'expression-admission',
+          classification: 'retryable_error', detail: state.last_error };
+      }
+    }
+
     const result = await callWorker('job-completion-auditor', {
       job_id: jobId,
       heal: true,
