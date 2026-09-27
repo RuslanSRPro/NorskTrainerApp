@@ -57,10 +57,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // Цепочка:
 //   1) собирает lexeme_id token-items текущей страницы job;
 //   2) вызывает translation-canonicalization-worker одним batch-запросом;
-//   3) после успешной канонизации вызывает RPC
-//      sync_lexeme_translation_columns для каждой уникальной лексемы,
-//      чтобы lexemes.translation_ua / translation_en сразу получили
-//      итоговые канонические значения.
+//   3) итоговые значения остаются в entity_translations. Клиент читает их
+//      через единый read RPC; копирование в колонки lexemes удалено.
 //
 // ФИКС (lexeme_translation integration, 11.07.2026):
 // authoritative-enrichment-pipeline-worker (цепочка 'authoritative') делает
@@ -94,10 +92,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // не по лингвистической базовости — сайт lexin.oslomet.no показывает
 // "працювати" как основний варіант, а наш парсер молча брав перший по
 // порядку появления в JSON-відповіді ("попрацювати"). Это влияло на
-// итоговое значение lexemes.translation_ua, потому что
-// sync_lexeme_translation_columns (внутри 'translation_canonicalization')
-// берёт DISTINCT ON (source_entry_id) — только ОДИН перевод на статью,
-// с наименьшим translation_rank. 'translation_reorder' вызывает
+// выбор основного перевода в read-модели entity_translations, потому что
+// она учитывает translation_rank. 'translation_reorder' вызывает
 // translation-aspect-reorder-worker (Gemini), который переставляет
 // translation_rank внутри каждой multi-variant группы так, чтобы базова
 // форма шла первой — с защитой от AI-галлюцинаций (проверка, что набор
@@ -771,8 +767,8 @@ async function enqueueAiFallbackEnrichment(jobId: string, offset: number, limit:
 //
 // ВАЖНО: должна идти ПОСЛЕ authoritative_ai_fallback (все варианты
 // перевода — и Lexin, и AI-fallback — уже на месте) и ДО
-// translation_canonicalization (та читает translation_rank для выбора
-// "лучшего" перевода через sync_lexeme_translation_columns — если запустить
+// translation_canonicalization и read-модель (они читают translation_rank
+// для выбора основного перевода — если запустить
 // её раньше, canonicalization зафиксирует ещё неправильный порядок).
 //
 // ФИКС (20.08.2026): было постранично (offset/limit из аргументов функции,
@@ -840,13 +836,12 @@ async function enqueueTranslationReorderEnrichment(jobId: string, offset: number
 }
 
 // ----------------------------------------------------------------------------
-// Translation canonicalization + sync (lexemes)
+// Translation canonicalization (entity_translations)
 //
 // Эта цепочка запускается ПОСЛЕ authoritative и authoritative_ai_fallback.
 // Она не ходит в Lexin повторно. На вход получает только lexeme_id текущего
-// job, канонизирует уже записанные Lexin primary-переводы и затем собирает
-// итоговые lexemes.translation_ua / lexemes.translation_en через существующую
-// RPC sync_lexeme_translation_columns.
+// job и канонизирует уже записанные Lexin primary-переводы. Результат остаётся
+// в entity_translations — единственном контуре хранения переводов.
 // ----------------------------------------------------------------------------
 async function enqueueTranslationCanonicalization(
   jobId: string,
@@ -903,10 +898,6 @@ async function enqueueTranslationCanonicalization(
   // canonicalize", и сам HTTP-вызов можно не делать. На большом refresh
   // это убирает тысячи пустых вызовов.
   //
-  // sync НИЖЕ по-прежнему выполняется для ВСЕХ lexemeIds независимо от
-  // этой проверки — перевод мог прийти через ai_fallback (не lexin), и
-  // canonicalization этим не занимается, но sync обязан подхватить и
-  // такие переводы в lexemes.translation_ua/en.
   const { data: candidateRows, error: candidateCheckError } = await supabase
     .from('entity_translations')
     .select('lexeme_id')
@@ -952,54 +943,15 @@ async function enqueueTranslationCanonicalization(
     }
   }
 
-  // Канонизатор может законно вернуть "Nothing to canonicalize":
-  // sync всё равно нужен, поскольку Lexin/AI могли обновить исходные строки,
-  // а итоговые колонки lexemes должны быть пересобраны.
-  const syncSettled = await Promise.allSettled(
-    lexemeIds.map(async (lexemeId) => {
-      const { error: syncError } = await supabase.rpc(
-        'sync_lexeme_translation_columns',
-        { p_lexeme_id: lexemeId },
-      );
-
-      if (syncError) {
-        throw new Error(`${lexemeId}: ${safeStringify(syncError)}`);
-      }
-
-      return lexemeId;
-    }),
-  );
-
-  const syncErrors: Record<string, unknown>[] = [];
-  let synced = 0;
-
-  for (let i = 0; i < syncSettled.length; i++) {
-    const outcome = syncSettled[i];
-    const lexemeId = lexemeIds[i];
-
-    if (outcome.status === 'fulfilled') {
-      synced++;
-    } else {
-      syncErrors.push({
-        stage: 'sync_lexeme_translation_columns',
-        lexeme_id: lexemeId,
-        error: safeStringify(outcome.reason),
-      });
-    }
-  }
-
-  const failed = syncErrors.length;
-
   return {
     processed: rawItems.length,
-    successful: synced,
-    failed,
-    retryable: failed,
+    successful: lexemeIds.length,
+    failed: 0,
+    retryable: 0,
     permanent: 0,
     has_more: hasMore,
     next_offset: nextOffset,
     total: count ?? null,
-    errors: syncErrors.length ? syncErrors : undefined,
   };
 }
 

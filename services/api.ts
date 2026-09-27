@@ -19,7 +19,7 @@ import { fetchFormsMap, type FormsBundle } from './formReadModel';
 const LEXEME_SELECT = `
   id, lemma, pos, display_form,
   dictionary_status, dictionary_exclusion_reason, is_learning_lexeme,
-  translation_ua, translation_en, example, notes, cefr, status,
+  example, notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
   relations_count,
   lexeme360_root_lemma,
@@ -71,7 +71,13 @@ type SrsPrevious = {
 // Map lexeme row → app format
 // ============================================================
 
-function mapLexemeRow(item: any, forms?: FormsBundle) {
+type CanonicalTranslations = { ua: string; en: string };
+
+function mapLexemeRow(
+  item: any,
+  forms?: FormsBundle,
+  translations?: CanonicalTranslations,
+) {
   if (!item) return null;
 
   const vf = forms?.verb_forms      || {};
@@ -96,8 +102,8 @@ function mapLexemeRow(item: any, forms?: FormsBundle) {
     pos,
     type:     category,
     category,
-    ua:       item.translation_ua || '',
-    en:       item.translation_en || '',
+    ua:       translations?.ua || '',
+    en:       translations?.en || '',
     example:  item.example        || '',
     notes:    item.notes          || '',
     cefr:     item.cefr           || '',
@@ -171,10 +177,36 @@ async function mapLexemeRows(rows: any[]) {
   const validRows = (rows || []).filter(Boolean);
   const lexemeIds = validRows.map((r) => r.id).filter(Boolean);
 
-  const formsMap = await fetchFormsMap(lexemeIds);
+  const [formsMap, translationResult] = await Promise.all([
+    fetchFormsMap(lexemeIds),
+    lexemeIds.length > 0
+      ? supabase.rpc('get_canonical_lexeme_translations_v1', {
+          p_lexeme_ids: lexemeIds,
+        })
+      : Promise.resolve({ data: [], error: null } as any),
+  ]);
+
+  if (translationResult.error) {
+    throw new Error(
+      `Could not load canonical translations: ${translationResult.error.message}`,
+    );
+  }
+
+  const translationMap = new Map<string, CanonicalTranslations>();
+  for (const row of translationResult.data || []) {
+    const lexemeId = String(row.lexeme_id || '');
+    if (!lexemeId) continue;
+
+    const current = translationMap.get(lexemeId) || { ua: '', en: '' };
+    if (row.language_code === 'uk') current.ua = String(row.translation || '').trim();
+    if (row.language_code === 'en') current.en = String(row.translation || '').trim();
+    translationMap.set(lexemeId, current);
+  }
 
   return validRows
-    .map((row) => mapLexemeRow(row, formsMap.get(row.id)))
+    .map((row) =>
+      mapLexemeRow(row, formsMap.get(row.id), translationMap.get(row.id))
+    )
     .filter(Boolean);
 }
 
@@ -1082,8 +1114,6 @@ export async function addExpressionCandidateToSupabase(params: {
     lemma,
     pos:              'expression',
     display_form:     displayForm,
-    translation_ua:   candidate.meaning_ua   || candidate.translation_ua || candidate.ua || null,
-    translation_en:   candidate.meaning_en   || candidate.translation_en || candidate.en || null,
     example:          candidate.example      || null,
     notes:            candidate.notes_ua     || candidate.notes          || null,
     cefr:             candidate.cefr         || null,
@@ -1122,12 +1152,14 @@ export async function addExpressionCandidateToSupabase(params: {
     }
   }
 
+  const [mappedItem] = await mapLexemeRows([data]);
+
   return {
     ok:            true,
     alreadyExists: false,
     item: {
-      ...mapLexemeRow(data),
-      expression_subtype: subtype || mapLexemeRow(data)?.expression_subtype || '',
+      ...mappedItem,
+      expression_subtype: subtype || mappedItem?.expression_subtype || '',
     },
   };
 }

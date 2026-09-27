@@ -142,8 +142,7 @@ function splitWhitespaceInfinitiveList(segment: string): string[] {
 }
 
 function normalizeTranslationSegment(segment: string): string[] {
-  return segment
-    .split(',')
+  return splitOutsideParens(segment, ',')
     .flatMap((part) => splitWhitespaceInfinitiveList(part))
     .map((part) => part.trim())
     .filter(Boolean);
@@ -264,15 +263,29 @@ function cleanTranslationSenseGroups(text: string): string[][] {
 
   if (!normalized) return [];
 
-  const senseSegments = splitOutsideParens(normalized, ';')
+  // Lexin uses `|` inside Ukr-lem to separate the preferred neutral/base
+  // display variants (right side, as rendered on lexin.oslomet.no) from
+  // supplementary aspect/search variants (left side). Keep one semantic
+  // group, but rank the displayed right-hand variants first.
+  const pipeBlocks = normalized.split('|').map((s) => s.trim()).filter(Boolean);
+  const preferredBlock = pipeBlocks.length > 1 ? pipeBlocks[pipeBlocks.length - 1] : pipeBlocks[0];
+  const supplementaryBlocks = pipeBlocks.length > 1 ? pipeBlocks.slice(0, -1) : [];
+  const senseSegments = splitOutsideParens(preferredBlock ?? '', ';')
     .map((s) => s.trim())
     .filter(Boolean);
 
   return senseSegments
     .map((segment) => {
-      const candidates = segment
-        .split('|')
-        .flatMap((block) => normalizeTranslationSegment(block));
+      const candidates = normalizeTranslationSegment(segment);
+
+      // Supplementary forms belong to the first displayed sense. Appending
+      // them preserves evidence while preventing them from outranking the
+      // canonical Lexin display variants.
+      if (segment === senseSegments[0]) {
+        for (const block of supplementaryBlocks) {
+          candidates.push(...normalizeTranslationSegment(block));
+        }
+      }
 
       const seen = new Set<string>();
       const unique: string[] = [];
@@ -964,7 +977,17 @@ serve(async (req) => {
       t.translation_rank = rank;
     }
 
-    const dedupedTranslations = translations.filter((t) => t.translation_rank !== -1);
+    const dedupedTranslations = translations
+      .filter((t) => t.translation_rank !== -1)
+      .map((t) => ({
+        ...t,
+        // Every Lexin refresh establishes a new raw ordering. Clear derived
+        // state so reorder and canonicalization run again on that ordering.
+        aspect_reorder_run: null,
+        aspect_reorder_note: null,
+        canonical_translation: null,
+        canonicalization_metadata: null,
+      }));
 
     if (dryRun) {
       return jsonResponse({

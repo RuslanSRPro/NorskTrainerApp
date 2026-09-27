@@ -168,8 +168,8 @@ function makeReadingTranslator(lang: AppLanguage) {
 }
 function pickTranslation(item: any, lang: AppLanguage) {
   if (!item) return "";
-  const ua=item.ua||item.translation_ua||item.meaning_ua||"";
-  const en=item.en||item.translation_en||item.meaning_en||"";
+  const ua=item.ua||item.meaning_ua||"";
+  const en=item.en||item.meaning_en||"";
   const no=item.no||item.translation_no||item.meaning_no||"";
   if(lang==="ua")return ua||en||no||"";
   if(lang==="no")return no||en||ua||"";
@@ -222,7 +222,7 @@ function adaptV7ResponseToLegacyFormat(v7:any,dict:Map<string,any>):{ok:boolean;
     if(item.match_type==="expression"){
       expressions.push({text:item.surface_form||item.normalized_lemma,lemma:item.normalized_lemma,type:"expression",expression_subtype:item.expression_subtype??null,in_base:true,
         found:lm??(item.expression_id?{id:item.expression_id,lemma:item.normalized_lemma}:null),
-        meaning_ua:lm?.translation_ua||lm?.ua||"",meaning_en:lm?.translation_en||lm?.en||"",cefr:lm?.cefr||item.cefr||"",frequency_level:lm?.frequency_level||item.frequency_level||"",chunk_index:item.chunk_index??0});
+        meaning_ua:lm?.ua||"",meaning_en:lm?.en||"",cefr:lm?.cefr||item.cefr||"",frequency_level:lm?.frequency_level||item.frequency_level||"",chunk_index:item.chunk_index??0});
     } else {
       const r=item.resolved,ld=lm||(r?.lexeme_id?{id:r.lexeme_id,lemma:r.lemma??item.normalized_lemma,pos:r.pos}:null);
       if(ld)known.push({text:item.surface_form,lemma:item.normalized_lemma,match_type:"single",in_base:true,found:ld});
@@ -452,7 +452,7 @@ export default function ReadingScreen() {
       for(const query of queries){
         const r=await searchLexemeInSupabase(query);
         if(r?.found&&Array.isArray(r.items)&&r.items.length){
-          found.push(...r.items.map((item:any)=>({...item,learned:false,ua:item.ua||item.translation_ua||"",en:item.en||item.translation_en||"",category:item.type||item.category||"",searchQuery:query})));
+          found.push(...r.items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:query})));
         }else if(!firstUnknown){firstUnknown=query;}
       }
       setWordMatches(found);
@@ -471,11 +471,11 @@ export default function ReadingScreen() {
     try{
       setWordLoading(true);const lookup=await searchLexemeInSupabase(q);
       if(lookup?.found&&lookup?.items?.length){
-        const items=lookup.items.map((item:any)=>({...item,learned:false,ua:item.ua||item.translation_ua||"",en:item.en||item.translation_en||"",category:item.type||item.category||"",searchQuery:q}));
+        const items=lookup.items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:q}));
         setWordMatches(items);setWordSearchMessage(tr("word_found"));return;
       }
       const r=await inspectWordViaAppsScript(q);
-      if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||r.item.translation_ua||"",en:r.item.en||r.item.translation_en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
+      if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||"",en:r.item.en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
       if(r?.preview){setPreviewWord(r.preview);setWordSearchMessage(tr("preview_ready"));return;}
       setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
     }catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setWordLoading(false);}
