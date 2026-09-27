@@ -8,8 +8,8 @@ import type {
 } from "./canonical-runtime-set-role-action-authority-v1.ts";
 
 import type {
-  CanonicalDependencyRuntimeAuthorityResultV1,
   CanonicalDependencyRuntimeActionAuthorityV1,
+  CanonicalDependencyRuntimeAuthorityResultV1,
 } from "./canonical-dependency-runtime-authority-v1.ts";
 
 export const CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_ACTION_CANDIDATE_BRIDGE_V1 =
@@ -20,21 +20,19 @@ export const CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_ACTION_CAN
 
 export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateV1 =
   | {
-      family: "set_role";
+    family: "set_role";
 
-      actionIndex: number;
+    actionIndex: number;
 
-      sourceAuthority:
-        CanonicalRuntimeSetRoleActionAuthorityV1;
-    }
+    sourceAuthority: CanonicalRuntimeSetRoleActionAuthorityV1;
+  }
   | {
-      family: "create_dependency";
+    family: "create_dependency";
 
-      actionIndex: number;
+    actionIndex: number;
 
-      sourceAuthority:
-        CanonicalDependencyRuntimeActionAuthorityV1;
-    };
+    sourceAuthority: CanonicalDependencyRuntimeActionAuthorityV1;
+  };
 
 export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBridgeV1 =
   {
@@ -80,26 +78,26 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBrid
 
 export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBridgeResultV1 =
   | {
-      status: "ready";
+    status: "ready";
 
-      bridge:
-        CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBridgeV1;
+    bridge:
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBridgeV1;
 
-      blockingReasons: [];
-    }
+    blockingReasons: [];
+  }
   | {
-      status: "blocked";
+    status: "blocked";
 
-      blockingReasons: string[];
+    blockingReasons: string[];
 
-      governance: {
-        semanticFallbackUsed: false;
-        actionSelected: false;
-        runtimeActionExecuted: false;
-        schedulerInvoked: false;
-        graphMutationPerformed: false;
-      };
+    governance: {
+      semanticFallbackUsed: false;
+      actionSelected: false;
+      runtimeActionExecuted: false;
+      schedulerInvoked: false;
+      graphMutationPerformed: false;
     };
+  };
 
 function blocked(
   ...blockingReasons: string[]
@@ -126,11 +124,9 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
     terminalEnvelope:
       CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1;
 
-    setRoleAuthorities:
-      CanonicalRuntimeSetRoleActionAuthorityResultV1;
+    setRoleAuthorities: CanonicalRuntimeSetRoleActionAuthorityResultV1;
 
-    dependencyAuthorities:
-      CanonicalDependencyRuntimeAuthorityResultV1;
+    dependencyAuthorities: CanonicalDependencyRuntimeAuthorityResultV1;
   },
 ): CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBridgeResultV1 {
   const {
@@ -139,8 +135,7 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
     dependencyAuthorities,
   } = input;
 
-  const structuralAuthority =
-    terminalEnvelope.sourceOperatorShapeAuthority;
+  const structuralAuthority = terminalEnvelope.sourceOperatorShapeAuthority;
 
   if (
     structuralAuthority.id !==
@@ -151,11 +146,9 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
     );
   }
 
-  const manifestId =
-    structuralAuthority.manifestId;
+  const manifestId = structuralAuthority.manifestId;
 
-  const manifestCode =
-    structuralAuthority.manifestCode;
+  const manifestCode = structuralAuthority.manifestCode;
 
   if (
     !manifestId ||
@@ -166,8 +159,7 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
     );
   }
 
-  const setRoleFamilyAbsent =
-    setRoleAuthorities.status === "blocked" &&
+  const setRoleFamilyAbsent = setRoleAuthorities.status === "blocked" &&
     setRoleAuthorities.authorities.length === 0 &&
     setRoleAuthorities.blockingReasons.length === 1 &&
     setRoleAuthorities.blockingReasons[0] ===
@@ -194,8 +186,7 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
     CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateV1[] = [];
 
   for (
-    const authority of
-      setRoleAuthorities.authorities
+    const authority of setRoleAuthorities.authorities
   ) {
     if (
       authority.manifestId !== manifestId ||
@@ -207,17 +198,14 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
     actionCandidates.push({
       family: "set_role",
 
-      actionIndex:
-        authority.actionIndex,
+      actionIndex: authority.actionIndex,
 
-      sourceAuthority:
-        authority,
+      sourceAuthority: authority,
     });
   }
 
   for (
-    const authority of
-      dependencyAuthorities.authorities
+    const authority of dependencyAuthorities.authorities
   ) {
     if (
       authority.manifestId !== manifestId ||
@@ -229,11 +217,9 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
     actionCandidates.push({
       family: "create_dependency",
 
-      actionIndex:
-        authority.actionIndex,
+      actionIndex: authority.actionIndex,
 
-      sourceAuthority:
-        authority,
+      sourceAuthority: authority,
     });
   }
 
@@ -269,11 +255,9 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCan
       manifestId,
       manifestCode,
 
-      structuralAuthorityId:
-        terminalEnvelope.structuralAuthorityId,
+      structuralAuthorityId: terminalEnvelope.structuralAuthorityId,
 
-      sourceTerminalEnvelope:
-        terminalEnvelope,
+      sourceTerminalEnvelope: terminalEnvelope,
 
       actionCandidates,
 

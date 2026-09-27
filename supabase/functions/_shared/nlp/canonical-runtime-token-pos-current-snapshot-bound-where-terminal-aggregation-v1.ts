@@ -9,8 +9,8 @@ import type {
 } from "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts";
 
 import {
-  deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1,
   type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1,
+  deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1,
 } from "./canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts";
 
 export const CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_TERMINAL_AGGREGATION_V1 =
@@ -19,68 +19,69 @@ export const CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_TERMINAL_A
 export const CANONICAL_RUNTIME_TOKEN_POS_CURRENT_SNAPSHOT_BOUND_WHERE_TERMINAL_AGGREGATION_VERSION_V1 =
   "1.0.0" as const;
 
-export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalAggregationV1 = {
-  aggregationId: string;
+export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalAggregationV1 =
+  {
+    aggregationId: string;
 
-  status: "terminal_governed_result_collection";
+    status: "terminal_governed_result_collection";
 
-  terminalEnvelopes:
-    CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1[];
+    terminalEnvelopes:
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1[];
 
-  envelopeCount: number;
+    envelopeCount: number;
 
-  sourceFinalWhereDecisionResult:
-    CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereFinalRootTruthDecisionResultV1;
+    sourceFinalWhereDecisionResult:
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereFinalRootTruthDecisionResultV1;
 
-  sourcePostOwnerBoundConditionEvidenceResult:
-    CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionEvidenceResultV1;
+    sourcePostOwnerBoundConditionEvidenceResult:
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionEvidenceResultV1;
 
-  governance: {
-    exactFinalDecisionObjectIdentityRequired: true;
-    evidenceMultiplicityPreserved: true;
-    decisionMultiplicityPreserved: true;
-    indexBasedJoinUsed: false;
-    stringIdentityFallbackUsed: false;
-    unmatchedDecisionAllowed: false;
-    duplicateEvidenceForDecisionAllowed: false;
+    governance: {
+      exactFinalDecisionObjectIdentityRequired: true;
+      evidenceMultiplicityPreserved: true;
+      decisionMultiplicityPreserved: true;
+      indexBasedJoinUsed: false;
+      stringIdentityFallbackUsed: false;
+      unmatchedDecisionAllowed: false;
+      duplicateEvidenceForDecisionAllowed: false;
 
-    rootTruthRecomputed: false;
-    finalDecisionRecomputed: false;
-    postOwnerEvidenceRecomputed: false;
+      rootTruthRecomputed: false;
+      finalDecisionRecomputed: false;
+      postOwnerEvidenceRecomputed: false;
 
-    genericEligibilityDerived: false;
-    executableStateDerived: false;
-    schedulableStateDerived: false;
+      genericEligibilityDerived: false;
+      executableStateDerived: false;
+      schedulableStateDerived: false;
 
-    runtimeActionExecuted: false;
-    schedulerInvoked: false;
-    graphMutationPerformed: false;
+      runtimeActionExecuted: false;
+      schedulerInvoked: false;
+      graphMutationPerformed: false;
+    };
   };
-};
 
 export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalAggregationResultV1 =
   | {
-      status: "ready";
+    status: "ready";
 
-      aggregation:
-        CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalAggregationV1;
+    aggregation:
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalAggregationV1;
 
-      blockingReasons: [];
-    }
+    blockingReasons: [];
+  }
   | {
-      status: "blocked";
+    status: "blocked";
 
-      blockingReasons: string[];
+    blockingReasons: string[];
 
-      governance: {
-        semanticFallbackUsed: false;
-        indexBasedJoinUsed: false;
-        stringIdentityFallbackUsed: false;
-        runtimeActionExecuted: false;
-        schedulerInvoked: false;
-        graphMutationPerformed: false;
-      };
+    governance: {
+      semanticFallbackUsed: false;
+      indexBasedJoinUsed: false;
+      stringIdentityFallbackUsed: false;
+      runtimeActionExecuted: false;
+      schedulerInvoked: false;
+      graphMutationPerformed: false;
     };
+  };
 
 function blocked(
   ...blockingReasons: string[]
@@ -108,11 +109,9 @@ function exactEvidenceForDecision(
     CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereFinalRootTruthDecisionV1,
   evidence:
     CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionDomainEvidenceV1[],
-):
-  CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionDomainEvidenceV1[] {
+): CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionDomainEvidenceV1[] {
   return evidence.filter(
-    (domain) =>
-      domain.sourceFinalWhereDecision === decision,
+    (domain) => domain.sourceFinalWhereDecision === decision,
   );
 }
 
@@ -148,12 +147,10 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalA
     );
   }
 
-  const decisions =
-    finalWhereDecisionResult.decisions;
+  const decisions = finalWhereDecisionResult.decisions;
 
-  const evidence =
-    postOwnerBoundConditionEvidenceResult
-      .domainBoundConditionEvidence;
+  const evidence = postOwnerBoundConditionEvidenceResult
+    .domainBoundConditionEvidence;
 
   if (decisions.length !== evidence.length) {
     return blocked(
@@ -162,19 +159,18 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalA
   }
 
   const terminalEnvelopes:
-    CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1[] = [];
+    CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1[] =
+      [];
 
-  const consumedEvidence =
-    new Set<
-      CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionDomainEvidenceV1
-    >();
+  const consumedEvidence = new Set<
+    CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionDomainEvidenceV1
+  >();
 
   for (const decision of decisions) {
-    const exactMatches =
-      exactEvidenceForDecision(
-        decision,
-        evidence,
-      );
+    const exactMatches = exactEvidenceForDecision(
+      decision,
+      evidence,
+    );
 
     if (exactMatches.length === 0) {
       return blocked(
@@ -188,8 +184,7 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalA
       );
     }
 
-    const exactEvidence =
-      exactMatches[0];
+    const exactEvidence = exactMatches[0];
 
     if (consumedEvidence.has(exactEvidence)) {
       return blocked(
@@ -201,16 +196,14 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalA
       deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1(
         {
           finalWhereDecision: decision,
-          postOwnerBoundConditionEvidence:
-            exactEvidence,
+          postOwnerBoundConditionEvidence: exactEvidence,
         },
       );
 
     if (envelopeResult.status !== "ready") {
       return blocked(
         ...envelopeResult.blockingReasons.map(
-          (reason) =>
-            `terminal_envelope:${decision.decisionId}:${reason}`,
+          (reason) => `terminal_envelope:${decision.decisionId}:${reason}`,
         ),
       );
     }
@@ -241,16 +234,13 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalA
     aggregation: {
       aggregationId,
 
-      status:
-        "terminal_governed_result_collection",
+      status: "terminal_governed_result_collection",
 
       terminalEnvelopes,
 
-      envelopeCount:
-        terminalEnvelopes.length,
+      envelopeCount: terminalEnvelopes.length,
 
-      sourceFinalWhereDecisionResult:
-        finalWhereDecisionResult,
+      sourceFinalWhereDecisionResult: finalWhereDecisionResult,
 
       sourcePostOwnerBoundConditionEvidenceResult:
         postOwnerBoundConditionEvidenceResult,

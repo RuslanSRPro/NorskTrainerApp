@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereFinalRootTruthDecisionV1,
 } from "./canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts";
 
@@ -67,8 +67,7 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedRes
     sourceOperatorShapeAuthority:
       CanonicalRuntimeManifestBindingWhereCompoundOperatorShapeExtensionAuthorityV1;
 
-    operatorShape:
-      CanonicalRuntimeManifestCompoundOperatorShapeNodeV1;
+    operatorShape: CanonicalRuntimeManifestCompoundOperatorShapeNodeV1;
 
     governance: {
       rootTruthPreservedWithoutRecomputation: true;
@@ -113,13 +112,13 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedRes
 
 export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeResultV1 =
   | {
-      status: "ready";
+    status: "ready";
 
-      envelope:
-        CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1;
+    envelope:
+      CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeV1;
 
-      blockingReasons: [];
-    }
+    blockingReasons: [];
+  }
   | CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalGovernedResultEnvelopeBlockedResultV1;
 
 function blocked(
@@ -155,11 +154,10 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalG
 
   const rootCandidate = finalWhereDecision.sourceRootCandidate;
 
-  const operatorShapeAuthority =
-    postOwnerBoundConditionEvidence
-      .sourceFinalWhereDecision
-      .sourceOwnerBindingOccurrenceDomain
-      .sourceStructuralAuthority;
+  const operatorShapeAuthority = postOwnerBoundConditionEvidence
+    .sourceFinalWhereDecision
+    .sourceOwnerBindingOccurrenceDomain
+    .sourceStructuralAuthority;
 
   if (
     finalWhereDecision.structuralAuthorityId !==
@@ -184,14 +182,14 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalG
 
   if (
     postOwnerBoundConditionEvidence.sourceFinalWhereDecision
-        .snapshotIdentityId !== finalWhereDecision.snapshotIdentityId
+      .snapshotIdentityId !== finalWhereDecision.snapshotIdentityId
   ) {
     return blocked("post_owner_snapshot_identity_mismatch");
   }
 
   if (
     postOwnerBoundConditionEvidence.sourceFinalWhereDecision
-        .snapshotSentenceOccurrenceIdentityId !==
+      .snapshotSentenceOccurrenceIdentityId !==
       finalWhereDecision.snapshotSentenceOccurrenceIdentityId
   ) {
     return blocked("post_owner_sentence_occurrence_identity_mismatch");
@@ -211,44 +209,33 @@ export function deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalG
 
       status: "terminal_governed_result_envelope",
 
-      structuralAuthorityId:
-        finalWhereDecision.structuralAuthorityId,
+      structuralAuthorityId: finalWhereDecision.structuralAuthorityId,
 
       ownerBindingDefinitionAuthorityId:
         finalWhereDecision.ownerBindingDefinitionAuthorityId,
 
-      snapshotIdentityId:
-        finalWhereDecision.snapshotIdentityId,
+      snapshotIdentityId: finalWhereDecision.snapshotIdentityId,
 
       snapshotSentenceOccurrenceIdentityId:
         finalWhereDecision.snapshotSentenceOccurrenceIdentityId,
 
-      graphDocumentId:
-        finalWhereDecision.graphDocumentId,
+      graphDocumentId: finalWhereDecision.graphDocumentId,
 
-      sentenceNodeId:
-        finalWhereDecision.sentenceNodeId,
+      sentenceNodeId: finalWhereDecision.sentenceNodeId,
 
-      rootTruthDisposition:
-        finalWhereDecision.rootTruthDisposition,
+      rootTruthDisposition: finalWhereDecision.rootTruthDisposition,
 
-      finalDecisionDisposition:
-        finalWhereDecision.decisionDisposition,
+      finalDecisionDisposition: finalWhereDecision.decisionDisposition,
 
-      sourceRootCandidate:
-        rootCandidate,
+      sourceRootCandidate: rootCandidate,
 
-      sourceFinalWhereDecision:
-        finalWhereDecision,
+      sourceFinalWhereDecision: finalWhereDecision,
 
-      sourcePostOwnerBoundConditionEvidence:
-        postOwnerBoundConditionEvidence,
+      sourcePostOwnerBoundConditionEvidence: postOwnerBoundConditionEvidence,
 
-      sourceOperatorShapeAuthority:
-        operatorShapeAuthority,
+      sourceOperatorShapeAuthority: operatorShapeAuthority,
 
-      operatorShape:
-        operatorShapeAuthority.root,
+      operatorShape: operatorShapeAuthority.root,
 
       governance: {
         rootTruthPreservedWithoutRecomputation: true,
