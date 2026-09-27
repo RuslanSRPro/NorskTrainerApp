@@ -1369,6 +1369,465 @@ for (const stage of b2PublicStages) {
     throw new Error("FALSE final root truth was not preserved: " + JSON.stringify(falseFinalRoot));
   }
 
+  // A21021_REAL_TERMINAL_AGGREGATION_PROBE_BEGIN
+  const falsePostOwnerSurvivorModule = await import(
+    "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts"
+  );
+
+  const falsePostOwnerEvidenceModule = await import(
+    "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts"
+  );
+
+  const falseTerminalAggregationModule = await import(
+    "./canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts"
+  );
+
+  const falsePostOwnerSurvivor =
+    falsePostOwnerSurvivorModule
+      .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerSurvivorSetV1(
+        falseFinalRoot,
+      );
+
+  if (falsePostOwnerSurvivor.status !== "ready") {
+    throw new Error(
+      "FALSE real post-owner survivor was not ready: " +
+        JSON.stringify(falsePostOwnerSurvivor),
+    );
+  }
+
+  const falsePostOwnerBoundEvidence =
+    falsePostOwnerEvidenceModule
+      .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundConditionEvidenceV1(
+        falsePostOwnerSurvivor,
+        dependency.authorities,
+        rows,
+      );
+
+  if (falsePostOwnerBoundEvidence.status !== "ready") {
+    throw new Error(
+      "FALSE real post-owner bound evidence was not ready: " +
+        JSON.stringify(falsePostOwnerBoundEvidence),
+    );
+  }
+
+  if (
+    falsePostOwnerBoundEvidence.domainBoundConditionEvidence.length !==
+    falseFinalRoot.decisions.length
+  ) {
+    throw new Error(
+      "FALSE real terminal input cardinality diverged: " +
+        JSON.stringify({
+          decisionCount: falseFinalRoot.decisions.length,
+          evidenceCount:
+            falsePostOwnerBoundEvidence.domainBoundConditionEvidence.length,
+        }),
+    );
+  }
+
+  if (
+    falsePostOwnerBoundEvidence.domainBoundConditionEvidence.length !== 1
+  ) {
+    throw new Error(
+      "FALSE real terminal probe expected exactly one domain evidence item: " +
+        JSON.stringify(falsePostOwnerBoundEvidence),
+    );
+  }
+
+  if (
+    falsePostOwnerBoundEvidence
+      .domainBoundConditionEvidence[0]
+      .sourceFinalWhereDecision !==
+    falseFinalRoot.decisions[0]
+  ) {
+    throw new Error(
+      "FALSE real terminal probe lost exact FinalRootTruthDecision object identity",
+    );
+  }
+
+  const falseTerminalAggregation =
+    falseTerminalAggregationModule
+      .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereTerminalAggregationV1(
+        {
+          finalWhereDecisionResult:
+            falseFinalRoot,
+
+          postOwnerBoundConditionEvidenceResult:
+            falsePostOwnerBoundEvidence,
+        },
+      );
+
+  if (falseTerminalAggregation.status !== "ready") {
+    throw new Error(
+      "FALSE real terminal aggregation was not ready: " +
+        JSON.stringify(falseTerminalAggregation),
+    );
+  }
+
+  if (
+    falseTerminalAggregation.aggregation.envelopeCount !== 1
+  ) {
+    throw new Error(
+      "FALSE real terminal aggregation envelope count mismatch: " +
+        JSON.stringify(falseTerminalAggregation),
+    );
+  }
+
+  if (
+    falseTerminalAggregation
+      .aggregation
+      .sourceFinalWhereDecisionResult !==
+    falseFinalRoot
+  ) {
+    throw new Error(
+      "FALSE real terminal aggregation did not preserve exact final decision result identity",
+    );
+  }
+
+  if (
+    falseTerminalAggregation
+      .aggregation
+      .sourcePostOwnerBoundConditionEvidenceResult !==
+    falsePostOwnerBoundEvidence
+  ) {
+    throw new Error(
+      "FALSE real terminal aggregation did not preserve exact bound evidence result identity",
+    );
+  }
+
+  if (
+    falseTerminalAggregation
+      .aggregation
+      .terminalEnvelopes[0]
+      .rootTruthDisposition !== "resolved_false"
+  ) {
+    throw new Error(
+      "FALSE real terminal aggregation changed root truth disposition: " +
+        JSON.stringify(
+          falseTerminalAggregation.aggregation.terminalEnvelopes[0],
+        ),
+    );
+  }
+
+  if (
+    falseTerminalAggregation
+      .aggregation
+      .terminalEnvelopes[0]
+      .finalDecisionDisposition !== "rejected"
+  ) {
+    throw new Error(
+      "FALSE real terminal aggregation changed final decision disposition: " +
+        JSON.stringify(
+          falseTerminalAggregation.aggregation.terminalEnvelopes[0],
+        ),
+    );
+  }
+
+  // A21026_REAL_ACTION_CANDIDATE_BRIDGE_PROBE_BEGIN
+  const falseSetRoleActionAuthorityModule = await import(
+    "./canonical-runtime-set-role-action-authority-v1.ts"
+  );
+
+  const falseActionCandidateBridgeModule = await import(
+    "./canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts"
+  );
+
+  const falseSetRoleAuthorities =
+    falseSetRoleActionAuthorityModule
+      .deriveCanonicalRuntimeSetRoleActionAuthoritiesV1(
+        rows,
+      );
+
+  if (
+    falseSetRoleAuthorities.status !== "blocked" ||
+    falseSetRoleAuthorities.authorities.length !== 0 ||
+    falseSetRoleAuthorities.blockingReasons.length !== 1 ||
+    falseSetRoleAuthorities.blockingReasons[0] !==
+      "set_role_action_not_found"
+  ) {
+    throw new Error(
+      "FALSE real rows did not produce exact benign set_role absence: " +
+        JSON.stringify(falseSetRoleAuthorities),
+    );
+  }
+
+  if (
+    dependency.status !== "ready" ||
+    dependency.blockingReasons.length !== 0 ||
+    dependency.authorities.length !== 1
+  ) {
+    throw new Error(
+      "FALSE real rows did not preserve one ready dependency action authority: " +
+        JSON.stringify(dependency),
+    );
+  }
+
+  if (
+    falseTerminalAggregation.status !== "ready" ||
+    falseTerminalAggregation.aggregation.terminalEnvelopes.length !== 1
+  ) {
+    throw new Error(
+      "FALSE terminal aggregation not ready for action bridge: " +
+        JSON.stringify(falseTerminalAggregation),
+    );
+  }
+
+  const falseTerminalEnvelope =
+    falseTerminalAggregation
+      .aggregation
+      .terminalEnvelopes[0];
+
+  const falseActionCandidateBridge =
+    falseActionCandidateBridgeModule
+      .deriveCanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBridgeV1(
+        {
+          terminalEnvelope:
+            falseTerminalEnvelope,
+
+          setRoleAuthorities:
+            falseSetRoleAuthorities,
+
+          dependencyAuthorities:
+            dependency,
+        },
+      );
+
+  if (falseActionCandidateBridge.status !== "ready") {
+    throw new Error(
+      "FALSE real action candidate bridge was not ready: " +
+        JSON.stringify(falseActionCandidateBridge),
+    );
+  }
+
+  if (
+    falseActionCandidateBridge.bridge.actionCandidates.length !== 1
+  ) {
+    throw new Error(
+      "FALSE real action candidate bridge expected exactly one candidate: " +
+        JSON.stringify(falseActionCandidateBridge),
+    );
+  }
+
+  const falseActionCandidate =
+    falseActionCandidateBridge.bridge.actionCandidates[0];
+
+  if (
+    falseActionCandidate.family !== "create_dependency"
+  ) {
+    throw new Error(
+      "FALSE real action candidate family changed: " +
+        JSON.stringify(falseActionCandidate),
+    );
+  }
+
+  if (
+    falseActionCandidate.sourceAuthority.manifestId !== "manifest:1" ||
+    falseActionCandidate.sourceAuthority.manifestCode !== "manifest-code-1"
+  ) {
+    throw new Error(
+      "FALSE real action candidate manifest identity changed: " +
+        JSON.stringify(falseActionCandidate),
+    );
+  }
+
+  if (
+    falseActionCandidate.actionIndex !== 0
+  ) {
+    throw new Error(
+      "FALSE real action candidate index changed: " +
+        JSON.stringify(falseActionCandidate),
+    );
+  }
+
+  if (
+    falseActionCandidate.sourceAuthority !==
+    dependency.authorities[0]
+  ) {
+    throw new Error(
+      "FALSE real dependency source authority object identity was not preserved",
+    );
+  }
+
+  if (
+    falseActionCandidateBridge
+      .bridge
+      .sourceTerminalEnvelope !==
+    falseTerminalEnvelope
+  ) {
+    throw new Error(
+      "FALSE real terminal envelope object identity was not preserved by bridge",
+    );
+  }
+
+  if (
+    falseActionCandidateBridge.bridge.governance.actionSelected !== false ||
+    falseActionCandidateBridge.bridge.governance.genericEligibilityDerived !== false ||
+    falseActionCandidateBridge.bridge.governance.executableStateDerived !== false ||
+    falseActionCandidateBridge.bridge.governance.schedulableStateDerived !== false ||
+    falseActionCandidateBridge.bridge.governance.runtimeActionExecuted !== false ||
+    falseActionCandidateBridge.bridge.governance.schedulerInvoked !== false ||
+    falseActionCandidateBridge.bridge.governance.graphMutationPerformed !== false
+  ) {
+    throw new Error(
+      "FALSE real action candidate bridge crossed a prohibited semantic boundary: " +
+        JSON.stringify(falseActionCandidateBridge.bridge.governance),
+    );
+  }
+
+  console.log(
+    "FALSE_REAL_ACTION_CANDIDATE_BRIDGE=" +
+      JSON.stringify({
+        terminalRootTruthDisposition:
+          falseTerminalEnvelope.rootTruthDisposition,
+
+        terminalFinalDecisionDisposition:
+          falseTerminalEnvelope.finalDecisionDisposition,
+
+        setRoleStatus:
+          falseSetRoleAuthorities.status,
+
+        setRoleBlockingReasons:
+          falseSetRoleAuthorities.blockingReasons,
+
+        dependencyStatus:
+          dependency.status,
+
+        dependencyAuthorityCount:
+          dependency.authorities.length,
+
+        bridgeStatus:
+          falseActionCandidateBridge.status,
+
+        actionCandidateCount:
+          falseActionCandidateBridge.bridge.actionCandidates.length,
+
+        actionFamily:
+          falseActionCandidate.family,
+
+        manifestId:
+          falseActionCandidate.sourceAuthority.manifestId,
+
+        manifestCode:
+          falseActionCandidate.sourceAuthority.manifestCode,
+
+        actionIndex:
+          falseActionCandidate.actionIndex,
+
+        sourceAuthorityObjectIdentityPreserved:
+          falseActionCandidate.sourceAuthority ===
+          dependency.authorities[0],
+
+        terminalEnvelopeObjectIdentityPreserved:
+          falseActionCandidateBridge
+            .bridge
+            .sourceTerminalEnvelope ===
+          falseTerminalEnvelope,
+
+        actionSelected:
+          falseActionCandidateBridge
+            .bridge
+            .governance
+            .actionSelected,
+
+        genericEligibilityDerived:
+          falseActionCandidateBridge
+            .bridge
+            .governance
+            .genericEligibilityDerived,
+
+        executableStateDerived:
+          falseActionCandidateBridge
+            .bridge
+            .governance
+            .executableStateDerived,
+
+        schedulableStateDerived:
+          falseActionCandidateBridge
+            .bridge
+            .governance
+            .schedulableStateDerived,
+
+        runtimeActionExecuted:
+          falseActionCandidateBridge
+            .bridge
+            .governance
+            .runtimeActionExecuted,
+
+        schedulerInvoked:
+          falseActionCandidateBridge
+            .bridge
+            .governance
+            .schedulerInvoked,
+
+        graphMutationPerformed:
+          falseActionCandidateBridge
+            .bridge
+            .governance
+            .graphMutationPerformed,
+      }),
+  );
+  // A21026_REAL_ACTION_CANDIDATE_BRIDGE_PROBE_END
+  console.log(
+    "FALSE_REAL_TERMINAL_AGGREGATION=" +
+      JSON.stringify({
+        finalRootStatus:
+          falseFinalRoot.status,
+
+        rootTruthDisposition:
+          falseFinalRoot.decisions[0].rootTruthDisposition,
+
+        decisionDisposition:
+          falseFinalRoot.decisions[0].decisionDisposition,
+
+        survivorStatus:
+          falsePostOwnerSurvivor.status,
+
+        boundEvidenceStatus:
+          falsePostOwnerBoundEvidence.status,
+
+        exactDecisionObjectIdentityPreserved:
+          falsePostOwnerBoundEvidence
+            .domainBoundConditionEvidence[0]
+            .sourceFinalWhereDecision ===
+          falseFinalRoot.decisions[0],
+
+        aggregationStatus:
+          falseTerminalAggregation.status,
+
+        envelopeCount:
+          falseTerminalAggregation.aggregation.envelopeCount,
+
+        terminalRootTruthDisposition:
+          falseTerminalAggregation
+            .aggregation
+            .terminalEnvelopes[0]
+            .rootTruthDisposition,
+
+        terminalFinalDecisionDisposition:
+          falseTerminalAggregation
+            .aggregation
+            .terminalEnvelopes[0]
+            .finalDecisionDisposition,
+
+        runtimeActionExecuted:
+          falseTerminalAggregation
+            .aggregation
+            .governance
+            .runtimeActionExecuted,
+
+        schedulerInvoked:
+          falseTerminalAggregation
+            .aggregation
+            .governance
+            .schedulerInvoked,
+
+        graphMutationPerformed:
+          falseTerminalAggregation
+            .aggregation
+            .governance
+            .graphMutationPerformed,
+      }),
+  );
+  // A21021_REAL_TERMINAL_AGGREGATION_PROBE_END
   console.log("FALSE_OWNER_FINAL_ROOT=" + JSON.stringify({
     ownerStatus: falseOwner.status,
     finalRootStatus: falseFinalRoot.status,
@@ -1379,10 +1838,3 @@ for (const stage of b2PublicStages) {
   // FALSE_OWNER_FINAL_ROOT_REGRESSION_END
 // B2_TRANSITIVE_BLOCKING_REGRESSION_END
 });
-
-
-
-
-
-
-
