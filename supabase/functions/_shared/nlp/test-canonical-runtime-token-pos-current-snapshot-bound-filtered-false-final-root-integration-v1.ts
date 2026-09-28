@@ -1765,6 +1765,264 @@ for (const stage of b2PublicStages) {
             .graphMutationPerformed,
       }),
   );
+  // FALSE_REAL_ASSOCIATION_READINESS_PROBE_BEGIN
+  const falseAssociationModule = await import(
+    "./canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+  );
+
+  const falseExecutionReadinessModule = await import(
+    "./canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+  );
+
+  const falseRealBoundEvidence =
+    falsePostOwnerBoundEvidence.domainBoundConditionEvidence[0];
+
+  const falseRealCanonicalOwnerBindingAuthority =
+    falseRealBoundEvidence.sourceFinalRuntimeBindingDomain
+      .sourceProjectionDomain
+      .sourceReadinessDomain
+      .sourceCardinalityEnforcementDomain
+      .sourceCardinalitySemanticDomain
+      .sourceBindingDefinitionAuthority;
+
+  const falseAssociationOwnerEvidence = {
+    boundConditionDomainEvidenceId:
+      falseRealBoundEvidence.boundConditionDomainEvidenceId,
+    manifestId:
+      falseRealBoundEvidence.manifestId,
+    manifestCode:
+      falseRealBoundEvidence.manifestCode,
+    ownerBindingDefinitionAuthorityId:
+      falseRealBoundEvidence.ownerBindingDefinitionAuthorityId,
+    ownerBindingName:
+      falseRealBoundEvidence.ownerBindingName,
+    sourceBindingDefinitionAuthority:
+      falseRealCanonicalOwnerBindingAuthority,
+  };
+
+  const falseDependencyAssociation =
+    falseAssociationModule
+      .deriveCanonicalRuntimeDependencyActionBindingAssociationBoundaryV1(
+        dependency.authorities,
+        [falseRealCanonicalOwnerBindingAuthority],
+        [falseAssociationOwnerEvidence],
+      );
+
+  if (falseDependencyAssociation.status !== "ready") {
+    throw new Error(
+      "FALSE real dependency association was not ready through proven canonical OWNER authority reuse: " +
+        JSON.stringify(falseDependencyAssociation),
+    );
+  }
+
+  if (falseDependencyAssociation.domains.length !== 1) {
+    throw new Error(
+      "FALSE real dependency association expected exactly one domain: " +
+        JSON.stringify(falseDependencyAssociation),
+    );
+  }
+
+  const falseAssociationDomain =
+    falseDependencyAssociation.domains[0];
+
+  if (
+    falseAssociationDomain.associationState !==
+      "resolved_exact_action_binding_provenance"
+  ) {
+    throw new Error(
+      "FALSE real dependency association did not resolve exact action/binding provenance: " +
+        JSON.stringify(falseAssociationDomain),
+    );
+  }
+
+  if (
+    falseAssociationDomain.bindingDefinitionCandidates.length !== 1 ||
+    falseAssociationDomain.bindingDefinitionCandidates[0] !==
+      falseRealCanonicalOwnerBindingAuthority
+  ) {
+    throw new Error(
+      "FALSE real association did not preserve exact canonical OWNER authority object identity",
+    );
+  }
+
+  if (
+    falseAssociationDomain.sourcePostFinalOwnerBoundConditionEvidence !==
+      falseAssociationOwnerEvidence
+  ) {
+    throw new Error(
+      "FALSE real association did not preserve exact owner evidence object identity",
+    );
+  }
+
+  if (
+    falseAssociationDomain.selectedDependencyActionAuthorityId !== null ||
+    falseAssociationDomain.dependencyEndpointRole !== null ||
+    falseAssociationDomain.governance.endpointDirectionResolved !== false ||
+    falseAssociationDomain.governance.endpointBindingPerformed !== false ||
+    falseAssociationDomain.governance.dependencySemanticsResolved !== false ||
+    falseAssociationDomain.governance.activationReadinessResolved !== false ||
+    falseAssociationDomain.governance.runtimeBindingExecuted !== false ||
+    falseAssociationDomain.governance.graphMutationPerformed !== false
+  ) {
+    throw new Error(
+      "FALSE real association crossed a prohibited semantic boundary: " +
+        JSON.stringify(falseAssociationDomain),
+    );
+  }
+
+  if (
+    falseTerminalEnvelope.rootTruthDisposition !== "resolved_false" ||
+    falseTerminalEnvelope.finalDecisionDisposition !== "rejected"
+  ) {
+    throw new Error(
+      "FALSE truth changed before execution readiness evidence boundary",
+    );
+  }
+
+  const falseExecutionReadiness =
+    falseExecutionReadinessModule
+      .deriveCanonicalRuntimeExecutionReadinessEvidenceBoundaryV1({
+        actionCandidateBridge:
+          falseActionCandidateBridge,
+        dependencyActionBindingAssociation:
+          falseDependencyAssociation,
+      });
+
+  if (falseExecutionReadiness.status !== "ready") {
+    throw new Error(
+      "FALSE real execution readiness evidence boundary was not ready: " +
+        JSON.stringify(falseExecutionReadiness),
+    );
+  }
+
+  if (falseExecutionReadiness.evidence.length !== 1) {
+    throw new Error(
+      "FALSE real execution readiness expected exactly one evidence domain: " +
+        JSON.stringify(falseExecutionReadiness),
+    );
+  }
+
+  const falseExecutionReadinessEvidence =
+    falseExecutionReadiness.evidence[0];
+
+  if (
+    falseExecutionReadinessEvidence.sourceActionCandidateBridge !==
+      falseActionCandidateBridge.bridge
+  ) {
+    throw new Error(
+      "FALSE readiness evidence lost exact action candidate bridge object identity",
+    );
+  }
+
+  if (
+    falseExecutionReadinessEvidence
+      .sourceDependencyActionBindingAssociation !==
+      falseAssociationDomain
+  ) {
+    throw new Error(
+      "FALSE readiness evidence lost exact dependency association object identity",
+    );
+  }
+
+  if (
+    falseExecutionReadinessEvidence
+      .sourceActionCandidateBridge
+      .sourceTerminalEnvelope !==
+      falseTerminalEnvelope
+  ) {
+    throw new Error(
+      "FALSE readiness evidence lost exact terminal envelope object identity",
+    );
+  }
+
+  if (
+    falseExecutionReadinessEvidence
+      .sourceActionCandidateBridge
+      .sourceTerminalEnvelope
+      .rootTruthDisposition !== "resolved_false" ||
+    falseExecutionReadinessEvidence
+      .sourceActionCandidateBridge
+      .sourceTerminalEnvelope
+      .finalDecisionDisposition !== "rejected"
+  ) {
+    throw new Error(
+      "FALSE readiness evidence changed resolved FALSE/rejected terminal truth",
+    );
+  }
+
+  if (
+    falseExecutionReadinessEvidence.governance
+      .finalWhereTruthRecomputed !== false ||
+    falseExecutionReadinessEvidence.governance
+      .postOwnerEvidenceRecomputed !== false ||
+    falseExecutionReadinessEvidence.governance
+      .actionSelected !== false ||
+    falseExecutionReadinessEvidence.governance
+      .singletonPromotedToWinner !== false ||
+    falseExecutionReadinessEvidence.governance
+      .activationPermissionDerived !== false ||
+    falseExecutionReadinessEvidence.governance
+      .executableStateDerived !== false ||
+    falseExecutionReadinessEvidence.governance
+      .schedulableStateDerived !== false ||
+    falseExecutionReadinessEvidence.governance
+      .endpointDirectionResolved !== false ||
+    falseExecutionReadinessEvidence.governance
+      .endpointBindingPerformed !== false ||
+    falseExecutionReadinessEvidence.governance
+      .dependencySemanticsResolved !== false ||
+    falseExecutionReadinessEvidence.governance
+      .runtimeActionExecuted !== false ||
+    falseExecutionReadinessEvidence.governance
+      .schedulerInvoked !== false ||
+    falseExecutionReadinessEvidence.governance
+      .canonicalEdgeGenerated !== false ||
+    falseExecutionReadinessEvidence.governance
+      .graphMutationPerformed !== false
+  ) {
+    throw new Error(
+      "FALSE readiness evidence crossed a prohibited semantic boundary: " +
+        JSON.stringify(falseExecutionReadinessEvidence.governance),
+    );
+  }
+
+  console.log(
+    "FALSE_REAL_ASSOCIATION_READINESS=" +
+      JSON.stringify({
+        rootTruthDisposition:
+          falseExecutionReadinessEvidence
+            .sourceActionCandidateBridge
+            .sourceTerminalEnvelope
+            .rootTruthDisposition,
+        finalDecisionDisposition:
+          falseExecutionReadinessEvidence
+            .sourceActionCandidateBridge
+            .sourceTerminalEnvelope
+            .finalDecisionDisposition,
+        associationState:
+          falseAssociationDomain.associationState,
+        canonicalOwnerAuthorityObjectIdentityPreserved:
+          falseAssociationDomain.bindingDefinitionCandidates[0] ===
+          falseRealCanonicalOwnerBindingAuthority,
+        readinessEvidenceCount:
+          falseExecutionReadiness.evidence.length,
+        actionSelected:
+          falseExecutionReadinessEvidence.governance.actionSelected,
+        activationPermissionDerived:
+          falseExecutionReadinessEvidence.governance
+            .activationPermissionDerived,
+        executableStateDerived:
+          falseExecutionReadinessEvidence.governance
+            .executableStateDerived,
+        runtimeActionExecuted:
+          falseExecutionReadinessEvidence.governance
+            .runtimeActionExecuted,
+        graphMutationPerformed:
+          falseExecutionReadinessEvidence.governance
+            .graphMutationPerformed,
+      }),
+  );
+  // FALSE_REAL_ASSOCIATION_READINESS_PROBE_END
   // A21026_REAL_ACTION_CANDIDATE_BRIDGE_PROBE_END
   console.log(
     "FALSE_REAL_TERMINAL_AGGREGATION=" +
