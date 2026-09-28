@@ -19,6 +19,9 @@ export type CanonicalRuntimeDependencyActionBindingAssociationOwnerEvidenceV1 =
     manifestCode: string;
     ownerBindingDefinitionAuthorityId: string;
     ownerBindingName: string;
+
+    sourceBindingDefinitionAuthority?:
+      CanonicalRuntimeBindingDefinitionAuthorityV1;
   };
 
 export type CanonicalRuntimeDependencyActionBindingAssociationBoundaryDomainV1 =
@@ -235,13 +238,24 @@ export function deriveCanonicalRuntimeDependencyActionBindingAssociationBoundary
         (a, b) => a.id.localeCompare(b.id),
       );
 
-    const exactOwnerBinding = bindingDefinitionCandidates.filter(
-      (authority) =>
-        authority.id ===
-          source.ownerBindingDefinitionAuthorityId &&
-        authority.bindingName ===
-          source.ownerBindingName,
-    );
+    const provenSourceBindingDefinitionAuthority =
+      source.sourceBindingDefinitionAuthority;
+
+    const exactOwnerBinding = provenSourceBindingDefinitionAuthority
+      ? bindingDefinitionCandidates.filter(
+        (authority) =>
+          authority === provenSourceBindingDefinitionAuthority &&
+          authority.manifestId === source.manifestId &&
+          authority.manifestCode === source.manifestCode &&
+          authority.bindingName === source.ownerBindingName,
+      )
+      : bindingDefinitionCandidates.filter(
+        (authority) =>
+          authority.id ===
+            source.ownerBindingDefinitionAuthorityId &&
+          authority.bindingName ===
+            source.ownerBindingName,
+      );
 
     if (exactOwnerBinding.length !== 1) {
       blockingReasons.push(

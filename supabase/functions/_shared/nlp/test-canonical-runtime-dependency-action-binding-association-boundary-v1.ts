@@ -354,6 +354,162 @@ Deno.test("dependency action binding association boundary: missing exact OWNER b
 });
 
 Deno.test(
+  "existing proven canonical OWNER binding authority is reused by exact object identity without ID reconstruction",
+  () => {
+    const dependency = behavioralDependencyAuthority(
+      "dependency-authority-existing-proven-owner-reuse",
+    );
+
+    dependency.actionValue = {
+      source_ref: "owner",
+      target_ref: "other",
+    };
+
+    const binding = behavioralBindingAuthority();
+
+    const evidence:
+      CanonicalRuntimeDependencyActionBindingAssociationOwnerEvidenceV1 = {
+        ...behavioralPostFinalEvidence(
+          "runtime-manifest-binding-definition-v1:manifest-code-1:owner",
+          "owner",
+        ),
+        sourceBindingDefinitionAuthority: binding,
+      };
+
+    const result =
+      deriveCanonicalRuntimeDependencyActionBindingAssociationBoundaryV1(
+        [dependency],
+        [binding],
+        [evidence],
+      );
+
+    assertEquals(result.status, "ready");
+    assertEquals(result.blockingReasons, []);
+    assertEquals(result.domains.length, 1);
+
+    const domain = result.domains[0];
+
+    assertEquals(
+      domain.associationState,
+      "resolved_exact_action_binding_provenance",
+    );
+
+    assertEquals(
+      domain.ownerBindingDefinitionAuthorityId,
+      "runtime-manifest-binding-definition-v1:manifest-code-1:owner",
+    );
+
+    assertEquals(
+      domain.associatedDependencyActionAuthorityIds,
+      [dependency.id],
+    );
+
+    assertEquals(
+      domain.associatedDependencyEndpointRoles,
+      ["source"],
+    );
+
+    assertStrictEquals(
+      domain.bindingDefinitionCandidates[0],
+      binding,
+    );
+
+    assertStrictEquals(
+      domain.sourcePostFinalOwnerBoundConditionEvidence,
+      evidence,
+    );
+
+    assertStrictEquals(
+      evidence.sourceBindingDefinitionAuthority,
+      binding,
+    );
+
+    assertEquals(
+      domain.selectedDependencyActionAuthorityId,
+      null,
+    );
+
+    assertEquals(
+      domain.dependencyEndpointRole,
+      null,
+    );
+
+    assertEquals(
+      domain.governance.endpointDirectionResolved,
+      false,
+    );
+
+    assertEquals(
+      domain.governance.endpointBindingPerformed,
+      false,
+    );
+
+    assertEquals(
+      domain.governance.dependencySemanticsResolved,
+      false,
+    );
+
+    assertEquals(
+      domain.governance.activationReadinessResolved,
+      false,
+    );
+
+    assertEquals(
+      domain.governance.runtimeBindingExecuted,
+      false,
+    );
+
+    assertEquals(
+      domain.governance.graphMutationPerformed,
+      false,
+    );
+  },
+);
+
+Deno.test(
+  "proven OWNER authority reference fails closed when it is not an exact member of canonical binding candidates",
+  () => {
+    const dependency = behavioralDependencyAuthority(
+      "dependency-authority-foreign-proven-owner-reference",
+    );
+
+    dependency.actionValue = {
+      source_ref: "owner",
+      target_ref: "other",
+    };
+
+    const binding = behavioralBindingAuthority();
+
+    const foreignBindingObject = behavioralBindingAuthority();
+
+    const evidence:
+      CanonicalRuntimeDependencyActionBindingAssociationOwnerEvidenceV1 = {
+        ...behavioralPostFinalEvidence(
+          "runtime-manifest-binding-definition-v1:manifest-code-1:owner",
+          "owner",
+        ),
+        sourceBindingDefinitionAuthority: foreignBindingObject,
+      };
+
+    const result =
+      deriveCanonicalRuntimeDependencyActionBindingAssociationBoundaryV1(
+        [dependency],
+        [binding],
+        [evidence],
+      );
+
+    assertEquals(result.status, "blocked");
+    assertEquals(result.domains, []);
+
+    assertEquals(
+      result.blockingReasons,
+      [
+        "post_final_owner_domain:bound-condition-domain-evidence-1:exact_owner_binding_definition_missing_or_ambiguous",
+      ],
+    );
+  },
+);
+Deno.test(
   "A2.12.7 exact source endpoint association is resolved without action selection or endpoint execution",
   () => {
     const dependency = behavioralDependencyAuthority(
