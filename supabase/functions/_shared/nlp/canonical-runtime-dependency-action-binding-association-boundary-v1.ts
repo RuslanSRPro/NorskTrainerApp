@@ -50,6 +50,9 @@ export type CanonicalRuntimeDependencyActionBindingAssociationBoundaryDomainV1 =
       | "target"
     )[];
 
+    associatedDependencyEndpointReferences:
+      readonly CanonicalRuntimeDependencyActionBindingEndpointReferenceV1[];
+
     selectedDependencyActionAuthorityId: null;
     dependencyEndpointRole: null;
 
@@ -61,6 +64,7 @@ export type CanonicalRuntimeDependencyActionBindingAssociationBoundaryDomainV1 =
       manifestCoherenceRequired: true;
       dependencyActionCandidatesPreservedWithoutSelection: true;
       bindingDefinitionCandidatesPreservedWithoutSelection: true;
+      authoredEndpointReferencesPreservedWithoutResolution: true;
       supportingDependencyAuthorityIdsNotUsedAsBindingSpecificProof: true;
       singletonCandidateNotPromotedToAuthority: true;
       actionTargetPreservedOpaque: true;
@@ -130,7 +134,7 @@ function stringValue(
   );
 }
 
-type DependencyEndpointReferenceV1 = {
+export type CanonicalRuntimeDependencyActionBindingEndpointReferenceV1 = {
   dependencyActionAuthorityId: string;
   endpointRole:
     | "source"
@@ -140,14 +144,15 @@ type DependencyEndpointReferenceV1 = {
 
 function dependencyEndpointReferences(
   authority: CanonicalDependencyRuntimeActionAuthorityV1,
-): DependencyEndpointReferenceV1[] {
+): CanonicalRuntimeDependencyActionBindingEndpointReferenceV1[] {
   const value = authority.actionValue;
 
   if (!value) {
     return [];
   }
 
-  const references: DependencyEndpointReferenceV1[] = [];
+  const references:
+    CanonicalRuntimeDependencyActionBindingEndpointReferenceV1[] = [];
 
   const sourceRef = stringValue(
     value.source_ref,
@@ -264,10 +269,24 @@ export function deriveCanonicalRuntimeDependencyActionBindingAssociationBoundary
       continue;
     }
 
-    const exactEndpointReferences = dependencyActionCandidates
+    const associatedDependencyEndpointReferences = dependencyActionCandidates
       .flatMap(
         dependencyEndpointReferences,
       )
+      .sort(
+        (a, b) =>
+          a.dependencyActionAuthorityId.localeCompare(
+            b.dependencyActionAuthorityId,
+          ) ||
+          a.endpointRole.localeCompare(
+            b.endpointRole,
+          ) ||
+          a.bindingName.localeCompare(
+            b.bindingName,
+          ),
+      );
+
+    const exactEndpointReferences = associatedDependencyEndpointReferences
       .filter(
         (reference) =>
           reference.bindingName ===
@@ -326,6 +345,8 @@ export function deriveCanonicalRuntimeDependencyActionBindingAssociationBoundary
 
       associatedDependencyEndpointRoles,
 
+      associatedDependencyEndpointReferences,
+
       selectedDependencyActionAuthorityId: null,
 
       dependencyEndpointRole: null,
@@ -337,6 +358,7 @@ export function deriveCanonicalRuntimeDependencyActionBindingAssociationBoundary
         manifestCoherenceRequired: true,
         dependencyActionCandidatesPreservedWithoutSelection: true,
         bindingDefinitionCandidatesPreservedWithoutSelection: true,
+        authoredEndpointReferencesPreservedWithoutResolution: true,
         supportingDependencyAuthorityIdsNotUsedAsBindingSpecificProof: true,
         singletonCandidateNotPromotedToAuthority: true,
         actionTargetPreservedOpaque: true,
