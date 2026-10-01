@@ -31,6 +31,8 @@ import { deriveCanonicalRuntimeDependencyS0SeedsV1 } from '../_shared/nlp/canoni
 import { deriveCanonicalGraphSnapshotIdentityAuthorityV1 } from '../_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts';
 import { deriveCanonicalRuntimeCurrentDeclarationBoundaryV1 } from '../_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts';
 import { deriveCanonicalRuntimeMultiSiteS0InitialEpochAggregationBoundaryV1 } from '../_shared/nlp/canonical-runtime-multi-site-s0-initial-epoch-aggregation-boundary-v1.ts';
+import { readCanonicalRuntimeDependencyActionActivationFromDbV1 } from '../_shared/nlp/canonical-runtime-dependency-action-activation-db-reader-v1.ts';
+import { runCanonicalRuntimeBoundedDependencyGraphSchedulerV1 } from '../_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts';
 
 const VERSION='canonical-phrase-candidate-lattice-v1.43';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type'};
@@ -344,6 +346,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
   );
 
   const dependencyInitialEpochs: any[] = [];
+  const dependencySchedulerRuns: any[] = [];
   if (
     dependencyCurrentDeclaration.status === 'ready' &&
     dependencySeedResult.status === 'ready'
@@ -361,6 +364,106 @@ for (let i = 0; i < surface.sentences.length; i++) {
           tokenNodeIds: dependencyTokenNodeIds,
         });
       dependencyInitialEpochs.push(aggregate);
+
+      if (aggregate.status !== 'ready') {
+        dependencySchedulerRuns.push({
+          status: 'not_invoked',
+          reason: 'initial_epoch:not_ready',
+          schedulerInvoked: false,
+          activationSourceRead: false,
+          graphMutationPerformed: false,
+        });
+        continue;
+      }
+
+      const activationAuthorities: any[] = [];
+      const activationSourceResults: any[] = [];
+      const activationScopes = new Map<string, {
+        manifestId: string;
+        dependencyActionAuthorityId: string;
+      }>();
+      for (
+        const precondition of
+          aggregate.initialEpoch.d4PreconditionEvidenceResult.evidence
+      ) {
+        const scope = {
+          manifestId: precondition.manifestId,
+          dependencyActionAuthorityId:
+            precondition.dependencyActionAuthorityId,
+        };
+        activationScopes.set(
+          `${scope.manifestId}:${scope.dependencyActionAuthorityId}`,
+          scope,
+        );
+      }
+
+      let activationSourceBlocked = false;
+      for (const scope of activationScopes.values()) {
+        const activationSource =
+          await readCanonicalRuntimeDependencyActionActivationFromDbV1(
+            supabase,
+            scope,
+          );
+        activationSourceResults.push(activationSource);
+        if (
+          activationSource.status !== 'ready' ||
+          activationSource.sourceResolution.status !== 'resolved_source_rows'
+        ) {
+          activationSourceBlocked = true;
+          continue;
+        }
+        activationAuthorities.push(
+          ...activationSource.sourceResolution.mappedAuthorities,
+        );
+      }
+
+      if (activationSourceBlocked) {
+        dependencySchedulerRuns.push({
+          status: 'blocked',
+          reason: 'activation_source:not_ready',
+          schedulerInvoked: false,
+          activationSourceRead: true,
+          activationScopeCount: activationScopes.size,
+          activationAuthorityCount: activationAuthorities.length,
+          graphMutationPerformed: false,
+          activationSourceResults,
+        });
+        continue;
+      }
+
+      const schedulerResult =
+        await runCanonicalRuntimeBoundedDependencyGraphSchedulerV1({
+          surface,
+          executionInvocationId:
+            `canonical-graph-shadow-v1:${dependencyShadowInvocationId}:s${i}`,
+          maxTransitions: 8,
+          activationAuthorities,
+          initialEpoch: aggregate.initialEpoch,
+          reevaluationSeed: {
+            surface,
+            expectedResult: seed.expectedResult,
+            expectedAuthority: seed.expectedAuthority,
+            compatibilityResult: seed.compatibilityResult,
+            scopeResult: seed.scopeResult,
+            manifestRows: seed.manifestRows,
+            setRoleAuthorities: seed.setRoleAuthorities,
+          },
+          tokenNodeIds: dependencyTokenNodeIds,
+        });
+
+      dependencySchedulerRuns.push({
+        status: schedulerResult.status,
+        state: schedulerResult.state,
+        schedulerInvoked: true,
+        activationSourceRead: true,
+        activationScopeCount: activationScopes.size,
+        activationAuthorityCount: activationAuthorities.length,
+        graphMutationPerformed:
+          'transitionCount' in schedulerResult &&
+          schedulerResult.transitionCount > 0,
+        activationSourceResults,
+        schedulerResult,
+      });
     }
   }
 
@@ -380,10 +483,20 @@ for (let i = 0; i < surface.sentences.length; i++) {
     blockedInitialEpochCount: dependencyInitialEpochs.filter(
       (result) => result.status !== 'ready',
     ).length,
-    schedulerInvoked: false,
-    activationResolved: false,
-    graphMutationPerformed: false,
+    schedulerInvoked: dependencySchedulerRuns.some(
+      (result) => result.schedulerInvoked === true,
+    ),
+    activationResolved: dependencySchedulerRuns.some(
+      (result) =>
+        result.schedulerInvoked === true &&
+        result.activationAuthorityCount > 0,
+    ),
+    graphMutationPerformed: dependencySchedulerRuns.some(
+      (result) => result.graphMutationPerformed === true,
+    ),
+    productionGraphReplacedByScheduler: false,
     initialEpochs: dependencyInitialEpochs,
+    schedulerRuns: dependencySchedulerRuns,
   });
 
   let edgeComparator: J | null = null;
