@@ -1063,10 +1063,11 @@ export default function VoiceScreen() {
         true;
 
 
-      try {
+      const active =
+        activeRecordingRef.current;
 
-        const active =
-          activeRecordingRef.current;
+
+      try {
 
         if (!active) {
           throw new Error(
@@ -1266,28 +1267,73 @@ export default function VoiceScreen() {
          * so a recoverable recording does not remain hidden until
          * the next screen mount or app restart.
          */
-        try {
+        letRecovery: {
+          try {
+            await recoverInterruptedRecordings();
+          } catch (recoveryError) {
+            devConsole.error(
+              'Lecture recovery after failed stop error:',
+              recoveryError
+            );
+          }
 
-          await recoverInterruptedRecordings();
+          /*
+           * A native Stop can fail during final assembly even though the
+           * durable checkpoint segments are intact. Recovery may already
+           * have assembled and validated audio.m4a. In that case the
+           * recording was saved: restore the normal saved UI instead of
+           * showing the misleading "Recording was not saved" alert.
+           */
+          if (active) {
+            try {
+              const metadata =
+                readMetadata(active.directory);
 
-        } catch (recoveryError) {
+              const recoveredAudio =
+                findAudioFile(
+                  active.directory,
+                  metadata
+                );
 
-          devConsole.error(
-            'Lecture recovery after failed stop error:',
-            recoveryError
+              if (recoveredAudio) {
+                const validation =
+                  await getAudioInfo(
+                    recoveredAudio.file.uri
+                  );
+
+                if (
+                  validation.durationMillis >= 500 &&
+                  validation.bytes >= 4096
+                ) {
+                  completeRecording(
+                    validation.durationMillis,
+                    recoveredAudio.file.uri,
+                    validation.bytes
+                  );
+
+                  setLastSavedLectureId(active.id);
+                  setStatus('saved');
+                  loadLectures();
+                  break letRecovery;
+                }
+              }
+            } catch (recoveredAudioError) {
+              devConsole.error(
+                'Recovered lecture validation error:',
+                recoveredAudioError
+              );
+            }
+          }
+
+          loadLectures();
+
+          Alert.alert(
+            audioUi.recordingNotSaved,
+            error instanceof Error
+              ? error.message
+              : String(error)
           );
         }
-
-
-        loadLectures();
-
-
-        Alert.alert(
-          audioUi.recordingNotSaved,
-          error instanceof Error
-            ? error.message
-            : String(error)
-        );
 
       } finally {
 

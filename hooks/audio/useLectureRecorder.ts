@@ -792,10 +792,8 @@ export function useLectureRecorder(
 
 
   /*
-   * 1.0.8 is event-first but intentionally keeps the proven
-   * 450 ms verification window as a fallback. Once repeated
-   * device tests prove onRecorderReady is fully reliable, the
-   * fixed wait can be removed in a later build.
+   * Start is event-first and is not considered verified until native
+   * confirms that the first microphone buffer was written successfully.
    */
   const waitForNativeRecorderReady =
     async (
@@ -869,19 +867,15 @@ export function useLectureRecorder(
           audioUri
         );
 
-      if (
-        !started.isRecording
-      ) {
-        return null;
-      }
-
-      recordingStartedAtRef.current =
-        Date.now();
-
+      /*
+       * Native start() now means "the engine accepted the start request".
+       * A recording is verified only after native emits onRecorderReady,
+       * which happens after the first AVAudioFile.write(from:) succeeds.
+       */
       const readyEvent =
         await waitForNativeRecorderReady(
           audioUri,
-          450
+          2500
         );
 
       const verified =
@@ -900,10 +894,19 @@ export function useLectureRecorder(
       }
 
       if (
-        !verified.isRecording
+        !readyEvent ||
+        !verified.isRecording ||
+        verified.durationMillis <= 0
       ) {
         return null;
       }
+
+      recordingStartedAtRef.current =
+        Date.now() -
+        Math.max(
+          0,
+          verified.durationMillis
+        );
 
       return {
         started:
