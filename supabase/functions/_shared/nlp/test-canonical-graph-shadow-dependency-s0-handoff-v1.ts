@@ -23,15 +23,19 @@ Deno.test("A3.7H graph shadow wires source-backed dependency S0 observability on
   }
 
   assert(
-    source.includes("schedulerInvoked: false") &&
-      source.includes("activationResolved: false") &&
-      source.includes("graphMutationPerformed: false"),
-    "A3.7H shadow observability flags must remain false",
+    source.includes("runCanonicalRuntimeBoundedDependencyGraphSchedulerV1") &&
+      source.includes("readCanonicalRuntimeDependencyActionActivationFromDbV1"),
+    "A3.8E must wire canonical activation DB reader and bounded scheduler",
+  );
+  assert(
+    /grammar_activation\s*:\s*false/.test(source),
+    "production grammar activation flag must remain false during shadow handoff",
   );
 
   assert(
-    !source.includes("runCanonicalRuntimeBoundedDependencyGraphSchedulerV1(") &&
-      !source.includes("resolveCanonicalRuntimeDependencyActionActivation"),
-    "A3.7H must not invoke scheduler or activation resolution",
+    source.includes("schedulerInvoked") &&
+      source.includes("activationResolved") &&
+      source.includes("graphMutationPerformed"),
+    "shadow observability must preserve scheduler, activation, and graph-mutation state",
   );
 });
