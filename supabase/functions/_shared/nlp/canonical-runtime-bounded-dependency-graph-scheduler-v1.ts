@@ -9,9 +9,9 @@ import { deriveCanonicalRuntimeDependencyExecutionGraphTransitionBoundaryV1 } fr
 import { deriveCanonicalRuntimeDependencyExecutionResultEnvelopeV1 } from "./canonical-runtime-dependency-execution-result-envelope-v1.ts";
 import { deriveCanonicalRuntimeEpochCurrentContextTransitionBoundaryV1 } from "./canonical-runtime-epoch-current-context-transition-boundary-v1.ts";
 import {
-  type CanonicalRuntimePostTransitionReevaluationCompositionInputV1,
-  deriveCanonicalRuntimePostTransitionReevaluationCompositionBoundaryV1,
-} from "./canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts";
+  type CanonicalRuntimeMultiSitePostTransitionReevaluationInputV1,
+  deriveCanonicalRuntimeMultiSitePostTransitionReevaluationBoundaryV1,
+} from "./canonical-runtime-multi-site-post-transition-reevaluation-boundary-v1.ts";
 import type {
   CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateBridgeResultV1,
   CanonicalRuntimeTokenPosCurrentSnapshotBoundWhereActionCandidateV1,
@@ -42,7 +42,7 @@ type CurrentContextResult = Parameters<
   typeof deriveCanonicalRuntimeEpochCurrentContextTransitionBoundaryV1
 >[1];
 type ReevaluationSeed = Omit<
-  CanonicalRuntimePostTransitionReevaluationCompositionInputV1,
+  CanonicalRuntimeMultiSitePostTransitionReevaluationInputV1["seed"],
   "epochTransitionResult"
 >;
 type DependencyCandidate = Extract<
@@ -71,6 +71,7 @@ export type CanonicalRuntimeBoundedDependencyGraphSchedulerInputV1 = Readonly<{
     readonly CanonicalRuntimeDependencyActionActivationAuthorityV1[];
   initialEpoch: CanonicalRuntimeBoundedDependencyGraphSchedulerInitialEpochV1;
   reevaluationSeed: ReevaluationSeed;
+  tokenNodeIds: readonly string[];
 }>;
 
 function blocked(
@@ -98,7 +99,7 @@ function blocked(
       graphPatchDerivedByCanonicalD714: true as const,
       graphTransitionDerivedByCanonicalD715: true as const,
       executionResultDerivedByCanonicalD718: true as const,
-      postTransitionEvidenceRederivedByCanonicalA33: true as const,
+      postTransitionEvidenceRederivedByCanonicalA38C: true as const,
       staleSnapshotBoundEvidenceReusedAfterTransition: false as const,
       newLinguisticSemanticsCreated: false as const,
       learnerFacingInterpretationPerformed: false as const,
@@ -265,7 +266,7 @@ export async function runCanonicalRuntimeBoundedDependencyGraphSchedulerV1(
           crossManifestPriorityInvented: false as const,
           unsupportedSetRoleExecuted: false as const,
           staleSnapshotBoundEvidenceReusedAfterTransition: false as const,
-          postTransitionEvidenceRederivedByCanonicalA33: true as const,
+          postTransitionEvidenceRederivedByCanonicalA38C: true as const,
           newLinguisticSemanticsCreated: false as const,
           learnerFacingInterpretationPerformed: false as const,
         },
@@ -448,10 +449,13 @@ export async function runCanonicalRuntimeBoundedDependencyGraphSchedulerV1(
     }
 
     const reevaluation =
-      await deriveCanonicalRuntimePostTransitionReevaluationCompositionBoundaryV1(
+      await deriveCanonicalRuntimeMultiSitePostTransitionReevaluationBoundaryV1(
         {
-          ...input.reevaluationSeed,
-          epochTransitionResult,
+          seed: {
+            ...input.reevaluationSeed,
+            epochTransitionResult,
+          },
+          tokenNodeIds: input.tokenNodeIds,
         },
       );
     if (reevaluation.status !== "ready") {
