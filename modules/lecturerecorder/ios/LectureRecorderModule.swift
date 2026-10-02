@@ -1087,6 +1087,12 @@ public final class LectureRecorderModule: Module {
       Int(processingFormat.channelCount)
     )
 
+    // Do not force a fixed AAC bit rate here. The active iOS input route can
+    // legitimately run at 8/16/24/44.1/48 kHz (for example Bluetooth HFP),
+    // and a hard-coded 128/192 kbps request can be rejected by the active
+    // codec as kAudioCodecUnsupportedFormatError ('!dat'). Let Core Audio
+    // choose a supported bit rate for the actual route while keeping high
+    // encoder quality.
     let settings: [String: Any] = [
       AVFormatIDKey:
         Int(kAudioFormatMPEG4AAC),
@@ -1094,10 +1100,6 @@ public final class LectureRecorderModule: Module {
         processingFormat.sampleRate,
       AVNumberOfChannelsKey:
         channelCount,
-      AVEncoderBitRateKey:
-        channelCount == 1
-          ? 128_000
-          : 192_000,
       AVEncoderAudioQualityKey:
         AVAudioQuality.high.rawValue
     ]

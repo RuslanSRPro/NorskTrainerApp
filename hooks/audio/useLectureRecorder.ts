@@ -942,7 +942,7 @@ export function useLectureRecorder(
 
       for (
         let attemptNumber = 1;
-        attemptNumber <= 2;
+        attemptNumber <= 4;
         attemptNumber += 1
       ) {
 
@@ -953,7 +953,7 @@ export function useLectureRecorder(
 
           if (__DEV__) {
             devConsole.warn(
-              'LECTURE FIRST START LOST SESSION Р Р†Р вЂљРІР‚Сњ retrying once'
+              'LECTURE START VERIFICATION FAILED - retrying native recorder'
             );
           }
 
@@ -994,7 +994,7 @@ export function useLectureRecorder(
         !verifiedAttempt
       ) {
         throw new Error(
-          'The native recorder stopped immediately after two start attempts.'
+          'The native recorder could not establish a verified audio write after four start attempts.'
         );
       }
 
