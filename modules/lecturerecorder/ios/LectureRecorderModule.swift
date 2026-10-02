@@ -1990,6 +1990,15 @@ public final class LectureRecorderModule: Module {
       "peakDb": snapshot.peakDb,
       "isPausedForInterruption":
         isPausedForInterruption,
+      "engineRunning":
+        audioEngine?.isRunning == true,
+      "hasSuccessfulWrite":
+        snapshot.hasSuccessfulWrite,
+      "writerFailureMessage":
+        snapshot.writerFailureMessage ??
+        NSNull(),
+      "hasCurrentPart":
+        snapshot.hasCurrentPart,
       "segmentCount":
         snapshot.finalizedSegmentCount +
         (snapshot.hasCurrentPart ? 1 : 0)

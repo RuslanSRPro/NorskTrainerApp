@@ -11,6 +11,10 @@ export type LectureRecorderStatus = {
   levelDb?: number;
   peakDb?: number;
   isPausedForInterruption?: boolean;
+  engineRunning?: boolean;
+  hasSuccessfulWrite?: boolean;
+  writerFailureMessage?: string | null;
+  hasCurrentPart?: boolean;
   segmentCount?: number;
 };
 
@@ -23,6 +27,10 @@ export type LectureRecorderResult = {
   levelDb?: number;
   peakDb?: number;
   isPausedForInterruption?: boolean;
+  engineRunning?: boolean;
+  hasSuccessfulWrite?: boolean;
+  writerFailureMessage?: string | null;
+  hasCurrentPart?: boolean;
   segmentCount?: number;
 };
 

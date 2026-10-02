@@ -993,8 +993,52 @@ export function useLectureRecorder(
       if (
         !verifiedAttempt
       ) {
+        const nativeError =
+          recorderErrorEventRef.current;
+
+        let nativeStatus:
+          LectureRecorderStatus | null =
+            null;
+
+        try {
+          nativeStatus =
+            LectureRecorder.getStatus();
+        } catch {
+          // Keep the original start failure if status itself is unavailable.
+        }
+
+        const diagnosticParts = [
+          nativeError
+            ? `native=${nativeError.code}: ${nativeError.message}`
+            : 'native=no error event',
+          nativeStatus
+            ? `engineRunning=${String(nativeStatus.engineRunning ?? false)}`
+            : 'engineRunning=unknown',
+          nativeStatus
+            ? `hasSuccessfulWrite=${String(nativeStatus.hasSuccessfulWrite ?? false)}`
+            : 'hasSuccessfulWrite=unknown',
+          nativeStatus
+            ? `writerFailure=${nativeStatus.writerFailureMessage ?? 'none'}`
+            : 'writerFailure=unknown',
+          nativeStatus
+            ? `paused=${String(nativeStatus.isPausedForInterruption ?? false)}`
+            : 'paused=unknown',
+          nativeStatus
+            ? `durationMs=${nativeStatus.durationMillis}`
+            : 'durationMs=unknown',
+          nativeStatus
+            ? `bytes=${nativeStatus.bytes}`
+            : 'bytes=unknown',
+          nativeStatus
+            ? `segments=${nativeStatus.segmentCount ?? 0}`
+            : 'segments=unknown',
+          nativeStatus
+            ? `hasCurrentPart=${String(nativeStatus.hasCurrentPart ?? false)}`
+            : 'hasCurrentPart=unknown',
+        ];
+
         throw new Error(
-          'The native recorder could not establish a verified audio write after four start attempts.'
+          `The native recorder could not establish a verified audio write after four start attempts. ${diagnosticParts.join('; ')}`
         );
       }
 
