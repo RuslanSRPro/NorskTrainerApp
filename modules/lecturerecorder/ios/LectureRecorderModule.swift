@@ -65,9 +65,6 @@ public final class LectureRecorderModule: Module {
   private var isPausedForInterruption = false
   private var resumeToken: UUID?
   private var interruptionObserver: NSObjectProtocol?
-  private var engineConfigurationObserver: NSObjectProtocol?
-  private var routeChangeObserver: NSObjectProtocol?
-  private var mediaServicesResetObserver: NSObjectProtocol?
 
   // Lock-protected live metrics/state snapshots.
   private var capturedDurationSeconds = 0.0
@@ -442,113 +439,30 @@ public final class LectureRecorderModule: Module {
   }
 
   deinit {
-    let center = NotificationCenter.default
-
     if let interruptionObserver {
-      center.removeObserver(interruptionObserver)
-    }
-    if let engineConfigurationObserver {
-      center.removeObserver(engineConfigurationObserver)
-    }
-    if let routeChangeObserver {
-      center.removeObserver(routeChangeObserver)
-    }
-    if let mediaServicesResetObserver {
-      center.removeObserver(mediaServicesResetObserver)
+      NotificationCenter.default.removeObserver(
+        interruptionObserver
+      )
     }
   }
 
   // MARK: - Audio session / lifecycle
 
   private func ensureAudioLifecycleObservers() {
-    let center = NotificationCenter.default
+    guard interruptionObserver == nil else {
+      return
+    }
 
-    if interruptionObserver == nil {
-      interruptionObserver = center.addObserver(
+    interruptionObserver =
+      NotificationCenter.default.addObserver(
         forName: AVAudioSession.interruptionNotification,
         object: AVAudioSession.sharedInstance(),
         queue: .main
       ) { [weak self] notification in
-        self?.handleAudioSessionInterruption(notification)
-      }
-    }
-
-    if engineConfigurationObserver == nil {
-      engineConfigurationObserver = center.addObserver(
-        forName: Notification.Name.AVAudioEngineConfigurationChange,
-        object: nil,
-        queue: .main
-      ) { [weak self] _ in
-        self?.handleAudioConfigurationChange(
-          reason: "engine-configuration-change"
+        self?.handleAudioSessionInterruption(
+          notification
         )
       }
-    }
-
-    if routeChangeObserver == nil {
-      routeChangeObserver = center.addObserver(
-        forName: AVAudioSession.routeChangeNotification,
-        object: AVAudioSession.sharedInstance(),
-        queue: .main
-      ) { [weak self] _ in
-        self?.handleAudioConfigurationChange(
-          reason: "audio-route-change"
-        )
-      }
-    }
-
-    if mediaServicesResetObserver == nil {
-      mediaServicesResetObserver = center.addObserver(
-        forName: AVAudioSession.mediaServicesWereResetNotification,
-        object: AVAudioSession.sharedInstance(),
-        queue: .main
-      ) { [weak self] _ in
-        self?.handleAudioConfigurationChange(
-          reason: "media-services-reset"
-        )
-      }
-    }
-  }
-
-  private func handleAudioConfigurationChange(
-    reason: String
-  ) {
-    guard
-      currentDestinationURL != nil,
-      !isStopping,
-      !isPausedForInterruption,
-      audioEngine != nil
-    else {
-      return
-    }
-
-    isPausedForInterruption = true
-    let token = UUID()
-    resumeToken = token
-
-    stopAcceptingNewBuffers()
-    stopCaptureEngine()
-    tapCallbackGroup.wait()
-
-    // Close the segment using the old route format before rebuilding the
-    // engine. The next microphone buffer opens a fresh writer using its
-    // authoritative post-change format.
-    writerQueue.async { [weak self] in
-      guard let self else { return }
-      self.finalizeCurrentSegmentOnWriterQueue()
-
-      DispatchQueue.main.async { [weak self] in
-        guard let self else { return }
-        self.attemptAutomaticResume(
-          token: token,
-          attempt: 1
-        )
-      }
-    }
-
-    #if DEBUG
-    print("LECTURE AUDIO GRAPH REBUILD: \(reason)")
-    #endif
   }
 
   private func handleAudioSessionInterruption(

@@ -819,6 +819,23 @@ export function useLectureRecorder(
           return ready;
         }
 
+        /*
+         * getStatus().isRecording is also authoritative: native only
+         * reports true after at least one AVAudioFile.write(from:)
+         * succeeded. Polling it avoids losing a valid start if the
+         * one-shot ready event is delayed or missed.
+         */
+        const status =
+          LectureRecorder.getStatus();
+
+        if (
+          status.isRecording &&
+          status.uri ===
+            audioUri
+        ) {
+          return status;
+        }
+
         const nativeError =
           recorderErrorEventRef.current;
 
@@ -845,7 +862,6 @@ export function useLectureRecorder(
 
       return null;
     };
-
 
   const attemptNativeRecordingStart =
     async (
@@ -875,7 +891,7 @@ export function useLectureRecorder(
       const readyEvent =
         await waitForNativeRecorderReady(
           audioUri,
-          2500
+          4000
         );
 
       const verified =
@@ -895,8 +911,7 @@ export function useLectureRecorder(
 
       if (
         !readyEvent ||
-        !verified.isRecording ||
-        verified.durationMillis <= 0
+        !verified.isRecording
       ) {
         return null;
       }
@@ -909,9 +924,7 @@ export function useLectureRecorder(
         );
 
       return {
-        started:
-          readyEvent ??
-          started,
+        started,
         verified,
       };
     };
@@ -940,7 +953,7 @@ export function useLectureRecorder(
 
           if (__DEV__) {
             devConsole.warn(
-              'LECTURE FIRST START LOST SESSION — retrying once'
+              'LECTURE FIRST START LOST SESSION Р Р†Р вЂљРІР‚Сњ retrying once'
             );
           }
 
