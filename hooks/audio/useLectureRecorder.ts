@@ -440,20 +440,42 @@ export function useLectureRecorder(
             );
 
           let hasRecoverableSegments = false;
+          let hasUnresolvedPartialSegments = false;
 
-          if (segmentsDirectory.exists) {
-            try {
-              hasRecoverableSegments =
-                segmentsDirectory
-                  .list()
-                  .some(item =>
-                    item instanceof File &&
-                    item.name.endsWith('.m4a')
-                  );
-            } catch {
+          const refreshSegmentInventory =
+            () => {
               hasRecoverableSegments = false;
-            }
-          }
+              hasUnresolvedPartialSegments = false;
+
+              if (!segmentsDirectory.exists) {
+                return;
+              }
+
+              try {
+                const segmentEntries =
+                  segmentsDirectory.list();
+
+                hasRecoverableSegments =
+                  segmentEntries.some(item =>
+                    item instanceof File &&
+                    item.name.startsWith('segment-') &&
+                    item.name.endsWith('.m4a') &&
+                    !item.name.endsWith('.part.m4a')
+                  );
+
+                hasUnresolvedPartialSegments =
+                  segmentEntries.some(item =>
+                    item instanceof File &&
+                    item.name.startsWith('segment-') &&
+                    item.name.endsWith('.part.m4a')
+                  );
+              } catch {
+                hasRecoverableSegments = false;
+                hasUnresolvedPartialSegments = false;
+              }
+            };
+
+          refreshSegmentInventory();
 
           let rollbackCandidate: File | null = null;
 
@@ -670,8 +692,17 @@ export function useLectureRecorder(
                 recoveredCheckpointBytes
               );
 
+            /*
+             * Native recovery may promote a valid .part.m4a to a durable
+             * finalized checkpoint. Refresh the filesystem inventory after
+             * recovery so JS never marks a lecture SAVED while an unresolved
+             * partial tail still exists.
+             */
+            refreshSegmentInventory();
+
             const segmentBackedSaved =
-              hasRecoverableSegments;
+              hasRecoverableSegments &&
+              !hasUnresolvedPartialSegments;
 
             writeMetadata(
               entry,
