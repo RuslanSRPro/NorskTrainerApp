@@ -401,7 +401,25 @@ export default function VoiceScreen() {
               metadata
             );
 
-          if (!audio) {
+          const recordingState =
+            metadata.recordingState ??
+            'ready';
+
+          /*
+           * Durable checkpoints are the source of truth.
+           *
+           * After a successful Stop the lecture can be durably
+           * saved before the derived audio.m4a has finished
+           * assembling. Keep that lecture visible.
+           */
+          const isSegmentBackedSavedLecture =
+            recordingState ===
+              'saved';
+
+          if (
+            !audio &&
+            !isSegmentBackedSavedLecture
+          ) {
             continue;
           }
 
@@ -476,10 +494,12 @@ export default function VoiceScreen() {
                 : null,
 
             audioUri:
-              audio.file.uri,
+              audio?.file.uri ??
+              '',
 
             audioFileName:
-              audio.name,
+              audio?.name ??
+              '',
 
             transcriptUri:
               transcriptFile.exists
@@ -493,11 +513,10 @@ export default function VoiceScreen() {
 
             audioBytes:
               metadata.audioBytes ??
-              audio.file.size,
+              audio?.file.size ??
+              0,
 
-            recordingState:
-              metadata.recordingState ??
-              'ready',
+            recordingState,
 
             interruptionReason:
               metadata.interruptionReason ??
@@ -2599,6 +2618,14 @@ export default function VoiceScreen() {
                 lecture.recordingState ===
                   'interrupted';
 
+              const hasPlayableAudio =
+                lecture.audioUri.length > 0;
+
+              const isAudioPending =
+                !hasPlayableAudio &&
+                lecture.recordingState ===
+                  'saved';
+
               const displayedDuration =
                 isCurrent &&
                 playerStatus.duration > 0
@@ -3021,18 +3048,24 @@ export default function VoiceScreen() {
                       }
                       disabled={
                         isInterrupted ||
+                        isAudioPending ||
+                        !hasPlayableAudio ||
                         isLoading ||
                         !!transcribingLectureId
                       }
                       accessibilityLabel={
-                        isInterrupted
+                        isInterrupted ||
+                        isAudioPending ||
+                        !hasPlayableAudio
                           ? audioUi.cannotPlayInterrupted
                           : isPlaying
                             ? audioUi.pauseLecture
                             : audioUi.playLecture
                       }
                       label={
-                        isInterrupted
+                        isInterrupted ||
+                        isAudioPending ||
+                        !hasPlayableAudio
                           ? audioUi.noPlayback
                           : isLoading
                             ? audioUi.loading
@@ -3061,13 +3094,21 @@ export default function VoiceScreen() {
                       disabled={
                         isLectureProcessing ||
                         (
-                          isInterrupted &&
-                          !lecture.transcriptReady
+                          !lecture.transcriptReady &&
+                          (
+                            isInterrupted ||
+                            isAudioPending ||
+                            !hasPlayableAudio
+                          )
                         )
                       }
                       accessibilityLabel={
-                        isInterrupted &&
-                        !lecture.transcriptReady
+                        !lecture.transcriptReady &&
+                        (
+                          isInterrupted ||
+                          isAudioPending ||
+                          !hasPlayableAudio
+                        )
                           ? audioUi.cannotTranscribeInterrupted
                           : lecture.transcriptReady
                           ? (
@@ -3078,8 +3119,12 @@ export default function VoiceScreen() {
                           : audioUi.createTranscriptAccessibility
                       }
                       label={
-                        isInterrupted &&
-                        !lecture.transcriptReady
+                        !lecture.transcriptReady &&
+                        (
+                          isInterrupted ||
+                          isAudioPending ||
+                          !hasPlayableAudio
+                        )
                           ? audioUi.noTranscript
                           : lecture.transcriptReady
                             ? (
@@ -3120,6 +3165,7 @@ export default function VoiceScreen() {
                         F.base - 1
                       }
                       disabled={
+                        !hasPlayableAudio ||
                         exportingLectureId ===
                           lecture.id
                       }
@@ -3155,7 +3201,8 @@ export default function VoiceScreen() {
                   </View>
 
                   {exportLectureId ===
-                    lecture.id && (
+                    lecture.id &&
+                    hasPlayableAudio && (
 
                     <ExportMenu
                       accent={
@@ -3168,6 +3215,7 @@ export default function VoiceScreen() {
                         F.base
                       }
                       disabled={
+                        !hasPlayableAudio ||
                         exportingLectureId ===
                           lecture.id
                       }

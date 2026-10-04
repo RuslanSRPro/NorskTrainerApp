@@ -153,8 +153,36 @@ public final class LectureRecorderModule: Module {
           for: destinationURL
         )
 
-      self.removeFileIfPresent(destinationURL)
-      self.removeDirectoryIfPresent(segmentsDirectoryURL)
+      let manifestURL =
+        self.recordingManifestURL(
+          for: destinationURL
+        )
+
+      let destinationExists =
+        FileManager.default.fileExists(
+          atPath: destinationURL.path
+        )
+
+      let segmentsDirectoryExists =
+        FileManager.default.fileExists(
+          atPath: segmentsDirectoryURL.path
+        )
+
+      let manifestExists =
+        FileManager.default.fileExists(
+          atPath: manifestURL.path
+        )
+
+      guard
+        !destinationExists,
+        !segmentsDirectoryExists,
+        !manifestExists
+      else {
+        throw self.makeException(
+          code: "ERR_DESTINATION_EXISTS",
+          message: "The lecture recording destination already contains durable recording data. Start refused to overwrite it."
+        )
+      }
 
       try FileManager.default.createDirectory(
         at: segmentsDirectoryURL,
@@ -173,11 +201,19 @@ public final class LectureRecorderModule: Module {
 
       self.resetLiveState()
       self.resetWriterState()
-      self.ensureAudioLifecycleObservers()
 
       do {
         try self.configureAudioSessionForRecording()
         try self.startCaptureEngine()
+
+        // Register lifecycle observers only after the initial audio
+        // session configuration and engine start have succeeded.
+        //
+        // configureAudioSessionForRecording() can itself cause iOS to
+        // publish route-change notifications. Observing those during
+        // initial Start can make the recorder restart itself before the
+        // first durable microphone write has been confirmed.
+        self.ensureAudioLifecycleObservers()
       } catch {
         self.stopCaptureEngine()
         self.deactivateAudioSession()
@@ -493,13 +529,33 @@ public final class LectureRecorderModule: Module {
                 $0.assembly.state = "assembly_failed"
               }
 
+              let manifest =
+                self.loadRecordingManifest(
+                  for: destinationURL
+                )
+
+              let committedDurationMillis =
+                manifest?
+                  .committedDurationMillis ??
+                0
+
+              let committedBytes =
+                manifest?
+                  .segments
+                  .reduce(
+                    0
+                  ) {
+                    $0 + $1.bytes
+                  } ??
+                0
+
               promise.resolve(
                 self.makeValidationResult(
                   valid: false,
                   playable: false,
-                  durationMillis: 0,
+                  durationMillis: committedDurationMillis,
                   uri: destinationURL.absoluteString,
-                  bytes: 0,
+                  bytes: committedBytes,
                   code: "ERR_RECOVERY_MERGE",
                   message: error.localizedDescription
                 )
@@ -1574,41 +1630,79 @@ public final class LectureRecorderModule: Module {
       return
     }
 
-    reconcileRecordingManifest(for: destinationURL)
+    do {
+      let reconciledManifest =
+        try reconcileRecordingManifestDurably(
+          for: destinationURL
+        )
 
-    guard
-      let manifest = loadRecordingManifest(for: destinationURL),
-      !manifest.segments.isEmpty,
-      manifest.committedDurationMillis > 0
-    else {
-      pendingStopPromise = nil
-      cleanupAfterFailedStopPreservingSegments()
-      promise.reject(
-        makeException(
+      guard
+        !reconciledManifest.segments.isEmpty,
+        reconciledManifest.committedDurationMillis > 0
+      else {
+        throw makeNSError(
           code: "ERR_MANIFEST_NOT_DURABLE",
           message: "The lecture checkpoints exist, but their durable manifest could not be confirmed."
+        )
+      }
+
+      try updateRecordingManifestDurably(
+        for: destinationURL
+      ) {
+        $0.state = "saved"
+        $0.assembly.state = "not_started"
+        $0.assembly.output = nil
+      }
+    } catch {
+      pendingStopPromise = nil
+      cleanupAfterFailedStopPreservingSegments()
+
+      promise.reject(
+        makeException(
+          code: "ERR_MANIFEST_SAVE",
+          message: "The lecture checkpoints were preserved, but the recorder could not durably reconcile and mark the recording as saved: \(error.localizedDescription)"
         )
       )
       return
     }
 
-    updateRecordingManifest(for: destinationURL) {
-      $0.state = "saved"
-      $0.assembly.state = "not_started"
-      $0.assembly.output = nil
+    guard
+      let savedManifest =
+        loadRecordingManifest(
+          for: destinationURL
+        ),
+      savedManifest.state == "saved",
+      !savedManifest.segments.isEmpty,
+      savedManifest.committedDurationMillis > 0
+    else {
+      pendingStopPromise = nil
+      cleanupAfterFailedStopPreservingSegments()
+
+      promise.reject(
+        makeException(
+          code: "ERR_MANIFEST_SAVE_VERIFY",
+          message: "The lecture checkpoints were preserved, but the saved recording state could not be verified."
+        )
+      )
+      return
     }
 
-    let bytes = manifest.segments.reduce(0) { $0 + $1.bytes }
+    let bytes =
+      savedManifest.segments.reduce(
+        0
+      ) {
+        $0 + $1.bytes
+      }
     let result: [String: Any] = [
       "ok": true,
       "isRecording": false,
-      "durationMillis": manifest.committedDurationMillis,
+      "durationMillis": savedManifest.committedDurationMillis,
       "uri": destinationURL.absoluteString,
       "bytes": bytes,
       "levelDb": -160.0,
       "peakDb": -160.0,
       "isPausedForInterruption": false,
-      "segmentCount": manifest.segments.count
+      "segmentCount": savedManifest.segments.count
     ]
 
     pendingStopPromise = nil
@@ -1783,6 +1877,18 @@ public final class LectureRecorderModule: Module {
 
         for (offset, url) in segmentURLs.enumerated() {
           let expectedIndex = offset + 1
+
+          guard
+            self.segmentIndex(
+              from: url
+            ) == expectedIndex
+          else {
+            throw self.makeNSError(
+              code: "ERR_SEGMENT_SEQUENCE",
+              message: "Lecture checkpoint sequence is incomplete or out of order at expected segment \(expectedIndex). Assembly was aborted and all source segments were preserved."
+            )
+          }
+
           let asset = AVURLAsset(
             url: url
           )
@@ -2485,6 +2591,45 @@ public final class LectureRecorderModule: Module {
     )
   }
 
+  private func updateRecordingManifestDurably(
+    for destinationURL: URL,
+    mutate: (inout RecordingManifest) -> Void
+  ) throws {
+    guard
+      var manifest =
+        loadRecordingManifest(
+          for: destinationURL
+        )
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_LOAD",
+        message: "The recording manifest could not be loaded for a durable state transition."
+      )
+    }
+
+    mutate(
+      &manifest
+    )
+
+    try writeRecordingManifest(
+      manifest,
+      for: destinationURL
+    )
+
+    // Do not acknowledge a durable transition merely because Data.write
+    // returned. Read the manifest back and require it to remain decodable.
+    guard
+      loadRecordingManifest(
+        for: destinationURL
+      ) != nil
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_VERIFY",
+        message: "The recording manifest could not be verified after its durable update."
+      )
+    }
+  }
+
   private func updateRecordingManifest(
     for destinationURL: URL,
     mutate: (inout RecordingManifest) -> Void
@@ -2599,6 +2744,191 @@ public final class LectureRecorderModule: Module {
       manifest.activeSegmentIndex =
         (manifest.segments.last?.index ?? 0) + 1
     }
+  }
+
+  private func reconcileRecordingManifestDurably(
+    for destinationURL: URL
+  ) throws -> RecordingManifest {
+    let directoryURL =
+      segmentsDirectoryURL(
+        for: destinationURL
+      )
+
+    let segmentURLs =
+      completedSegmentURLs(
+        in: directoryURL
+      )
+
+    guard !segmentURLs.isEmpty else {
+      throw makeNSError(
+        code: "ERR_NO_RECOVERABLE_SEGMENTS",
+        message: "No finalized lecture checkpoints were available for durable reconciliation."
+      )
+    }
+
+    var manifest =
+      loadRecordingManifest(
+        for: destinationURL
+      )
+
+    if manifest == nil {
+      let now = isoTimestamp()
+
+      manifest = RecordingManifest(
+        version: 1,
+        recordingId:
+          destinationURL
+            .deletingLastPathComponent()
+            .lastPathComponent,
+        createdAt: now,
+        updatedAt: now,
+        state: "interrupted",
+        segments: [],
+        committedDurationMillis: 0,
+        activeSegmentIndex: 1,
+        assembly: RecordingManifestAssembly(
+          state: "not_started",
+          generation: 0,
+          output: nil
+        )
+      )
+    }
+
+    guard var repaired = manifest else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_RECONCILE",
+        message: "The recording manifest could not be reconstructed."
+      )
+    }
+
+    var rebuiltSegments: [RecordingManifestSegment] = []
+
+    for (offset, url) in segmentURLs.enumerated() {
+      let expectedIndex =
+        offset + 1
+
+      guard
+        let index =
+          segmentIndex(
+            from: url
+          ),
+        index == expectedIndex
+      else {
+        throw makeNSError(
+          code: "ERR_SEGMENT_SEQUENCE",
+          message: "Durable checkpoint sequence is incomplete or out of order at expected segment \(expectedIndex). Source checkpoints were preserved."
+        )
+      }
+
+      let validation =
+        validateAudioFileWithRetry(
+          url,
+          attempts: 3,
+          delaySeconds: 0.05
+        )
+
+      guard
+        (validation["valid"] as? Bool) == true,
+        (validation["playable"] as? Bool) == true,
+        let durationMillis =
+          validation["durationMillis"] as? Int,
+        durationMillis > 0
+      else {
+        throw makeNSError(
+          code: "ERR_SEGMENT_VALIDATION",
+          message: "Durable checkpoint \(expectedIndex) could not be validated. Source checkpoints were preserved."
+        )
+      }
+
+      let bytes =
+        fileSize(
+          url
+        )
+
+      guard bytes > 0 else {
+        throw makeNSError(
+          code: "ERR_SEGMENT_BYTES",
+          message: "Durable checkpoint \(expectedIndex) has no readable payload. Source checkpoints were preserved."
+        )
+      }
+
+      rebuiltSegments.append(
+        RecordingManifestSegment(
+          index: index,
+          file: url.lastPathComponent,
+          durationMillis: durationMillis,
+          bytes: bytes,
+          status: "committed"
+        )
+      )
+    }
+
+    repaired.segments =
+      rebuiltSegments
+
+    repaired.committedDurationMillis =
+      rebuiltSegments.reduce(
+        0
+      ) {
+        $0 + $1.durationMillis
+      }
+
+    repaired.activeSegmentIndex =
+      rebuiltSegments.count + 1
+
+    try writeRecordingManifest(
+      repaired,
+      for: destinationURL
+    )
+
+    guard
+      let verified =
+        loadRecordingManifest(
+          for: destinationURL
+        )
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_VERIFY",
+        message: "The reconciled recording manifest could not be read back."
+      )
+    }
+
+    guard
+      verified.segments.count ==
+        rebuiltSegments.count,
+      verified.committedDurationMillis ==
+        repaired.committedDurationMillis,
+      verified.activeSegmentIndex ==
+        repaired.activeSegmentIndex
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_VERIFY",
+        message: "The reconciled recording manifest did not match the validated checkpoint inventory."
+      )
+    }
+
+    for (offset, segment) in
+      verified.segments.enumerated()
+    {
+      let expected =
+        rebuiltSegments[offset]
+
+      guard
+        segment.index == expected.index,
+        segment.file == expected.file,
+        segment.durationMillis ==
+          expected.durationMillis,
+        segment.bytes == expected.bytes,
+        segment.status == "committed"
+      else {
+        throw makeNSError(
+          code: "ERR_MANIFEST_VERIFY",
+          message: "The reconciled recording manifest checkpoint inventory failed read-back verification."
+        )
+      }
+    }
+
+    return verified
   }
 
   private func reconcileRecordingManifest(

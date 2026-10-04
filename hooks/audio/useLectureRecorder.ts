@@ -495,6 +495,16 @@ export function useLectureRecorder(
            * no checkpoint directory and the old validation path below
            * still handles any existing M4A exactly as before.
            */
+          let recoveredCheckpointDurationMillis =
+            0;
+
+          let recoveredCheckpointBytes =
+            0;
+
+          let segmentRecoveryMessage:
+            string | null =
+              null;
+
           if (
             metadata.recordingState ===
               'recording' ||
@@ -518,6 +528,21 @@ export function useLectureRecorder(
                   .recoverRecording(
                     expectedAudio.uri
                   );
+
+              recoveredCheckpointDurationMillis =
+                Math.max(
+                  0,
+                  recovery.durationMillis
+                );
+
+              recoveredCheckpointBytes =
+                Math.max(
+                  0,
+                  recovery.bytes
+                );
+
+              segmentRecoveryMessage =
+                recovery.message;
 
               if (__DEV__) {
                 devConsole.log(
@@ -631,23 +656,48 @@ export function useLectureRecorder(
                 metadata.createdAt
               );
 
+            const durableDurationMillis =
+              Math.max(
+                metadata.durationMillis ??
+                  0,
+                recoveredCheckpointDurationMillis
+              );
+
+            const durableAudioBytes =
+              Math.max(
+                metadata.audioBytes ??
+                  0,
+                recoveredCheckpointBytes
+              );
+
+            const segmentBackedSaved =
+              hasRecoverableSegments;
+
             writeMetadata(
               entry,
               {
                 ...metadata,
                 id,
                 createdAt,
-                durationMillis: 0,
+                durationMillis:
+                  durableDurationMillis,
                 language:
                   metadata.language ||
                   'nb-NO',
                 audioFile:
                   metadata.audioFile ||
                   'audio.m4a',
-                transcriptFile: null,
-                transcriptReady: false,
-                characters: 0,
-                audioBytes: 0,
+                transcriptFile:
+                  metadata.transcriptFile ??
+                  null,
+                transcriptReady:
+                  metadata.transcriptReady ??
+                  false,
+                characters:
+                  metadata.characters ??
+                  0,
+                audioBytes:
+                  durableAudioBytes,
                 source:
                   metadata.source ??
                   'recorded',
@@ -655,13 +705,20 @@ export function useLectureRecorder(
                   metadata.originalFileName ??
                   null,
                 recordingState:
-                  'interrupted',
+                  segmentBackedSaved
+                    ? 'saved'
+                    : 'interrupted',
                 interruptionReason:
-                  'The app closed before the first recoverable audio checkpoint was finalized.',
+                  segmentBackedSaved
+                    ? (
+                      segmentRecoveryMessage ||
+                      'The lecture checkpoints are saved, but the playable audio file is not assembled yet.'
+                    )
+                    : 'The app closed before the first recoverable audio checkpoint was finalized.',
                 transcription:
                   metadata.transcription ??
                   getDefaultTranscription(
-                    0
+                    durableDurationMillis
                   ),
               }
             );
