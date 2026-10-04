@@ -936,63 +936,13 @@ export function useLectureRecorder(
     ):
       Promise<VerifiedRecordingStart> => {
 
-      let verifiedAttempt:
-        VerifiedRecordingStart | null =
-          null;
+      const verifiedAttempt =
+        await attemptNativeRecordingStart(
+          audioUri,
+          1
+        );
 
-      for (
-        let attemptNumber = 1;
-        attemptNumber <= 4;
-        attemptNumber += 1
-      ) {
-
-        if (
-          attemptNumber >
-            1
-        ) {
-
-          if (__DEV__) {
-            devConsole.warn(
-              'LECTURE START VERIFICATION FAILED - retrying native recorder'
-            );
-          }
-
-          try {
-
-            await LectureRecorder.cancel();
-
-          } catch {
-            // Continue with the recovery attempt.
-          }
-
-          recordingStartedAtRef.current =
-            null;
-
-          await new Promise(
-            resolve =>
-              setTimeout(
-                resolve,
-                500
-              )
-          );
-        }
-
-        verifiedAttempt =
-          await attemptNativeRecordingStart(
-            audioUri,
-            attemptNumber
-          );
-
-        if (
-          verifiedAttempt
-        ) {
-          break;
-        }
-      }
-
-      if (
-        !verifiedAttempt
-      ) {
+      if (!verifiedAttempt) {
         const nativeError =
           recorderErrorEventRef.current;
 
@@ -1003,42 +953,18 @@ export function useLectureRecorder(
         try {
           nativeStatus =
             LectureRecorder.getStatus();
-        } catch {
-          // Keep the original start failure if status itself is unavailable.
-        }
-
-        const diagnosticParts = [
-          nativeError
-            ? `native=${nativeError.code}: ${nativeError.message}`
-            : 'native=no error event',
-          nativeStatus
-            ? `engineRunning=${String(nativeStatus.engineRunning ?? false)}`
-            : 'engineRunning=unknown',
-          nativeStatus
-            ? `hasSuccessfulWrite=${String(nativeStatus.hasSuccessfulWrite ?? false)}`
-            : 'hasSuccessfulWrite=unknown',
-          nativeStatus
-            ? `writerFailure=${nativeStatus.writerFailureMessage ?? 'none'}`
-            : 'writerFailure=unknown',
-          nativeStatus
-            ? `paused=${String(nativeStatus.isPausedForInterruption ?? false)}`
-            : 'paused=unknown',
-          nativeStatus
-            ? `durationMs=${nativeStatus.durationMillis}`
-            : 'durationMs=unknown',
-          nativeStatus
-            ? `bytes=${nativeStatus.bytes}`
-            : 'bytes=unknown',
-          nativeStatus
-            ? `segments=${nativeStatus.segmentCount ?? 0}`
-            : 'segments=unknown',
-          nativeStatus
-            ? `hasCurrentPart=${String(nativeStatus.hasCurrentPart ?? false)}`
-            : 'hasCurrentPart=unknown',
-        ];
+        } catch {}
 
         throw new Error(
-          `The native recorder could not establish a verified audio write after four start attempts. ${diagnosticParts.join('; ')}`
+          `The native recorder did not confirm a durable audio write. ` +
+          (nativeError
+            ? `native=${nativeError.code}: ${nativeError.message}; `
+            : '') +
+          `engineRunning=${String(nativeStatus?.engineRunning ?? false)}; ` +
+          `hasSuccessfulWrite=${String(nativeStatus?.hasSuccessfulWrite ?? false)}; ` +
+          `writerFailure=${nativeStatus?.writerFailureMessage ?? 'none'}; ` +
+          `durationMs=${nativeStatus?.durationMillis ?? 0}; ` +
+          `segments=${nativeStatus?.segmentCount ?? 0}`
         );
       }
 

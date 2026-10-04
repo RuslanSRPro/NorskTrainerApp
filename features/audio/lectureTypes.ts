@@ -79,7 +79,8 @@ export type LectureMetadata = {
   recordingState?:
     | 'recording'
     | 'ready'
-    | 'interrupted';
+    | 'interrupted'
+    | 'saved';
   interruptionReason?: string | null;
   transcription?: LectureTranscription;
 };
@@ -99,7 +100,8 @@ export type LectureItem = {
   recordingState:
     | 'recording'
     | 'ready'
-    | 'interrupted';
+    | 'interrupted'
+    | 'saved';
   interruptionReason: string | null;
   transcription: LectureTranscription;
   markers: LectureMarker[];
