@@ -454,17 +454,118 @@ public final class LectureRecorderModule: Module {
         guard let self else { return }
 
         self.promoteRecoverablePartialSegments(
-          in: segmentsDirectoryURL
+          in: segmentsDirectoryURL,
+          destinationURL: destinationURL
         )
 
-        self.reconcileRecordingManifest(
-          for: destinationURL
-        )
-
-        let segmentURLs =
-          self.completedSegmentURLs(
+        let unresolvedPartialURLs =
+          self.unresolvedPartialSegmentURLs(
             in: segmentsDirectoryURL
           )
+
+        guard unresolvedPartialURLs.isEmpty else {
+          let unresolvedNames =
+            unresolvedPartialURLs
+              .map {
+                $0.lastPathComponent
+              }
+              .joined(
+                separator: ", "
+              )
+
+          let manifest =
+            self.loadRecordingManifest(
+              for: destinationURL
+            )
+
+          let committedDurationMillis =
+            manifest?
+              .committedDurationMillis ??
+            0
+
+          let committedBytes =
+            manifest?
+              .segments
+              .reduce(
+                0
+              ) {
+                $0 + $1.bytes
+              } ??
+            0
+
+          let result =
+            self.makeValidationResult(
+              valid: false,
+              playable: false,
+              durationMillis: committedDurationMillis,
+              uri: destinationURL.absoluteString,
+              bytes: committedBytes,
+              code: "ERR_UNRESOLVED_PARTIAL_SEGMENT",
+              message: "Recovery preserved an unresolved lecture audio tail instead of assembling an incomplete recording: \(unresolvedNames)"
+            )
+
+          DispatchQueue.main.async {
+            promise.resolve(result)
+          }
+
+          return
+        }
+
+        let reconciledManifest: RecordingManifest
+
+        do {
+          reconciledManifest =
+            try self.reconcileRecordingManifestDurably(
+              for: destinationURL
+            )
+        } catch {
+          let manifest =
+            self.loadRecordingManifest(
+              for: destinationURL
+            )
+
+          let committedDurationMillis =
+            manifest?
+              .committedDurationMillis ??
+            0
+
+          let committedBytes =
+            manifest?
+              .segments
+              .reduce(
+                0
+              ) {
+                $0 + $1.bytes
+              } ??
+            0
+
+          let result =
+            self.makeValidationResult(
+              valid: false,
+              playable: false,
+              durationMillis: committedDurationMillis,
+              uri: destinationURL.absoluteString,
+              bytes: committedBytes,
+              code: "ERR_RECOVERY_RECONCILIATION",
+              message: error.localizedDescription
+            )
+
+          DispatchQueue.main.async {
+            promise.resolve(result)
+          }
+
+          return
+        }
+
+        let segmentURLs =
+          reconciledManifest
+            .segments
+            .map {
+              segmentsDirectoryURL
+                .appendingPathComponent(
+                  $0.file
+                )
+            }
 
         guard !segmentURLs.isEmpty else {
           let fallback =
@@ -490,12 +591,42 @@ public final class LectureRecorderModule: Module {
           return
         }
 
-        self.updateRecordingManifest(
-          for: destinationURL
-        ) {
-          $0.state = "saved"
-          $0.assembly.state = "assembling"
-          $0.assembly.generation += 1
+        do {
+          try self.updateRecordingManifestDurably(
+            for: destinationURL
+          ) {
+            $0.state = "saved"
+            $0.assembly.state = "assembling"
+            $0.assembly.generation += 1
+          }
+        } catch {
+          let committedBytes =
+            reconciledManifest
+              .segments
+              .reduce(
+                0
+              ) {
+                $0 + $1.bytes
+              }
+
+          let result =
+            self.makeValidationResult(
+              valid: false,
+              playable: false,
+              durationMillis:
+                reconciledManifest
+                  .committedDurationMillis,
+              uri: destinationURL.absoluteString,
+              bytes: committedBytes,
+              code: "ERR_RECOVERY_MANIFEST_TRANSITION",
+              message: error.localizedDescription
+            )
+
+          DispatchQueue.main.async {
+            promise.resolve(result)
+          }
+
+          return
         }
 
         self.mergeSegments(
@@ -506,12 +637,39 @@ public final class LectureRecorderModule: Module {
           DispatchQueue.main.async {
             switch result {
             case .success(let validation):
-              self.updateRecordingManifest(
-                for: destinationURL
-              ) {
-                $0.state = "ready"
-                $0.assembly.state = "ready"
-                $0.assembly.output = destinationURL.lastPathComponent
+              do {
+                try self.updateRecordingManifestDurably(
+                  for: destinationURL
+                ) {
+                  $0.state = "ready"
+                  $0.assembly.state = "ready"
+                  $0.assembly.output = destinationURL.lastPathComponent
+                }
+              } catch {
+                let committedBytes =
+                  reconciledManifest
+                    .segments
+                    .reduce(
+                      0
+                    ) {
+                      $0 + $1.bytes
+                    }
+
+                promise.resolve(
+                  self.makeValidationResult(
+                    valid: false,
+                    playable: false,
+                    durationMillis:
+                      reconciledManifest
+                        .committedDurationMillis,
+                    uri: destinationURL.absoluteString,
+                    bytes: committedBytes,
+                    code: "ERR_RECOVERY_READY_MANIFEST",
+                    message: "The recovered audio file was assembled, but its ready state could not be committed durably: \(error.localizedDescription)"
+                  )
+                )
+
+                return
               }
 
               // Recovery must never consume its source checkpoints.
@@ -519,11 +677,38 @@ public final class LectureRecorderModule: Module {
               promise.resolve(validation)
 
             case .failure(let error):
-              self.updateRecordingManifest(
-                for: destinationURL
-              ) {
-                $0.state = "saved"
-                $0.assembly.state = "assembly_failed"
+              do {
+                try self.updateRecordingManifestDurably(
+                  for: destinationURL
+                ) {
+                  $0.state = "saved"
+                  $0.assembly.state = "assembly_failed"
+                }
+              } catch let manifestError {
+                let committedBytes =
+                  reconciledManifest
+                    .segments
+                    .reduce(
+                      0
+                    ) {
+                      $0 + $1.bytes
+                    }
+
+                promise.resolve(
+                  self.makeValidationResult(
+                    valid: false,
+                    playable: false,
+                    durationMillis:
+                      reconciledManifest
+                        .committedDurationMillis,
+                    uri: destinationURL.absoluteString,
+                    bytes: committedBytes,
+                    code: "ERR_RECOVERY_FAILURE_MANIFEST",
+                    message: "Lecture assembly failed and the failure state could not be committed durably. Assembly error: \(error.localizedDescription). Manifest error: \(manifestError.localizedDescription)"
+                  )
+                )
+
+                return
               }
 
               let manifest =
@@ -534,7 +719,8 @@ public final class LectureRecorderModule: Module {
               let committedDurationMillis =
                 manifest?
                   .committedDurationMillis ??
-                0
+                reconciledManifest
+                  .committedDurationMillis
 
               let committedBytes =
                 manifest?
@@ -544,7 +730,13 @@ public final class LectureRecorderModule: Module {
                   ) {
                     $0 + $1.bytes
                   } ??
-                0
+                reconciledManifest
+                  .segments
+                  .reduce(
+                    0
+                  ) {
+                    $0 + $1.bytes
+                  }
 
               promise.resolve(
                 self.makeValidationResult(
@@ -2270,7 +2462,8 @@ public final class LectureRecorderModule: Module {
   }
 
   private func promoteRecoverablePartialSegments(
-    in directoryURL: URL
+    in directoryURL: URL,
+    destinationURL explicitDestinationURL: URL? = nil
   ) {
     guard
       let entries = try? FileManager.default.contentsOfDirectory(
@@ -2331,6 +2524,7 @@ public final class LectureRecorderModule: Module {
         )
 
         if let destinationURL =
+          explicitDestinationURL ??
           currentDestinationURL
         {
           try commitSegmentToRecordingManifestDurably(
