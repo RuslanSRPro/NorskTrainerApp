@@ -281,18 +281,9 @@ public final class LectureRecorderModule: Module {
             in: segmentsDirectoryURL
           )
 
-          if let destinationURL = self.currentDestinationURL {
-            self.reconcileRecordingManifest(
-              for: destinationURL
-            )
-
-            self.updateRecordingManifest(
-              for: destinationURL
-            ) {
-              $0.state = "saved"
-              $0.assembly.state = "not_started"
-            }
-          }
+          // Every finalized checkpoint is committed durably at the
+          // moment it becomes recoverable. Ordinary Stop therefore does
+          // not rescan or revalidate the complete recording here.
         }
 
         let segmentURLs =
@@ -300,9 +291,15 @@ public final class LectureRecorderModule: Module {
             in: self.currentSegmentsDirectoryURL
           )
 
+        let unresolvedPartialURLs =
+          self.unresolvedPartialSegmentURLs(
+            in: self.currentSegmentsDirectoryURL
+          )
+
         DispatchQueue.main.async {
           self.finishStopBySaving(
-            segmentURLs: segmentURLs
+            segmentURLs: segmentURLs,
+            unresolvedPartialURLs: unresolvedPartialURLs
           )
         }
       }
@@ -1500,11 +1497,18 @@ public final class LectureRecorderModule: Module {
         forPartURL: partURL
       )
 
-    removeFileIfPresent(
-      finalURL
-    )
-
     do {
+      guard
+        !FileManager.default.fileExists(
+          atPath: finalURL.path
+        )
+      else {
+        throw makeNSError(
+          code: "ERR_SEGMENT_DESTINATION_EXISTS",
+          message: "A finalized lecture checkpoint already exists for segment \(finalURL.lastPathComponent). Existing durable audio was preserved."
+        )
+      }
+
       try FileManager.default.moveItem(
         at: partURL,
         to: finalURL
@@ -1520,7 +1524,7 @@ public final class LectureRecorderModule: Module {
       }
 
       if let destinationURL = currentDestinationURL {
-        commitSegmentToRecordingManifest(
+        try commitSegmentToRecordingManifestDurably(
           segmentURL: finalURL,
           validation: validation,
           destinationURL: destinationURL
@@ -1529,7 +1533,7 @@ public final class LectureRecorderModule: Module {
 
     } catch {
       reportWriterFailure(
-        "Could not finalize a lecture segment: \(error.localizedDescription)"
+        "Could not durably finalize a lecture segment: \(error.localizedDescription)"
       )
     }
   }
@@ -1606,7 +1610,8 @@ public final class LectureRecorderModule: Module {
   // MARK: - Stop / merge / recovery
 
   private func finishStopBySaving(
-    segmentURLs: [URL]
+    segmentURLs: [URL],
+    unresolvedPartialURLs: [URL]
   ) {
     guard
       let destinationURL = currentDestinationURL,
@@ -1630,15 +1635,38 @@ public final class LectureRecorderModule: Module {
       return
     }
 
+    guard unresolvedPartialURLs.isEmpty else {
+      let unresolvedNames =
+        unresolvedPartialURLs
+          .map {
+            $0.lastPathComponent
+          }
+          .joined(
+            separator: ", "
+          )
+
+      pendingStopPromise = nil
+      cleanupAfterFailedStopPreservingSegments()
+
+      promise.reject(
+        makeException(
+          code: "ERR_UNRESOLVED_PARTIAL_SEGMENT",
+          message: "The finalized lecture checkpoints were preserved, but Stop could not safely commit the current audio tail. Recovery data was preserved: \(unresolvedNames)"
+        )
+      )
+      return
+    }
+
     do {
-      let reconciledManifest =
-        try reconcileRecordingManifestDurably(
-          for: destinationURL
+      let verifiedManifest =
+        try verifyRecordingManifestInventoryForStop(
+          segmentURLs: segmentURLs,
+          destinationURL: destinationURL
         )
 
       guard
-        !reconciledManifest.segments.isEmpty,
-        reconciledManifest.committedDurationMillis > 0
+        !verifiedManifest.segments.isEmpty,
+        verifiedManifest.committedDurationMillis > 0
       else {
         throw makeNSError(
           code: "ERR_MANIFEST_NOT_DURABLE",
@@ -2286,18 +2314,65 @@ public final class LectureRecorderModule: Module {
         )
 
       do {
-        removeFileIfPresent(
-          finalURL
-        )
+        guard
+          !FileManager.default.fileExists(
+            atPath: finalURL.path
+          )
+        else {
+          throw makeNSError(
+            code: "ERR_SEGMENT_DESTINATION_EXISTS",
+            message: "A finalized lecture checkpoint already exists for the promoted partial segment."
+          )
+        }
 
         try FileManager.default.moveItem(
           at: partURL,
           to: finalURL
         )
+
+        if let destinationURL =
+          currentDestinationURL
+        {
+          try commitSegmentToRecordingManifestDurably(
+            segmentURL: finalURL,
+            validation: validation,
+            destinationURL: destinationURL
+          )
+        }
       } catch {
-        // Keep the partial file for diagnostics/recovery attempts.
+        reportWriterFailure(
+          "Could not durably promote a recoverable lecture checkpoint: \(error.localizedDescription)"
+        )
       }
     }
+  }
+
+  private func unresolvedPartialSegmentURLs(
+    in directoryURL: URL?
+  ) -> [URL] {
+    guard
+      let directoryURL,
+      let entries = try? FileManager.default.contentsOfDirectory(
+        at: directoryURL,
+        includingPropertiesForKeys: nil,
+        options: [.skipsHiddenFiles]
+      )
+    else {
+      return []
+    }
+
+    return entries
+      .filter {
+        let name = $0.lastPathComponent
+
+        return
+          name.hasPrefix("segment-") &&
+          name.hasSuffix(".part.m4a")
+      }
+      .sorted {
+        $0.lastPathComponent <
+          $1.lastPathComponent
+      }
   }
 
   private func completedSegmentURLs(
@@ -2687,11 +2762,11 @@ public final class LectureRecorderModule: Module {
     return Int(raw)
   }
 
-  private func commitSegmentToRecordingManifest(
+  private func commitSegmentToRecordingManifestDurably(
     segmentURL: URL,
     validation: [String: Any],
     destinationURL: URL
-  ) {
+  ) throws {
     guard
       let index =
         segmentIndex(
@@ -2701,7 +2776,10 @@ public final class LectureRecorderModule: Module {
         validation["durationMillis"] as? Int,
       durationMillis > 0
     else {
-      return
+      throw makeNSError(
+        code: "ERR_SEGMENT_MANIFEST_INPUT",
+        message: "A finalized lecture checkpoint could not be represented in the durable manifest."
+      )
     }
 
     let bytes =
@@ -2709,41 +2787,194 @@ public final class LectureRecorderModule: Module {
         segmentURL
       )
 
-    updateRecordingManifest(
-      for: destinationURL
-    ) { manifest in
-      if manifest.segments.contains(
+    guard bytes > 0 else {
+      throw makeNSError(
+        code: "ERR_SEGMENT_BYTES",
+        message: "A finalized lecture checkpoint has no readable payload."
+      )
+    }
+
+    guard
+      var manifest =
+        loadRecordingManifest(
+          for: destinationURL
+        )
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_LOAD",
+        message: "The recording manifest could not be loaded while committing a lecture checkpoint."
+      )
+    }
+
+    if let existing =
+      manifest.segments.first(
         where: {
           $0.index == index
         }
-      ) {
-        return
+      )
+    {
+      guard
+        existing.file == segmentURL.lastPathComponent,
+        existing.durationMillis == durationMillis,
+        existing.bytes == bytes,
+        existing.status == "committed"
+      else {
+        throw makeNSError(
+          code: "ERR_SEGMENT_MANIFEST_CONFLICT",
+          message: "The durable manifest already contains conflicting data for lecture checkpoint \(index)."
+        )
       }
 
-      manifest.segments.append(
-        RecordingManifestSegment(
-          index: index,
-          file: segmentURL.lastPathComponent,
-          durationMillis: durationMillis,
-          bytes: bytes,
-          status: "committed"
-        )
+      return
+    }
+
+    let expectedIndex =
+      (manifest.segments.last?.index ?? 0) + 1
+
+    guard index == expectedIndex else {
+      throw makeNSError(
+        code: "ERR_SEGMENT_SEQUENCE",
+        message: "Lecture checkpoint \(index) cannot be committed because checkpoint \(expectedIndex) was expected."
+      )
+    }
+
+    let committed =
+      RecordingManifestSegment(
+        index: index,
+        file: segmentURL.lastPathComponent,
+        durationMillis: durationMillis,
+        bytes: bytes,
+        status: "committed"
       )
 
-      manifest.segments.sort {
-        $0.index < $1.index
+    manifest.segments.append(
+      committed
+    )
+
+    manifest.committedDurationMillis +=
+      durationMillis
+
+    manifest.activeSegmentIndex =
+      index + 1
+
+    try writeRecordingManifest(
+      manifest,
+      for: destinationURL
+    )
+
+    guard
+      let verified =
+        loadRecordingManifest(
+          for: destinationURL
+        ),
+      verified.segments.count ==
+        manifest.segments.count,
+      verified.committedDurationMillis ==
+        manifest.committedDurationMillis,
+      verified.activeSegmentIndex ==
+        manifest.activeSegmentIndex,
+      let verifiedSegment =
+        verified.segments.last,
+      verifiedSegment.index ==
+        committed.index,
+      verifiedSegment.file ==
+        committed.file,
+      verifiedSegment.durationMillis ==
+        committed.durationMillis,
+      verifiedSegment.bytes ==
+        committed.bytes,
+      verifiedSegment.status ==
+        "committed"
+    else {
+      throw makeNSError(
+        code: "ERR_SEGMENT_MANIFEST_VERIFY",
+        message: "The finalized lecture checkpoint could not be verified in the durable manifest."
+      )
+    }
+  }
+
+  private func verifyRecordingManifestInventoryForStop(
+    segmentURLs: [URL],
+    destinationURL: URL
+  ) throws -> RecordingManifest {
+    guard
+      let manifest =
+        loadRecordingManifest(
+          for: destinationURL
+        )
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_LOAD",
+        message: "The recording manifest could not be loaded while saving the lecture."
+      )
+    }
+
+    guard
+      !segmentURLs.isEmpty,
+      manifest.segments.count ==
+        segmentURLs.count
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_INVENTORY",
+        message: "The durable manifest does not cover every finalized lecture checkpoint."
+      )
+    }
+
+    for (offset, url) in
+      segmentURLs.enumerated()
+    {
+      let expectedIndex =
+        offset + 1
+
+      guard
+        let actualIndex =
+          segmentIndex(
+            from: url
+          ),
+        actualIndex ==
+          expectedIndex
+      else {
+        throw makeNSError(
+          code: "ERR_SEGMENT_SEQUENCE",
+          message: "Finalized lecture checkpoint sequence is incomplete or out of order at expected segment \(expectedIndex)."
+        )
       }
 
-      manifest.committedDurationMillis =
-        manifest.segments.reduce(
-          0
-        ) {
-          $0 + $1.durationMillis
-        }
+      let manifestSegment =
+        manifest.segments[offset]
 
-      manifest.activeSegmentIndex =
-        (manifest.segments.last?.index ?? 0) + 1
+      guard
+        manifestSegment.index ==
+          expectedIndex,
+        manifestSegment.file ==
+          url.lastPathComponent,
+        manifestSegment.status ==
+          "committed",
+        manifestSegment.durationMillis >
+          0,
+        manifestSegment.bytes >
+          0
+      else {
+        throw makeNSError(
+          code: "ERR_MANIFEST_INVENTORY",
+          message: "The durable manifest does not exactly match finalized lecture checkpoint \(expectedIndex)."
+        )
+      }
     }
+
+    guard
+      manifest.committedDurationMillis >
+        0,
+      manifest.activeSegmentIndex ==
+        manifest.segments.count + 1
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_INVENTORY",
+        message: "The durable lecture checkpoint inventory is internally inconsistent."
+      )
+    }
+
+    return manifest
   }
 
   private func reconcileRecordingManifestDurably(
