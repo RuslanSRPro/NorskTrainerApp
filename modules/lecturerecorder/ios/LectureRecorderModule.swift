@@ -65,6 +65,9 @@ public final class LectureRecorderModule: Module {
   private var isPausedForInterruption = false
   private var resumeToken: UUID?
   private var interruptionObserver: NSObjectProtocol?
+  private var routeChangeObserver: NSObjectProtocol?
+  private var mediaServicesResetObserver: NSObjectProtocol?
+  private var lifecycleRestartPending = false
 
   // Lock-protected live metrics/state snapshots.
   private var capturedDurationSeconds = 0.0
@@ -76,6 +79,34 @@ public final class LectureRecorderModule: Module {
   private var writerFailureMessage: String?
   private var acceptingBuffers = false
   private var hasSuccessfulWrite = false
+
+  // MARK: - Durable recording manifest
+
+  private struct RecordingManifestSegment: Codable {
+    let index: Int
+    let file: String
+    let durationMillis: Int
+    let bytes: Int
+    let status: String
+  }
+
+  private struct RecordingManifestAssembly: Codable {
+    var state: String
+    var generation: Int
+    var output: String?
+  }
+
+  private struct RecordingManifest: Codable {
+    var version: Int
+    var recordingId: String
+    var createdAt: String
+    var updatedAt: String
+    var state: String
+    var segments: [RecordingManifestSegment]
+    var committedDurationMillis: Int
+    var activeSegmentIndex: Int
+    var assembly: RecordingManifestAssembly
+  }
 
   public func definition() -> ModuleDefinition {
     Name("LectureRecorder")
@@ -128,6 +159,10 @@ public final class LectureRecorderModule: Module {
       try FileManager.default.createDirectory(
         at: segmentsDirectoryURL,
         withIntermediateDirectories: true
+      )
+
+      try self.createInitialRecordingManifest(
+        for: destinationURL
       )
 
       self.currentDestinationURL = destinationURL
@@ -209,6 +244,19 @@ public final class LectureRecorderModule: Module {
           self.promoteRecoverablePartialSegments(
             in: segmentsDirectoryURL
           )
+
+          if let destinationURL = self.currentDestinationURL {
+            self.reconcileRecordingManifest(
+              for: destinationURL
+            )
+
+            self.updateRecordingManifest(
+              for: destinationURL
+            ) {
+              $0.state = "saved"
+              $0.assembly.state = "not_started"
+            }
+          }
         }
 
         let segmentURLs =
@@ -217,7 +265,7 @@ public final class LectureRecorderModule: Module {
           )
 
         DispatchQueue.main.async {
-          self.finishStopByMerging(
+          self.finishStopBySaving(
             segmentURLs: segmentURLs
           )
         }
@@ -376,6 +424,10 @@ public final class LectureRecorderModule: Module {
           in: segmentsDirectoryURL
         )
 
+        self.reconcileRecordingManifest(
+          for: destinationURL
+        )
+
         let segmentURLs =
           self.completedSegmentURLs(
             in: segmentsDirectoryURL
@@ -405,6 +457,14 @@ public final class LectureRecorderModule: Module {
           return
         }
 
+        self.updateRecordingManifest(
+          for: destinationURL
+        ) {
+          $0.state = "saved"
+          $0.assembly.state = "assembling"
+          $0.assembly.generation += 1
+        }
+
         self.mergeSegments(
           segmentURLs,
           to: destinationURL,
@@ -413,12 +473,26 @@ public final class LectureRecorderModule: Module {
           DispatchQueue.main.async {
             switch result {
             case .success(let validation):
-              self.removeDirectoryIfPresent(
-                segmentsDirectoryURL
-              )
+              self.updateRecordingManifest(
+                for: destinationURL
+              ) {
+                $0.state = "ready"
+                $0.assembly.state = "ready"
+                $0.assembly.output = destinationURL.lastPathComponent
+              }
+
+              // Recovery must never consume its source checkpoints.
+              // A recovered audio.m4a is derived from the durable segments.
               promise.resolve(validation)
 
             case .failure(let error):
+              self.updateRecordingManifest(
+                for: destinationURL
+              ) {
+                $0.state = "saved"
+                $0.assembly.state = "assembly_failed"
+              }
+
               promise.resolve(
                 self.makeValidationResult(
                   valid: false,
@@ -440,29 +514,104 @@ public final class LectureRecorderModule: Module {
 
   deinit {
     if let interruptionObserver {
-      NotificationCenter.default.removeObserver(
-        interruptionObserver
-      )
+      NotificationCenter.default.removeObserver(interruptionObserver)
+    }
+    if let routeChangeObserver {
+      NotificationCenter.default.removeObserver(routeChangeObserver)
+    }
+    if let mediaServicesResetObserver {
+      NotificationCenter.default.removeObserver(mediaServicesResetObserver)
     }
   }
 
   // MARK: - Audio session / lifecycle
 
   private func ensureAudioLifecycleObservers() {
-    guard interruptionObserver == nil else {
+    let center = NotificationCenter.default
+    let session = AVAudioSession.sharedInstance()
+
+    if interruptionObserver == nil {
+      interruptionObserver =
+        center.addObserver(
+          forName: AVAudioSession.interruptionNotification,
+          object: session,
+          queue: .main
+        ) { [weak self] notification in
+          self?.handleAudioSessionInterruption(notification)
+        }
+    }
+
+    if routeChangeObserver == nil {
+      routeChangeObserver =
+        center.addObserver(
+          forName: AVAudioSession.routeChangeNotification,
+          object: session,
+          queue: .main
+        ) { [weak self] _ in
+          self?.restartCaptureAfterLifecycleChange(reason: "route change")
+        }
+    }
+
+    if mediaServicesResetObserver == nil {
+      mediaServicesResetObserver =
+        center.addObserver(
+          forName: AVAudioSession.mediaServicesWereResetNotification,
+          object: session,
+          queue: .main
+        ) { [weak self] _ in
+          self?.restartCaptureAfterLifecycleChange(reason: "media services reset")
+        }
+    }
+  }
+
+  private func restartCaptureAfterLifecycleChange(
+    reason: String
+  ) {
+    guard
+      currentDestinationURL != nil,
+      !isStopping,
+      !isPausedForInterruption,
+      !lifecycleRestartPending
+    else {
       return
     }
 
-    interruptionObserver =
-      NotificationCenter.default.addObserver(
-        forName: AVAudioSession.interruptionNotification,
-        object: AVAudioSession.sharedInstance(),
-        queue: .main
-      ) { [weak self] notification in
-        self?.handleAudioSessionInterruption(
-          notification
-        )
+    lifecycleRestartPending = true
+    stopAcceptingNewBuffers()
+    stopCaptureEngine()
+    tapCallbackGroup.wait()
+
+    writerQueue.async { [weak self] in
+      guard let self else { return }
+      self.finalizeCurrentSegmentOnWriterQueue()
+
+      DispatchQueue.main.async {
+        guard
+          self.currentDestinationURL != nil,
+          !self.isStopping,
+          !self.isPausedForInterruption
+        else {
+          self.lifecycleRestartPending = false
+          return
+        }
+
+        do {
+          try self.configureAudioSessionForRecording()
+          try self.startCaptureEngine()
+          self.lifecycleRestartPending = false
+        } catch {
+          self.lifecycleRestartPending = false
+          let snapshot = self.statusSnapshot()
+          self.emitRecorderError(
+            code: "ERR_AUDIO_LIFECYCLE_RESTART",
+            message: "The recorder could not resume after \(reason): \(error.localizedDescription)",
+            url: self.currentDestinationURL,
+            bytes: snapshot.bytes,
+            durationMillis: snapshot.durationMillis
+          )
+        }
       }
+    }
   }
 
   private func handleAudioSessionInterruption(
@@ -1314,6 +1463,14 @@ public final class LectureRecorderModule: Module {
         finalizedSegmentCount += 1
       }
 
+      if let destinationURL = currentDestinationURL {
+        commitSegmentToRecordingManifest(
+          segmentURL: finalURL,
+          validation: validation,
+          destinationURL: destinationURL
+        )
+      }
+
     } catch {
       reportWriterFailure(
         "Could not finalize a lecture segment: \(error.localizedDescription)"
@@ -1392,6 +1549,74 @@ public final class LectureRecorderModule: Module {
 
   // MARK: - Stop / merge / recovery
 
+  private func finishStopBySaving(
+    segmentURLs: [URL]
+  ) {
+    guard
+      let destinationURL = currentDestinationURL,
+      let promise = pendingStopPromise
+    else {
+      return
+    }
+
+    guard !segmentURLs.isEmpty else {
+      let writerFailure = statusSnapshot().writerFailureMessage
+      pendingStopPromise = nil
+      cleanupAfterFailedStopPreservingSegments()
+      promise.reject(
+        makeException(
+          code: "ERR_NO_SEGMENTS",
+          message: writerFailure.map {
+            "No finalized lecture segments were available to save. Writer error: \($0)"
+          } ?? "No finalized lecture segments were available to save."
+        )
+      )
+      return
+    }
+
+    reconcileRecordingManifest(for: destinationURL)
+
+    guard
+      let manifest = loadRecordingManifest(for: destinationURL),
+      !manifest.segments.isEmpty,
+      manifest.committedDurationMillis > 0
+    else {
+      pendingStopPromise = nil
+      cleanupAfterFailedStopPreservingSegments()
+      promise.reject(
+        makeException(
+          code: "ERR_MANIFEST_NOT_DURABLE",
+          message: "The lecture checkpoints exist, but their durable manifest could not be confirmed."
+        )
+      )
+      return
+    }
+
+    updateRecordingManifest(for: destinationURL) {
+      $0.state = "saved"
+      $0.assembly.state = "not_started"
+      $0.assembly.output = nil
+    }
+
+    let bytes = manifest.segments.reduce(0) { $0 + $1.bytes }
+    let result: [String: Any] = [
+      "ok": true,
+      "isRecording": false,
+      "durationMillis": manifest.committedDurationMillis,
+      "uri": destinationURL.absoluteString,
+      "bytes": bytes,
+      "levelDb": -160.0,
+      "peakDb": -160.0,
+      "isPausedForInterruption": false,
+      "segmentCount": manifest.segments.count
+    ]
+
+    pendingStopPromise = nil
+    cleanupAfterSuccessfulStop()
+    sendEvent("onRecorderStopped", result)
+    promise.resolve(result)
+  }
+
   private func finishStopByMerging(
     segmentURLs: [URL]
   ) {
@@ -1423,6 +1648,13 @@ public final class LectureRecorderModule: Module {
         )
       )
       return
+    }
+
+    updateRecordingManifest(
+      for: destinationURL
+    ) {
+      $0.assembly.state = "assembling"
+      $0.assembly.generation += 1
     }
 
     mergeSegments(
@@ -1468,14 +1700,18 @@ public final class LectureRecorderModule: Module {
             "segmentCount": segmentURLs.count
           ]
 
-          if let segmentsDirectoryURL =
-            self.currentSegmentsDirectoryURL
-          {
-            self.removeDirectoryIfPresent(
-              segmentsDirectoryURL
-            )
+          self.updateRecordingManifest(
+            for: destinationURL
+          ) {
+            $0.state = "ready"
+            $0.assembly.state = "ready"
+            $0.assembly.output = destinationURL.lastPathComponent
           }
 
+          // Durable-segment invariant:
+          // audio.m4a is a derived artifact. Never delete committed
+          // checkpoints merely because assembly succeeded. They remain
+          // available for validation, recovery and idempotent rebuilds.
           self.cleanupAfterSuccessfulStop()
 
           self.sendEvent(
@@ -1488,6 +1724,13 @@ public final class LectureRecorderModule: Module {
           )
 
         case .failure(let error):
+          self.updateRecordingManifest(
+            for: destinationURL
+          ) {
+            $0.state = "saved"
+            $0.assembly.state = "assembly_failed"
+          }
+
           self.cleanupAfterFailedStopPreservingSegments()
 
           promise?.reject(
@@ -1529,8 +1772,17 @@ public final class LectureRecorderModule: Module {
 
         var cursor = CMTime.zero
         var insertedSegments = 0
+        var expectedDurationSeconds = 0.0
 
-        for url in segmentURLs {
+        guard !segmentURLs.isEmpty else {
+          throw self.makeNSError(
+            code: "ERR_EMPTY_COMPOSITION",
+            message: "No lecture segments were supplied for assembly."
+          )
+        }
+
+        for (offset, url) in segmentURLs.enumerated() {
+          let expectedIndex = offset + 1
           let asset = AVURLAsset(
             url: url
           )
@@ -1541,7 +1793,10 @@ public final class LectureRecorderModule: Module {
                 withMediaType: .audio
               ).first
           else {
-            continue
+            throw self.makeNSError(
+              code: "ERR_SEGMENT_AUDIO_TRACK",
+              message: "Lecture segment \(expectedIndex) has no readable audio track. Assembly was aborted and all source segments were preserved."
+            )
           }
 
           let duration = asset.duration
@@ -1551,7 +1806,10 @@ public final class LectureRecorderModule: Module {
             duration.seconds.isFinite,
             duration.seconds >= 0.1
           else {
-            continue
+            throw self.makeNSError(
+              code: "ERR_SEGMENT_DURATION",
+              message: "Lecture segment \(expectedIndex) has an invalid duration. Assembly was aborted and all source segments were preserved."
+            )
           }
 
           try compositionTrack.insertTimeRange(
@@ -1568,13 +1826,14 @@ public final class LectureRecorderModule: Module {
             duration
           )
 
+          expectedDurationSeconds += duration.seconds
           insertedSegments += 1
         }
 
-        guard insertedSegments > 0 else {
+        guard insertedSegments == segmentURLs.count else {
           throw self.makeNSError(
-            code: "ERR_EMPTY_COMPOSITION",
-            message: "No playable lecture segments could be assembled."
+            code: "ERR_INCOMPLETE_ASSEMBLY",
+            message: "Lecture assembly coverage was incomplete (expected \(segmentURLs.count), inserted \(insertedSegments)). All source segments were preserved."
           )
         }
 
@@ -1633,7 +1892,53 @@ public final class LectureRecorderModule: Module {
                 .failure(
                   self.makeNSError(
                     code: "ERR_INVALID_MERGE",
-                    message: "The merged temporary M4A is not playable."
+                    message: "The merged temporary M4A is not playable. All source segments were preserved."
+                  )
+                )
+              )
+              return
+            }
+
+            guard
+              let assembledDurationMillis =
+                temporaryValidation["durationMillis"] as? Int
+            else {
+              self.removeFileIfPresent(
+                temporaryURL
+              )
+
+              completion(
+                .failure(
+                  self.makeNSError(
+                    code: "ERR_MERGE_DURATION_MISSING",
+                    message: "The assembled lecture has no measurable duration. All source segments were preserved."
+                  )
+                )
+              )
+              return
+            }
+
+            let expectedDurationMillis =
+              Int((expectedDurationSeconds * 1000.0).rounded())
+
+            // AAC/M4A export can introduce a small encoder-boundary
+            // difference, but it must never silently lose meaningful
+            // portions of the committed recording.
+            let durationToleranceMillis = 1500
+
+            guard
+              abs(assembledDurationMillis - expectedDurationMillis)
+                <= durationToleranceMillis
+            else {
+              self.removeFileIfPresent(
+                temporaryURL
+              )
+
+              completion(
+                .failure(
+                  self.makeNSError(
+                    code: "ERR_INCOMPLETE_ASSEMBLY_DURATION",
+                    message: "Lecture assembly duration does not cover the committed segments (expected \(expectedDurationMillis) ms, assembled \(assembledDurationMillis) ms). All source segments were preserved."
                   )
                 )
               )
@@ -2079,6 +2384,336 @@ public final class LectureRecorderModule: Module {
       stateLock.unlock()
     }
     return body()
+  }
+
+  // MARK: - Recording manifest helpers
+
+  private func recordingManifestURL(
+    for destinationURL: URL
+  ) -> URL {
+    destinationURL
+      .deletingLastPathComponent()
+      .appendingPathComponent(
+        "recording-manifest.json"
+      )
+  }
+
+  private func isoTimestamp() -> String {
+    ISO8601DateFormatter()
+      .string(
+        from: Date()
+      )
+  }
+
+  private func createInitialRecordingManifest(
+    for destinationURL: URL
+  ) throws {
+    let now = isoTimestamp()
+
+    let manifest = RecordingManifest(
+      version: 1,
+      recordingId:
+        destinationURL
+          .deletingLastPathComponent()
+          .lastPathComponent,
+      createdAt: now,
+      updatedAt: now,
+      state: "recording",
+      segments: [],
+      committedDurationMillis: 0,
+      activeSegmentIndex: 1,
+      assembly: RecordingManifestAssembly(
+        state: "not_started",
+        generation: 0,
+        output: nil
+      )
+    )
+
+    try writeRecordingManifest(
+      manifest,
+      for: destinationURL
+    )
+  }
+
+  private func loadRecordingManifest(
+    for destinationURL: URL
+  ) -> RecordingManifest? {
+    let url =
+      recordingManifestURL(
+        for: destinationURL
+      )
+
+    guard
+      let data = try? Data(
+        contentsOf: url
+      )
+    else {
+      return nil
+    }
+
+    return try? JSONDecoder()
+      .decode(
+        RecordingManifest.self,
+        from: data
+      )
+  }
+
+  private func writeRecordingManifest(
+    _ manifest: RecordingManifest,
+    for destinationURL: URL
+  ) throws {
+    var manifest = manifest
+    manifest.updatedAt = isoTimestamp()
+
+    let url =
+      recordingManifestURL(
+        for: destinationURL
+      )
+
+    let data =
+      try JSONEncoder()
+        .encode(
+          manifest
+        )
+
+    // Data.write(.atomic) writes through a temporary file and replaces
+    // the destination as one filesystem operation. A crash therefore
+    // leaves either the previous complete manifest or the new one.
+    try data.write(
+      to: url,
+      options: [.atomic]
+    )
+  }
+
+  private func updateRecordingManifest(
+    for destinationURL: URL,
+    mutate: (inout RecordingManifest) -> Void
+  ) {
+    guard
+      var manifest =
+        loadRecordingManifest(
+          for: destinationURL
+        )
+    else {
+      return
+    }
+
+    mutate(
+      &manifest
+    )
+
+    do {
+      try writeRecordingManifest(
+        manifest,
+        for: destinationURL
+      )
+    } catch {
+      // The committed segment files remain the recovery authority when
+      // a manifest write itself is interrupted. Reconciliation repairs
+      // the inventory on Stop or next-launch recovery.
+    }
+  }
+
+  private func segmentIndex(
+    from url: URL
+  ) -> Int? {
+    let name =
+      url.lastPathComponent
+
+    guard
+      name.hasPrefix("segment-"),
+      name.hasSuffix(".m4a"),
+      !name.hasSuffix(".part.m4a")
+    else {
+      return nil
+    }
+
+    let raw =
+      name
+        .replacingOccurrences(
+          of: "segment-",
+          with: ""
+        )
+        .replacingOccurrences(
+          of: ".m4a",
+          with: ""
+        )
+
+    return Int(raw)
+  }
+
+  private func commitSegmentToRecordingManifest(
+    segmentURL: URL,
+    validation: [String: Any],
+    destinationURL: URL
+  ) {
+    guard
+      let index =
+        segmentIndex(
+          from: segmentURL
+        ),
+      let durationMillis =
+        validation["durationMillis"] as? Int,
+      durationMillis > 0
+    else {
+      return
+    }
+
+    let bytes =
+      fileSize(
+        segmentURL
+      )
+
+    updateRecordingManifest(
+      for: destinationURL
+    ) { manifest in
+      if manifest.segments.contains(
+        where: {
+          $0.index == index
+        }
+      ) {
+        return
+      }
+
+      manifest.segments.append(
+        RecordingManifestSegment(
+          index: index,
+          file: segmentURL.lastPathComponent,
+          durationMillis: durationMillis,
+          bytes: bytes,
+          status: "committed"
+        )
+      )
+
+      manifest.segments.sort {
+        $0.index < $1.index
+      }
+
+      manifest.committedDurationMillis =
+        manifest.segments.reduce(
+          0
+        ) {
+          $0 + $1.durationMillis
+        }
+
+      manifest.activeSegmentIndex =
+        (manifest.segments.last?.index ?? 0) + 1
+    }
+  }
+
+  private func reconcileRecordingManifest(
+    for destinationURL: URL
+  ) {
+    let directoryURL =
+      segmentsDirectoryURL(
+        for: destinationURL
+      )
+
+    let segmentURLs =
+      completedSegmentURLs(
+        in: directoryURL
+      )
+
+    var manifest =
+      loadRecordingManifest(
+        for: destinationURL
+      )
+
+    if manifest == nil {
+      let now = isoTimestamp()
+
+      manifest = RecordingManifest(
+        version: 1,
+        recordingId:
+          destinationURL
+            .deletingLastPathComponent()
+            .lastPathComponent,
+        createdAt: now,
+        updatedAt: now,
+        state: "interrupted",
+        segments: [],
+        committedDurationMillis: 0,
+        activeSegmentIndex: 1,
+        assembly: RecordingManifestAssembly(
+          state: "not_started",
+          generation: 0,
+          output: nil
+        )
+      )
+    }
+
+    guard var repaired = manifest else {
+      return
+    }
+
+    var rebuiltSegments: [RecordingManifestSegment] = []
+
+    for url in segmentURLs {
+      guard
+        let index =
+          segmentIndex(
+            from: url
+          )
+      else {
+        continue
+      }
+
+      let validation =
+        validateAudioFileWithRetry(
+          url,
+          attempts: 3,
+          delaySeconds: 0.05
+        )
+
+      guard
+        (validation["valid"] as? Bool) == true,
+        (validation["playable"] as? Bool) == true,
+        let durationMillis =
+          validation["durationMillis"] as? Int,
+        durationMillis > 0
+      else {
+        // Never delete or hide an unexpected checkpoint. It remains on
+        // disk for diagnostics and future recovery attempts.
+        continue
+      }
+
+      rebuiltSegments.append(
+        RecordingManifestSegment(
+          index: index,
+          file: url.lastPathComponent,
+          durationMillis: durationMillis,
+          bytes: fileSize(url),
+          status: "committed"
+        )
+      )
+    }
+
+    rebuiltSegments.sort {
+      $0.index < $1.index
+    }
+
+    repaired.segments =
+      rebuiltSegments
+
+    repaired.committedDurationMillis =
+      rebuiltSegments.reduce(
+        0
+      ) {
+        $0 + $1.durationMillis
+      }
+
+    repaired.activeSegmentIndex =
+      (rebuiltSegments.last?.index ?? 0) + 1
+
+    do {
+      try writeRecordingManifest(
+        repaired,
+        for: destinationURL
+      )
+    } catch {
+      // Source segments are intentionally preserved even if reconciliation
+      // cannot persist the repaired manifest.
+    }
   }
 
   // MARK: - File / validation helpers

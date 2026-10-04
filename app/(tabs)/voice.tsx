@@ -1101,126 +1101,58 @@ export default function VoiceScreen() {
         const durationMillis =
           result.durationMillis;
 
-        const sourceFile =
-          new File(
-            result.uri
-          );
-
-        const sourceBytes =
-          sourceFile.size ??
+        const committedBytes =
           result.bytes ??
           0;
 
-
         if (__DEV__) {
           devConsole.log(
-            'LECTURE FINAL RESULT',
-            {
-              ...result,
-              sourceExists:
-                sourceFile.exists,
-              sourceBytes,
-            }
+            'LECTURE DURABLE STOP RESULT',
+            result
           );
         }
 
-
-        if (
-          durationMillis <
-          500
-        ) {
+        if (durationMillis < 500) {
           throw new Error(
             `${audioUi.recordingTooShort} (${durationMillis} ms).`
           );
         }
 
-
-        if (
-          !sourceFile.exists ||
-          sourceBytes <
-            4096
-        ) {
+        if (committedBytes < 1) {
           throw new Error(
-            `${audioUi.nativeRecordingInvalid} (${sourceBytes} bytes).`
+            `${audioUi.nativeRecordingInvalid} (${committedBytes} bytes).`
           );
         }
-
-
-        /*
-         * The native module writes directly to this
-         * lecture's persistent audio.m4a path. No cache
-         * lookup and no second recording copy are needed.
-         */
-        if (
-          sourceFile.uri !==
-          active.audioFile.uri
-        ) {
-          throw new Error(
-            audioUi.unexpectedAudioPath
-          );
-        }
-
 
         const transcription =
           createChunkPlan(
             durationMillis
           );
 
-
         writeMetadata(
           active.directory,
           {
-            id:
-              active.id,
-
-            createdAt:
-              active.createdAt,
-
+            id: active.id,
+            createdAt: active.createdAt,
             durationMillis,
-
-            language:
-              active.language,
-
-            audioFile:
-              'audio.m4a',
-
-            transcriptFile:
-              null,
-
-            transcriptReady:
-              false,
-
-            characters:
-              0,
-
-            audioBytes:
-              sourceBytes,
-
-            source:
-              'recorded',
-
-            originalFileName:
-              null,
-
-            recordingState:
-              'ready',
-
-            interruptionReason:
-              null,
-
+            language: active.language,
+            audioFile: 'audio.m4a',
+            transcriptFile: null,
+            transcriptReady: false,
+            characters: 0,
+            audioBytes: committedBytes,
+            source: 'recorded',
+            originalFileName: null,
+            recordingState: 'saved',
+            interruptionReason: null,
             transcription,
           }
         );
 
-
         activeRecordingRef.current =
           null;
 
-        completeRecording(
-          durationMillis,
-          sourceFile.uri,
-          sourceBytes
-        );
+        resetRecorderState();
 
         setLastSavedLectureId(
           active.id
@@ -1233,6 +1165,20 @@ export default function VoiceScreen() {
         setStatus(
           'saved'
         );
+
+        loadLectures();
+
+        void recoverInterruptedRecordings()
+          .then(() => {
+            loadLectures();
+          })
+          .catch(error => {
+            devConsole.warn(
+              'Background lecture assembly failed; committed segments remain recoverable:',
+              error
+            );
+            loadLectures();
+          });
 
 
         /*
