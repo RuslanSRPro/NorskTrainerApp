@@ -766,6 +766,20 @@ export function useLiveLecture({
           ? startError.message
           : String(startError);
 
+      /*
+       * stop() may legitimately finalize the pending microphone capture
+       * while startLive() is still preparing WhisperKit. In that case the
+       * rejected start belongs to an older generation and must not delete
+       * the audio file that stop() is preserving.
+       */
+      const supersededByNewerLifecycle =
+        generationRef.current !==
+          generation;
+
+      if (supersededByNewerLifecycle) {
+        return;
+      }
+
       if (__DEV__) {
         console.error(
           'Live start error:',
@@ -839,11 +853,22 @@ export function useLiveLecture({
         await WhisperKitLocal
           .stopLive();
 
+      const stopResult =
+        stopped as typeof stopped & {
+          streamCleanupTimedOut?:
+            boolean;
+        };
+
       if (stopped.writerError) {
         throw new Error(
           `Live audio writer: ${stopped.writerError}`
         );
       }
+
+      const streamCleanupTimedOut =
+        stopResult
+          .streamCleanupTimedOut ===
+        true;
 
       if (
         stopped.durationMillis <
@@ -937,6 +962,12 @@ export function useLiveLecture({
           [];
 
       try {
+        if (streamCleanupTimedOut) {
+          throw new Error(
+            'Live streaming cleanup timed out; audio was saved and full-file transcription was deferred.'
+          );
+        }
+
         const result =
           await WhisperKitLocal
             .transcribe(

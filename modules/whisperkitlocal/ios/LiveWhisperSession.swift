@@ -5,6 +5,28 @@ import WhisperKit
 
 private let liveSampleRate = Double(WhisperKit.sampleRate)
 
+private final class LiveStopCompletionGate: @unchecked Sendable {
+  private let lock = NSLock()
+  private var completed = false
+
+  func finish(
+    _ value: Bool,
+    continuation: CheckedContinuation<Bool, Never>
+  ) {
+    lock.lock()
+    defer { lock.unlock() }
+
+    guard !completed else {
+      return
+    }
+
+    completed = true
+    continuation.resume(
+      returning: value
+    )
+  }
+}
+
 struct LiveWhisperSegmentSnapshot {
   let start: Double
   let end: Double
@@ -46,6 +68,7 @@ struct LiveWhisperStopSnapshot {
   let durationMillis: Int
   let bytes: Int64
   let writerError: String?
+  let streamCleanupTimedOut: Bool
 
   var dictionary: [String: Any] {
     [
@@ -54,6 +77,7 @@ struct LiveWhisperStopSnapshot {
       "durationMillis": durationMillis,
       "bytes": bytes,
       "writerError": writerError ?? NSNull(),
+      "streamCleanupTimedOut": streamCleanupTimedOut,
     ]
   }
 }
@@ -350,6 +374,18 @@ final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
     writerQueue.sync {
       audioFile = nil
     }
+  }
+
+  func stopAndSnapshot() -> LiveWhisperStopSnapshot {
+    stopRecording()
+
+    return LiveWhisperStopSnapshot(
+      audioUri: outputURL.absoluteString,
+      durationMillis: durationMillis,
+      bytes: bytes,
+      writerError: writerError,
+      streamCleanupTimedOut: false
+    )
   }
 
   func resumeRecordingLive(
@@ -679,6 +715,7 @@ final class LiveWhisperSession: @unchecked Sendable {
   ) -> Void
 
   private let processor: LiveFileAudioProcessor
+  private var streamCleanupTask: Task<Void, Never>?
   private let transcriber: AudioStreamTranscriber
   private let audioURL: URL
   private let onUpdate: UpdateHandler
@@ -779,21 +816,74 @@ final class LiveWhisperSession: @unchecked Sendable {
     }
   }
 
-  func stop() async -> LiveWhisperStopSnapshot {
-    await transcriber
-      .stopStreamTranscription()
-
-    if let task {
-      await task.value
+  func awaitStreamCleanupCompletion() async {
+    if let streamCleanupTask {
+      await streamCleanupTask.value
     }
+  }
 
-    processor.stopRecording()
+  func stop() async -> LiveWhisperStopSnapshot {
+    /*
+     * Audio is primary: finalize M4A first. Then give streaming Whisper
+     * a bounded opportunity to terminate. If it misses the deadline, JS
+     * keeps the audio but must defer the authoritative full-file pass so
+     * two Whisper operations never race.
+     */
+    let audioSnapshot =
+      processor.stopAndSnapshot()
+
+    let streamingTask = self.task
+    streamingTask?.cancel()
+
+    let transcriber = self.transcriber
+    let cleanupTask = Task {
+      await transcriber
+        .stopStreamTranscription()
+
+      // Do not release native ownership until the original streaming task
+      // has actually exited as well.
+      if let streamingTask {
+        await streamingTask.value
+      }
+    }
+    self.streamCleanupTask = cleanupTask
+
+    let cleanupFinished =
+      await withCheckedContinuation {
+        (continuation: CheckedContinuation<Bool, Never>) in
+
+        let gate =
+          LiveStopCompletionGate()
+
+        Task {
+          await cleanupTask.value
+          gate.finish(
+            true,
+            continuation: continuation
+          )
+        }
+
+        DispatchQueue.global(
+          qos: .utility
+        ).asyncAfter(
+          deadline: .now() + 5.0
+        ) {
+          gate.finish(
+            false,
+            continuation: continuation
+          )
+        }
+      }
 
     return LiveWhisperStopSnapshot(
-      audioUri: audioURL.absoluteString,
-      durationMillis: processor.durationMillis,
-      bytes: processor.bytes,
-      writerError: processor.writerError
+      audioUri: audioSnapshot.audioUri,
+      durationMillis:
+        audioSnapshot.durationMillis,
+      bytes: audioSnapshot.bytes,
+      writerError:
+        audioSnapshot.writerError,
+      streamCleanupTimedOut:
+        !cleanupFinished
     )
   }
 

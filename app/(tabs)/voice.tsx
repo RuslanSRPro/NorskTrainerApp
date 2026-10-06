@@ -1972,9 +1972,12 @@ export default function VoiceScreen() {
               ]}
             >
               {recorderState
-                .isPausedForInterruption
-                ? audioUi.pausedForCall
-                : audioUi.recording}
+                .writerFailureMessage
+                ? audioUi.recordingError
+                : recorderState
+                    .isPausedForInterruption
+                  ? audioUi.pausedForCall
+                  : audioUi.recording}
             </Text>
 
             <Text
@@ -1991,6 +1994,26 @@ export default function VoiceScreen() {
                   .durationMillis
               )}
             </Text>
+
+            {recorderState
+              .writerFailureMessage && (
+
+              <Text
+                style={[
+                  styles.backgroundInfo,
+                  {
+                    color:
+                      T.textSecondary,
+                    fontSize:
+                      F.base - 1,
+                  },
+                ]}
+              >
+                {recorderState
+                  .writerFailureMessage}
+              </Text>
+            )}
+
 
             {recorderState
               .isPausedForInterruption && (

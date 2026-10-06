@@ -375,9 +375,7 @@ export function LiveLectureButton({
                 accessibilityRole="button"
                 disabled={
                   live.phase ===
-                    'finalizing' ||
-                  live.phase ===
-                    'preparing'
+                    'finalizing'
                 }
                 onPress={() => {
                   void live.stop();
@@ -389,9 +387,7 @@ export function LiveLectureButton({
                       '#C94B4B',
                     opacity:
                       live.phase ===
-                        'finalizing' ||
-                      live.phase ===
-                        'preparing'
+                        'finalizing'
                         ? 0.6
                         : 1,
                   },

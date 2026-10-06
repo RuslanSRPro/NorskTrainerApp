@@ -63,6 +63,7 @@ public class WhisperKitLocalModule: Module {
    */
   private var liveSession: LiveWhisperSession?
   private var livePendingProcessor: LiveFileAudioProcessor?
+  private var liveCleanupSession: LiveWhisperSession?
 
   public func definition() -> ModuleDefinition {
     Name("WhisperKitLocal")
@@ -243,7 +244,8 @@ public class WhisperKitLocalModule: Module {
 
       guard
         self.liveSession == nil,
-        self.livePendingProcessor == nil
+        self.livePendingProcessor == nil,
+        self.liveCleanupSession == nil
       else {
         throw NSError(
           domain: "WhisperKitLocal",
@@ -340,6 +342,18 @@ public class WhisperKitLocalModule: Module {
     AsyncFunction("stopLive") {
       () async throws -> [String: Any] in
 
+      if let pending = self.livePendingProcessor {
+        /*
+         * Microphone capture begins before model preparation. Stop must
+         * therefore work even while startLive() is still awaiting the
+         * model and no LiveWhisperSession exists yet.
+         */
+        self.livePendingProcessor = nil
+        let result =
+          pending.stopAndSnapshot()
+        return result.dictionary
+      }
+
       guard let session = self.liveSession else {
         throw NSError(
           domain: "WhisperKitLocal",
@@ -352,13 +366,54 @@ public class WhisperKitLocalModule: Module {
       }
 
       let result = await session.stop()
-      self.liveSession = nil
+
+      if result.streamCleanupTimedOut {
+        /*
+         * Keep native ownership after the JS-visible timeout. A new Live
+         * session must not reuse WhisperKit while the previous streaming
+         * transcriber is still terminating.
+         */
+        // Establish cleanup ownership before releasing active ownership so
+        // startLive() never observes both ownership slots empty.
+        self.liveCleanupSession = session
+        self.liveSession = nil
+
+        Task { [weak self, weak session] in
+          guard let session else {
+            return
+          }
+
+          await session
+            .awaitStreamCleanupCompletion()
+
+          guard let self else {
+            return
+          }
+
+          if self.liveCleanupSession === session {
+            self.liveCleanupSession = nil
+          }
+        }
+      } else {
+        self.liveSession = nil
+      }
 
       return result.dictionary
     }
 
     AsyncFunction("cancelLive") {
       () async -> [String: Any] in
+
+      if let cleanup = self.liveCleanupSession {
+        await cleanup
+          .awaitStreamCleanupCompletion()
+
+        if self.liveCleanupSession === cleanup {
+          self.liveCleanupSession = nil
+        }
+
+        return ["ok": true]
+      }
 
       if let pending = self.livePendingProcessor {
         pending.stopRecording()

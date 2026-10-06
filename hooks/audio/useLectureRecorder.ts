@@ -160,6 +160,29 @@ export function useLectureRecorder(
           recorderErrorEventRef.current =
             event;
 
+          setRecorderState(
+            current => ({
+              ...current,
+              isRecording: false,
+              durationMillis:
+                Math.max(
+                  current.durationMillis,
+                  event.durationMillis
+                ),
+              uri:
+                event.uri ??
+                current.uri,
+              bytes:
+                Math.max(
+                  current.bytes,
+                  event.bytes
+                ),
+              writerFailureMessage:
+                event.message,
+              engineRunning: false,
+            })
+          );
+
           if (__DEV__) {
             devConsole.warn(
               'LECTURE NATIVE ERROR',
@@ -246,15 +269,6 @@ export function useLectureRecorder(
               ? rawNativeDuration
               : 0;
 
-          const wallClockDuration =
-            recordingStartedAtRef.current
-              ? Math.max(
-                  0,
-                  Date.now() -
-                    recordingStartedAtRef.current
-                )
-              : 0;
-
           const safePeakDb =
             Number.isFinite(
               nativeState.peakDb
@@ -318,31 +332,15 @@ export function useLectureRecorder(
 
 
           /*
-           * From segmented recorder V2 onward native duration is
-           * authoritative because it advances only while microphone
-           * audio is actually captured. A wall clock would incorrectly
-           * include time spent on an accepted phone call.
-           *
-           * Keep the old wall-clock value only as a defensive fallback
-           * before native capture has reported its first duration.
+           * Native captured duration is the only recording clock.
+           * Before the first real microphone buffer/write it must remain
+           * at zero; a wall-clock fallback falsely makes a failed recorder
+           * look as though it captured audio.
            */
-          const authoritativeDuration =
-            safeNativeDuration > 0 ||
-            nativeState
-              .isPausedForInterruption
-              ? safeNativeDuration
-              : Math.max(
-                  0,
-                  Math.min(
-                    wallClockDuration,
-                    1000
-                  )
-                );
-
           setRecorderState({
             ...nativeState,
             durationMillis:
-              authoritativeDuration,
+              safeNativeDuration,
           });
 
         } catch (error) {

@@ -68,6 +68,8 @@ public final class LectureRecorderModule: Module {
   private var routeChangeObserver: NSObjectProtocol?
   private var mediaServicesResetObserver: NSObjectProtocol?
   private var lifecycleRestartPending = false
+  private var activeInputSampleRate = 0.0
+  private var activeInputChannelCount: AVAudioChannelCount = 0
 
   // Lock-protected live metrics/state snapshots.
   private var capturedDurationSeconds = 0.0
@@ -79,6 +81,7 @@ public final class LectureRecorderModule: Module {
   private var writerFailureMessage: String?
   private var acceptingBuffers = false
   private var hasSuccessfulWrite = false
+  private var captureGeneration: UInt64 = 0
 
   // MARK: - Durable recording manifest
 
@@ -239,7 +242,7 @@ public final class LectureRecorderModule: Module {
     .runOnQueue(.main)
 
     AsyncFunction("stop") { (promise: Promise) in
-      guard self.currentDestinationURL != nil else {
+      guard let destinationURL = self.currentDestinationURL else {
         promise.reject(
           self.makeException(
             code: "ERR_NO_RECORDING",
@@ -265,11 +268,79 @@ public final class LectureRecorderModule: Module {
 
       self.stopAcceptingNewBuffers()
       self.stopCaptureEngine()
-      self.tapCallbackGroup.wait()
       self.deactivateAudioSession()
 
-      self.writerQueue.async { [weak self] in
+      /*
+       * Never block Expo's main queue waiting for an AVAudioEngine tap.
+       * The utility queue has a bounded deadline for the JS Stop promise.
+       * A timeout does NOT unlock Start: native draining and cleanup still
+       * complete before isStopping is released.
+       */
+      DispatchQueue.global(qos: .utility).async { [weak self] in
         guard let self else { return }
+
+        let drained =
+          self.tapCallbackGroup.wait(
+            timeout: .now() + 5.0
+          ) == .success
+
+        if !drained {
+          DispatchQueue.main.async {
+            guard self.pendingStopPromise != nil else {
+              return
+            }
+
+            self.pendingStopPromise = nil
+            let snapshot = self.statusSnapshot()
+
+            promise.reject(
+              self.makeException(
+                code: "ERR_STOP_DRAIN_TIMEOUT",
+                message:
+                  "The recorder could not finish draining microphone callbacks within 5 seconds. " +
+                  "Committed audio checkpoints were preserved for recovery."
+              )
+            )
+
+            self.emitRecorderError(
+              code: "ERR_STOP_DRAIN_TIMEOUT",
+              message:
+                "The recorder timed out while draining microphone callbacks. " +
+                "Committed audio checkpoints were preserved.",
+              url: destinationURL,
+              bytes: snapshot.bytes,
+              durationMillis: snapshot.durationMillis
+            )
+          }
+
+          // The callback group exceeded its bounded Stop deadline. Invalidate
+          // this capture generation so any callback that returns late cannot
+          // enqueue audio into this or a future recording session. We can now
+          // finish recovery cleanup without an unbounded second wait().
+          self.invalidateCaptureGeneration()
+
+          self.writerQueue.async { [weak self] in
+            guard let self else { return }
+
+            self.finalizeCurrentSegmentOnWriterQueue()
+
+            if let segmentsDirectoryURL =
+              self.currentSegmentsDirectoryURL
+            {
+              self.promoteRecoverablePartialSegments(
+                in: segmentsDirectoryURL
+              )
+            }
+
+            DispatchQueue.main.async {
+              self.cleanupAfterFailedStopPreservingSegments()
+            }
+          }
+          return
+        }
+
+        self.writerQueue.async { [weak self] in
+          guard let self else { return }
 
         self.finalizeCurrentSegmentOnWriterQueue()
 
@@ -297,11 +368,18 @@ public final class LectureRecorderModule: Module {
           )
 
         DispatchQueue.main.async {
+          guard self.pendingStopPromise != nil else {
+            return
+          }
+
           self.finishStopBySaving(
+            destinationURL: destinationURL,
+            promise: promise,
             segmentURLs: segmentURLs,
             unresolvedPartialURLs: unresolvedPartialURLs
           )
         }
+      }
       }
     }
     .runOnQueue(.main)
@@ -792,8 +870,8 @@ public final class LectureRecorderModule: Module {
           forName: AVAudioSession.routeChangeNotification,
           object: session,
           queue: .main
-        ) { [weak self] _ in
-          self?.restartCaptureAfterLifecycleChange(reason: "route change")
+        ) { [weak self] notification in
+          self?.handleAudioSessionRouteChange(notification)
         }
     }
 
@@ -807,6 +885,66 @@ public final class LectureRecorderModule: Module {
           self?.restartCaptureAfterLifecycleChange(reason: "media services reset")
         }
     }
+  }
+
+  private func handleAudioSessionRouteChange(
+    _ notification: Notification
+  ) {
+    guard
+      currentDestinationURL != nil,
+      !isStopping,
+      !isPausedForInterruption
+    else {
+      return
+    }
+
+    let rawReason =
+      notification.userInfo?[AVAudioSessionRouteChangeReasonKey]
+        as? UInt
+
+    let reason =
+      rawReason.flatMap {
+        AVAudioSession.RouteChangeReason(rawValue: $0)
+      }
+
+    /*
+     * AVAudioSession can emit route notifications while our own category
+     * and activation changes are settling. Do not tear down a healthy
+     * engine merely because a notification arrived. Restart only when the
+     * running engine is gone or the microphone processing format actually
+     * changed.
+     */
+    if
+      let engine = audioEngine,
+      engine.isRunning
+    {
+      let format =
+        engine.inputNode.outputFormat(
+          forBus: 0
+        )
+
+      let sameFormat =
+        abs(
+          format.sampleRate -
+            activeInputSampleRate
+        ) < 1.0 &&
+        format.channelCount ==
+          activeInputChannelCount
+
+      if sameFormat {
+        return
+      }
+    }
+
+    let reasonDescription =
+      reason.map {
+        String(describing: $0)
+      } ?? "unknown"
+
+    restartCaptureAfterLifecycleChange(
+      reason:
+        "route change (\(reasonDescription))"
+    )
   }
 
   private func restartCaptureAfterLifecycleChange(
@@ -1061,6 +1199,8 @@ public final class LectureRecorderModule: Module {
       )
     }
 
+    let captureGeneration = nextCaptureGeneration()
+
     // Do not pre-open the compressed M4A writer before the engine is
     // running. The first real microphone buffer carries the authoritative
     // route format and writeBufferOnWriterQueue() opens the segment from
@@ -1078,7 +1218,10 @@ public final class LectureRecorderModule: Module {
         self.tapCallbackGroup.leave()
       }
 
-      guard self.isAcceptingNewBuffers() else {
+      guard
+        self.isAcceptingNewBuffers(),
+        self.isCurrentCaptureGeneration(captureGeneration)
+      else {
         return
       }
 
@@ -1099,7 +1242,14 @@ public final class LectureRecorderModule: Module {
       }
 
       self.writerQueue.async { [weak self] in
-        self?.writeBufferOnWriterQueue(
+        guard
+          let self,
+          self.isCurrentCaptureGeneration(captureGeneration)
+        else {
+          return
+        }
+
+        self.writeBufferOnWriterQueue(
           copiedBuffer
         )
       }
@@ -1137,6 +1287,10 @@ public final class LectureRecorderModule: Module {
     }
 
     audioEngine = engine
+    activeInputSampleRate =
+      recordingFormat.sampleRate
+    activeInputChannelCount =
+      recordingFormat.channelCount
   }
 
   private func stopCaptureEngine() {
@@ -1802,16 +1956,17 @@ public final class LectureRecorderModule: Module {
   // MARK: - Stop / merge / recovery
 
   private func finishStopBySaving(
+    destinationURL: URL,
+    promise: Promise,
     segmentURLs: [URL],
     unresolvedPartialURLs: [URL]
   ) {
-    guard
-      let destinationURL = currentDestinationURL,
-      let promise = pendingStopPromise
-    else {
-      return
-    }
-
+    /*
+     * The Stop promise and destination are captured by stop() itself.
+     * They therefore cannot disappear while writer-queue finalization is
+     * in flight. Every started Stop reaches one explicit resolve/reject
+     * path instead of silently returning with a pending JS promise.
+     */
     guard !segmentURLs.isEmpty else {
       let writerFailure = statusSnapshot().writerFailureMessage
       pendingStopPromise = nil
@@ -1929,133 +2084,6 @@ public final class LectureRecorderModule: Module {
     cleanupAfterSuccessfulStop()
     sendEvent("onRecorderStopped", result)
     promise.resolve(result)
-  }
-
-  private func finishStopByMerging(
-    segmentURLs: [URL]
-  ) {
-    guard
-      let destinationURL = currentDestinationURL,
-      let promise = pendingStopPromise
-    else {
-      return
-    }
-
-    guard !segmentURLs.isEmpty else {
-      let writerFailure =
-        statusSnapshot()
-          .writerFailureMessage
-
-      pendingStopPromise = nil
-      cleanupAfterFailedStopPreservingSegments()
-
-      let message =
-        writerFailure.map {
-          "No finalized lecture segments were available to save. Writer error: \($0)"
-        } ??
-        "No finalized lecture segments were available to save."
-
-      promise.reject(
-        makeException(
-          code: "ERR_NO_SEGMENTS",
-          message: message
-        )
-      )
-      return
-    }
-
-    updateRecordingManifest(
-      for: destinationURL
-    ) {
-      $0.assembly.state = "assembling"
-      $0.assembly.generation += 1
-    }
-
-    mergeSegments(
-      segmentURLs,
-      to: destinationURL
-    ) { [weak self] result in
-      DispatchQueue.main.async {
-        guard let self else { return }
-
-        let promise = self.pendingStopPromise
-        self.pendingStopPromise = nil
-
-        switch result {
-        case .success(let validation):
-          guard
-            (validation["valid"] as? Bool) == true,
-            (validation["playable"] as? Bool) == true,
-            let durationMillis =
-              validation["durationMillis"] as? Int,
-            let bytes =
-              validation["bytes"] as? Int
-          else {
-            self.cleanupAfterFailedStopPreservingSegments()
-
-            promise?.reject(
-              self.makeException(
-                code: "ERR_INVALID_RECORDING",
-                message: "The merged lecture recording is not playable."
-              )
-            )
-            return
-          }
-
-          let result: [String: Any] = [
-            "ok": true,
-            "isRecording": false,
-            "durationMillis": durationMillis,
-            "uri": destinationURL.absoluteString,
-            "bytes": bytes,
-            "levelDb": -160.0,
-            "peakDb": -160.0,
-            "isPausedForInterruption": false,
-            "segmentCount": segmentURLs.count
-          ]
-
-          self.updateRecordingManifest(
-            for: destinationURL
-          ) {
-            $0.state = "ready"
-            $0.assembly.state = "ready"
-            $0.assembly.output = destinationURL.lastPathComponent
-          }
-
-          // Durable-segment invariant:
-          // audio.m4a is a derived artifact. Never delete committed
-          // checkpoints merely because assembly succeeded. They remain
-          // available for validation, recovery and idempotent rebuilds.
-          self.cleanupAfterSuccessfulStop()
-
-          self.sendEvent(
-            "onRecorderStopped",
-            result
-          )
-
-          promise?.resolve(
-            result
-          )
-
-        case .failure(let error):
-          self.updateRecordingManifest(
-            for: destinationURL
-          ) {
-            $0.state = "saved"
-            $0.assembly.state = "assembly_failed"
-          }
-
-          self.cleanupAfterFailedStopPreservingSegments()
-
-          promise?.reject(
-            self.makeException(
-              code: "ERR_MERGE_RECORDING",
-              message: "Could not assemble the lecture recording: \(error.localizedDescription)"
-            )
-          )
-        }
-      }
-    }
   }
 
   private func mergeSegments(
@@ -2748,6 +2776,27 @@ public final class LectureRecorderModule: Module {
 
     resetLiveState()
     resetWriterState()
+  }
+
+  private func nextCaptureGeneration() -> UInt64 {
+    withStateLock {
+      captureGeneration &+= 1
+      return captureGeneration
+    }
+  }
+
+  private func invalidateCaptureGeneration() {
+    withStateLock {
+      captureGeneration &+= 1
+    }
+  }
+
+  private func isCurrentCaptureGeneration(
+    _ generation: UInt64
+  ) -> Bool {
+    withStateLock {
+      captureGeneration == generation
+    }
   }
 
   @discardableResult
