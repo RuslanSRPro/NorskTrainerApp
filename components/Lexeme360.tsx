@@ -1,3 +1,4 @@
+import { norwegianExample } from '../supabase/functions/_shared/example-evidence';
 // components/Lexeme360.tsx
 // Norsk Trainer App — Lexeme 360° v2
 //
@@ -415,10 +416,11 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       .order('translation_rank', { ascending: true }),
     supabase
       .from('entity_examples')
-      .select('example_text, translation_uk, cefr_level, source')
+      .select('id, language_code, example_text, translation_uk, cefr_level, source')
       .eq('lexeme_id', effectiveId)
       .eq('language_code', 'nb')
-      .limit(3),
+      .order('id')
+      .range(0,999),
     supabase.rpc('get_lexeme360_ready_expressions_v2', {
       p_lexeme_id: lexemeId,
     }),
@@ -506,6 +508,9 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
 
   // 3. Examples from entity_examples. (query issued above, in parallel.)
   const examples: ExampleRow[] = (examplesData ?? [])
+    .filter(norwegianExample)
+    .sort((a:any,b:any)=>String(a.id).localeCompare(String(b.id)))
+    .slice(0,3)
     .map((row: any) => ({
       text: normalizeText(row.example_text),
       translation_uk: row.translation_uk ?? null,

@@ -41,7 +41,7 @@ function extractNAOBRelationCandidates(
     },
     {
       pattern:
-        /(?:sammensetning av)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
+        /(?:sammensatt av)\s+([a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ\s-]{2,50})/gi,
       relation_type: 'compound_component_candidate',
       label: 'NAOB compound component reference',
     },

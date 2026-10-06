@@ -17,6 +17,7 @@ const supabase = createClient(
 
 const CURRENT_VERIFICATION_VERSION = 5;
 const CURRENT_METHOD_VERSION = 1;
+const PROMOTION_BATCH_LIMIT = 3;
 
 // ФИКС (05.08.2026): было 60с — оказалось слишком коротким порогом
 // устаревания лока. Реальная обработка job-orchestrator (runLexicalWorker
@@ -100,7 +101,11 @@ async function runLexicalWorker(jobId: string): Promise<LexicalWorkerRunResult> 
   const batches = [];
   const warnings: string[] = [];
 
-  const maxRounds = 50;
+  // One orchestrator invocation processes one full lexical-worker page.
+  // Chaining up to 50 HTTP calls here made the outer supervisor request
+  // duration depend on job size and could exceed its 45-second budget.
+  // Remaining checks stay checkpointed and continue on the next tick.
+  const maxRounds = 1;
 
   for (let round = 0; round < maxRounds; round++) {
     let workerResponse: Response;
@@ -314,8 +319,8 @@ serve(async (req) => {
       // Explicit recovery may resume a job that source-check progress
       // prematurely marked done before promotion ran.
       .in('status', requestedJobId
-        ? ['pending', 'processing', 'ready', 'done']
-        : ['pending', 'processing', 'ready'])
+        ? ['pending', 'processing', 'ready', 'done', 'partial', 'retry_scheduled']
+        : ['pending', 'processing', 'ready', 'partial', 'retry_scheduled'])
       .order('created_at', {
         ascending: true,
       });
@@ -404,7 +409,10 @@ serve(async (req) => {
           `text-analysis-${jobId}`;
 
         const beforeVersioningSnapshot =
-          await loadJobEntities(supabase, jobId);
+          await loadJobEntities(
+            supabase as unknown as Parameters<typeof loadJobEntities>[0],
+            jobId,
+          );
 
         await supabase
           .from('lexeme_processing_jobs')
@@ -480,13 +488,52 @@ serve(async (req) => {
           );
         }
 
+        // Expansion queues independent POS checks. Do not promote until they finish.
+        const expandedChecksRemaining = await getRemainingSourceCheckCount(jobId);
+        if (expandedChecksRemaining > 0) {
+          processedJobs.push({
+            job_id: jobId,
+            lexical_batches: lexicalBatches,
+            multi_pos_expanded: multiPosExpanded,
+            orchestrator_incomplete: true,
+            source_checks_remaining: expandedChecksRemaining,
+            enrichment_pending: false,
+          });
+          continue;
+        }
+
         const promotedCount =
           await rpcOrThrow<number>(
             'promote_verification_results_for_job',
             {
               p_job_id: jobId,
+              p_limit: PROMOTION_BATCH_LIMIT,
             },
           );
+
+        const { count: promotionRemaining, error: promotionRemainingError } =
+          await supabase
+            .from('lexeme_processing_items')
+            .select('id', { count: 'exact', head: true })
+            .eq('job_id', jobId)
+            .eq('current_stage', 'source_checks');
+
+        if (promotionRemainingError) throw promotionRemainingError;
+
+        if ((promotionRemaining ?? 0) > 0) {
+          processedJobs.push({
+            job_id: jobId,
+            lexical_batches: lexicalBatches,
+            lexical_warnings: lexicalWarnings.length ? lexicalWarnings : undefined,
+            orchestrator_incomplete: true,
+            promotion_batch_limit: PROMOTION_BATCH_LIMIT,
+            promoted_count: promotedCount,
+            promotion_remaining: promotionRemaining,
+            promotion_stalled: promotedCount === 0,
+            enrichment_pending: false,
+          });
+          continue;
+        }
 
         const { count: pendingEnrichmentCount } = await supabase
           .from('lexeme_processing_items')
@@ -539,7 +586,7 @@ serve(async (req) => {
 
         const versioningResult =
           await versionCompletedJob(
-            supabase,
+            supabase as unknown as Parameters<typeof versionCompletedJob>[0],
             {
               jobId,
               runId,

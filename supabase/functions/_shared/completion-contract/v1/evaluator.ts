@@ -1,3 +1,4 @@
+import { boundAiReviewReason } from '../../ai-review-binding.ts';
 import {
   type AssessmentIssue,
   CAPABILITY_NAMES,
@@ -57,7 +58,8 @@ const REQUIRED_FORMS: Readonly<Record<string, readonly string[]>> = {
     "plural_indefinite",
     "plural_definite",
   ],
-  verb: ["infinitive", "present", "past", "present_perfect", "past_participle"],
+  // D10 source forms only; har/hadde + participle are derived phrases.
+  verb: ["infinitive", "present", "past", "past_participle"],
   adjective: [
     "positive_common",
     "positive_neuter",
@@ -247,6 +249,9 @@ function evaluateTranslation(
   const ready = usable.filter((translation) => {
     const provider = normalized(translation.provider);
     if (provider === "manual_verified") return true;
+    if (provider === "ai_fallback" && !owningExpressionId) {
+      return boundAiReviewReason(snapshot, translation) === null;
+    }
     if (provider !== "lexin" || translation.source_refs.length === 0) {
       return false;
     }

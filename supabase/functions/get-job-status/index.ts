@@ -1,7 +1,7 @@
+import { buildAuditReport, evaluateAuditCompletion, type ReviewItem } from "../_shared/completion-contract/v1/audit-report.ts";
 import { withSupabase } from "@supabase/server";
 
 import {
-  evaluateJobCompletion,
   type SnapshotRpcResult,
 } from "../_shared/completion-contract/v1/runtime.ts";
 import type {
@@ -275,9 +275,9 @@ Deno.serve(
           });
         }
 
-        let completion;
+        let evaluation;
         try {
-          completion = await evaluateJobCompletion(
+          evaluation = await evaluateAuditCompletion(
             async ({
               job_id,
               cursor,
@@ -321,6 +321,19 @@ Deno.serve(
           throw error;
         }
 
+        const {completion, content} = evaluation;
+        const unresolvedIds = completion.unresolved_items.map((item) =>
+          (item as { item_id: string }).item_id);
+        let candidateReviews: ReviewItem[] = [];
+        if (unresolvedIds.length > 0) {
+          const { data, error } = await admin.from("lexeme_processing_items")
+            .select("id,normalized_lemma,pos,current_stage,status,lexeme_id,expression_id,result_summary")
+            .eq("job_id", jobId).in("id", unresolvedIds);
+          if (error) throw new Error(`REPORT_REVIEW_READ_FAILED:${error.message}`);
+          candidateReviews = data ?? [];
+        }
+        const auditReport = buildAuditReport(completion, candidateReviews, content);
+
         const report = {
           ...completion.report,
           assessments: undefined,
@@ -338,6 +351,7 @@ Deno.serve(
           summary: job.summary,
           progress,
           chain_progress: chainProgress,
+          completion_report: auditReport,
           quality: {
             snapshot_token: completion.report.snapshot_token,
             source_counts: completion.source_counts,

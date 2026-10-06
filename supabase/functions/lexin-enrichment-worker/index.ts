@@ -1,3 +1,4 @@
+import { linguisticText, pairLexinExample, lexinExampleEvidence } from '../_shared/example-evidence.ts';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -481,6 +482,10 @@ serve(async (req) => {
         return jsonResponse({ ok: false, stage: 'load_lexeme', error: safeStringify(lexemeLookupError) }, 500);
       }
 
+      if(!lexemeRow) return jsonResponse({ok:false,error:'LEXEME_IDENTITY_MISSING'},404);
+      if(explicitPos && normalizePos(explicitPos)!==normalizePos(lexemeRow.pos))
+        return jsonResponse({ok:false,error:'LEXEME_POS_IDENTITY_MISMATCH'},409);
+
       // lexeme_id — источник истины. Это защищает от повреждённой UTF-8
       // строки в body (например best� вместо bestå) и от случайной леммы.
       if (lexemeRow?.lemma) lemma = normalizeKey(String(lexemeRow.lemma));
@@ -785,37 +790,20 @@ serve(async (req) => {
             });
           }
 
-          // ФИКС v7 (15.07.2026): Ukr-eks сопоставляется с E-eks по
-          // ЗНАЧЕНИЮ index (порядковый номер), не по позиции в массиве
-          // Ukr-eks — сами Ukr-eks приходят в порядке 0,2,1.
           const ukrEksEntries = entriesOfType(bucket, 'Ukr-eks');
           const eEksEntries = entriesOfType(bucket, 'E-eks', 'N-eks');
-
-          for (let eksIdx = 0; eksIdx < eEksEntries.length; eksIdx++) {
-            const e = eEksEntries[eksIdx];
-            if (!e.text?.trim()) continue;
-
-            const ukrMatch =
-              (e.index !== null && e.index !== undefined
-                ? ukrEksEntries.find((u) => u.index === e.index)
-                : null) ??
-              ukrEksEntries.find((u) => u.index === eksIdx) ??
-              null;
-
-            examples.push({
-              lexeme_id: lexemeId,
-              expression_id: expressionId,
-              language_code: 'nb',
-              example_text: e.text.trim(),
-              translation_uk: ukrMatch?.text?.trim() ?? null,
-              source: LEXIN_SOURCE,
-              source_type: e.type === 'N-eks' ? 'n_eks' : 'e_eks',
-              source_entry_id: e.id ?? entryId,
-            });
+          for (const e of eEksEntries) {
+            if (!linguisticText(e.text)) continue;
+            const pair=pairLexinExample(e,eEksEntries,ukrEksEntries);
+            examples.push({lexeme_id:lexemeId,expression_id:expressionId,language_code:'nb',
+              example_text:e.text.trim(),translation_uk:pair.entry?.text.trim()??null,
+              source:LEXIN_SOURCE,source_type:e.type==='N-eks'?'n_eks':'e_eks',source_entry_id:e.id??entryId,
+              enrichment_evidence:lexinExampleEvidence({lexemeId,expressionId,lemma:normalizedLemma,
+                pos:requestedPos,entryPos,url:lexin.url},e,pair)});
           }
 
           for (const e of entriesOfType(bucket, 'B-eks')) {
-            if (!e.text?.trim()) continue;
+            if (!linguisticText(e.text)) continue;
             examples.push({
               lexeme_id: lexemeId,
               expression_id: expressionId,
@@ -1024,6 +1012,9 @@ serve(async (req) => {
       });
     }
 
+    const {error:exampleSchemaError}=await supabase.from('entity_examples').select('enrichment_evidence').limit(0);
+    if(exampleSchemaError) return jsonResponse({ok:false,error:'EXAMPLE_EVIDENCE_SCHEMA_REQUIRED',stage:'preflight'},500);
+
     // ── Write to DB ───────────────────────────────────────────────────
     const results: Record<string, { upserted: number; errors: string[] }> = {};
 
@@ -1061,7 +1052,7 @@ serve(async (req) => {
 
     await upsertBatch(
       'entity_examples',
-      examples.filter((e) => e.example_text?.trim()),
+      examples.filter((e) => linguisticText(e.example_text)),
       'lexeme_id,expression_id,language_code,source,example_text',
     );
 
@@ -1115,7 +1106,7 @@ serve(async (req) => {
     );
     await cleanupStaleRows(
       'entity_examples',
-      examples.filter((e) => e.example_text?.trim()),
+      examples.filter((e) => linguisticText(e.example_text)),
       'lexeme_id,expression_id,language_code,example_text',
       (r) => [r.lexeme_id ?? '', r.expression_id ?? '', r.language_code ?? '', normalizeKey(r.example_text ?? '')].join('|'),
     );

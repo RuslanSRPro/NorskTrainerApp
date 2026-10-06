@@ -94,7 +94,17 @@ type Chain = (typeof ENRICHMENT_CHAINS)[number];
 // Store deferred pages in the existing JSONB offsets so a single failed item
 // cannot keep the entire job at the same offset indefinitely.
 const RETRY_PAGE_PREFIX = '__d10_retry_page__';
+const NETWORK_RETRY_PREFIX = '__d10_network_retry__';
+const AUDIT_RETRY_PREFIX = '__d10_audit_retry__';
+const ORCHESTRATOR_RETRY_KEY = '__d10_orchestrator_retry__';
 const MAX_DEFERRED_PAGE_ATTEMPTS = 3;
+const MAX_NETWORK_PAGE_ATTEMPTS = 3;
+const MAX_AUDIT_ATTEMPTS = 3;
+const ADMISSION_PAGE_KEY = '__d10_admission_page_v3__';
+const ADMISSION_ROOT_KEY = '__d10_admission_root_v3__';
+const ADMISSION_COMPLETE_KEY = '__d10_admission_complete_v3__';
+const ADMISSION_PAGE_LIMIT = 5;
+const MAX_ORCHESTRATOR_ATTEMPTS = 3;
 const MISSING_OFFICIAL_FORMS_PREFIX = '__d10_missing_official_forms__';
 
 function missingOfficialForms(offsets: Record<string, number>): string[] {
@@ -106,6 +116,14 @@ function missingOfficialForms(offsets: Record<string, number>): string[] {
 
 function retryPageKey(chain: Chain, offset: number): string {
   return `${RETRY_PAGE_PREFIX}${chain}__${offset}`;
+}
+
+function networkRetryKey(chain: Chain, offset: number): string {
+  return `${NETWORK_RETRY_PREFIX}${chain}__${offset}`;
+}
+
+function auditRetryKey(step: 'admission' | 'completion', offset: number): string {
+  return `${AUDIT_RETRY_PREFIX}${step}__${offset}`;
 }
 
 function pendingRetryPages(offsets: Record<string, number>): Array<{
@@ -439,6 +457,16 @@ async function checkEnrichmentPending(jobId: string): Promise<boolean> {
   return Boolean(data?.summary?.enrichment_pending);
 }
 
+async function countItemsAtStage(jobId: string, stage: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('lexeme_processing_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('job_id', jobId)
+    .eq('current_stage', stage);
+  if (error) throw new Error(`Cannot count ${stage} items: ${safeStringify(error)}`);
+  return count ?? 0;
+}
+
 async function claimJob(jobId: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('claim_pipeline_supervisor_job', {
     p_job_id: jobId,
@@ -628,8 +656,25 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     }
 
     if (classification === 'retryable_error') {
+      const attempts = (state.enrichment_offsets[ORCHESTRATOR_RETRY_KEY] ?? 0) + 1;
+      state.enrichment_offsets[ORCHESTRATOR_RETRY_KEY] = attempts;
       state.last_error = safeStringify(result.data ?? result.network_error);
       await saveState(state);
+
+      if (attempts >= MAX_ORCHESTRATOR_ATTEMPTS) {
+        state.stage = 'needs_manual_review';
+        await saveState(state);
+        await updateJobStatus(jobId, 'needs_manual_review', {
+          supervisor_last_error: state.last_error,
+          supervisor_failed_step: 'job-orchestrator',
+        });
+        return {
+          job_id: jobId,
+          stage: state.stage,
+          step: 'job-orchestrator',
+          classification: 'blocked_manual_review',
+        };
+      }
 
       return {
         job_id: jobId,
@@ -640,13 +685,36 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       };
     }
 
+    delete state.enrichment_offsets[ORCHESTRATOR_RETRY_KEY];
+
     const firstJobResult = result.data?.processed_jobs?.[0];
 
     const orchestratorSkipped = firstJobResult?.action === 'skipped';
 
     if (orchestratorSkipped) {
+      if (firstJobResult?.reason === 'no unpromoted items') {
+        // The orchestrator may mark the legacy job done after its last
+        // promotion page. Done items still need every enrichment chain and
+        // the job-scoped expression admission at audit offset zero.
+        const remaining = await countItemsAtStage(jobId, 'source_checks');
+        if (remaining === 0) {
+          const promoted = await countItemsAtStage(jobId, 'semantic_audit');
+          const enrichmentPending = await checkEnrichmentPending(jobId);
+          state.stage = promoted > 0 || enrichmentPending ? 'enrichment' : 'audit';
+          state.last_error = null;
+          await saveState(state);
+          return {
+            job_id: jobId,
+            stage: state.stage,
+            step: 'job-orchestrator',
+            classification: 'success',
+            recovered_done_job: true,
+            promoted_items: promoted,
+          };
+        }
+      }
       state.last_error = null;
-      await saveState(state); // stage НЕ меняем — остаёмся в 'orchestrator'
+      await saveState(state); // In-flight lock or new source checks: retry.
 
       return {
         job_id: jobId,
@@ -655,13 +723,29 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         classification: 'success',
         orchestrator_skipped: true,
         reason: firstJobResult?.reason,
-        note: 'job-orchestrator run was locked by an in-flight call, retrying orchestrator stage on next tick',
+        note: 'orchestrator stage will retry on the next tick',
       };
     }
 
     const orchestratorIncomplete = Boolean(firstJobResult?.orchestrator_incomplete);
 
     if (orchestratorIncomplete) {
+      if (firstJobResult?.promotion_stalled === true) {
+        state.stage = 'needs_manual_review';
+        state.last_error = `promotion page made no progress with ${Number(firstJobResult?.promotion_remaining ?? 0)} items remaining`;
+        await saveState(state);
+        await updateJobStatus(jobId, 'needs_manual_review', {
+          supervisor_last_error: state.last_error,
+          supervisor_failed_step: 'orchestrator/promotion',
+        });
+        return {
+          job_id: jobId,
+          stage: state.stage,
+          step: 'job-orchestrator',
+          classification: 'blocked_manual_review',
+          promotion_remaining: firstJobResult?.promotion_remaining,
+        };
+      }
       state.last_error = null;
       await saveState(state);
 
@@ -801,6 +885,7 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         (hasMore === false || (Number.isSafeInteger(next) && next > offset));
 
       if (completePage) {
+        delete state.enrichment_offsets[networkRetryKey(chain, offset)];
         const key = retryPage?.key ?? retryPageKey(chain, offset);
         const attempts = retryPage ? (state.enrichment_offsets[key] ?? 0) + 1 : 0;
         if (attempts >= MAX_DEFERRED_PAGE_ATTEMPTS) {
@@ -826,11 +911,26 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
           classification: 'retryable_error', deferred_page: offset, failed,
           detail: result.data };
       }
+      const networkKey = networkRetryKey(chain, offset);
+      const networkAttempts = (state.enrichment_offsets[networkKey] ?? 0) + 1;
+      state.enrichment_offsets[networkKey] = networkAttempts;
+      if (networkAttempts >= MAX_NETWORK_PAGE_ATTEMPTS) {
+        state.stage = 'needs_manual_review';
+        state.last_error = `enrichment[${chain}] page ${offset}: ${MAX_NETWORK_PAGE_ATTEMPTS} unstructured/network retries failed: ${safeStringify(result.data ?? result.network_error)}`;
+        await saveState(state);
+        await updateJobStatus(jobId, 'needs_manual_review', {
+          supervisor_last_error: state.last_error,
+          supervisor_failed_step: `enrichment[${chain}]`,
+        });
+        return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`, classification: 'blocked_manual_review' };
+      }
       state.last_error = safeStringify(result.data ?? result.network_error);
       await saveState(state);
       return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`,
         classification, detail: result.network_error ?? result.data };
     }
+
+    delete state.enrichment_offsets[networkRetryKey(chain, offset)];
 
     if (retryPage) {
       delete state.enrichment_offsets[retryPage.key];
@@ -890,20 +990,91 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
   if (state.stage === 'audit') {
     const previousLastError = state.last_error;
 
-    // A newly created expression starts as a grey candidate. Only the
-    // job-scoped, exact BM subarticle binding may admit it for learning.
-    // Retry is safe: the RPC only updates false -> true and refreshes roots
-    // whose members actually changed.
-    if (state.audit_offset === 0) {
-      const { data: admission, error: admissionError } = await supabase.rpc(
-        'admit_verified_job_expressions_v1', { p_job_id: jobId },
-      );
-      if (admissionError || admission?.ok !== true) {
-        state.last_error = `expression admission failed: ${safeStringify(admissionError ?? admission)}`;
+    // Admission pages are stable slices of promoted expression IDs. Updating
+    // is_learning_lexeme does not change their order or page membership.
+    if (state.audit_offset === 0 &&
+        state.enrichment_offsets[ADMISSION_COMPLETE_KEY] !== 1) {
+      const admissionKey = auditRetryKey('admission', 0);
+      const pageOffset = state.enrichment_offsets[ADMISSION_PAGE_KEY] ?? 0;
+      const rootOffset = state.enrichment_offsets[ADMISSION_ROOT_KEY];
+      if (rootOffset === undefined) {
+        const { data: page, error: pageError } = await supabase.rpc(
+          'admit_verified_job_expressions_page_v1', {
+            p_job_id: jobId, p_offset: pageOffset,
+            p_limit: ADMISSION_PAGE_LIMIT,
+          },
+        );
+        if (pageError || page?.ok !== true ||
+            !Number.isInteger(page?.next_offset) ||
+            page.next_offset < pageOffset ||
+            (page.has_more && page.next_offset === pageOffset)) {
+          const attempts = (state.enrichment_offsets[admissionKey] ?? 0) + 1;
+          state.enrichment_offsets[admissionKey] = attempts;
+          state.last_error = `expression admission page ${pageOffset} failed: ${safeStringify(pageError ?? page)}`;
+          if (attempts >= MAX_AUDIT_ATTEMPTS) {
+            state.stage = 'needs_manual_review';
+            await saveState(state);
+            await updateJobStatus(jobId, 'needs_manual_review', {
+              supervisor_last_error: state.last_error,
+              supervisor_failed_step: 'expression-admission-page',
+            });
+            return { job_id: jobId, stage: state.stage, step: 'expression-admission-page',
+              classification: 'blocked_manual_review' };
+          }
+          await saveState(state);
+          return { job_id: jobId, stage: state.stage, step: 'expression-admission-page',
+            classification: 'retryable_error', detail: state.last_error };
+        }
+        delete state.enrichment_offsets[admissionKey];
+        state.enrichment_offsets[ADMISSION_PAGE_KEY] = page.next_offset;
+        if (page.has_more) {
+          state.last_error = null;
+          await saveState(state);
+          return { job_id: jobId, stage: state.stage, step: 'expression-admission-page',
+            classification: 'success', admitted: page.admitted,
+            next_offset: page.next_offset };
+        }
+        state.enrichment_offsets[ADMISSION_ROOT_KEY] = 0;
         await saveState(state);
-        return { job_id: jobId, stage: state.stage, step: 'expression-admission',
+      }
+
+      const nextRoot = state.enrichment_offsets[ADMISSION_ROOT_KEY] ?? 0;
+      const { data: root, error: rootError } = await supabase.rpc(
+        'refresh_verified_job_expression_root_page_v1', {
+          p_job_id: jobId, p_offset: nextRoot,
+        },
+      );
+      if (rootError || root?.ok !== true ||
+          root?.next_offset !== nextRoot + 1) {
+        const attempts = (state.enrichment_offsets[admissionKey] ?? 0) + 1;
+        state.enrichment_offsets[admissionKey] = attempts;
+        state.last_error = `expression root refresh ${nextRoot} failed: ${safeStringify(rootError ?? root)}`;
+        if (attempts >= MAX_AUDIT_ATTEMPTS) {
+          state.stage = 'needs_manual_review';
+          await saveState(state);
+          await updateJobStatus(jobId, 'needs_manual_review', {
+            supervisor_last_error: state.last_error,
+            supervisor_failed_step: 'expression-root-refresh',
+          });
+          return { job_id: jobId, stage: state.stage, step: 'expression-root-refresh',
+            classification: 'blocked_manual_review' };
+        }
+        await saveState(state);
+        return { job_id: jobId, stage: state.stage, step: 'expression-root-refresh',
           classification: 'retryable_error', detail: state.last_error };
       }
+      delete state.enrichment_offsets[admissionKey];
+      state.enrichment_offsets[ADMISSION_ROOT_KEY] = root.next_offset;
+      state.last_error = null;
+      if (root.has_more) {
+        await saveState(state);
+        return { job_id: jobId, stage: state.stage, step: 'expression-root-refresh',
+          classification: 'success', next_offset: root.next_offset };
+      }
+      delete state.enrichment_offsets[ADMISSION_PAGE_KEY];
+      delete state.enrichment_offsets[ADMISSION_ROOT_KEY];
+      state.enrichment_offsets[ADMISSION_COMPLETE_KEY] = 1;
+      await saveState(state);
     }
 
     const result = await callWorker('job-completion-auditor', {
@@ -934,8 +1105,21 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     }
 
     if (classification === 'retryable_error') {
+      const key = auditRetryKey('completion', state.audit_offset);
+      const attempts = (state.enrichment_offsets[key] ?? 0) + 1;
+      state.enrichment_offsets[key] = attempts;
       state.last_error = safeStringify(result.data ?? result.network_error);
       await saveState(state);
+
+      if (attempts >= MAX_AUDIT_ATTEMPTS) {
+        state.stage = 'needs_manual_review';
+        await saveState(state);
+        await updateJobStatus(jobId, 'needs_manual_review', {
+          supervisor_last_error: state.last_error,
+          supervisor_failed_step: 'job-completion-auditor',
+        });
+        return { job_id: jobId, stage: state.stage, step: 'job-completion-auditor', classification: 'blocked_manual_review' };
+      }
 
       return {
         job_id: jobId,
@@ -945,6 +1129,8 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         detail: result.network_error ?? result.data,
       };
     }
+
+    delete state.enrichment_offsets[auditRetryKey('completion', state.audit_offset)];
 
     const hasMore = Boolean(result.data?.has_more);
     const nextOffset = Number(result.data?.next_offset ?? state.audit_offset);
@@ -976,6 +1162,7 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
             reason: 'could not resume job with unpromoted items',
           };
         }
+        delete state.enrichment_offsets[ADMISSION_COMPLETE_KEY];
         state.stage = 'orchestrator';
         state.audit_offset = 0;
         state.last_error = null;

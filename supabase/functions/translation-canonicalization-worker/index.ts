@@ -233,7 +233,7 @@ async function findCanonCandidates(
       'id, lexeme_id, source_entry_id, language_code, translation, translation_type, source, canonical_translation, canonicalization_metadata',
     )
     .in('lexeme_id', lexemeIds)
-    .eq('source', 'lexin')
+    .in('source', ['lexin', 'ai_fallback'])
     .in('language_code', ['uk', 'en'])
     .in('translation_type', ['primary', 'expression_primary'])
     .eq('translation_rank', 1);

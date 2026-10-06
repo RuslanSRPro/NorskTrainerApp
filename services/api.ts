@@ -1,3 +1,4 @@
+import { selectNorwegianExample } from '../supabase/functions/_shared/example-evidence';
 import { supabase } from './supabase';
 import { getCurrentUserId } from '@/store/authStore';
 import { fetchFormsMap, type FormsBundle } from './formReadModel';
@@ -19,7 +20,7 @@ import { fetchFormsMap, type FormsBundle } from './formReadModel';
 const LEXEME_SELECT = `
   id, lemma, pos, display_form,
   dictionary_status, dictionary_exclusion_reason, is_learning_lexeme,
-  example, notes, cefr, status,
+  notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
   relations_count,
   lexeme360_root_lemma,
@@ -77,6 +78,7 @@ function mapLexemeRow(
   item: any,
   forms?: FormsBundle,
   translations?: CanonicalTranslations,
+  example?: any,
 ) {
   if (!item) return null;
 
@@ -104,7 +106,10 @@ function mapLexemeRow(
     category,
     ua:       translations?.ua || '',
     en:       translations?.en || '',
-    example:  item.example        || '',
+    example: example?.example_text || '',
+    example_translation_uk: example?.translation_uk || '',
+    example_source: example?.source || null,
+    example_evidence: example?.enrichment_evidence || null,
     notes:    item.notes          || '',
     cefr:     item.cefr           || '',
     frequency_rank:   item.frequency_rank   ?? null,
@@ -172,18 +177,37 @@ function mapLexemeRow(
   };
 }
 
+async function fetchExampleMap(ids: string[]): Promise<Map<string,any>> {
+  const selected=new Map<string,any>();
+  const unique=[...new Set(ids)];
+  for(let offset=0;offset<unique.length;offset+=100){
+    const chunk=unique.slice(offset,offset+100);
+    const {data,error}=await supabase.rpc('get_canonical_lexeme_examples_v1',{p_lexeme_ids:chunk});
+    if(error) throw new Error(`Could not load Norwegian examples: ${error.message}`);
+    for(const row of data??[]){
+      const id=String(row.lexeme_id??'');
+      if(!chunk.includes(id)) throw new Error('Example RPC returned an unrelated lexeme');
+      if(selected.has(id)) throw new Error('Example RPC returned duplicate lexemes');
+      const valid=selectNorwegianExample([row]);
+      if(valid) selected.set(id,valid);
+    }
+  }
+  return selected;
+}
+
 // Fetch morphology once for the batch through exactly one configured model.
 async function mapLexemeRows(rows: any[]) {
   const validRows = (rows || []).filter(Boolean);
   const lexemeIds = validRows.map((r) => r.id).filter(Boolean);
 
-  const [formsMap, translationResult] = await Promise.all([
+  const [formsMap, translationResult, exampleMap] = await Promise.all([
     fetchFormsMap(lexemeIds),
     lexemeIds.length > 0
       ? supabase.rpc('get_canonical_lexeme_translations_v1', {
           p_lexeme_ids: lexemeIds,
         })
       : Promise.resolve({ data: [], error: null } as any),
+    fetchExampleMap(lexemeIds),
   ]);
 
   if (translationResult.error) {
@@ -205,7 +229,7 @@ async function mapLexemeRows(rows: any[]) {
 
   return validRows
     .map((row) =>
-      mapLexemeRow(row, formsMap.get(row.id), translationMap.get(row.id))
+      mapLexemeRow(row, formsMap.get(row.id), translationMap.get(row.id), exampleMap.get(row.id))
     )
     .filter(Boolean);
 }

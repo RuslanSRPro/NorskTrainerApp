@@ -1,3 +1,4 @@
+import { buildAuditReport, evaluateAuditCompletion, type ReviewItem } from "../_shared/completion-contract/v1/audit-report.ts";
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
@@ -376,6 +377,33 @@ serve(async (req) => {
     }
 
     const jobId = jobIdRaw;
+
+    // Explicit read-only audit report. No AI, heal, summary writes or job resumes.
+    if (body.mode === 'audit_report') {
+      if (!hasInternalServiceAuthorization(req)) {
+        return jsonResponse({ ok: false, error: 'INTERNAL_SERVICE_AUTH_REQUIRED' }, 403);
+      }
+      const {completion, content} = await evaluateAuditCompletion(async (page) => {
+        const { data, error } = await supabase.rpc('get_completion_evidence_snapshot_v1', {
+          p_job_id: page.job_id, p_cursor: page.cursor, p_limit: page.limit,
+          p_expected_snapshot_token: page.expected_snapshot_token,
+        });
+        if (error) throw new Error(`COMPLETION_SNAPSHOT_FAILED:${safeStringify(error)}`);
+        return data as unknown as SnapshotRpcResult;
+      }, jobId);
+      const ids = completion.unresolved_items.map((item) =>
+        (item as { item_id: string }).item_id);
+      let reviews: ReviewItem[] = [];
+      if (ids.length > 0) {
+        const { data, error } = await supabase.from('lexeme_processing_items')
+          .select('id,normalized_lemma,pos,current_stage,status,lexeme_id,expression_id,result_summary')
+          .eq('job_id', jobId).in('id', ids);
+        if (error) throw new Error(`REPORT_REVIEW_READ_FAILED:${safeStringify(error)}`);
+        reviews = (data ?? []) as ReviewItem[];
+      }
+      return jsonResponse({ ok: true, job_id: jobId, mode: 'audit_report',
+        report: buildAuditReport(completion, reviews, content) });
+    }
 
     // Package 3B: отдельный post-terminal режим наблюдения. Он читает
     // immutable snapshot всех entities, оценивает completion-contract/v1

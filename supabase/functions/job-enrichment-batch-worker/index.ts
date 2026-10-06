@@ -902,7 +902,7 @@ async function enqueueTranslationCanonicalization(
     .from('entity_translations')
     .select('lexeme_id')
     .in('lexeme_id', lexemeIds)
-    .eq('source', 'lexin')
+    .in('source', ['lexin', 'ai_fallback'])
     .in('translation_type', ['primary', 'expression_primary'])
     .eq('translation_rank', 1)
     .is('canonical_translation', null)

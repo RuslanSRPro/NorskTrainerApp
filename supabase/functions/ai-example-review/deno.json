@@ -1,0 +1,10 @@
+{
+  "lock": true,
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@supabase/server": "npm:@supabase/server@1.4.1"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}

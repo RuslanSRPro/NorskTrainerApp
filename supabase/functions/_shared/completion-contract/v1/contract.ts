@@ -1,5 +1,5 @@
 export const CONTRACT_VERSION = "completion-contract/v1" as const;
-export const EVALUATOR_VERSION = "1.0.0" as const;
+export const EVALUATOR_VERSION = "1.0.2" as const;
 export const SNAPSHOT_VERSION = "completion-evidence-snapshot/v1" as const;
 
 export const CAPABILITY_NAMES = [
@@ -62,6 +62,12 @@ export interface FormEvidence {
 }
 
 export interface TranslationEvidence {
+  original_value?: string | null;
+  source_pos?: string | null;
+  translation_rank?: number | null;
+  translation_type?: string | null;
+  current_article_ids?: string[];
+  enrichment_evidence?: unknown;
   id: string;
   locale: Locale;
   value: string | null;

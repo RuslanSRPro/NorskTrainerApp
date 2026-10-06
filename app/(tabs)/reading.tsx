@@ -603,7 +603,7 @@ export default function ReadingScreen() {
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord.type||previewWord.category||""}{previewWord.gender?` · ${previewWord.gender}`:""}</Text>
             <View style={s.formsBox}>{getFormLabels(previewWord).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
-            {previewWord.example?(<View style={[s.exBox,{backgroundColor:T.cardInner}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text></View>):null}
+            {previewWord.example?(<View style={[s.exBox,{backgroundColor:T.cardInner}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text>{previewWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example_translation_uk}</Text>:null}</View>):null}
             <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}>
               <Text style={[s.addBtnText,{color:T.accent}]}>{addingGlobalWord?tr("adding"):tr("add_preview_database")}</Text>
             </Pressable>
@@ -754,7 +754,7 @@ export default function ReadingScreen() {
               mutedColor={T.textMuted}
               fonts={F}
             />
-            {previewWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text></View>:null}
+            {previewWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text>{previewWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example_translation_uk}</Text>:null}</View>:null}
             {previewWord?.notes_ua||previewWord?.notes?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.notes_ua||previewWord.notes}</Text></View>:null}
             <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}><Text style={[s.addBtnText,{color:T.accent}]}>{addingGlobalWord?tr("adding"):tr("add_preview_database")}</Text></Pressable>
             <Pressable style={[s.stopBtn,{backgroundColor:T.cardAlt}]} onPress={stopSpeech}><Text style={[s.stopBtnText,{color:T.textSecondary}]}>⏹ {tr("stop_audio")}</Text></Pressable>
@@ -805,7 +805,7 @@ export default function ReadingScreen() {
                 ) : null}
               </View>
             </View>
-            {selectedWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{selectedWord.example}</Text></View>:null}
+            {selectedWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{selectedWord.example}</Text>{selectedWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary}]}>{selectedWord.example_translation_uk}</Text>:null}</View>:null}
             {getFormLabels(selectedWord||{}).length>0?(
               <TrainingFormsList
                 forms={getFormLabels(selectedWord||{})}
