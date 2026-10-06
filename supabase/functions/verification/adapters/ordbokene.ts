@@ -18,6 +18,31 @@ import { isAuthoritativeLookupForm } from '../../_shared/authoritative-morpholog
 
 const MORPHOLOGY_POS = new Set(['verb', 'noun', 'adjective', 'determiner']);
 
+function matchedAuthoritativeForm(
+  query: string,
+  paradigms: ReturnType<typeof parseOrdbokeneArticles>,
+): { canonicalLemma: string | null; matchedForm: string | null; matchedFormKey: string | null } {
+  const normalizedQuery = normalizeNorwegian(query);
+  const lemmas = [...new Set(
+    paradigms.map((paradigm) => normalizeNorwegian(paradigm.lemma)).filter(Boolean),
+  )];
+  const canonicalLemma = lemmas.length === 1
+    ? paradigms.find((paradigm) => normalizeNorwegian(paradigm.lemma) === lemmas[0])?.lemma ?? null
+    : null;
+
+  for (const paradigm of paradigms) {
+    if (normalizeNorwegian(paradigm.lemma) === normalizedQuery) {
+      return { canonicalLemma, matchedForm: paradigm.lemma, matchedFormKey: 'lemma' };
+    }
+    for (const form of paradigm.forms) {
+      if ((form.normalizedValue || normalizeNorwegian(form.value)) === normalizedQuery) {
+        return { canonicalLemma, matchedForm: form.value, matchedFormKey: form.formKey };
+      }
+    }
+  }
+  return { canonicalLemma, matchedForm: null, matchedFormKey: null };
+}
+
 function norwegianLemmaVariants(word: string): string[] {
   const variants = new Set<string>([word]);
   const w = word.toLowerCase().trim();
@@ -64,6 +89,7 @@ export async function checkOrdbokeneLive(
       };
     }
     if (articleIds.length === 1) {
+      const matchedForm = matchedAuthoritativeForm(query, paradigms);
       return {
         source: 'Ordbokene',
         checked: true,
@@ -80,6 +106,9 @@ export async function checkOrdbokeneLive(
           pos: pos ?? paradigms[0].pos,
           article_ids: articleIds,
           lookup_scope: lookup.scopeUsed,
+          canonical_lemma: matchedForm.canonicalLemma,
+          matched_form: matchedForm.matchedForm,
+          matched_form_key: matchedForm.matchedFormKey,
           candidate_article_count: lookup.articleReferences.length,
         },
       };
