@@ -255,7 +255,6 @@ public final class LectureRecorderModule: Module {
         ok: true
       )
     }
-    .runOnQueue(.main)
 
     AsyncFunction("stop") { (promise: Promise) in
       guard let destinationURL = self.currentDestinationURL else {
@@ -506,7 +505,6 @@ public final class LectureRecorderModule: Module {
         }
       }
     }
-    .runOnQueue(.main)
 
     Function("getStatus") { () -> [String: Any] in
       self.makeStatusResult(
