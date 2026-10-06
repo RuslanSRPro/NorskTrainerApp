@@ -2,7 +2,7 @@ BEGIN;
 
 DO $guard$
 BEGIN
-  IF md5(pg_get_functiondef('public.promote_verification_results_for_job(uuid,integer)'::regprocedure)) <> 'bdef3428a432a4638af8a0fc84cf86a0' THEN
+  IF md5(pg_get_functiondef('public.promote_verification_results_for_job(uuid,integer)'::regprocedure)) <> '4ed75c0750a6c1f153ca17d90660d49c' THEN
     RAISE EXCEPTION 'STOP: promote_verification_results_for_job changed since D10 inflected export';
   END IF;
 END;
