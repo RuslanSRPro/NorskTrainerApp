@@ -1,5 +1,6 @@
 import ExpoModulesCore
 @preconcurrency import AVFoundation
+import UIKit
 
 private final class LectureRecorderException: Exception {
   private let recorderReason: String
@@ -33,6 +34,7 @@ public final class LectureRecorderModule: Module {
     label: "com.norsktrainer.lecture-recorder.writer",
     qos: .userInitiated
   )
+  private var stopBackgroundTask: UIBackgroundTaskIdentifier = .invalid
 
   private let mergeQueue = DispatchQueue(
     label: "com.norsktrainer.lecture-recorder.merge",
@@ -82,6 +84,8 @@ public final class LectureRecorderModule: Module {
   private var acceptingBuffers = false
   private var hasSuccessfulWrite = false
   private var captureGeneration: UInt64 = 0
+  // Lock-protected recording identity, separate from per-engine capture generations.
+  private var recordingSessionID: UUID?
 
   // MARK: - Durable recording manifest
 
@@ -120,7 +124,7 @@ public final class LectureRecorderModule: Module {
       "onRecorderError"
     )
 
-    AsyncFunction("start") { (destinationUri: String) -> [String: Any] in
+    AsyncFunction("start") { (destinationUri: String) async throws -> [String: Any] in
       if self.pendingStopPromise != nil || self.isStopping {
         throw self.makeException(
           code: "ERR_STOP_PENDING",
@@ -198,9 +202,11 @@ public final class LectureRecorderModule: Module {
 
       self.currentDestinationURL = destinationURL
       self.currentSegmentsDirectoryURL = segmentsDirectoryURL
+      self.beginRecordingSession()
       self.isStopping = false
       self.isPausedForInterruption = false
       self.resumeToken = nil
+      self.lifecycleRestartPending = false
 
       self.resetLiveState()
       self.resetWriterState()
@@ -220,11 +226,21 @@ public final class LectureRecorderModule: Module {
       } catch {
         self.stopCaptureEngine()
         self.deactivateAudioSession()
-        self.abortWriterAndDeletePartial()
-        self.removeDirectoryIfPresent(segmentsDirectoryURL)
-        self.currentDestinationURL = nil
-        self.currentSegmentsDirectoryURL = nil
-        self.resetLiveState()
+        // Preserve any checkpoint or partial created before Start failed,
+        // but never block the main queue behind pending writer work.
+        self.isStopping = true
+        await withCheckedContinuation { continuation in
+          self.writerQueue.async {
+            self.finalizeCurrentSegmentOnWriterQueue()
+            continuation.resume()
+          }
+        }
+        await withCheckedContinuation { continuation in
+          DispatchQueue.main.async {
+            self.cleanupAfterFailedStopPreservingSegments()
+            continuation.resume()
+          }
+        }
 
         throw self.makeException(
           code: "ERR_START_RECORDING",
@@ -265,6 +281,7 @@ public final class LectureRecorderModule: Module {
       self.pendingStopPromise = promise
       self.isStopping = true
       self.resumeToken = nil
+      self.beginStopBackgroundTask()
 
       self.stopAcceptingNewBuffers()
       self.stopCaptureEngine()
@@ -384,7 +401,14 @@ public final class LectureRecorderModule: Module {
     }
     .runOnQueue(.main)
 
-    AsyncFunction("cancel") { () -> [String: Any] in
+    AsyncFunction("cancel") { () async throws -> [String: Any] in
+      guard !self.isStopping else {
+        throw self.makeException(
+          code: "ERR_STOP_PENDING",
+          message: "The lecture recording is already finishing."
+        )
+      }
+
       guard self.pendingStopPromise == nil else {
         throw self.makeException(
           code: "ERR_STOP_PENDING",
@@ -392,36 +416,95 @@ public final class LectureRecorderModule: Module {
         )
       }
 
-      let destinationURL = self.currentDestinationURL
-      let segmentsDirectoryURL = self.currentSegmentsDirectoryURL
-
+      // Cancellation is non-destructive, including automatic failed-Start cleanup.
+      // The manifest, finalized checkpoints and unresolved partials remain recoverable.
       self.resumeToken = nil
       self.isStopping = true
       self.isPausedForInterruption = false
 
       self.stopAcceptingNewBuffers()
       self.stopCaptureEngine()
-      self.tapCallbackGroup.wait()
       self.deactivateAudioSession()
-      self.abortWriterAndDeletePartial()
 
-      if let destinationURL {
-        self.removeFileIfPresent(destinationURL)
+      let drained: Bool = await withCheckedContinuation { continuation in
+        DispatchQueue.global(qos: .utility).async {
+          continuation.resume(
+            returning:
+              self.tapCallbackGroup.wait(
+                timeout: .now() + 5.0
+              ) == .success
+          )
+        }
       }
 
-      if let segmentsDirectoryURL {
-        self.removeDirectoryIfPresent(segmentsDirectoryURL)
+      /*
+       * The bounded drain above resumes an async continuation from a
+       * background queue. Do not rely on the continuation resuming on
+       * the module's original main GCD queue. All terminal recorder
+       * ownership/state transitions are explicitly returned to main.
+       *
+       * On timeout, isStopping remains true until the writer queue has
+       * finalized the recoverable tail and main performs the preserving
+       * cleanup. A new recording therefore cannot overlap the old
+       * recorder cleanup.
+       */
+      return try await withCheckedThrowingContinuation { continuation in
+        DispatchQueue.main.async {
+          if !drained {
+            // Never let a late callback cross into a future recording.
+            // Preserve committed checkpoints instead of deleting recovery data.
+            self.invalidateCaptureGeneration()
+
+            self.writerQueue.async { [weak self] in
+              guard let self else { return }
+              self.finalizeCurrentSegmentOnWriterQueue()
+
+              DispatchQueue.main.async {
+                self.cleanupAfterFailedStopPreservingSegments()
+              }
+            }
+
+            continuation.resume(
+              throwing: self.makeException(
+                code: "ERR_CANCEL_DRAIN_TIMEOUT",
+                message:
+                  "The recorder could not finish cancelling within 5 seconds. " +
+                  "Committed audio checkpoints were preserved for recovery."
+              )
+            )
+            return
+          }
+
+          // Finish queued writer work off the main queue. Cancellation remains
+          // non-destructive: finalized checkpoints and recoverable partials stay
+          // on disk for recovery.
+          self.writerQueue.async { [weak self] in
+            guard let self else {
+              continuation.resume(
+                throwing: LectureRecorderException(
+                  code: "ERR_CANCEL_INTERNAL",
+                  message: "The recorder was released while cancelling.",
+                  file: #fileID,
+                  line: #line,
+                  function: #function
+                )
+              )
+              return
+            }
+
+            self.finalizeCurrentSegmentOnWriterQueue()
+
+            DispatchQueue.main.async {
+              self.cleanupAfterFailedStopPreservingSegments()
+              continuation.resume(
+                returning: [
+                  "ok": true
+                ]
+              )
+            }
+          }
+        }
       }
-
-      self.currentDestinationURL = nil
-      self.currentSegmentsDirectoryURL = nil
-      self.isStopping = false
-      self.resetLiveState()
-      self.resetWriterState()
-
-      return [
-        "ok": true
-      ]
     }
     .runOnQueue(.main)
 
@@ -954,7 +1037,8 @@ public final class LectureRecorderModule: Module {
       currentDestinationURL != nil,
       !isStopping,
       !isPausedForInterruption,
-      !lifecycleRestartPending
+      !lifecycleRestartPending,
+      let sessionID = currentRecordingSession()
     else {
       return
     }
@@ -962,36 +1046,62 @@ public final class LectureRecorderModule: Module {
     lifecycleRestartPending = true
     stopAcceptingNewBuffers()
     stopCaptureEngine()
-    tapCallbackGroup.wait()
 
-    writerQueue.async { [weak self] in
+    DispatchQueue.global(qos: .utility).async { [weak self] in
       guard let self else { return }
-      self.finalizeCurrentSegmentOnWriterQueue()
+      let drained = self.tapCallbackGroup.wait(timeout: .now() + 5.0) == .success
 
-      DispatchQueue.main.async {
-        guard
-          self.currentDestinationURL != nil,
-          !self.isStopping,
-          !self.isPausedForInterruption
-        else {
-          self.lifecycleRestartPending = false
-          return
-        }
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
+        guard self.isCurrentRecordingSession(sessionID) else { return }
+        if !drained { self.invalidateCaptureGeneration() }
 
-        do {
-          try self.configureAudioSessionForRecording()
-          try self.startCaptureEngine()
-          self.lifecycleRestartPending = false
-        } catch {
-          self.lifecycleRestartPending = false
-          let snapshot = self.statusSnapshot()
-          self.emitRecorderError(
-            code: "ERR_AUDIO_LIFECYCLE_RESTART",
-            message: "The recorder could not resume after \(reason): \(error.localizedDescription)",
-            url: self.currentDestinationURL,
-            bytes: snapshot.bytes,
-            durationMillis: snapshot.durationMillis
-          )
+        self.writerQueue.async { [weak self] in
+          guard let self, self.isCurrentRecordingSession(sessionID) else { return }
+          self.finalizeCurrentSegmentOnWriterQueue()
+
+          DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard self.isCurrentRecordingSession(sessionID) else { return }
+            if !drained {
+              // A timed-out tap may still be executing. Never attach a new
+              // capture engine to this session after an incomplete drain.
+              let snapshot = self.statusSnapshot()
+              let destinationURL = self.currentDestinationURL
+              self.emitRecorderError(
+                code: "ERR_AUDIO_LIFECYCLE_DRAIN_TIMEOUT",
+                message: "Microphone callbacks did not drain after \(reason). Committed checkpoints were preserved for recovery.",
+                url: destinationURL,
+                bytes: snapshot.bytes,
+                durationMillis: snapshot.durationMillis
+              )
+              self.cleanupAfterFailedStopPreservingSegments()
+              return
+            }
+            guard
+              self.currentDestinationURL != nil,
+              !self.isStopping,
+              !self.isPausedForInterruption
+            else {
+              self.lifecycleRestartPending = false
+              return
+            }
+            do {
+              try self.configureAudioSessionForRecording()
+              try self.startCaptureEngine()
+              self.lifecycleRestartPending = false
+            } catch {
+              self.lifecycleRestartPending = false
+              let snapshot = self.statusSnapshot()
+              self.emitRecorderError(
+                code: "ERR_AUDIO_LIFECYCLE_RESTART",
+                message: "The recorder could not resume after \(reason): \(error.localizedDescription)",
+                url: self.currentDestinationURL,
+                bytes: snapshot.bytes,
+                durationMillis: snapshot.durationMillis
+              )
+            }
+          }
         }
       }
     }
@@ -1032,23 +1142,30 @@ public final class LectureRecorderModule: Module {
     guard
       currentDestinationURL != nil,
       !isStopping,
-      !isPausedForInterruption
+      !isPausedForInterruption,
+      let sessionID = currentRecordingSession()
     else {
       return
     }
 
     isPausedForInterruption = true
     resumeToken = nil
-
     stopAcceptingNewBuffers()
     stopCaptureEngine()
-    tapCallbackGroup.wait()
 
-    // Drain already-captured buffers, then close the current
-    // compressed segment cleanly. The accepted-call interval
-    // itself produces no buffers and therefore adds no duration.
-    writerQueue.async { [weak self] in
-      self?.finalizeCurrentSegmentOnWriterQueue()
+    DispatchQueue.global(qos: .utility).async { [weak self] in
+      guard let self else { return }
+      let drained = self.tapCallbackGroup.wait(timeout: .now() + 5.0) == .success
+
+      DispatchQueue.main.async { [weak self] in
+        guard let self, self.isCurrentRecordingSession(sessionID) else { return }
+        if !drained { self.invalidateCaptureGeneration() }
+
+        self.writerQueue.async { [weak self] in
+          guard let self, self.isCurrentRecordingSession(sessionID) else { return }
+          self.finalizeCurrentSegmentOnWriterQueue()
+        }
+      }
     }
   }
 
@@ -1270,10 +1387,13 @@ public final class LectureRecorderModule: Module {
       )
       inputTapInstalled = false
 
-      tapCallbackGroup.wait()
+      // engine.start() failed, so do not synchronously wait on the main
+      // queue for tap callbacks or writer cleanup. Invalidate this capture
+      // generation; any late callback will be discarded by both guards.
+      invalidateCaptureGeneration()
 
-      writerQueue.sync {
-        self.abortCurrentPartialOnWriterQueue()
+      writerQueue.async { [weak self] in
+        self?.abortCurrentPartialOnWriterQueue()
       }
 
       let nsError = error as NSError
@@ -1919,37 +2039,62 @@ public final class LectureRecorderModule: Module {
   private func reportWriterFailure(
     _ message: String
   ) {
+    // Capture the recording that owns this failure before dispatching work.
+    // An old writer callback must never stop a newly started session.
     var shouldReport = false
+    var failureSessionID: UUID?
 
     withStateLock {
-      if writerFailureMessage == nil {
+      if writerFailureMessage == nil, let sessionID = recordingSessionID {
         writerFailureMessage = message
+        failureSessionID = sessionID
         shouldReport = true
       }
     }
 
-    guard shouldReport else {
+    guard shouldReport, let sessionID = failureSessionID else {
       return
     }
 
     DispatchQueue.main.async { [weak self] in
-      guard let self else { return }
+      guard let self, self.isCurrentRecordingSession(sessionID) else { return }
 
       self.stopAcceptingNewBuffers()
       self.stopCaptureEngine()
-      self.tapCallbackGroup.wait()
       self.deactivateAudioSession()
       self.isPausedForInterruption = true
 
-      let snapshot = self.statusSnapshot()
+      DispatchQueue.global(qos: .utility).async { [weak self] in
+        guard let self else { return }
 
-      self.emitRecorderError(
-        code: "ERR_SEGMENT_WRITER",
-        message: "The lecture segment writer stopped: \(message)",
-        url: self.currentDestinationURL,
-        bytes: snapshot.bytes,
-        durationMillis: snapshot.durationMillis
-      )
+        let drained =
+          self.tapCallbackGroup.wait(
+            timeout: .now() + 5.0
+          ) == .success
+
+        // Keep session validation and generation invalidation on main.
+        DispatchQueue.main.async { [weak self] in
+          guard let self, self.isCurrentRecordingSession(sessionID) else { return }
+          if !drained { self.invalidateCaptureGeneration() }
+
+          self.writerQueue.async { [weak self] in
+            guard let self, self.isCurrentRecordingSession(sessionID) else { return }
+            self.finalizeCurrentSegmentOnWriterQueue()
+
+            DispatchQueue.main.async { [weak self] in
+              guard let self, self.isCurrentRecordingSession(sessionID) else { return }
+              let snapshot = self.statusSnapshot()
+              self.emitRecorderError(
+                code: "ERR_SEGMENT_WRITER",
+                message: "The lecture segment writer stopped: \(message)",
+                url: self.currentDestinationURL,
+                bytes: snapshot.bytes,
+                durationMillis: snapshot.durationMillis
+              )
+            }
+          }
+        }
+      }
     }
   }
 
@@ -2746,10 +2891,39 @@ public final class LectureRecorderModule: Module {
     }
   }
 
+  private func beginStopBackgroundTask() {
+    guard stopBackgroundTask == .invalid else {
+      return
+    }
+
+    stopBackgroundTask =
+      UIApplication.shared.beginBackgroundTask(
+        withName: "NorskTrainerLectureStop"
+      ) { [weak self] in
+        guard let self else { return }
+        DispatchQueue.main.async {
+          self.endStopBackgroundTask()
+        }
+      }
+  }
+
+  private func endStopBackgroundTask() {
+    guard stopBackgroundTask != .invalid else {
+      return
+    }
+
+    let task = stopBackgroundTask
+    stopBackgroundTask = .invalid
+    UIApplication.shared.endBackgroundTask(task)
+  }
+
   private func cleanupAfterSuccessfulStop() {
+    endRecordingSession()
+    lifecycleRestartPending = false
     stopAcceptingNewBuffers()
     stopCaptureEngine()
     deactivateAudioSession()
+    endStopBackgroundTask()
 
     currentDestinationURL = nil
     currentSegmentsDirectoryURL = nil
@@ -2762,9 +2936,12 @@ public final class LectureRecorderModule: Module {
   }
 
   private func cleanupAfterFailedStopPreservingSegments() {
+    endRecordingSession()
+    lifecycleRestartPending = false
     stopAcceptingNewBuffers()
     stopCaptureEngine()
     deactivateAudioSession()
+    endStopBackgroundTask()
 
     // Clear runtime ownership so JS can recover on the next launch,
     // but intentionally keep the finalized segment directory on disk.
@@ -2776,6 +2953,22 @@ public final class LectureRecorderModule: Module {
 
     resetLiveState()
     resetWriterState()
+  }
+
+  private func beginRecordingSession() {
+    withStateLock { recordingSessionID = UUID() }
+  }
+
+  private func endRecordingSession() {
+    withStateLock { recordingSessionID = nil }
+  }
+
+  private func currentRecordingSession() -> UUID? {
+    withStateLock { recordingSessionID }
+  }
+
+  private func isCurrentRecordingSession(_ id: UUID) -> Bool {
+    withStateLock { recordingSessionID == id }
   }
 
   private func nextCaptureGeneration() -> UInt64 {

@@ -345,6 +345,15 @@ export default function VoiceScreen() {
   const recordingActionPendingRef =
     useRef(false);
 
+  const [
+    recordingActionPhase,
+    setRecordingActionPhase,
+  ] = useState<
+    'idle' |
+    'starting' |
+    'saving'
+  >('idle');
+
   const processingLockRef =
     useRef<
       'transcription' |
@@ -808,6 +817,9 @@ export default function VoiceScreen() {
 
       recordingActionPendingRef.current =
         true;
+      setRecordingActionPhase(
+        'starting'
+      );
 
 
       try {
@@ -998,6 +1010,9 @@ export default function VoiceScreen() {
 
         recordingActionPendingRef.current =
           false;
+        setRecordingActionPhase(
+          'idle'
+        );
       }
     };
 
@@ -1080,6 +1095,9 @@ export default function VoiceScreen() {
 
       recordingActionPendingRef.current =
         true;
+      setRecordingActionPhase(
+        'saving'
+      );
 
 
       const active =
@@ -1304,6 +1322,9 @@ export default function VoiceScreen() {
 
         recordingActionPendingRef.current =
           false;
+        setRecordingActionPhase(
+          'idle'
+        );
       }
     };
 
@@ -1995,43 +2016,29 @@ export default function VoiceScreen() {
               )}
             </Text>
 
-            {recorderState
-              .writerFailureMessage && (
-
-              <Text
-                style={[
-                  styles.backgroundInfo,
-                  {
-                    color:
-                      T.textSecondary,
-                    fontSize:
-                      F.base - 1,
-                  },
-                ]}
-              >
-                {recorderState
-                  .writerFailureMessage}
-              </Text>
-            )}
-
-
-            {recorderState
-              .isPausedForInterruption && (
-
-              <Text
-                style={[
-                  styles.backgroundInfo,
-                  {
-                    color:
-                      T.textSecondary,
-                    fontSize:
-                      F.base - 1,
-                  },
-                ]}
-              >
-                {audioUi.callPauseInfo}
-              </Text>
-            )}
+            <View
+              style={
+                styles.recordingStatusSlot
+              }
+            >
+              {(recorderState.writerFailureMessage ||
+                recorderState.isPausedForInterruption) && (
+                <Text
+                  style={[
+                    styles.backgroundInfo,
+                    {
+                      color:
+                        T.textSecondary,
+                      fontSize:
+                        F.base - 1,
+                    },
+                  ]}
+                >
+                  {recorderState.writerFailureMessage ||
+                    audioUi.callPauseInfo}
+                </Text>
+              )}
+            </View>
 
             <View
               style={
@@ -2404,6 +2411,7 @@ export default function VoiceScreen() {
                 : audioUi.startRecording
             }
             disabled={
+              recordingActionPhase !== 'idle' ||
               (
                 isLectureProcessing ||
                 liveBusy
@@ -2415,7 +2423,7 @@ export default function VoiceScreen() {
                 ? handleStop
                 : handleStart
             }
-            style={[
+            style={({ pressed }) => [
               styles.mainButton,
               styles.recordingMainButton,
               {
@@ -2425,13 +2433,21 @@ export default function VoiceScreen() {
                     ? '#C94B4B'
                     : T.accent,
                 opacity:
+                  recordingActionPhase !== 'idle' ||
                   (
                     isLectureProcessing ||
                     liveBusy
                   ) &&
                   status !== 'recording'
                     ? 0.55
-                    : 1,
+                    : pressed
+                      ? 0.72
+                      : 1,
+                transform:
+                  pressed &&
+                  recordingActionPhase === 'idle'
+                    ? [{ scale: 0.985 }]
+                    : [],
               },
             ]}
           >
@@ -2440,12 +2456,16 @@ export default function VoiceScreen() {
                 styles.mainButtonText
               }
             >
-              {status === 'recording'
-                ? audioUi.stopRecording
-                : transcribingLectureId ||
-                    translatingLectureId
-                  ? audioUi.processing
-                  : audioUi.startRecording}
+              {recordingActionPhase === 'starting'
+                ? audioUi.startingRecording
+                : recordingActionPhase === 'saving'
+                  ? audioUi.savingRecording
+                  : status === 'recording'
+                    ? audioUi.stopRecording
+                    : transcribingLectureId ||
+                        translatingLectureId
+                      ? audioUi.processing
+                      : audioUi.startRecording}
             </Text>
           </Pressable>
 
@@ -3841,10 +3861,14 @@ const styles =
       marginBottom: 10,
     },
 
+    recordingStatusSlot: {
+      minHeight: 44,
+      justifyContent: 'center',
+    },
+
     backgroundInfo: {
       textAlign: 'center',
       lineHeight: 21,
-      marginBottom: 22,
       fontWeight: '600',
     },
 

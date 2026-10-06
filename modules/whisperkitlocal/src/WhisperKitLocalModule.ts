@@ -98,7 +98,17 @@ declare class WhisperKitLocalNativeModule
     Promise<WhisperLiveStopResult>;
 
   cancelLive():
-    Promise<{ ok: boolean }>;
+    Promise<
+      | {
+          ok: boolean;
+          cleanupPending?: boolean;
+          audioUri?: undefined;
+          durationMillis?: undefined;
+          bytes?: undefined;
+          writerError?: undefined;
+        }
+      | WhisperLiveStopResult
+    >;
 }
 
 export default requireNativeModule<

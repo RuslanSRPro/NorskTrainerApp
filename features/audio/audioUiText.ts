@@ -33,6 +33,8 @@ const COPY = {
   ua: {
     captureTitle: '🎙 Запис аудіо',
     startRecording: 'Почати запис',
+    startingRecording: 'Запускаємо…',
+    savingRecording: 'Зберігаємо…',
     idleInfo: 'Запишіть лекцію локально у M4A або імпортуйте готовий аудіофайл. Звичайний запис працює у фоновому режимі та під час блокування iPhone.',
     stopRecording: 'Зупинити запис',
     preparingLive: 'Підготовка Live…',
@@ -211,6 +213,8 @@ const COPY = {
   en: {
     captureTitle: '🎙 Audio recording',
     startRecording: 'Start recording',
+    startingRecording: 'Starting…',
+    savingRecording: 'Saving…',
     idleInfo: 'Record a lecture locally as M4A or import an existing audio file. Standard recording supports iPhone lock and background recording.',
     stopRecording: 'Stop recording',
     preparingLive: 'Preparing Live…',
@@ -389,6 +393,8 @@ const COPY = {
   no: {
     captureTitle: '🎙 Lydopptak',
     startRecording: 'Start opptak',
+    startingRecording: 'Starter…',
+    savingRecording: 'Lagrer…',
     idleInfo: 'Ta opp en forelesning lokalt som M4A, eller importer en eksisterende lydfil. Vanlig opptak støtter låst skjerm og bakgrunnsopptak.',
     stopRecording: 'Stopp opptak',
     preparingLive: 'Forbereder Live…',

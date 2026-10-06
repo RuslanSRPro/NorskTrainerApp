@@ -404,15 +404,14 @@ public class WhisperKitLocalModule: Module {
     AsyncFunction("cancelLive") {
       () async -> [String: Any] in
 
-      if let cleanup = self.liveCleanupSession {
-        await cleanup
-          .awaitStreamCleanupCompletion()
-
-        if self.liveCleanupSession === cleanup {
-          self.liveCleanupSession = nil
-        }
-
-        return ["ok": true]
+      if self.liveCleanupSession != nil {
+        // Cleanup ownership is intentionally retained until the background
+        // owner task observes real Whisper termination. cancelLive() must
+        // not turn that unbounded native cleanup into an unbounded JS wait.
+        return [
+          "ok": true,
+          "cleanupPending": true
+        ]
       }
 
       if let pending = self.livePendingProcessor {
@@ -425,22 +424,38 @@ public class WhisperKitLocalModule: Module {
       }
 
       let result = await session.stop()
-      self.liveSession = nil
 
-      let path = try? self.filePath(
-        from: result.audioUri
-      )
+      if result.streamCleanupTimedOut {
+        /*
+         * Keep ownership of the old Whisper session until its asynchronous
+         * cleanup really finishes. This prevents a new Live session from
+         * starting on top of a still-terminating stream.
+         */
+        self.liveCleanupSession = session
+        self.liveSession = nil
 
-      if let path,
-         FileManager.default.fileExists(
-          atPath: path
-         ) {
-        try? FileManager.default.removeItem(
-          atPath: path
-        )
+        Task { [weak self, weak session] in
+          guard let session else {
+            return
+          }
+
+          await session.awaitStreamCleanupCompletion()
+
+          guard let self else {
+            return
+          }
+
+          if self.liveCleanupSession === session {
+            self.liveCleanupSession = nil
+          }
+        }
+      } else {
+        self.liveSession = nil
       }
 
-      return ["ok": true]
+      // Cancellation is non-destructive. Return the finalized audio result
+      // to JS so it can be promoted into the durable lecture library.
+      return result.dictionary
     }
   }
 

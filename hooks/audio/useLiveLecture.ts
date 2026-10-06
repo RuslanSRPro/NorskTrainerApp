@@ -659,6 +659,104 @@ export function useLiveLecture({
       }
     };
 
+  const preserveInterruptedLiveAudio =
+    async (
+      active: ActiveLiveLecture,
+      durationMillis: number,
+      reason: string
+    ) => {
+      if (
+        !active.tempAudioFile.exists ||
+        (active.tempAudioFile.size ?? 0) < 4096
+      ) {
+        return false;
+      }
+
+      const directory =
+        getLectureDirectory(
+          active.id
+        );
+
+      directory.create({
+        intermediates: true,
+        idempotent: true,
+      });
+
+      const audioFile =
+        new File(
+          directory,
+          'audio.m4a'
+        );
+
+      // A Live id is unique. Never overwrite or delete an existing durable
+      // lecture during failure recovery.
+      if (audioFile.exists) {
+        // Never overwrite an existing durable lecture on a recovery path.
+        // Keep the cache copy as the fallback rather than guessing ownership.
+        return false;
+      }
+
+      await active.tempAudioFile
+        .copy(audioFile);
+
+      const audioBytes =
+        audioFile.size ?? 0;
+
+      if (
+        !audioFile.exists ||
+        audioBytes < 4096
+      ) {
+        return false;
+      }
+
+      writeMetadata(
+        directory,
+        {
+          id:
+            active.id,
+          createdAt:
+            active.createdAt,
+          durationMillis:
+            Math.max(
+              0,
+              Math.round(
+                durationMillis
+              )
+            ),
+          language:
+            active.sourceLanguage,
+          title:
+            null,
+          audioFile:
+            'audio.m4a',
+          transcriptFile:
+            null,
+          transcriptReady:
+            false,
+          characters:
+            0,
+          audioBytes,
+          source:
+            'recorded',
+          recordingState:
+            'interrupted',
+          interruptionReason:
+            reason,
+          transcription:
+            createChunkPlan(
+              Math.max(
+                0,
+                Math.round(
+                  durationMillis
+                )
+              )
+            ),
+        }
+      );
+
+      return true;
+    };
+
   const start = async () => {
     if (
       activeRef.current ||
@@ -787,7 +885,19 @@ export function useLiveLecture({
         );
       }
 
-      activeRef.current = null;
+      const failedActive =
+        activeRef.current;
+
+      const estimatedDurationMillis =
+        liveClockStartedAtRef.current ===
+          null
+          ? 0
+          : Math.max(
+              0,
+              Date.now() -
+                liveClockStartedAtRef.current
+            );
+
       stopLiveClock();
       clearTranslationFlushTimer();
       pendingTranslationRef.current =
@@ -796,18 +906,60 @@ export function useLiveLecture({
       setPhase('error');
       setBusy(false);
 
+      let cancelled:
+        Awaited<
+          ReturnType<
+            typeof WhisperKitLocal.cancelLive
+          >
+        > | null =
+          null;
+
       try {
-        await WhisperKitLocal
-          .cancelLive();
+        cancelled =
+          await WhisperKitLocal
+            .cancelLive();
       } catch {}
 
       if (
+        failedActive &&
         tempAudioFile?.exists
       ) {
         try {
-          tempAudioFile.delete();
-        } catch {}
+          const durationMillis =
+            Number(
+              cancelled?.durationMillis ??
+                estimatedDurationMillis
+            );
+
+          const preserved =
+            await preserveInterruptedLiveAudio(
+              failedActive,
+              Number.isFinite(
+                durationMillis
+              )
+                ? durationMillis
+                : estimatedDurationMillis,
+              cancelled?.writerError
+                ? `Live recording was interrupted during start: ${cancelled.writerError}`
+                : `Live recording was interrupted during start: ${message}`
+            );
+
+          if (
+            preserved &&
+            tempAudioFile.exists
+          ) {
+            tempAudioFile.delete();
+          }
+
+          if (preserved) {
+            loadLectures();
+          }
+        } catch {
+          // Keep the cache file intact if durable promotion fails.
+        }
       }
+
+      activeRef.current = null;
 
       try {
         await deactivateKeepAwake(
@@ -1263,10 +1415,36 @@ export function useLiveLecture({
       setPhase('error');
 
       /*
-       * If audio was already copied to the lecture library,
-       * leave it there even if a later post-processing step
-       * failed. Never delete a valid recording as cleanup.
+       * If audio was already copied to the lecture library, leave it there.
+       * Otherwise promote any finalized temp audio into an interrupted
+       * lecture. Failure cleanup must never delete the only valid recording.
        */
+      if (!permanentAudioCreated) {
+        try {
+          const estimatedDurationMillis =
+            Math.max(
+              elapsedMillis,
+              0
+            );
+
+          permanentAudioCreated =
+            await preserveInterruptedLiveAudio(
+              active,
+              estimatedDurationMillis,
+              `Live recording stop failed: ${message}`
+            );
+
+          if (
+            permanentAudioCreated &&
+            active.tempAudioFile.exists
+          ) {
+            active.tempAudioFile.delete();
+          }
+        } catch {
+          // Keep the cache file intact if durable promotion fails.
+        }
+      }
+
       activeRef.current = null;
 
       if (permanentAudioCreated) {
