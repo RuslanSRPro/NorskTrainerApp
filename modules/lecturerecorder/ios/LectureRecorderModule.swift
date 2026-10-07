@@ -442,7 +442,6 @@ public final class LectureRecorderModule: Module {
       }
       }
     }
-    .runOnQueue(.main)
 
     AsyncFunction("cancel") { () async throws -> [String: Any] in
       guard !self.isStopping else {
@@ -586,7 +585,6 @@ public final class LectureRecorderModule: Module {
         "bytes": self.fileSize(url)
       ]
     }
-    .runOnQueue(.main)
 
     AsyncFunction("validateRecording") { (uri: String) -> [String: Any] in
       guard
@@ -608,7 +606,6 @@ public final class LectureRecorderModule: Module {
         url
       )
     }
-    .runOnQueue(.main)
 
     AsyncFunction("prepareSegmentPlayback") { (destinationUri: String) throws -> [String: Any] in
       guard
@@ -768,19 +765,16 @@ public final class LectureRecorderModule: Module {
 
       return self.segmentPlaybackStatusDictionary()
     }
-    .runOnQueue(.main)
 
     AsyncFunction("playSegmentPlayback") { () -> [String: Any] in
       self.segmentPlaybackPlayer?.play()
       return self.segmentPlaybackStatusDictionary()
     }
-    .runOnQueue(.main)
 
     AsyncFunction("pauseSegmentPlayback") { () -> [String: Any] in
       self.segmentPlaybackPlayer?.pause()
       return self.segmentPlaybackStatusDictionary()
     }
-    .runOnQueue(.main)
 
     AsyncFunction("seekSegmentPlayback") { (seconds: Double, promise: Promise) in
       guard
@@ -840,7 +834,6 @@ public final class LectureRecorderModule: Module {
         }
       }
     }
-    .runOnQueue(.main)
 
     AsyncFunction("stopSegmentPlayback") { () -> [String: Any] in
       self.segmentPlaybackPlayer?.pause()
@@ -849,12 +842,10 @@ public final class LectureRecorderModule: Module {
       self.segmentPlaybackLectureUri = nil
       return self.segmentPlaybackStatusDictionary()
     }
-    .runOnQueue(.main)
 
     Function("getSegmentPlaybackStatus") {
       self.segmentPlaybackStatusDictionary()
     }
-    .runOnQueue(.main)
 
     AsyncFunction("assembleRecording") { (destinationUri: String, promise: Promise) in
       guard
@@ -926,7 +917,6 @@ public final class LectureRecorderModule: Module {
         }
       }
     }
-    .runOnQueue(.main)
 
     AsyncFunction("recoverRecording") { (destinationUri: String, promise: Promise) in
       guard
@@ -1088,7 +1078,6 @@ public final class LectureRecorderModule: Module {
         }
       }
     }
-    .runOnQueue(.main)
   }
 
   private func assembleRecordingFromManifest(
