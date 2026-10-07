@@ -7,7 +7,15 @@ import {
   useAudioPlayerStatus,
 } from 'expo-audio';
 
-import { File } from 'expo-file-system';
+import {
+  Directory,
+  File,
+  Paths,
+} from 'expo-file-system';
+
+import LectureRecorder, {
+  type LectureSegmentPlaybackStatus,
+} from '@/modules/lecturerecorder';
 
 import type {
   LectureItem,
@@ -57,7 +65,7 @@ export function useLecturePlayback({
       }
     );
 
-  const playerStatus =
+  const filePlayerStatus =
     useAudioPlayerStatus(
       player
     );
@@ -80,6 +88,27 @@ export function useLecturePlayback({
     setPlaybackError,
   ] =
     useState<string | null>(null);
+
+
+  const [
+    segmentPlayerStatus,
+    setSegmentPlayerStatus,
+  ] =
+    useState<LectureSegmentPlaybackStatus>({
+      isLoaded: false,
+      playing: false,
+      currentTime: 0,
+      duration: 0,
+      lectureUri: null,
+    });
+
+  const segmentPlaybackActiveRef =
+    useRef(false);
+
+  const playerStatus =
+    segmentPlaybackActiveRef.current
+      ? segmentPlayerStatus
+      : filePlayerStatus;
 
 
   const pendingPlaybackIdRef =
@@ -128,6 +157,43 @@ export function useLecturePlayback({
 
   const playbackGenerationRef =
     useRef(0);
+
+
+  const getDerivedAudioUri =
+    (
+      lectureId: string
+    ) =>
+      new File(
+        new Directory(
+          Paths.document,
+          'lectures',
+          lectureId
+        ),
+        'audio.m4a'
+      ).uri;
+
+
+  const refreshSegmentPlaybackStatus =
+    () => {
+
+      if (
+        !segmentPlaybackActiveRef.current
+      ) {
+        return;
+      }
+
+      try {
+        setSegmentPlayerStatus(
+          LectureRecorder
+            .getSegmentPlaybackStatus()
+        );
+      } catch (error) {
+        devConsole.error(
+          'Segment playback status error:',
+          error
+        );
+      }
+    };
 
 
   const clearPlaybackLoadTimers =
@@ -395,8 +461,39 @@ export function useLecturePlayback({
 
   useEffect(() => {
 
+    if (
+      !segmentPlaybackActiveRef.current
+    ) {
+      return;
+    }
+
+    const timer =
+      setInterval(
+        refreshSegmentPlaybackStatus,
+        250
+      );
+
+    return () => {
+      clearInterval(timer);
+    };
+
+  }, [
+    segmentPlayerStatus.lectureUri,
+  ]);
+
+
+  useEffect(() => {
+
     return () => {
       clearPlaybackLoadTimers();
+
+      if (
+        segmentPlaybackActiveRef.current
+      ) {
+        void LectureRecorder
+          .stopSegmentPlayback()
+          .catch(() => {});
+      }
     };
 
   }, []);
@@ -411,7 +508,16 @@ export function useLecturePlayback({
       clearPendingPlayback();
 
       if (
-        playerStatus.playing
+        segmentPlaybackActiveRef.current
+      ) {
+        segmentPlaybackActiveRef.current =
+          false;
+
+        void LectureRecorder
+          .stopSegmentPlayback()
+          .catch(() => {});
+      } else if (
+        filePlayerStatus.playing
       ) {
         player.pause();
       }
@@ -448,7 +554,16 @@ export function useLecturePlayback({
       );
 
       if (
-        playerStatus.playing
+        segmentPlaybackActiveRef.current
+      ) {
+        segmentPlaybackActiveRef.current =
+          false;
+
+        void LectureRecorder
+          .stopSegmentPlayback()
+          .catch(() => {});
+      } else if (
+        filePlayerStatus.playing
       ) {
         player.pause();
       }
@@ -466,7 +581,19 @@ export function useLecturePlayback({
       ) {
 
         invalidateSeekQueue();
-        player.pause();
+
+        if (
+          segmentPlaybackActiveRef.current
+        ) {
+          segmentPlaybackActiveRef.current =
+            false;
+
+          void LectureRecorder
+            .stopSegmentPlayback()
+            .catch(() => {});
+        } else {
+          player.pause();
+        }
 
         setPlayingLectureId(
           null
@@ -502,6 +629,174 @@ export function useLecturePlayback({
         setPlaybackError(
           null
         );
+
+
+        let finalAudioUsable = false;
+
+        if (lecture.audioUri.length > 0) {
+          const validation =
+            await LectureRecorder.validateRecording(
+              lecture.audioUri
+            );
+
+          finalAudioUsable =
+            validation.valid &&
+            validation.playable &&
+            validation.bytes >= 4096 &&
+            validation.durationMillis >= 500;
+        }
+
+        if (
+          !finalAudioUsable &&
+          lecture.recordingState ===
+            'saved'
+        ) {
+
+          await setAudioModeAsync({
+            playsInSilentMode: true,
+            allowsRecording: false,
+            allowsBackgroundRecording: false,
+            shouldPlayInBackground: false,
+            interruptionMode: 'doNotMix',
+          });
+
+          if (
+            segmentPlaybackActiveRef.current &&
+            playingLectureId ===
+              lecture.id
+          ) {
+
+            const current =
+              LectureRecorder
+                .getSegmentPlaybackStatus();
+
+            if (current.playing) {
+              const paused =
+                await LectureRecorder
+                  .pauseSegmentPlayback();
+
+              setSegmentPlayerStatus(
+                paused
+              );
+            } else {
+
+              if (
+                current.duration > 0 &&
+                current.currentTime >=
+                  current.duration - 0.15
+              ) {
+                await LectureRecorder
+                  .seekSegmentPlayback(
+                    0
+                  );
+              }
+
+              const playing =
+                await LectureRecorder
+                  .playSegmentPlayback();
+
+              setSegmentPlayerStatus(
+                playing
+              );
+            }
+
+            return;
+          }
+
+          clearPlaybackLoadTimers();
+          invalidateSeekQueue();
+          player.pause();
+
+          setLoadingLectureId(
+            lecture.id
+          );
+
+          const prepared =
+            await LectureRecorder
+              .prepareSegmentPlayback(
+                getDerivedAudioUri(
+                  lecture.id
+                )
+              );
+
+          segmentPlaybackActiveRef.current =
+            true;
+
+          setSegmentPlayerStatus(
+            prepared
+          );
+
+          setPlayingLectureId(
+            lecture.id
+          );
+
+          setLoadingLectureId(
+            null
+          );
+
+          const pendingSeek =
+            pendingPlaybackSeekRef.current;
+
+          if (
+            pendingSeek &&
+            pendingSeek.lectureId ===
+              lecture.id
+          ) {
+            pendingPlaybackSeekRef.current =
+              null;
+
+            await LectureRecorder
+              .seekSegmentPlayback(
+                pendingSeek.seconds
+              );
+
+            if (
+              pendingSeek.autoplay
+            ) {
+              const playing =
+                await LectureRecorder
+                  .playSegmentPlayback();
+
+              setSegmentPlayerStatus(
+                playing
+              );
+            } else {
+              refreshSegmentPlaybackStatus();
+            }
+
+            return;
+          }
+
+          const playing =
+            await LectureRecorder
+              .playSegmentPlayback();
+
+          setSegmentPlayerStatus(
+            playing
+          );
+
+          return;
+        }
+
+
+        if (!finalAudioUsable) {
+          Alert.alert(
+            audioUi.playbackErrorTitle,
+            audioUi.playbackFileMissing
+          );
+          return;
+        }
+
+
+        if (
+          segmentPlaybackActiveRef.current
+        ) {
+          segmentPlaybackActiveRef.current =
+            false;
+
+          await LectureRecorder
+            .stopSegmentPlayback();
+        }
 
 
         const audioFile =
@@ -771,8 +1066,40 @@ export function useLecturePlayback({
         if (
           playingLectureId ===
             lecture.id &&
-          playerStatus.isLoaded &&
-          playerStatus.duration >
+          segmentPlaybackActiveRef.current &&
+          segmentPlayerStatus.isLoaded &&
+          segmentPlayerStatus.duration >
+            0
+        ) {
+
+          const seeked =
+            await LectureRecorder
+              .seekSegmentPlayback(
+                safeSeconds
+              );
+
+          setSegmentPlayerStatus(
+            seeked
+          );
+
+          if (autoplay) {
+            const playing =
+              await LectureRecorder
+                .playSegmentPlayback();
+
+            setSegmentPlayerStatus(
+              playing
+            );
+          }
+
+          return;
+        }
+
+        if (
+          playingLectureId ===
+            lecture.id &&
+          filePlayerStatus.isLoaded &&
+          filePlayerStatus.duration >
             0
         ) {
 
@@ -828,8 +1155,38 @@ export function useLecturePlayback({
       try {
 
         if (
-          !playerStatus.isLoaded ||
-          playerStatus.duration <= 0
+          segmentPlaybackActiveRef.current
+        ) {
+          if (
+            !segmentPlayerStatus.isLoaded ||
+            segmentPlayerStatus.duration <= 0
+          ) {
+            return;
+          }
+
+          const seeked =
+            await LectureRecorder
+              .seekSegmentPlayback(
+                Math.min(
+                  segmentPlayerStatus.duration,
+                  Math.max(
+                    0,
+                    segmentPlayerStatus.currentTime +
+                      deltaSeconds
+                  )
+                )
+              );
+
+          setSegmentPlayerStatus(
+            seeked
+          );
+
+          return;
+        }
+
+        if (
+          !filePlayerStatus.isLoaded ||
+          filePlayerStatus.duration <= 0
         ) {
           return;
         }
@@ -873,8 +1230,41 @@ export function useLecturePlayback({
       try {
 
         if (
-          !playerStatus.isLoaded ||
-          playerStatus.duration <= 0
+          segmentPlaybackActiveRef.current
+        ) {
+          if (
+            !segmentPlayerStatus.isLoaded ||
+            segmentPlayerStatus.duration <= 0
+          ) {
+            return;
+          }
+
+          const safeFraction =
+            Math.min(
+              1,
+              Math.max(
+                0,
+                fraction
+              )
+            );
+
+          const seeked =
+            await LectureRecorder
+              .seekSegmentPlayback(
+                segmentPlayerStatus.duration *
+                  safeFraction
+              );
+
+          setSegmentPlayerStatus(
+            seeked
+          );
+
+          return;
+        }
+
+        if (
+          !filePlayerStatus.isLoaded ||
+          filePlayerStatus.duration <= 0
         ) {
           return;
         }

@@ -82,48 +82,22 @@ struct LiveWhisperStopSnapshot {
   }
 }
 
-final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
+final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   private let outputURL: URL
-
   private let stateLock = NSLock()
-  private let writerQueue = DispatchQueue(
-    label: "NorskTrainer.LiveWhisper.AudioWriter"
-  )
-
   private var samplesStorage = ContiguousArray<Float>()
   private var relativeEnergyStorage: [Float] = []
   private var averageEnergyStorage: [Float] = []
   private var _relativeEnergyWindow = 20
   private var audioBufferCallback: (([Float]) -> Void)?
-
-  private var audioEngine: AVAudioEngine?
-  private var inputTapInstalled = false
-
-  private var audioFile: AVAudioFile?
-  private var storedWriterError: String?
+  private var pcmObserver: NSObjectProtocol?
 
   init(outputURL: URL) throws {
     self.outputURL = outputURL
+  }
 
-    let directoryURL = outputURL.deletingLastPathComponent()
-    try FileManager.default.createDirectory(
-      at: directoryURL,
-      withIntermediateDirectories: true
-    )
-
-    if FileManager.default.fileExists(atPath: outputURL.path) {
-      try FileManager.default.removeItem(at: outputURL)
-    }
-
-    /*
-     * Do NOT open an AAC writer here at Whisper's 16 kHz sample rate.
-     * Some iPhone AAC routes reject that encoder configuration with
-     * CoreAudio '!dat' / 560226676 before Live recording even starts.
-     *
-     * The writer is opened lazily from the first real microphone buffer
-     * and therefore uses the route's actual PCM processing format, while
-     * a separate 16 kHz mono copy is fed to WhisperKit.
-     */
+  deinit {
+    detachFromRecorder()
   }
 
   static func loadAudio(
@@ -172,16 +146,11 @@ final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
     return samplesStorage
   }
 
-  func purgeAudioSamples(
-    keepingLast keep: Int
-  ) {
+  func purgeAudioSamples(keepingLast keep: Int) {
     stateLock.lock()
     defer { stateLock.unlock() }
-
     if samplesStorage.count > keep {
-      samplesStorage.removeFirst(
-        samplesStorage.count - keep
-      )
+      samplesStorage.removeFirst(samplesStorage.count - keep)
     }
   }
 
@@ -208,103 +177,27 @@ final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
     inputDeviceID: DeviceID?,
     callback: (([Float]) -> Void)?
   ) throws {
-    _ = inputDeviceID // iOS always uses the active/default route.
+    _ = inputDeviceID
 
-    /*
-     * Step 8.2: Live audio capture may already be running while the
-     * Whisper model is still loading. When AudioStreamTranscriber later
-     * attaches its callback, keep the existing engine and accumulated
-     * samples instead of restarting capture and losing the first words.
-     */
     stateLock.lock()
     audioBufferCallback = callback
+    let alreadyAttached = pcmObserver != nil
     stateLock.unlock()
 
-    if audioEngine != nil {
+    if alreadyAttached {
       return
     }
 
+    attachToRecorder()
+  }
+
+  func beginCapture() throws {
     stateLock.lock()
     samplesStorage = []
     relativeEnergyStorage = []
     averageEnergyStorage = []
     stateLock.unlock()
 
-    writerQueue.sync {
-      audioFile = nil
-      storedWriterError = nil
-    }
-
-    try configureAudioSession()
-
-    let engine = AVAudioEngine()
-    let inputNode = engine.inputNode
-
-    /*
-     * This intentionally mirrors the route-safe capture path used by the
-     * stable lecture recorder: install the tap with the input node's actual
-     * OUTPUT processing format. WhisperKit's stock AudioProcessor rebuilds
-     * a format from inputFormat(forBus:) and can fail on real iPhone routes
-     * with CoreAudio '!dat' (560226676).
-     */
-    let recordingFormat = inputNode.outputFormat(
-      forBus: 0
-    )
-
-    guard
-      recordingFormat.sampleRate > 0,
-      recordingFormat.channelCount > 0,
-      recordingFormat.commonFormat != .otherFormat
-    else {
-      throw NSError(
-        domain: "LiveWhisperSession",
-        code: 13,
-        userInfo: [
-          NSLocalizedDescriptionKey:
-            "The microphone has no usable output processing format."
-        ]
-      )
-    }
-
-    inputNode.installTap(
-      onBus: 0,
-      bufferSize: 2048,
-      format: recordingFormat
-    ) { [weak self] buffer, _ in
-      self?.handleMicrophoneBuffer(buffer)
-    }
-
-    inputTapInstalled = true
-    engine.prepare()
-
-    do {
-      try engine.start()
-    } catch {
-      inputNode.removeTap(onBus: 0)
-      inputTapInstalled = false
-
-      stateLock.lock()
-      audioBufferCallback = nil
-      stateLock.unlock()
-
-      let nsError = error as NSError
-      throw NSError(
-        domain: "LiveWhisperSession",
-        code: 14,
-        userInfo: [
-          NSLocalizedDescriptionKey:
-            "Live AVAudioEngine could not start. " +
-            "format=\(recordingFormat.sampleRate)Hz/\(recordingFormat.channelCount)ch, " +
-            "underlying=\(nsError.domain) \(nsError.code): \(nsError.localizedDescription)"
-        ]
-      )
-    }
-
-    audioEngine = engine
-  }
-
-
-  func beginCapture() throws {
     try startRecordingLive(
       inputDeviceID: nil,
       callback: nil
@@ -317,73 +210,43 @@ final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
     AsyncThrowingStream<[Float], Error>,
     AsyncThrowingStream<[Float], Error>.Continuation
   ) {
-    let pair = AsyncThrowingStream<[Float], Error>
-      .makeStream(
-        bufferingPolicy: .unbounded
-      )
+    let pair = AsyncThrowingStream<[Float], Error>.makeStream(
+      bufferingPolicy: .unbounded
+    )
 
-    pair.continuation.onTermination = {
-      [weak self] _ in
+    pair.continuation.onTermination = { [weak self] _ in
       self?.stopRecording()
     }
 
     do {
-      try startRecordingLive(
-        inputDeviceID: inputDeviceID
-      ) { samples in
+      try startRecordingLive(inputDeviceID: inputDeviceID) { samples in
         pair.continuation.yield(samples)
       }
     } catch {
-      pair.continuation.finish(
-        throwing: error
-      )
+      pair.continuation.finish(throwing: error)
     }
 
-    return (
-      pair.stream,
-      pair.continuation
-    )
+    return (pair.stream, pair.continuation)
   }
 
   func pauseRecording() {
-    audioEngine?.pause()
+    // Capture ownership belongs to LectureRecorder. Live can detach only.
   }
 
   func stopRecording() {
-    if let engine = audioEngine {
-      if inputTapInstalled {
-        engine.inputNode.removeTap(
-          onBus: 0
-        )
-        inputTapInstalled = false
-      }
-
-      engine.stop()
-      audioEngine = nil
-    }
-
+    detachFromRecorder()
     stateLock.lock()
     audioBufferCallback = nil
     stateLock.unlock()
-
-    /*
-     * Wait for all queued microphone writes and then release the last
-     * AVAudioFile reference. On iOS < 18 this is how the M4A container is
-     * finalized because AVAudioFile.close() is unavailable.
-     */
-    writerQueue.sync {
-      audioFile = nil
-    }
   }
 
   func stopAndSnapshot() -> LiveWhisperStopSnapshot {
     stopRecording()
-
     return LiveWhisperStopSnapshot(
       audioUri: outputURL.absoluteString,
       durationMillis: durationMillis,
-      bytes: bytes,
-      writerError: writerError,
+      bytes: 0,
+      writerError: nil,
       streamCleanupTimedOut: false
     )
   }
@@ -392,24 +255,10 @@ final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
     inputDeviceID: DeviceID?,
     callback: (([Float]) -> Void)?
   ) throws {
-    _ = inputDeviceID
-
-    if let callback {
-      stateLock.lock()
-      audioBufferCallback = callback
-      stateLock.unlock()
-    }
-
-    guard let engine = audioEngine else {
-      try startRecordingLive(
-        inputDeviceID: nil,
-        callback: callback
-      )
-      return
-    }
-
-    try configureAudioSession()
-    try engine.start()
+    try startRecordingLive(
+      inputDeviceID: inputDeviceID,
+      callback: callback
+    )
   }
 
   func padOrTrim(
@@ -428,73 +277,50 @@ final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
   var durationMillis: Int {
     stateLock.lock()
     defer { stateLock.unlock() }
-
-    return Int(
-      (Double(samplesStorage.count) /
-        liveSampleRate) * 1000.0
-    )
+    return Int((Double(samplesStorage.count) / liveSampleRate) * 1000.0)
   }
 
-  var writerError: String? {
-    writerQueue.sync {
-      storedWriterError
-    }
-  }
+  var writerError: String? { nil }
+  var bytes: Int64 { 0 }
 
-  var bytes: Int64 {
-    writerQueue.sync {
-      let attributes = try? FileManager.default
-        .attributesOfItem(
-          atPath: outputURL.path
-        )
-
-      return (
-        attributes?[.size]
-        as? NSNumber
-      )?.int64Value ?? 0
-    }
-  }
-
-  private func configureAudioSession() throws {
-    let session = AVAudioSession.sharedInstance()
-
-    try session.setCategory(
-      .playAndRecord,
-      mode: .default,
-      options: [
-        .defaultToSpeaker,
-        .allowBluetoothHFP,
-      ]
-    )
-
-    // Preferences only. The actual route format is read after activation.
-    try? session.setPreferredSampleRate(44_100.0)
-    try? session.setPreferredInputNumberOfChannels(1)
-    try session.setActive(true)
-  }
-
-  private func handleMicrophoneBuffer(
-    _ buffer: AVAudioPCMBuffer
-  ) {
-    guard buffer.frameLength > 0 else {
-      return
-    }
-
-    // Preserve the real route format for the M4A writer.
-    if let copiedBuffer = copyPCMBuffer(buffer) {
-      writerQueue.async { [weak self] in
-        self?.writeMicrophoneBuffer(copiedBuffer)
+  private func attachToRecorder() {
+    let observer = NotificationCenter.default.addObserver(
+      forName: Notification.Name(
+        "NorskTrainer.LectureRecorder.PCMBuffer"
+      ),
+      object: nil,
+      queue: nil
+    ) { [weak self] notification in
+      guard let buffer = notification.object as? AVAudioPCMBuffer else {
+        return
       }
+      self?.handleRecorderBuffer(buffer)
+    }
+
+    stateLock.lock()
+    if pcmObserver == nil {
+      pcmObserver = observer
+      stateLock.unlock()
     } else {
-      writerQueue.async { [weak self] in
-        if self?.storedWriterError == nil {
-          self?.storedWriterError =
-            "Could not copy a Live microphone buffer."
-        }
-      }
+      stateLock.unlock()
+      NotificationCenter.default.removeObserver(observer)
     }
+  }
 
-    // WhisperKit expects 16 kHz mono Float32 samples.
+  private func detachFromRecorder() {
+    stateLock.lock()
+    let observer = pcmObserver
+    pcmObserver = nil
+    stateLock.unlock()
+
+    if let observer {
+      NotificationCenter.default.removeObserver(observer)
+    }
+  }
+
+  private func handleRecorderBuffer(_ buffer: AVAudioPCMBuffer) {
+    guard buffer.frameLength > 0 else { return }
+
     guard let whisperBuffer = AudioProcessor.resampleAudio(
       fromBuffer: buffer,
       toSampleRate: liveSampleRate,
@@ -503,193 +329,30 @@ final class LiveFileAudioProcessor: AudioProcessing, @unchecked Sendable {
       return
     }
 
-    let samples = AudioProcessor.convertBufferToArray(
-      buffer: whisperBuffer
-    )
-
-    guard !samples.isEmpty else {
-      return
-    }
-
+    let samples = AudioProcessor.convertBufferToArray(buffer: whisperBuffer)
+    guard !samples.isEmpty else { return }
     consumeWhisperSamples(samples)
   }
 
-  private func consumeWhisperSamples(
-    _ samples: [Float]
-  ) {
-    let signalEnergy = AudioProcessor.calculateEnergy(
-      of: samples
-    )
+  private func consumeWhisperSamples(_ samples: [Float]) {
+    let signalEnergy = AudioProcessor.calculateEnergy(of: samples)
 
     stateLock.lock()
-
     let baseline: Float? = {
-      let window = averageEnergyStorage
-        .suffix(_relativeEnergyWindow)
+      let window = averageEnergyStorage.suffix(_relativeEnergyWindow)
       return window.min()
     }()
-
     let relative = AudioProcessor.calculateRelativeEnergy(
       of: samples,
       relativeTo: baseline
     )
-
-    samplesStorage.append(
-      contentsOf: samples
-    )
-    averageEnergyStorage.append(
-      signalEnergy.avg
-    )
-    relativeEnergyStorage.append(
-      relative
-    )
-
+    samplesStorage.append(contentsOf: samples)
+    averageEnergyStorage.append(signalEnergy.avg)
+    relativeEnergyStorage.append(relative)
     let callback = audioBufferCallback
     stateLock.unlock()
 
     callback?(samples)
-  }
-
-  private func copyPCMBuffer(
-    _ buffer: AVAudioPCMBuffer
-  ) -> AVAudioPCMBuffer? {
-    guard
-      buffer.frameLength > 0,
-      let copy = AVAudioPCMBuffer(
-        pcmFormat: buffer.format,
-        frameCapacity: buffer.frameLength
-      )
-    else {
-      return nil
-    }
-
-    copy.frameLength = buffer.frameLength
-
-    let sourceBuffers =
-      UnsafeMutableAudioBufferListPointer(
-        UnsafeMutablePointer(
-          mutating: buffer.audioBufferList
-        )
-      )
-
-    let destinationBuffers =
-      UnsafeMutableAudioBufferListPointer(
-        copy.mutableAudioBufferList
-      )
-
-    guard sourceBuffers.count == destinationBuffers.count else {
-      return nil
-    }
-
-    for index in 0..<sourceBuffers.count {
-      guard
-        let sourceData = sourceBuffers[index].mData,
-        let destinationData = destinationBuffers[index].mData
-      else {
-        return nil
-      }
-
-      let byteCount = min(
-        Int(sourceBuffers[index].mDataByteSize),
-        Int(destinationBuffers[index].mDataByteSize)
-      )
-
-      memcpy(
-        destinationData,
-        sourceData,
-        byteCount
-      )
-
-      destinationBuffers[index].mDataByteSize =
-        UInt32(byteCount)
-    }
-
-    return copy
-  }
-
-  private func openWriterIfNeeded(
-    processingFormat: AVAudioFormat
-  ) throws {
-    guard audioFile == nil else {
-      return
-    }
-
-    let channelCount = max(
-      1,
-      Int(processingFormat.channelCount)
-    )
-
-    let settings: [String: Any] = [
-      AVFormatIDKey:
-        Int(kAudioFormatMPEG4AAC),
-      AVSampleRateKey:
-        processingFormat.sampleRate,
-      AVNumberOfChannelsKey:
-        channelCount,
-      AVEncoderBitRateKey:
-        channelCount == 1
-          ? 128_000
-          : 192_000,
-      AVEncoderAudioQualityKey:
-        AVAudioQuality.high.rawValue,
-    ]
-
-    audioFile = try AVAudioFile(
-      forWriting: outputURL,
-      settings: settings,
-      commonFormat:
-        processingFormat.commonFormat,
-      interleaved:
-        processingFormat.isInterleaved
-    )
-  }
-
-  private func writeMicrophoneBuffer(
-    _ buffer: AVAudioPCMBuffer
-  ) {
-    guard storedWriterError == nil else {
-      return
-    }
-
-    do {
-      try openWriterIfNeeded(
-        processingFormat: buffer.format
-      )
-
-      guard let file = audioFile else {
-        throw NSError(
-          domain: "LiveWhisperSession",
-          code: 15,
-          userInfo: [
-            NSLocalizedDescriptionKey:
-              "The Live M4A writer was not created."
-          ]
-        )
-      }
-
-      guard
-        file.processingFormat.sampleRate == buffer.format.sampleRate,
-        file.processingFormat.channelCount == buffer.format.channelCount,
-        file.processingFormat.commonFormat == buffer.format.commonFormat,
-        file.processingFormat.isInterleaved == buffer.format.isInterleaved
-      else {
-        throw NSError(
-          domain: "LiveWhisperSession",
-          code: 16,
-          userInfo: [
-            NSLocalizedDescriptionKey:
-              "The Live M4A writer format does not match the microphone route."
-          ]
-        )
-      }
-
-      try file.write(
-        from: buffer
-      )
-    } catch {
-      storedWriterError =
-        error.localizedDescription
-    }
   }
 }
 
@@ -714,7 +377,7 @@ final class LiveWhisperSession: @unchecked Sendable {
     String
   ) -> Void
 
-  private let processor: LiveFileAudioProcessor
+  private let processor: LiveRecorderAudioProcessor
   private var streamCleanupTask: Task<Void, Never>?
   private let transcriber: AudioStreamTranscriber
   private let audioURL: URL
@@ -736,7 +399,7 @@ final class LiveWhisperSession: @unchecked Sendable {
     whisperKit: WhisperKit,
     audioURL: URL,
     language: String,
-    processor: LiveFileAudioProcessor,
+    processor: LiveRecorderAudioProcessor,
     onUpdate: @escaping UpdateHandler,
     onError: @escaping ErrorHandler
   ) throws {

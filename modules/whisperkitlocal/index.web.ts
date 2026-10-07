@@ -5,6 +5,7 @@ export type {
   WhisperLiveUpdateEvent,
   WhisperProgressEvent,
   WhisperSegment,
+  WhisperSegmentTranscriptResult,
   WhisperTranscriptResult,
 } from './src/WhisperKitLocalModule';
 
@@ -49,10 +50,32 @@ const WhisperKitLocal = {
     unsupported();
   },
 
+  async transcribeSegment(
+    _previousAudioUri: string,
+    _audioUri: string,
+    _language: string,
+    _model: string,
+    _globalStartSeconds: number,
+    _overlapSeconds: number
+  ): Promise<any> {
+    unsupported();
+  },
+
+  async transcribeTail(
+    _audioUri: string,
+    _language: string,
+    _model: string,
+    _startSeconds: number,
+    _overlapSeconds: number
+  ): Promise<any> {
+    unsupported();
+  },
+
   async startLive(
     _audioUri: string,
     _language: string,
-    _model: string
+    _model: string,
+    _timingLogUri: string
   ): Promise<any> {
     unsupported();
   },

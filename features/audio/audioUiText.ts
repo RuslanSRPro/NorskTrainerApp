@@ -54,6 +54,9 @@ const COPY = {
     supportedFormats: 'M4A, MP3, WAV, AAC, CAF або MP4',
     savedLectures: 'Збережені записи',
     savedRecording: 'Збережений запис',
+    preparingAudio: '\u041F\u0456\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u0430\u0443\u0434\u0456\u043E\u2026',
+
+
     emptyLibrary: 'Збережені записи з’являться тут.',
     processing: 'Обробка…',
     processingInProgress: 'Триває обробка',
@@ -234,6 +237,9 @@ const COPY = {
     supportedFormats: 'M4A, MP3, WAV, AAC, CAF or MP4',
     savedLectures: 'Saved recordings',
     savedRecording: 'Saved recording',
+    preparingAudio: 'Preparing audio\u2026',
+
+
     emptyLibrary: 'Your saved recordings will appear here.',
     processing: 'Processing…',
     processingInProgress: 'Processing in progress',
@@ -414,6 +420,9 @@ const COPY = {
     supportedFormats: 'M4A, MP3, WAV, AAC, CAF eller MP4',
     savedLectures: 'Lagrede opptak',
     savedRecording: 'Lagret opptak',
+    preparingAudio: 'Klargj\u00F8r lyd\u2026',
+
+
     emptyLibrary: 'Lagrede opptak vises her.',
     processing: 'Behandler…',
     processingInProgress: 'Behandling pågår',

@@ -6,4 +6,5 @@ export type {
   LectureRecorderResult,
   LectureRecorderStatus,
   LectureRecordingValidation,
+  LectureSegmentPlaybackStatus,
 } from './src/LectureRecorderModule';

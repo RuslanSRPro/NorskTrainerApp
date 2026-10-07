@@ -492,16 +492,39 @@ export function useLectureRecorder(
             rollbackCandidate = null;
           }
 
-          const needsRecovery =
+          /*
+           * Finalized checkpoint segments are intentionally retained
+           * after a successful recording. Their presence alone is not
+           * evidence of an interrupted recording.
+           *
+           * A saved lecture with finalized segments but without its
+           * derived audio.m4a needs assembly, not crash recovery.
+           */
+          const existingAudioBeforeRecovery =
+            findAudioFile(
+              entry,
+              metadata
+            );
+
+          const isInterruptedRecording =
             metadata.recordingState ===
               'recording' ||
             metadata.recordingState ===
-              'interrupted' ||
-            hasRecoverableSegments ||
+              'interrupted';
+
+          const savedNeedsAssembly =
+            metadata.recordingState ===
+              'saved' &&
+            hasRecoverableSegments &&
+            !existingAudioBeforeRecovery;
+
+          const needsRepair =
+            isInterruptedRecording ||
+            savedNeedsAssembly ||
             !!rollbackCandidate ||
             !metadata.id;
 
-          if (!needsRecovery) {
+          if (!needsRepair) {
             continue;
           }
 
@@ -526,11 +549,8 @@ export function useLectureRecorder(
               null;
 
           if (
-            metadata.recordingState ===
-              'recording' ||
-            metadata.recordingState ===
-              'interrupted' ||
-            hasRecoverableSegments
+            isInterruptedRecording ||
+            savedNeedsAssembly
           ) {
             const expectedAudioName =
               metadata.audioFile ||
@@ -544,10 +564,15 @@ export function useLectureRecorder(
 
             try {
               const recovery =
-                await LectureRecorder
-                  .recoverRecording(
-                    expectedAudio.uri
-                  );
+                isInterruptedRecording
+                  ? await LectureRecorder
+                      .recoverRecording(
+                        expectedAudio.uri
+                      )
+                  : await LectureRecorder
+                      .assembleRecording(
+                        expectedAudio.uri
+                      );
 
               recoveredCheckpointDurationMillis =
                 Math.max(
@@ -566,7 +591,9 @@ export function useLectureRecorder(
 
               if (__DEV__) {
                 devConsole.log(
-                  'LECTURE SEGMENT RECOVERY',
+                  isInterruptedRecording
+                    ? 'LECTURE SEGMENT RECOVERY'
+                    : 'LECTURE SEGMENT ASSEMBLY',
                   {
                     id:
                       metadata.id ||
@@ -577,7 +604,9 @@ export function useLectureRecorder(
               }
             } catch (error) {
               devConsole.warn(
-                'Could not assemble lecture checkpoint segments:',
+                isInterruptedRecording
+                  ? 'Could not recover lecture checkpoint segments:'
+                  : 'Could not assemble saved lecture checkpoint segments:',
                 error
               );
             }
@@ -1131,6 +1160,22 @@ export function useLectureRecorder(
     };
 
 
+  /*
+   * Build the derived M4A for exactly one saved lecture.
+   *
+   * Durable finalized segments remain untouched and continue to
+   * be the recovery authority if assembly fails.
+   */
+  const assembleSavedRecording =
+    async (
+      destinationUri: string
+    ) =>
+      LectureRecorder
+        .assembleRecording(
+          destinationUri
+        );
+
+
   const getRecorderStatus =
     () =>
       LectureRecorder.getStatus();
@@ -1196,6 +1241,7 @@ export function useLectureRecorder(
     recorderState,
     micNoSignalWarning,
     recoverInterruptedRecordings,
+    assembleSavedRecording,
     startRecording,
     commitStartedRecording,
     getRecordingElapsedMillis,

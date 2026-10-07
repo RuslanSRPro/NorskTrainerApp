@@ -33,6 +33,22 @@ export type WhisperTranscriptResult = {
   chunkingStrategy?: 'none';
 };
 
+
+export type WhisperSegmentTranscriptResult =
+  WhisperTranscriptResult & {
+    source: 'segment-window';
+    globalOffsetSeconds: number;
+    overlapSeconds: number;
+  };
+
+export type WhisperTailTranscriptResult =
+  WhisperTranscriptResult & {
+    source: 'tail-window';
+    globalOffsetSeconds: number;
+    overlapSeconds: number;
+    requestedStartSeconds: number;
+  };
+
 export type WhisperLiveUpdateEvent = {
   isRecording: boolean;
   elapsedMillis: number;
@@ -58,6 +74,7 @@ export type WhisperLiveStopResult = {
   durationMillis: number;
   bytes: number;
   writerError?: string | null;
+  streamCleanupTimedOut: boolean;
 };
 
 type WhisperKitLocalEvents = {
@@ -88,10 +105,28 @@ declare class WhisperKitLocalNativeModule
     model: string
   ): Promise<WhisperTranscriptResult>;
 
+  transcribeSegment(
+    previousAudioUri: string,
+    audioUri: string,
+    language: string,
+    model: string,
+    globalStartSeconds: number,
+    overlapSeconds: number
+  ): Promise<WhisperSegmentTranscriptResult>;
+
+  transcribeTail(
+    audioUri: string,
+    language: string,
+    model: string,
+    startSeconds: number,
+    overlapSeconds: number
+  ): Promise<WhisperTailTranscriptResult>;
+
   startLive(
     audioUri: string,
     language: string,
-    model: string
+    model: string,
+    timingLogUri: string
   ): Promise<WhisperLiveStartResult>;
 
   stopLive():

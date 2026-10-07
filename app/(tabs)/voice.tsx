@@ -21,6 +21,8 @@ import {
   Paths,
 } from 'expo-file-system';
 
+import LectureRecorder from '@/modules/lecturerecorder';
+
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 
@@ -207,6 +209,7 @@ export default function VoiceScreen() {
     recorderState,
     micNoSignalWarning,
     recoverInterruptedRecordings,
+    assembleSavedRecording,
     startRecording,
     commitStartedRecording,
     getRecordingElapsedMillis,
@@ -805,6 +808,30 @@ export default function VoiceScreen() {
     };
 
 
+  const recordAudioTiming =
+    (
+      event: string,
+      details?: string
+    ) => {
+      const timingFile =
+        new File(
+          Paths.document,
+          'lectures',
+          '_timing.log'
+        );
+
+      void LectureRecorder
+        .recordTimingEvent(
+          event,
+          timingFile.uri,
+          details ?? null
+        )
+        .catch(() => {
+          // Telemetry must never change recording behavior.
+        });
+    };
+
+
   const handleStart =
     async () => {
 
@@ -819,6 +846,9 @@ export default function VoiceScreen() {
         true;
       setRecordingActionPhase(
         'starting'
+      );
+      recordAudioTiming(
+        'START_TAPPED'
       );
 
 
@@ -849,17 +879,6 @@ export default function VoiceScreen() {
          * activates its recording session.
          */
         beginRecordingTransition();
-
-
-        await new Promise(
-          resolve =>
-            setTimeout(
-              resolve,
-              350
-            )
-        );
-
-
         finishRecordingTransition();
 
         const permission =
@@ -980,6 +999,10 @@ export default function VoiceScreen() {
         setStatus(
           'recording'
         );
+        recordAudioTiming(
+          'UI_RECORDING',
+          `lecture=${id}`
+        );
 
       } catch (error) {
 
@@ -1098,6 +1121,9 @@ export default function VoiceScreen() {
       setRecordingActionPhase(
         'saving'
       );
+      recordAudioTiming(
+        'STOP_TAPPED'
+      );
 
 
       const active =
@@ -1202,11 +1228,33 @@ export default function VoiceScreen() {
         setStatus(
           'saved'
         );
+        recordAudioTiming(
+          'UI_SAVED',
+          `lecture=${active.id}`
+        );
 
         loadLectures();
 
-        void recoverInterruptedRecordings()
-          .then(() => {
+        /*
+         * Stop has already committed this lecture durably.
+         * Assemble only this recording's derived M4A.
+         *
+         * Historical lectures are not scanned here.
+         */
+        void assembleSavedRecording(
+          active.audioFile.uri
+        )
+          .then(result => {
+            if (__DEV__) {
+              devConsole.log(
+                'LECTURE TARGETED ASSEMBLY COMPLETE',
+                {
+                  id: active.id,
+                  ...result,
+                }
+              );
+            }
+
             loadLectures();
           })
           .catch(error => {
@@ -1214,6 +1262,11 @@ export default function VoiceScreen() {
               'Background lecture assembly failed; committed segments remain recoverable:',
               error
             );
+
+            /*
+             * Assembly failure does not invalidate the saved lecture.
+             * Durable checkpoint segments remain intact.
+             */
             loadLectures();
           });
 
@@ -2483,15 +2536,6 @@ export default function VoiceScreen() {
             beforeStart={
               async () => {
                 beginRecordingTransition();
-
-                await new Promise(
-                  resolve =>
-                    setTimeout(
-                      resolve,
-                      350
-                    )
-                );
-
                 finishRecordingTransition();
               }
             }
@@ -2669,6 +2713,10 @@ export default function VoiceScreen() {
                 lecture.recordingState ===
                   'saved';
 
+              const canPlayAudio =
+                hasPlayableAudio ||
+                isAudioPending;
+
               const displayedDuration =
                 isCurrent &&
                 playerStatus.duration > 0
@@ -2773,13 +2821,15 @@ export default function VoiceScreen() {
                                   )
                                 : audioUi.audioSavedShort}
                               {'  ·  '}
-                              {lecture.audioFileName
-                                .toUpperCase()
-                                .endsWith(
-                                  '.M4A'
-                                )
-                                ? 'M4A'
-                                : 'WAV'}
+                              {!lecture.audioFileName
+                                ? audioUi.preparingAudio
+                                : (
+                                  lecture.audioFileName
+                                    .split('.')
+                                    .pop()
+                                    ?.toUpperCase() ||
+                                  audioUi.preparingAudio
+                                )}
                             </>
                           )}
                       </Text>
@@ -3091,15 +3141,13 @@ export default function VoiceScreen() {
                       }
                       disabled={
                         isInterrupted ||
-                        isAudioPending ||
-                        !hasPlayableAudio ||
+                        !canPlayAudio ||
                         isLoading ||
                         !!transcribingLectureId
                       }
                       accessibilityLabel={
                         isInterrupted ||
-                        isAudioPending ||
-                        !hasPlayableAudio
+                        !canPlayAudio
                           ? audioUi.cannotPlayInterrupted
                           : isPlaying
                             ? audioUi.pauseLecture
@@ -3107,8 +3155,7 @@ export default function VoiceScreen() {
                       }
                       label={
                         isInterrupted ||
-                        isAudioPending ||
-                        !hasPlayableAudio
+                        !canPlayAudio
                           ? audioUi.noPlayback
                           : isLoading
                             ? audioUi.loading

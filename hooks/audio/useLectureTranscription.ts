@@ -24,6 +24,8 @@ import WhisperKitLocal, {
   type WhisperSegment,
 } from '@/modules/whisperkitlocal';
 
+import LectureRecorder from '@/modules/lecturerecorder';
+
 import type {
   LectureItem,
   LectureTranscription,
@@ -84,6 +86,240 @@ type Params = {
   onTranslationsInvalidated:
     () => void;
 };
+
+type DurableRecordingManifestSegment = {
+  index: number;
+  file: string;
+  durationMillis: number;
+  bytes: number;
+  status: string;
+};
+
+type DurableRecordingManifest = {
+  segments?: DurableRecordingManifestSegment[];
+};
+
+type SegmentTranscriptionSource = {
+  uri: string;
+  durationSeconds: number;
+  globalStartSeconds: number;
+};
+
+const SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS = 3;
+
+function getCommittedSegmentSources(
+  directory: ReturnType<typeof getLectureDirectory>
+): SegmentTranscriptionSource[] {
+  const manifestFile = new File(
+    directory,
+    'recording-manifest.json'
+  );
+
+  if (!manifestFile.exists) {
+    return [];
+  }
+
+  let manifest: DurableRecordingManifest;
+
+  try {
+    manifest = JSON.parse(
+      manifestFile.textSync()
+    ) as DurableRecordingManifest;
+  } catch {
+    return [];
+  }
+
+  const manifestSegments = Array.isArray(
+    manifest.segments
+  )
+    ? manifest.segments
+    : [];
+
+  let globalStartSeconds = 0;
+  const sources: SegmentTranscriptionSource[] = [];
+
+  for (const segment of manifestSegments) {
+    if (
+      segment.status !== 'committed' ||
+      !segment.file ||
+      !Number.isFinite(segment.durationMillis) ||
+      segment.durationMillis <= 0 ||
+      !Number.isFinite(segment.bytes) ||
+      segment.bytes <= 0
+    ) {
+      return [];
+    }
+
+    const file = new File(
+      directory,
+      '.audio-segments',
+      segment.file
+    );
+
+    if (
+      !file.exists ||
+      (file.size ?? 0) <= 0
+    ) {
+      return [];
+    }
+
+    sources.push({
+      uri: file.uri,
+      durationSeconds:
+        segment.durationMillis / 1000,
+      globalStartSeconds,
+    });
+
+    globalStartSeconds +=
+      segment.durationMillis / 1000;
+  }
+
+  return sources;
+}
+
+function normalizeTranscriptKey(
+  value: string
+) {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[^\\p{L}\\p{N}]+/gu, ' ')
+    .trim();
+}
+
+function appendTextWithBoundaryDedup(
+  existing: string,
+  incoming: string
+) {
+  const left = existing.trim();
+  const right = incoming.trim();
+
+  if (!left) {
+    return right;
+  }
+
+  if (!right) {
+    return left;
+  }
+
+  const leftWords = left.split(/\\s+/);
+  const rightWords = right.split(/\\s+/);
+  const maxOverlap = Math.min(
+    16,
+    leftWords.length,
+    rightWords.length
+  );
+
+  for (
+    let count = maxOverlap;
+    count >= 1;
+    count -= 1
+  ) {
+    const leftTail = normalizeTranscriptKey(
+      leftWords.slice(-count).join(' ')
+    );
+    const rightHead = normalizeTranscriptKey(
+      rightWords.slice(0, count).join(' ')
+    );
+
+    if (
+      leftTail &&
+      leftTail === rightHead
+    ) {
+      return [
+        left,
+        rightWords.slice(count).join(' '),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    }
+  }
+
+  return `${left} ${right}`.trim();
+}
+
+function mergeSegmentTranscriptWindows(
+  windows: Array<{
+    currentStartSeconds: number;
+    segments: SavedTranscriptSegment[];
+  }>
+) {
+  const merged: SavedTranscriptSegment[] = [];
+
+  for (const window of windows) {
+    const candidates = window.segments
+      .filter(
+        segment =>
+          segment.end >
+            window.currentStartSeconds - 0.05 &&
+          isMeaningfulTranscriptText(
+            segment.text
+          )
+      )
+      .sort(
+        (a, b) =>
+          a.start - b.start
+      );
+
+    for (const candidate of candidates) {
+      const previous = merged.at(-1);
+
+      if (previous) {
+        const previousKey = normalizeTranscriptKey(
+          previous.text
+        );
+        const candidateKey = normalizeTranscriptKey(
+          candidate.text
+        );
+        const overlapsInTime =
+          candidate.start <=
+          previous.end + 0.35;
+        const sameBoundaryText =
+          previousKey.length > 0 &&
+          candidateKey.length > 0 &&
+          (
+            previousKey === candidateKey ||
+            previousKey.endsWith(candidateKey) ||
+            candidateKey.startsWith(previousKey)
+          );
+
+        if (
+          overlapsInTime &&
+          sameBoundaryText
+        ) {
+          if (
+            candidate.end > previous.end
+          ) {
+            merged[merged.length - 1] = {
+              ...candidate,
+              start: Math.min(
+                previous.start,
+                candidate.start
+              ),
+            };
+          }
+          continue;
+        }
+      }
+
+      merged.push(candidate);
+    }
+  }
+
+  let text = '';
+
+  for (const segment of merged) {
+    text = appendTextWithBoundaryDedup(
+      text,
+      segment.text
+    );
+  }
+
+  return {
+    text,
+    segments: merged,
+  };
+}
 
 export function useLectureTranscription({
   processingLockRef,
@@ -286,21 +522,30 @@ export function useLectureTranscription({
 
         loadLectures();
 
-        const transcriptionAudio =
-          new File(
-            lecture.audioUri
-          );
+        let finalAudioUsable = false;
 
-        const transcriptionBytes =
-          transcriptionAudio.size ??
-          0;
+        if (lecture.audioUri.length > 0) {
+          const validation =
+            await LectureRecorder.validateRecording(
+              lecture.audioUri
+            );
+
+          finalAudioUsable =
+            validation.valid &&
+            validation.playable &&
+            validation.bytes >= 4096 &&
+            validation.durationMillis >= 500;
+        }
+
+        const segmentSources = finalAudioUsable
+          ? []
+          : getCommittedSegmentSources(
+              directory
+            );
 
         if (
-          !transcriptionAudio.exists ||
-          transcriptionBytes <
-            4096 ||
-          lecture.durationMillis <
-            500
+          !finalAudioUsable &&
+          segmentSources.length === 0
         ) {
           throw new Error(
             audioUi.audioRecordingInvalid
@@ -321,32 +566,10 @@ export function useLectureTranscription({
             lecture.language
           );
 
-        let result =
-          await WhisperKitLocal
-            .transcribe(
-              lecture.audioUri,
-              whisperLanguage,
-              WHISPERKIT_DEFAULT_MODEL
-            );
+        let result;
+        let finalText = '';
 
-        let finalText =
-          String(
-            result.text || ''
-          ).trim();
-
-        if (!finalText) {
-          setWhisperStage(
-            'retrying'
-          );
-
-          await new Promise(
-            resolve =>
-              setTimeout(
-                resolve,
-                600
-              )
-          );
-
+        if (finalAudioUsable) {
           result =
             await WhisperKitLocal
               .transcribe(
@@ -355,10 +578,120 @@ export function useLectureTranscription({
                 WHISPERKIT_DEFAULT_MODEL
               );
 
-          finalText =
-            String(
+          finalText = String(
+            result.text || ''
+          ).trim();
+
+          if (!finalText) {
+            setWhisperStage(
+              'retrying'
+            );
+
+            await new Promise(
+              resolve =>
+                setTimeout(
+                  resolve,
+                  600
+                )
+            );
+
+            result =
+              await WhisperKitLocal
+                .transcribe(
+                  lecture.audioUri,
+                  whisperLanguage,
+                  WHISPERKIT_DEFAULT_MODEL
+                );
+
+            finalText = String(
               result.text || ''
             ).trim();
+          }
+        } else {
+          const windows: Array<{
+            currentStartSeconds: number;
+            segments: SavedTranscriptSegment[];
+          }> = [];
+
+          for (
+            let index = 0;
+            index < segmentSources.length;
+            index += 1
+          ) {
+            const current = segmentSources[index];
+            const previous = index > 0
+              ? segmentSources[index - 1]
+              : null;
+
+            const segmentResult =
+              await WhisperKitLocal
+                .transcribeSegment(
+                  previous?.uri ?? '',
+                  current.uri,
+                  whisperLanguage,
+                  WHISPERKIT_DEFAULT_MODEL,
+                  current.globalStartSeconds,
+                  index > 0
+                    ? SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS
+                    : 0
+                );
+
+            const segmentWindow =
+              (segmentResult.segments ?? [])
+                .map(
+                  (segment: WhisperSegment) => ({
+                    start: Number(segment.start),
+                    end: Number(segment.end),
+                    text: String(
+                      segment.text || ''
+                    ).trim(),
+                    noSpeechProb: Number(
+                      segment.noSpeechProb
+                    ),
+                    avgLogProb: Number(
+                      segment.avgLogProb
+                    ),
+                  })
+                )
+                .filter(
+                  segment =>
+                    Number.isFinite(segment.start) &&
+                    Number.isFinite(segment.end) &&
+                    segment.start >= 0 &&
+                    segment.end >= segment.start
+                );
+
+            windows.push({
+              currentStartSeconds:
+                current.globalStartSeconds,
+              segments: segmentWindow,
+            });
+          }
+
+          const merged =
+            mergeSegmentTranscriptWindows(
+              windows
+            );
+
+          finalText = merged.text.trim();
+
+          result = {
+            ok: true,
+            model:
+              WHISPERKIT_DEFAULT_MODEL,
+            language:
+              whisperLanguage,
+            text:
+              finalText,
+            segments:
+              merged.segments,
+            characters:
+              finalText.length,
+            audioLoadingMode:
+              'segment-windows' as const,
+            chunkingStrategy:
+              'overlap-dedup' as const,
+          };
         }
 
         if (!finalText) {
@@ -409,10 +742,7 @@ export function useLectureTranscription({
         const rawTranscriptSegments =
           (result.segments ?? [])
             .map(
-              (
-                segment:
-                  WhisperSegment
-              ) => ({
+              segment => ({
                 start:
                   Number(
                     segment.start

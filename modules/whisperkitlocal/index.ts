@@ -7,6 +7,8 @@ export type {
   WhisperLiveUpdateEvent,
   WhisperProgressEvent,
   WhisperSegment,
+  WhisperSegmentTranscriptResult,
+  WhisperTailTranscriptResult,
   WhisperTranscriptResult,
 } from './src/WhisperKitLocalModule';
 

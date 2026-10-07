@@ -41,6 +41,18 @@ public final class LectureRecorderModule: Module {
     qos: .userInitiated
   )
 
+  private let timingQueue = DispatchQueue(
+    label: "com.norsktrainer.audio-timing",
+    qos: .utility
+  )
+
+  // Live transcription is a read-only PCM consumer of the durable recorder.
+  // The recorder remains the sole owner of AVAudioSession/AVAudioEngine.
+  private let livePCMQueue = DispatchQueue(
+    label: "com.norsktrainer.lecture-recorder.live-pcm",
+    qos: .userInitiated
+  )
+
   private let stateLock = NSLock()
   private let tapCallbackGroup = DispatchGroup()
 
@@ -86,6 +98,15 @@ public final class LectureRecorderModule: Module {
   private var captureGeneration: UInt64 = 0
   // Lock-protected recording identity, separate from per-engine capture generations.
   private var recordingSessionID: UUID?
+  private var timingFirstBufferLogged = false
+  private var timingFirstDurableWriteLogged = false
+
+  // Segment-backed playback is a read-only fallback for a durably saved
+  // lecture whose derived audio.m4a is not ready yet. It never exports,
+  // rewrites, or deletes committed recording checkpoints.
+  private var segmentPlaybackPlayer: AVPlayer?
+  private var segmentPlaybackItem: AVPlayerItem?
+  private var segmentPlaybackLectureUri: String?
 
   // MARK: - Durable recording manifest
 
@@ -124,6 +145,16 @@ public final class LectureRecorderModule: Module {
       "onRecorderError"
     )
 
+    AsyncFunction("recordTimingEvent") {
+      (event: String, timingLogUri: String, details: String?) in
+      self.appendTimingEvent(
+        event,
+        timingLogUri: timingLogUri,
+        details: details
+      )
+      return ["ok": true]
+    }
+
     AsyncFunction("start") { (destinationUri: String) async throws -> [String: Any] in
       if self.pendingStopPromise != nil || self.isStopping {
         throw self.makeException(
@@ -148,6 +179,11 @@ public final class LectureRecorderModule: Module {
           message: "The recording destination is not a valid local file URL."
         )
       }
+
+      self.appendTimingEvent(
+        "NATIVE_START_ENTERED",
+        destinationURL: destinationURL
+      )
 
       let parentURL = destinationURL.deletingLastPathComponent()
       try FileManager.default.createDirectory(
@@ -213,7 +249,15 @@ public final class LectureRecorderModule: Module {
 
       do {
         try self.configureAudioSessionForRecording()
+        self.appendTimingEvent(
+          "SESSION_ACTIVE",
+          destinationURL: destinationURL
+        )
         try self.startCaptureEngine()
+        self.appendTimingEvent(
+          "ENGINE_STARTED",
+          destinationURL: destinationURL
+        )
 
         // Register lifecycle observers only after the initial audio
         // session configuration and engine start have succeeded.
@@ -566,6 +610,324 @@ public final class LectureRecorderModule: Module {
     }
     .runOnQueue(.main)
 
+    AsyncFunction("prepareSegmentPlayback") { (destinationUri: String) throws -> [String: Any] in
+      guard
+        let destinationURL = URL(string: destinationUri),
+        destinationURL.isFileURL
+      else {
+        throw self.makeException(
+          code: "ERR_INVALID_AUDIO_URI",
+          message: "The segment playback destination is not a valid local file URL."
+        )
+      }
+
+      let manifest =
+        self.loadRecordingManifest(
+          for: destinationURL
+        )
+
+      guard
+        let manifest,
+        !manifest.segments.isEmpty
+      else {
+        throw self.makeException(
+          code: "ERR_NO_PLAYBACK_SEGMENTS",
+          message: "No durable lecture segments are available for playback."
+        )
+      }
+
+      let segmentsDirectoryURL =
+        self.segmentsDirectoryURL(
+          for: destinationURL
+        )
+
+      let composition =
+        AVMutableComposition()
+
+      guard
+        let compositionTrack =
+          composition.addMutableTrack(
+            withMediaType: .audio,
+            preferredTrackID: kCMPersistentTrackID_Invalid
+          )
+      else {
+        throw self.makeException(
+          code: "ERR_PLAYBACK_COMPOSITION",
+          message: "Could not create the lecture playback composition."
+        )
+      }
+
+      var cursor = CMTime.zero
+      var insertedCount = 0
+
+      for segment in manifest.segments {
+        guard segment.status == "committed" else {
+          throw self.makeException(
+            code: "ERR_PLAYBACK_SEGMENT_STATE",
+            message: "A lecture playback checkpoint is not durably committed."
+          )
+        }
+
+        let segmentURL =
+          segmentsDirectoryURL
+            .appendingPathComponent(
+              segment.file
+            )
+
+        guard
+          FileManager.default.fileExists(
+            atPath: segmentURL.path
+          )
+        else {
+          throw self.makeException(
+            code: "ERR_PLAYBACK_SEGMENT_MISSING",
+            message: "A durable lecture playback checkpoint is missing."
+          )
+        }
+
+        let asset =
+          AVURLAsset(
+            url: segmentURL
+          )
+
+        guard
+          let sourceTrack =
+            asset.tracks(
+              withMediaType: .audio
+            ).first
+        else {
+          throw self.makeException(
+            code: "ERR_PLAYBACK_SEGMENT_TRACK",
+            message: "A durable lecture checkpoint has no readable audio track."
+          )
+        }
+
+        let duration =
+          asset.duration
+
+        guard
+          duration.isNumeric,
+          CMTimeCompare(
+            duration,
+            .zero
+          ) > 0
+        else {
+          throw self.makeException(
+            code: "ERR_PLAYBACK_SEGMENT_DURATION",
+            message: "A durable lecture checkpoint has an invalid duration."
+          )
+        }
+
+        do {
+          try compositionTrack.insertTimeRange(
+            CMTimeRange(
+              start: .zero,
+              duration: duration
+            ),
+            of: sourceTrack,
+            at: cursor
+          )
+        } catch {
+          throw self.makeException(
+            code: "ERR_PLAYBACK_SEGMENT_INSERT",
+            message: "Could not add a durable lecture checkpoint to playback: \(error.localizedDescription)"
+          )
+        }
+
+        cursor =
+          CMTimeAdd(
+            cursor,
+            duration
+          )
+
+        insertedCount += 1
+      }
+
+      guard insertedCount > 0 else {
+        throw self.makeException(
+          code: "ERR_NO_PLAYBACK_SEGMENTS",
+          message: "No durable lecture segments are available for playback."
+        )
+      }
+
+      self.segmentPlaybackPlayer?.pause()
+
+      let item =
+        AVPlayerItem(
+          asset: composition
+        )
+
+      let player =
+        AVPlayer(
+          playerItem: item
+        )
+
+      self.segmentPlaybackItem = item
+      self.segmentPlaybackPlayer = player
+      self.segmentPlaybackLectureUri = destinationURL.absoluteString
+
+      return self.segmentPlaybackStatusDictionary()
+    }
+    .runOnQueue(.main)
+
+    AsyncFunction("playSegmentPlayback") { () -> [String: Any] in
+      self.segmentPlaybackPlayer?.play()
+      return self.segmentPlaybackStatusDictionary()
+    }
+    .runOnQueue(.main)
+
+    AsyncFunction("pauseSegmentPlayback") { () -> [String: Any] in
+      self.segmentPlaybackPlayer?.pause()
+      return self.segmentPlaybackStatusDictionary()
+    }
+    .runOnQueue(.main)
+
+    AsyncFunction("seekSegmentPlayback") { (seconds: Double, promise: Promise) in
+      guard
+        let player = self.segmentPlaybackPlayer
+      else {
+        promise.resolve(
+          self.segmentPlaybackStatusDictionary()
+        )
+        return
+      }
+
+      let durationSeconds =
+        player.currentItem?
+          .duration
+          .seconds ?? 0
+
+      let upperBound =
+        durationSeconds.isFinite &&
+        durationSeconds > 0
+          ? max(
+              0,
+              durationSeconds - 0.05
+            )
+          : max(
+              0,
+              seconds
+            )
+
+      let safeSeconds =
+        min(
+          upperBound,
+          max(
+            0,
+            seconds
+          )
+        )
+
+      player.seek(
+        to: CMTime(
+          seconds: safeSeconds,
+          preferredTimescale: 600
+        ),
+        toleranceBefore: .zero,
+        toleranceAfter: .zero
+      ) { [weak self] _ in
+        DispatchQueue.main.async {
+          promise.resolve(
+            self?.segmentPlaybackStatusDictionary() ??
+            [
+              "isLoaded": false,
+              "playing": false,
+              "currentTime": 0.0,
+              "duration": 0.0,
+              "lectureUri": NSNull()
+            ]
+          )
+        }
+      }
+    }
+    .runOnQueue(.main)
+
+    AsyncFunction("stopSegmentPlayback") { () -> [String: Any] in
+      self.segmentPlaybackPlayer?.pause()
+      self.segmentPlaybackPlayer = nil
+      self.segmentPlaybackItem = nil
+      self.segmentPlaybackLectureUri = nil
+      return self.segmentPlaybackStatusDictionary()
+    }
+    .runOnQueue(.main)
+
+    Function("getSegmentPlaybackStatus") {
+      self.segmentPlaybackStatusDictionary()
+    }
+    .runOnQueue(.main)
+
+    AsyncFunction("assembleRecording") { (destinationUri: String, promise: Promise) in
+      guard
+        let destinationURL = URL(string: destinationUri),
+        destinationURL.isFileURL
+      else {
+        promise.resolve(
+          self.makeValidationResult(
+            valid: false,
+            playable: false,
+            durationMillis: 0,
+            uri: destinationUri,
+            bytes: 0,
+            code: "ERR_INVALID_AUDIO_URI",
+            message: "The assembly destination is not a valid local file URL."
+          )
+        )
+        return
+      }
+
+      self.writerQueue.async { [weak self] in
+        guard let self else { return }
+
+        guard
+          let manifest = self.loadRecordingManifest(
+            for: destinationURL
+          )
+        else {
+          let result = self.makeValidationResult(
+            valid: false,
+            playable: false,
+            durationMillis: 0,
+            uri: destinationURL.absoluteString,
+            bytes: 0,
+            code: "ERR_ASSEMBLY_MANIFEST_MISSING",
+            message: "The saved lecture has no readable durable recording manifest."
+          )
+
+          DispatchQueue.main.async {
+            promise.resolve(result)
+          }
+          return
+        }
+
+        let existingValidation =
+          self.validateAudioFile(
+            destinationURL
+          )
+
+        if
+          manifest.assembly.state == "ready",
+          manifest.assembly.output == destinationURL.lastPathComponent,
+          (existingValidation["valid"] as? Bool) == true,
+          (existingValidation["playable"] as? Bool) == true
+        {
+          DispatchQueue.main.async {
+            promise.resolve(existingValidation)
+          }
+          return
+        }
+
+        self.assembleRecordingFromManifest(
+          manifest,
+          destinationURL: destinationURL
+        ) { result in
+          DispatchQueue.main.async {
+            promise.resolve(result)
+          }
+        }
+      }
+    }
+    .runOnQueue(.main)
+
     AsyncFunction("recoverRecording") { (destinationUri: String, promise: Promise) in
       guard
         let destinationURL = URL(string: destinationUri),
@@ -716,204 +1078,239 @@ public final class LectureRecorderModule: Module {
           return
         }
 
-        let segmentURLs =
-          reconciledManifest
-            .segments
-            .map {
-              segmentsDirectoryURL
-                .appendingPathComponent(
-                  $0.file
-                )
-            }
-
-        guard !segmentURLs.isEmpty else {
-          let fallback =
-            FileManager.default.fileExists(
-              atPath: destinationURL.path
-            )
-              ? self.validateAudioFile(
-                  destinationURL
-                )
-              : self.makeValidationResult(
-                  valid: false,
-                  playable: false,
-                  durationMillis: 0,
-                  uri: destinationURL.absoluteString,
-                  bytes: 0,
-                  code: "ERR_NO_RECOVERABLE_SEGMENTS",
-                  message: "No finalized lecture segments were available for recovery."
-                )
-
-          DispatchQueue.main.async {
-            promise.resolve(fallback)
-          }
-          return
-        }
-
-        do {
-          try self.updateRecordingManifestDurably(
-            for: destinationURL
-          ) {
-            $0.state = "saved"
-            $0.assembly.state = "assembling"
-            $0.assembly.generation += 1
-          }
-        } catch {
-          let committedBytes =
-            reconciledManifest
-              .segments
-              .reduce(
-                0
-              ) {
-                $0 + $1.bytes
-              }
-
-          let result =
-            self.makeValidationResult(
-              valid: false,
-              playable: false,
-              durationMillis:
-                reconciledManifest
-                  .committedDurationMillis,
-              uri: destinationURL.absoluteString,
-              bytes: committedBytes,
-              code: "ERR_RECOVERY_MANIFEST_TRANSITION",
-              message: error.localizedDescription
-            )
-
-          DispatchQueue.main.async {
-            promise.resolve(result)
-          }
-
-          return
-        }
-
-        self.mergeSegments(
-          segmentURLs,
-          to: destinationURL,
-          protectExistingRecording: true
+        self.assembleRecordingFromManifest(
+          reconciledManifest,
+          destinationURL: destinationURL
         ) { result in
           DispatchQueue.main.async {
-            switch result {
-            case .success(let validation):
-              do {
-                try self.updateRecordingManifestDurably(
-                  for: destinationURL
-                ) {
-                  $0.state = "ready"
-                  $0.assembly.state = "ready"
-                  $0.assembly.output = destinationURL.lastPathComponent
-                }
-              } catch {
-                let committedBytes =
-                  reconciledManifest
-                    .segments
-                    .reduce(
-                      0
-                    ) {
-                      $0 + $1.bytes
-                    }
-
-                promise.resolve(
-                  self.makeValidationResult(
-                    valid: false,
-                    playable: false,
-                    durationMillis:
-                      reconciledManifest
-                        .committedDurationMillis,
-                    uri: destinationURL.absoluteString,
-                    bytes: committedBytes,
-                    code: "ERR_RECOVERY_READY_MANIFEST",
-                    message: "The recovered audio file was assembled, but its ready state could not be committed durably: \(error.localizedDescription)"
-                  )
-                )
-
-                return
-              }
-
-              // Recovery must never consume its source checkpoints.
-              // A recovered audio.m4a is derived from the durable segments.
-              promise.resolve(validation)
-
-            case .failure(let error):
-              do {
-                try self.updateRecordingManifestDurably(
-                  for: destinationURL
-                ) {
-                  $0.state = "saved"
-                  $0.assembly.state = "assembly_failed"
-                }
-              } catch let manifestError {
-                let committedBytes =
-                  reconciledManifest
-                    .segments
-                    .reduce(
-                      0
-                    ) {
-                      $0 + $1.bytes
-                    }
-
-                promise.resolve(
-                  self.makeValidationResult(
-                    valid: false,
-                    playable: false,
-                    durationMillis:
-                      reconciledManifest
-                        .committedDurationMillis,
-                    uri: destinationURL.absoluteString,
-                    bytes: committedBytes,
-                    code: "ERR_RECOVERY_FAILURE_MANIFEST",
-                    message: "Lecture assembly failed and the failure state could not be committed durably. Assembly error: \(error.localizedDescription). Manifest error: \(manifestError.localizedDescription)"
-                  )
-                )
-
-                return
-              }
-
-              let manifest =
-                self.loadRecordingManifest(
-                  for: destinationURL
-                )
-
-              let committedDurationMillis =
-                manifest?
-                  .committedDurationMillis ??
-                reconciledManifest
-                  .committedDurationMillis
-
-              let committedBytes =
-                manifest?
-                  .segments
-                  .reduce(
-                    0
-                  ) {
-                    $0 + $1.bytes
-                  } ??
-                reconciledManifest
-                  .segments
-                  .reduce(
-                    0
-                  ) {
-                    $0 + $1.bytes
-                  }
-
-              promise.resolve(
-                self.makeValidationResult(
-                  valid: false,
-                  playable: false,
-                  durationMillis: committedDurationMillis,
-                  uri: destinationURL.absoluteString,
-                  bytes: committedBytes,
-                  code: "ERR_RECOVERY_MERGE",
-                  message: error.localizedDescription
-                )
-              )
-            }
+            promise.resolve(result)
           }
         }
       }
     }
     .runOnQueue(.main)
+  }
+
+  private func assembleRecordingFromManifest(
+    _ manifest: RecordingManifest,
+    destinationURL: URL,
+    completion: @escaping ([String: Any]) -> Void
+  ) {
+    let committedBytes =
+      manifest.segments.reduce(0) {
+        $0 + $1.bytes
+      }
+
+    guard !manifest.segments.isEmpty else {
+      completion(
+        makeValidationResult(
+          valid: false,
+          playable: false,
+          durationMillis: manifest.committedDurationMillis,
+          uri: destinationURL.absoluteString,
+          bytes: committedBytes,
+          code: "ERR_NO_ASSEMBLY_SEGMENTS",
+          message: "No committed lecture segments were available for assembly."
+        )
+      )
+      return
+    }
+
+    guard
+      manifest.segments.allSatisfy({
+        $0.status == "committed"
+      })
+    else {
+      completion(
+        makeValidationResult(
+          valid: false,
+          playable: false,
+          durationMillis: manifest.committedDurationMillis,
+          uri: destinationURL.absoluteString,
+          bytes: committedBytes,
+          code: "ERR_ASSEMBLY_SEGMENT_STATE",
+          message: "Lecture assembly requires every manifest segment to be durably committed. Source segments were preserved."
+        )
+      )
+      return
+    }
+
+    let segmentsDirectoryURL =
+      self.segmentsDirectoryURL(
+        for: destinationURL
+      )
+
+    let segmentURLs =
+      manifest.segments.map {
+        segmentsDirectoryURL
+          .appendingPathComponent(
+            $0.file
+          )
+      }
+
+    do {
+      try self.updateRecordingManifestDurably(
+        for: destinationURL
+      ) {
+        $0.state = "saved"
+        $0.assembly.state = "assembling"
+        $0.assembly.generation += 1
+      }
+    } catch {
+      completion(
+        self.makeValidationResult(
+          valid: false,
+          playable: false,
+          durationMillis: manifest.committedDurationMillis,
+          uri: destinationURL.absoluteString,
+          bytes: committedBytes,
+          code: "ERR_ASSEMBLY_MANIFEST_TRANSITION",
+          message: error.localizedDescription
+        )
+      )
+      return
+    }
+
+    self.appendTimingEvent(
+      "ASSEMBLY_STARTED",
+      destinationURL: destinationURL,
+      details: "segments=\(segmentURLs.count)"
+    )
+
+    self.mergeSegments(
+      segmentURLs,
+      to: destinationURL,
+      protectExistingRecording: true
+    ) { result in
+      switch result {
+      case .success(let validation):
+        do {
+          try self.updateRecordingManifestDurably(
+            for: destinationURL
+          ) {
+            $0.state = "ready"
+            $0.assembly.state = "ready"
+            $0.assembly.output = destinationURL.lastPathComponent
+          }
+        } catch {
+          completion(
+            self.makeValidationResult(
+              valid: false,
+              playable: false,
+              durationMillis: manifest.committedDurationMillis,
+              uri: destinationURL.absoluteString,
+              bytes: committedBytes,
+              code: "ERR_ASSEMBLY_READY_MANIFEST",
+              message: "The audio file was assembled, but its ready state could not be committed durably: \(error.localizedDescription)"
+            )
+          )
+          return
+        }
+
+        completion(validation)
+
+      case .failure(let error):
+        do {
+          try self.updateRecordingManifestDurably(
+            for: destinationURL
+          ) {
+            $0.state = "saved"
+            $0.assembly.state = "assembly_failed"
+          }
+        } catch let manifestError {
+          completion(
+            self.makeValidationResult(
+              valid: false,
+              playable: false,
+              durationMillis: manifest.committedDurationMillis,
+              uri: destinationURL.absoluteString,
+              bytes: committedBytes,
+              code: "ERR_ASSEMBLY_FAILURE_MANIFEST",
+              message: "Lecture assembly failed and the failure state could not be committed durably. Assembly error: \(error.localizedDescription). Manifest error: \(manifestError.localizedDescription)"
+            )
+          )
+          return
+        }
+
+        let latestManifest =
+          self.loadRecordingManifest(
+            for: destinationURL
+          )
+
+        let latestDurationMillis =
+          latestManifest?.committedDurationMillis ??
+          manifest.committedDurationMillis
+
+        let latestBytes =
+          latestManifest?.segments.reduce(0) {
+            $0 + $1.bytes
+          } ?? committedBytes
+
+        completion(
+          self.makeValidationResult(
+            valid: false,
+            playable: false,
+            durationMillis: latestDurationMillis,
+            uri: destinationURL.absoluteString,
+            bytes: latestBytes,
+            code: "ERR_ASSEMBLY_MERGE",
+            message: error.localizedDescription
+          )
+        )
+      }
+    }
+  }
+
+  private func segmentPlaybackStatusDictionary() -> [String: Any] {
+    guard
+      let player = segmentPlaybackPlayer,
+      let item = player.currentItem
+    else {
+      return [
+        "isLoaded": false,
+        "playing": false,
+        "currentTime": 0.0,
+        "duration": 0.0,
+        "lectureUri": NSNull()
+      ]
+    }
+
+    let rawCurrentTime =
+      player.currentTime().seconds
+
+    let rawDuration =
+      item.duration.seconds
+
+    let currentTime =
+      rawCurrentTime.isFinite
+        ? max(
+            0,
+            rawCurrentTime
+          )
+        : 0
+
+    let duration =
+      rawDuration.isFinite
+        ? max(
+            0,
+            rawDuration
+          )
+        : 0
+
+    return [
+      "isLoaded":
+        item.status == .readyToPlay &&
+        duration > 0,
+      "playing":
+        player.rate > 0,
+      "currentTime":
+        currentTime,
+      "duration":
+        duration,
+      "lectureUri":
+        (segmentPlaybackLectureUri as Any?) ??
+        NSNull()
+    ]
   }
 
   deinit {
@@ -1340,6 +1737,21 @@ public final class LectureRecorderModule: Module {
         return
       }
 
+      let shouldLogFirstBuffer = self.withStateLock { () -> Bool in
+        if self.timingFirstBufferLogged {
+          return false
+        }
+        self.timingFirstBufferLogged = true
+        return true
+      }
+
+      if shouldLogFirstBuffer {
+        self.appendTimingEvent(
+          "FIRST_BUFFER",
+          destinationURL: self.currentDestinationURL
+        )
+      }
+
       self.updateLiveMetrics(
         from: buffer
       )
@@ -1367,6 +1779,20 @@ public final class LectureRecorderModule: Module {
         self.writeBufferOnWriterQueue(
           copiedBuffer
         )
+      }
+
+      // Fan out a separate immutable copy off the realtime tap callback.
+      // Whisper may be cold/loading/slow; none of that is allowed to block
+      // durable segment writes or own a second microphone engine.
+      if let liveBuffer = self.copyPCMBuffer(buffer) {
+        self.livePCMQueue.async {
+          NotificationCenter.default.post(
+            name: Notification.Name(
+              "NorskTrainer.LectureRecorder.PCMBuffer"
+            ),
+            object: liveBuffer
+          )
+        }
       }
     }
 
@@ -1849,6 +2275,21 @@ public final class LectureRecorderModule: Module {
         buffer
       )
 
+      let shouldLogFirstWrite = withStateLock { () -> Bool in
+        if timingFirstDurableWriteLogged {
+          return false
+        }
+        timingFirstDurableWriteLogged = true
+        return true
+      }
+
+      if shouldLogFirstWrite {
+        appendTimingEvent(
+          "FIRST_DURABLE_WRITE",
+          destinationURL: currentDestinationURL
+        )
+      }
+
       markSuccessfulWriteAndEmitReadyIfNeeded()
 
       currentSegmentDurationSeconds +=
@@ -2205,6 +2646,12 @@ public final class LectureRecorderModule: Module {
       return
     }
 
+    appendTimingEvent(
+      "LAST_SEGMENT_DURABLE",
+      destinationURL: destinationURL,
+      details: "segments=\(savedManifest.segments.count);durationMillis=\(savedManifest.committedDurationMillis)"
+    )
+
     let bytes =
       savedManifest.segments.reduce(
         0
@@ -2523,6 +2970,12 @@ public final class LectureRecorderModule: Module {
                     rollbackURL
                   )
                 }
+
+                self.appendTimingEvent(
+                  "M4A_READY",
+                  destinationURL: destinationURL,
+                  details: "durationMillis=\(finalValidation["durationMillis"] ?? 0)"
+                )
 
                 completion(
                   .success(
@@ -2875,6 +3328,62 @@ public final class LectureRecorderModule: Module {
     }
   }
 
+  private func appendTimingEvent(
+    _ event: String,
+    destinationURL: URL? = nil,
+    timingLogUri: String? = nil,
+    details: String? = nil
+  ) {
+    let explicitURL: URL? = {
+      guard
+        let timingLogUri,
+        let url = URL(string: timingLogUri),
+        url.isFileURL
+      else {
+        return nil
+      }
+      return url
+    }()
+
+    let logURL = explicitURL ?? destinationURL.map {
+      $0
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("_timing.log")
+    }
+
+    guard let logURL else {
+      return
+    }
+
+    let timestamp = ISO8601DateFormatter().string(from: Date())
+    let uptimeMillis = Int(ProcessInfo.processInfo.systemUptime * 1000.0)
+    let lectureId = destinationURL?.deletingLastPathComponent().lastPathComponent ?? "-"
+    let suffix = details.map { " | \($0)" } ?? ""
+    let line = "\(timestamp) | uptimeMs=\(uptimeMillis) | \(event) | lecture=\(lectureId)\(suffix)\n"
+
+    timingQueue.async {
+      do {
+        try FileManager.default.createDirectory(
+          at: logURL.deletingLastPathComponent(),
+          withIntermediateDirectories: true
+        )
+
+        let data = Data(line.utf8)
+        if FileManager.default.fileExists(atPath: logURL.path) {
+          let handle = try FileHandle(forWritingTo: logURL)
+          defer { try? handle.close() }
+          try handle.seekToEnd()
+          try handle.write(contentsOf: data)
+        } else {
+          try data.write(to: logURL, options: .atomic)
+        }
+      } catch {
+        // Telemetry must never change recording behavior.
+      }
+    }
+  }
+
   private func resetLiveState() {
     withStateLock {
       capturedDurationSeconds = 0
@@ -2886,6 +3395,8 @@ public final class LectureRecorderModule: Module {
       writerFailureMessage = nil
       acceptingBuffers = false
       hasSuccessfulWrite = false
+      timingFirstBufferLogged = false
+      timingFirstDurableWriteLogged = false
     }
   }
 

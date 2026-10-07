@@ -4,6 +4,7 @@ export type {
   LectureRecorderResult,
   LectureRecorderStatus,
   LectureRecordingValidation,
+  LectureSegmentPlaybackStatus,
 } from './src/LectureRecorderModule';
 
 import type {
@@ -32,6 +33,14 @@ const LectureRecorder = {
     _listener: (...args: any[]) => void
   ): ListenerSubscription {
     return emptySubscription();
+  },
+
+  async recordTimingEvent(
+    _event: string,
+    _timingLogUri: string,
+    _details?: string | null
+  ): Promise<{ ok: boolean }> {
+    return { ok: true };
   },
 
   async start(
@@ -73,10 +82,50 @@ const LectureRecorder = {
     unsupported();
   },
 
+  async assembleRecording(
+    _destinationUri: string
+  ): Promise<any> {
+    unsupported();
+  },
+
   async recoverRecording(
     _destinationUri: string
   ): Promise<any> {
     unsupported();
+  },
+
+  async prepareSegmentPlayback(
+    _destinationUri: string
+  ): Promise<any> {
+    unsupported();
+  },
+
+  async playSegmentPlayback(): Promise<any> {
+    unsupported();
+  },
+
+  async pauseSegmentPlayback(): Promise<any> {
+    unsupported();
+  },
+
+  async seekSegmentPlayback(
+    _seconds: number
+  ): Promise<any> {
+    unsupported();
+  },
+
+  async stopSegmentPlayback(): Promise<any> {
+    unsupported();
+  },
+
+  getSegmentPlaybackStatus() {
+    return {
+      isLoaded: false,
+      playing: false,
+      currentTime: 0,
+      duration: 0,
+      lectureUri: null,
+    };
   },
 };
 

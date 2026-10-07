@@ -1,3 +1,4 @@
+import AVFoundation
 import ExpoModulesCore
 import Foundation
 import WhisperKit
@@ -62,8 +63,50 @@ public class WhisperKitLocalModule: Module {
    * accuracy-first path already validated for saved lectures.
    */
   private var liveSession: LiveWhisperSession?
-  private var livePendingProcessor: LiveFileAudioProcessor?
+  private var livePendingProcessor: LiveRecorderAudioProcessor?
   private var liveCleanupSession: LiveWhisperSession?
+  private let timingQueue = DispatchQueue(
+    label: "com.norsktrainer.whisper-audio-timing",
+    qos: .utility
+  )
+
+  private func appendTimingEvent(
+    _ event: String,
+    timingLogUri: String,
+    details: String? = nil
+  ) {
+    guard
+      let logURL = URL(string: timingLogUri),
+      logURL.isFileURL
+    else {
+      return
+    }
+
+    let timestamp = ISO8601DateFormatter().string(from: Date())
+    let uptimeMillis = Int(ProcessInfo.processInfo.systemUptime * 1000.0)
+    let suffix = details.map { " | \($0)" } ?? ""
+    let line = "\(timestamp) | uptimeMs=\(uptimeMillis) | \(event) | lecture=-\(suffix)\n"
+
+    timingQueue.async {
+      do {
+        try FileManager.default.createDirectory(
+          at: logURL.deletingLastPathComponent(),
+          withIntermediateDirectories: true
+        )
+        let data = Data(line.utf8)
+        if FileManager.default.fileExists(atPath: logURL.path) {
+          let handle = try FileHandle(forWritingTo: logURL)
+          defer { try? handle.close() }
+          try handle.seekToEnd()
+          try handle.write(contentsOf: data)
+        } else {
+          try data.write(to: logURL, options: .atomic)
+        }
+      } catch {
+        // Telemetry must never change Live behavior.
+      }
+    }
+  }
 
   public func definition() -> ModuleDefinition {
     Name("WhisperKitLocal")
@@ -235,11 +278,318 @@ public class WhisperKitLocalModule: Module {
       ]
     }
 
+    AsyncFunction("transcribeSegment") {
+      (
+        previousAudioUri: String,
+        audioUri: String,
+        language: String,
+        model: String,
+        globalStartSeconds: Double,
+        overlapSeconds: Double
+      ) async throws -> [String: Any] in
+
+      let selectedModel = model.isEmpty
+        ? defaultWhisperModel
+        : model
+
+      let selectedLanguage = language.isEmpty
+        ? "no"
+        : language
+
+      let currentPath = try self.filePath(
+        from: audioUri
+      )
+
+      guard FileManager.default.fileExists(
+        atPath: currentPath
+      ) else {
+        throw NSError(
+          domain: "WhisperKitLocal",
+          code: 41,
+          userInfo: [
+            NSLocalizedDescriptionKey:
+              "Segment audio file does not exist: \(currentPath)"
+          ]
+        )
+      }
+
+      let previousPath = previousAudioUri.isEmpty
+        ? nil
+        : try self.filePath(from: previousAudioUri)
+
+      if let previousPath {
+        guard FileManager.default.fileExists(
+          atPath: previousPath
+        ) else {
+          throw NSError(
+            domain: "WhisperKitLocal",
+            code: 42,
+            userInfo: [
+              NSLocalizedDescriptionKey:
+                "Previous segment audio file does not exist: \(previousPath)"
+            ]
+          )
+        }
+      }
+
+      let window = try await self.makeSegmentTranscriptionWindow(
+        previousPath: previousPath,
+        currentPath: currentPath,
+        requestedOverlapSeconds: overlapSeconds
+      )
+
+      defer {
+        try? FileManager.default.removeItem(
+          at: window.url
+        )
+      }
+
+      let globalOffsetSeconds = max(
+        0,
+        globalStartSeconds - window.actualOverlapSeconds
+      )
+
+      let kit = try await self.getOrCreateWhisperKit(
+        model: selectedModel
+      )
+
+      let sink = WhisperEventSink(
+        module: self
+      )
+
+      sink.emit(
+        stage: "transcribing",
+        message: "Transcribing durable segment window"
+      )
+
+      let decodingOptions = DecodingOptions(
+        task: .transcribe,
+        language: selectedLanguage,
+        skipSpecialTokens: true,
+        wordTimestamps: false,
+        maxInitialTimestamp: 1.0,
+        chunkingStrategy: .none
+      )
+
+      let results = try await kit.transcribe(
+        audioPath: window.url.path,
+        decodeOptions: decodingOptions,
+        callback: { progress in
+          sink.emit(
+            stage: "transcribing",
+            text: progress.text,
+            window: progress.windowId,
+            message: "Processing durable segment"
+          )
+
+          return true
+        }
+      )
+
+      let text = results
+        .map(\.text)
+        .joined(separator: " ")
+        .replacingOccurrences(
+          of: #"\s+"#,
+          with: " ",
+          options: .regularExpression
+        )
+        .trimmingCharacters(
+          in: .whitespacesAndNewlines
+        )
+
+      let orderedSegments =
+        results
+          .flatMap(\.segments)
+          .sorted {
+            $0.start < $1.start
+          }
+
+      let segments: [[String: Any]] =
+        orderedSegments
+          .map { segment in
+            [
+              "start":
+                Double(segment.start) + globalOffsetSeconds,
+              "end":
+                Double(segment.end) + globalOffsetSeconds,
+              "text": segment.text,
+              "noSpeechProb":
+                Double(segment.noSpeechProb),
+              "avgLogProb":
+                Double(segment.avgLogprob)
+            ]
+          }
+
+      sink.emit(
+        stage: "done",
+        text: text,
+        message: "Durable segment transcript ready"
+      )
+
+      return [
+        "ok": true,
+        "model": selectedModel,
+        "language":
+          results.first?.language
+          ?? selectedLanguage,
+        "text": text,
+        "segments": segments,
+        "characters": text.count,
+        "audioLoadingMode": "full-file",
+        "chunkingStrategy": "none",
+        "source": "segment-window",
+        "globalOffsetSeconds": globalOffsetSeconds,
+        "overlapSeconds": window.actualOverlapSeconds
+      ]
+    }
+
+    AsyncFunction("transcribeTail") {
+      (
+        audioUri: String,
+        language: String,
+        model: String,
+        startSeconds: Double,
+        overlapSeconds: Double
+      ) async throws -> [String: Any] in
+
+      let selectedModel = model.isEmpty
+        ? defaultWhisperModel
+        : model
+
+      let selectedLanguage = language.isEmpty
+        ? "no"
+        : language
+
+      let audioPath = try self.filePath(
+        from: audioUri
+      )
+
+      guard FileManager.default.fileExists(
+        atPath: audioPath
+      ) else {
+        throw NSError(
+          domain: "WhisperKitLocal",
+          code: 51,
+          userInfo: [
+            NSLocalizedDescriptionKey:
+              "Tail transcription audio file does not exist: \(audioPath)"
+          ]
+        )
+      }
+
+      let window = try await self.makeTailTranscriptionWindow(
+        audioPath: audioPath,
+        requestedStartSeconds: startSeconds,
+        requestedOverlapSeconds: overlapSeconds
+      )
+
+      defer {
+        try? FileManager.default.removeItem(
+          at: window.url
+        )
+      }
+
+      let kit = try await self.getOrCreateWhisperKit(
+        model: selectedModel
+      )
+
+      let sink = WhisperEventSink(
+        module: self
+      )
+
+      sink.emit(
+        stage: "transcribing",
+        message: "Transcribing final Live tail"
+      )
+
+      let decodingOptions = DecodingOptions(
+        task: .transcribe,
+        language: selectedLanguage,
+        skipSpecialTokens: true,
+        wordTimestamps: false,
+        maxInitialTimestamp: 1.0,
+        chunkingStrategy: .none
+      )
+
+      let results = try await kit.transcribe(
+        audioPath: window.url.path,
+        decodeOptions: decodingOptions,
+        callback: { progress in
+          sink.emit(
+            stage: "transcribing",
+            text: progress.text,
+            window: progress.windowId,
+            message: "Processing final Live tail"
+          )
+
+          return true
+        }
+      )
+
+      let text = results
+        .map(\.text)
+        .joined(separator: " ")
+        .replacingOccurrences(
+          of: #"\s+"#,
+          with: " ",
+          options: .regularExpression
+        )
+        .trimmingCharacters(
+          in: .whitespacesAndNewlines
+        )
+
+      let orderedSegments = results
+        .flatMap(\.segments)
+        .sorted {
+          $0.start < $1.start
+        }
+
+      let segments: [[String: Any]] =
+        orderedSegments.map { segment in
+          [
+            "start":
+              Double(segment.start) + window.globalOffsetSeconds,
+            "end":
+              Double(segment.end) + window.globalOffsetSeconds,
+            "text": segment.text,
+            "noSpeechProb":
+              Double(segment.noSpeechProb),
+            "avgLogProb":
+              Double(segment.avgLogprob)
+          ]
+        }
+
+      sink.emit(
+        stage: "done",
+        text: text,
+        message: "Final Live tail transcript ready"
+      )
+
+      return [
+        "ok": true,
+        "model": selectedModel,
+        "language":
+          results.first?.language
+          ?? selectedLanguage,
+        "text": text,
+        "segments": segments,
+        "characters": text.count,
+        "audioLoadingMode": "full-file",
+        "chunkingStrategy": "none",
+        "source": "tail-window",
+        "globalOffsetSeconds": window.globalOffsetSeconds,
+        "overlapSeconds": window.actualOverlapSeconds,
+        "requestedStartSeconds": max(0, startSeconds)
+      ]
+    }
+
     AsyncFunction("startLive") {
       (
         audioUri: String,
         language: String,
-        model: String
+        model: String,
+        timingLogUri: String
       ) async throws -> [String: Any] in
 
       guard
@@ -279,7 +629,7 @@ public class WhisperKitLocalModule: Module {
        * seconds to load on a cold Live start. AudioStreamTranscriber later
        * attaches to the same processor and consumes the buffered samples.
        */
-      let processor = try LiveFileAudioProcessor(
+      let processor = try LiveRecorderAudioProcessor(
         outputURL: outputURL
       )
 
@@ -287,8 +637,20 @@ public class WhisperKitLocalModule: Module {
       self.livePendingProcessor = processor
 
       do {
+        self.appendTimingEvent(
+          "LIVE_MODEL_LOADING",
+          timingLogUri: timingLogUri,
+          details: "model=\(selectedModel)"
+        )
+
         let kit = try await self.getOrCreateWhisperKit(
           model: selectedModel
+        )
+
+        self.appendTimingEvent(
+          "LIVE_MODEL_READY",
+          timingLogUri: timingLogUri,
+          details: "model=\(selectedModel)"
         )
 
         guard self.livePendingProcessor === processor else {
@@ -489,6 +851,397 @@ public class WhisperKitLocalModule: Module {
     loadedModel = model
 
     return created
+  }
+
+  private struct SegmentTranscriptionWindow {
+    let url: URL
+    let actualOverlapSeconds: Double
+  }
+
+  private func makeSegmentTranscriptionWindow(
+    previousPath: String?,
+    currentPath: String,
+    requestedOverlapSeconds: Double
+  ) async throws -> SegmentTranscriptionWindow {
+    let currentURL = URL(fileURLWithPath: currentPath)
+    let currentAsset = AVURLAsset(url: currentURL)
+
+    guard
+      let currentTrack = currentAsset
+        .tracks(withMediaType: .audio)
+        .first
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 43,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Current durable segment has no readable audio track."
+        ]
+      )
+    }
+
+    let currentDuration = currentAsset.duration
+
+    guard
+      currentDuration.isValid,
+      currentDuration.seconds.isFinite,
+      currentDuration.seconds > 0
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 44,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Current durable segment has an invalid duration."
+        ]
+      )
+    }
+
+    let composition = AVMutableComposition()
+
+    guard
+      let compositionTrack = composition.addMutableTrack(
+        withMediaType: .audio,
+        preferredTrackID: kCMPersistentTrackID_Invalid
+      )
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 45,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Could not create a segment transcription composition."
+        ]
+      )
+    }
+
+    var cursor = CMTime.zero
+    var actualOverlapSeconds = 0.0
+
+    if
+      let previousPath,
+      requestedOverlapSeconds > 0
+    {
+      let previousURL = URL(fileURLWithPath: previousPath)
+      let previousAsset = AVURLAsset(url: previousURL)
+
+      guard
+        let previousTrack = previousAsset
+          .tracks(withMediaType: .audio)
+          .first
+      else {
+        throw NSError(
+          domain: "WhisperKitLocal",
+          code: 46,
+          userInfo: [
+            NSLocalizedDescriptionKey:
+              "Previous durable segment has no readable audio track."
+          ]
+        )
+      }
+
+      let previousDuration = previousAsset.duration
+
+      guard
+        previousDuration.isValid,
+        previousDuration.seconds.isFinite,
+        previousDuration.seconds > 0
+      else {
+        throw NSError(
+          domain: "WhisperKitLocal",
+          code: 47,
+          userInfo: [
+            NSLocalizedDescriptionKey:
+              "Previous durable segment has an invalid duration."
+          ]
+        )
+      }
+
+      actualOverlapSeconds = min(
+        max(0, requestedOverlapSeconds),
+        previousDuration.seconds
+      )
+
+      if actualOverlapSeconds > 0 {
+        let overlapDuration = CMTime(
+          seconds: actualOverlapSeconds,
+          preferredTimescale: 600
+        )
+
+        let overlapStart = CMTimeSubtract(
+          previousDuration,
+          overlapDuration
+        )
+
+        try compositionTrack.insertTimeRange(
+          CMTimeRange(
+            start: overlapStart,
+            duration: overlapDuration
+          ),
+          of: previousTrack,
+          at: cursor
+        )
+
+        cursor = CMTimeAdd(
+          cursor,
+          overlapDuration
+        )
+      }
+    }
+
+    try compositionTrack.insertTimeRange(
+      CMTimeRange(
+        start: .zero,
+        duration: currentDuration
+      ),
+      of: currentTrack,
+      at: cursor
+    )
+
+    let temporaryURL = FileManager.default
+      .temporaryDirectory
+      .appendingPathComponent(
+        "norsktrainer-segment-window-\(UUID().uuidString).m4a"
+      )
+
+    guard
+      let exporter = AVAssetExportSession(
+        asset: composition,
+        presetName: AVAssetExportPresetAppleM4A
+      )
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 48,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Could not create the segment transcription export session."
+        ]
+      )
+    }
+
+    exporter.outputURL = temporaryURL
+    exporter.outputFileType = .m4a
+    exporter.shouldOptimizeForNetworkUse = false
+
+    try await withCheckedThrowingContinuation {
+      (continuation: CheckedContinuation<Void, Error>) in
+      exporter.exportAsynchronously {
+        switch exporter.status {
+        case .completed:
+          continuation.resume(returning: ())
+
+        case .failed,
+             .cancelled:
+          continuation.resume(
+            throwing:
+              exporter.error ?? NSError(
+                domain: "WhisperKitLocal",
+                code: 49,
+                userInfo: [
+                  NSLocalizedDescriptionKey:
+                    "Segment transcription window export failed."
+                ]
+              )
+          )
+
+        default:
+          continuation.resume(
+            throwing: NSError(
+              domain: "WhisperKitLocal",
+              code: 50,
+              userInfo: [
+                NSLocalizedDescriptionKey:
+                  "Segment transcription window export ended in an unexpected state."
+              ]
+            )
+          )
+        }
+      }
+    }
+
+    return SegmentTranscriptionWindow(
+      url: temporaryURL,
+      actualOverlapSeconds: actualOverlapSeconds
+    )
+  }
+
+  private struct TailTranscriptionWindow {
+    let url: URL
+    let globalOffsetSeconds: Double
+    let actualOverlapSeconds: Double
+  }
+
+  private func makeTailTranscriptionWindow(
+    audioPath: String,
+    requestedStartSeconds: Double,
+    requestedOverlapSeconds: Double
+  ) async throws -> TailTranscriptionWindow {
+    let audioURL = URL(fileURLWithPath: audioPath)
+    let asset = AVURLAsset(url: audioURL)
+
+    guard
+      let track = asset
+        .tracks(withMediaType: .audio)
+        .first
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 52,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Live tail source has no readable audio track."
+        ]
+      )
+    }
+
+    let duration = asset.duration
+
+    guard
+      duration.isValid,
+      duration.seconds.isFinite,
+      duration.seconds > 0
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 53,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Live tail source has an invalid duration."
+        ]
+      )
+    }
+
+    let safeStart = min(
+      max(0, requestedStartSeconds),
+      duration.seconds
+    )
+
+    let actualOverlap = min(
+      max(0, requestedOverlapSeconds),
+      safeStart
+    )
+
+    let windowStart = max(
+      0,
+      safeStart - actualOverlap
+    )
+
+    let windowDurationSeconds =
+      duration.seconds - windowStart
+
+    guard windowDurationSeconds > 0 else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 54,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "No Live audio remains after the requested tail start."
+        ]
+      )
+    }
+
+    let composition = AVMutableComposition()
+
+    guard
+      let compositionTrack = composition.addMutableTrack(
+        withMediaType: .audio,
+        preferredTrackID: kCMPersistentTrackID_Invalid
+      )
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 55,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Could not create the Live tail transcription composition."
+        ]
+      )
+    }
+
+    try compositionTrack.insertTimeRange(
+      CMTimeRange(
+        start: CMTime(
+          seconds: windowStart,
+          preferredTimescale: 600
+        ),
+        duration: CMTime(
+          seconds: windowDurationSeconds,
+          preferredTimescale: 600
+        )
+      ),
+      of: track,
+      at: .zero
+    )
+
+    let temporaryURL = FileManager.default
+      .temporaryDirectory
+      .appendingPathComponent(
+        "norsktrainer-live-tail-\(UUID().uuidString).m4a"
+      )
+
+    guard
+      let exporter = AVAssetExportSession(
+        asset: composition,
+        presetName: AVAssetExportPresetAppleM4A
+      )
+    else {
+      throw NSError(
+        domain: "WhisperKitLocal",
+        code: 56,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Could not create the Live tail export session."
+        ]
+      )
+    }
+
+    exporter.outputURL = temporaryURL
+    exporter.outputFileType = .m4a
+    exporter.shouldOptimizeForNetworkUse = false
+
+    try await withCheckedThrowingContinuation {
+      (continuation: CheckedContinuation<Void, Error>) in
+      exporter.exportAsynchronously {
+        switch exporter.status {
+        case .completed:
+          continuation.resume(returning: ())
+
+        case .failed,
+             .cancelled:
+          continuation.resume(
+            throwing:
+              exporter.error ?? NSError(
+                domain: "WhisperKitLocal",
+                code: 57,
+                userInfo: [
+                  NSLocalizedDescriptionKey:
+                    "Live tail transcription window export failed."
+                ]
+              )
+          )
+
+        default:
+          continuation.resume(
+            throwing: NSError(
+              domain: "WhisperKitLocal",
+              code: 58,
+              userInfo: [
+                NSLocalizedDescriptionKey:
+                  "Live tail transcription window export ended in an unexpected state."
+              ]
+            )
+          )
+        }
+      }
+    }
+
+    return TailTranscriptionWindow(
+      url: temporaryURL,
+      globalOffsetSeconds: windowStart,
+      actualOverlapSeconds: actualOverlap
+    )
   }
 
   private func filePath(
