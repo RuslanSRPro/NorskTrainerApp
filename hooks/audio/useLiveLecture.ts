@@ -959,11 +959,24 @@ export function useLiveLecture({
 
       try {
         const status = LectureRecorder.getStatus();
-        if (status.isRecording) {
-          const stopped = await LectureRecorder.stop();
-          finalDurationMillis = Math.max(
-            finalDurationMillis,
-            stopped.durationMillis
+        if (status.uri === active.audioFile.uri) {
+          if (status.isRecording) {
+            const stopped = await LectureRecorder.stop();
+            finalDurationMillis = Math.max(
+              finalDurationMillis,
+              stopped.durationMillis
+            );
+          } else {
+            // A native session can own this URI before its first durable
+            // buffer, while isRecording is still false.
+            await LectureRecorder.cancel();
+          }
+        }
+
+        const afterCleanup = LectureRecorder.getStatus();
+        if (afterCleanup.uri === active.audioFile.uri) {
+          throw new Error(
+            'Native Live recorder cleanup is still pending.'
           );
         }
 
@@ -983,7 +996,7 @@ export function useLiveLecture({
         // Durable segments/manifest remain the recovery authority.
         try {
           const status = LectureRecorder.getStatus();
-          if (status.isRecording) {
+          if (status.uri === active.audioFile.uri) {
             await LectureRecorder.cancel();
           }
         } catch {}
@@ -1129,12 +1142,18 @@ export function useLiveLecture({
        * LectureRecorder engine. startLive() begins listening immediately
        * and may continue loading the model while recorder startup proceeds.
        */
-      const liveStartPromise =
+      // Attach both handlers immediately: model loading may reject before
+      // the durable recorder has finished starting. Keep the outcome for
+      // the existing await point without an unhandled rejection.
+      const liveStartOutcome =
         WhisperKitLocal.startLive(
           liveAudioFile.uri,
           getWhisperLanguageCode(sourceLanguage),
           WHISPERKIT_DEFAULT_MODEL,
           timingFile.uri
+        ).then(
+          () => ({ ok: true as const }),
+          (error: unknown) => ({ ok: false as const, error })
         );
 
       await LectureRecorder.start(
@@ -1142,7 +1161,7 @@ export function useLiveLecture({
       );
 
       const recorderDeadline =
-        Date.now() + 4000;
+        Date.now() + 12000;
       let recorderReady =
         LectureRecorder.getStatus();
 
@@ -1164,7 +1183,10 @@ export function useLiveLecture({
       }
 
       startLiveClock();
-      await liveStartPromise;
+      const liveStartResult = await liveStartOutcome;
+      if (!liveStartResult.ok) {
+        throw liveStartResult.error;
+      }
 
       if (
         generationRef.current ===

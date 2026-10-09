@@ -2496,12 +2496,7 @@ export default function VoiceScreen() {
                     : pressed
                       ? 0.72
                       : 1,
-                transform:
-                  pressed &&
-                  recordingActionPhase === 'idle'
-                    ? [{ scale: 0.985 }]
-                    : [],
-              },
+                },
             ]}
           >
             <Text
@@ -4028,7 +4023,7 @@ const styles =
 
     recordingMainButton: {
       flex: 1,
-    },
+    minWidth: 0, height: 64, },
 
     mainButton: {
       paddingVertical: 17,

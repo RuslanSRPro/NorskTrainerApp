@@ -415,8 +415,7 @@ export function LiveLectureButton({
 const styles =
   StyleSheet.create({
     liveButton: {
-      minHeight: 56,
-      minWidth: 112,
+      height: 64, minWidth: 112, maxWidth: "45%",
       paddingHorizontal: 12,
       borderRadius: 18,
       borderWidth: 1.5,

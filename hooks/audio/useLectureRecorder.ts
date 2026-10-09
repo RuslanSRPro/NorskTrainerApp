@@ -1006,7 +1006,7 @@ export function useLectureRecorder(
       const readyEvent =
         await waitForNativeRecorderReady(
           audioUri,
-          4000
+          12000
         );
 
       const verified =
@@ -1071,7 +1071,9 @@ export function useLectureRecorder(
         } catch {}
 
         throw new Error(
-          `The native recorder did not confirm a durable audio write. ` +
+          (nativeStatus?.hasSuccessfulWrite === true && nativeStatus?.isRecording === false
+            ? `Audio was written, but the native recorder stopped during startup. `
+            : `The native recorder did not confirm a durable audio write. `) +
           (nativeError
             ? `native=${nativeError.code}: ${nativeError.message}; `
             : '') +

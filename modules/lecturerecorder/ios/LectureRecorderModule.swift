@@ -98,6 +98,8 @@ public final class LectureRecorderModule: Module {
   private var captureGeneration: UInt64 = 0
   // Lock-protected recording identity, separate from per-engine capture generations.
   private var recordingSessionID: UUID?
+  private var firstBufferRecoveryAttempted = false
+  private var firstBufferCaptureGeneration: UInt64 = 0
   private var timingFirstBufferLogged = false
   private var timingFirstDurableWriteLogged = false
 
@@ -248,9 +250,21 @@ public final class LectureRecorderModule: Module {
       self.resetWriterState()
 
       do {
+        self.appendTimingEvent(
+          "SESSION_CONFIG_BEGIN",
+          destinationURL: destinationURL
+        )
         try self.configureAudioSessionForRecording()
         self.appendTimingEvent(
+          "SESSION_CONFIG_END",
+          destinationURL: destinationURL
+        )
+        self.appendTimingEvent(
           "SESSION_ACTIVE",
+          destinationURL: destinationURL
+        )
+        self.appendTimingEvent(
+          "ENGINE_START_BEGIN",
           destinationURL: destinationURL
         )
         try self.startCaptureEngine()
@@ -503,17 +517,17 @@ public final class LectureRecorderModule: Module {
 
               DispatchQueue.main.async {
                 self.cleanupAfterFailedStopPreservingSegments()
+                // Do not release JS until native ownership is cleared.
+                continuation.resume(
+                  throwing: self.makeException(
+                    code: "ERR_CANCEL_DRAIN_TIMEOUT",
+                    message:
+                      "Microphone callbacks exceeded the 5-second drain limit. " +
+                      "Native cleanup completed; recoverable audio checkpoints were preserved."
+                  )
+                )
               }
             }
-
-            continuation.resume(
-              throwing: self.makeException(
-                code: "ERR_CANCEL_DRAIN_TIMEOUT",
-                message:
-                  "The recorder could not finish cancelling within 5 seconds. " +
-                  "Committed audio checkpoints were preserved for recovery."
-              )
-            )
             return
           }
 
@@ -1475,15 +1489,20 @@ public final class LectureRecorderModule: Module {
               try self.startCaptureEngine()
               self.lifecycleRestartPending = false
             } catch {
-              self.lifecycleRestartPending = false
               let snapshot = self.statusSnapshot()
+              let destinationURL = self.currentDestinationURL
+
               self.emitRecorderError(
                 code: "ERR_AUDIO_LIFECYCLE_RESTART",
                 message: "The recorder could not resume after \(reason): \(error.localizedDescription)",
-                url: self.currentDestinationURL,
+                url: destinationURL,
                 bytes: snapshot.bytes,
                 durationMillis: snapshot.durationMillis
               )
+
+              // The writer queue has already finalized the current segment.
+              // Release native ownership without deleting recoverable audio.
+              self.cleanupAfterFailedStopPreservingSegments()
             }
           }
         }
@@ -1727,6 +1746,7 @@ public final class LectureRecorderModule: Module {
       }
 
       let shouldLogFirstBuffer = self.withStateLock { () -> Bool in
+        self.firstBufferCaptureGeneration = captureGeneration
         if self.timingFirstBufferLogged {
           return false
         }
@@ -1820,10 +1840,74 @@ public final class LectureRecorderModule: Module {
     }
 
     audioEngine = engine
-    activeInputSampleRate =
-      recordingFormat.sampleRate
-    activeInputChannelCount =
-      recordingFormat.channelCount
+    activeInputSampleRate = recordingFormat.sampleRate
+    activeInputChannelCount = recordingFormat.channelCount
+    // Check this specific engine generation, not only the recording-wide
+    // FIRST_BUFFER timing flag. Never retry more than once per session.
+    if let sessionID = currentRecordingSession() {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+        guard let self else { return }
+        guard self.isCurrentRecordingSession(sessionID) else { return }
+        guard self.isCurrentCaptureGeneration(captureGeneration) else { return }
+        guard self.currentDestinationURL != nil else { return }
+        guard !self.isStopping, !self.isPausedForInterruption else { return }
+
+        let state = self.withStateLock {
+          (
+            firstBufferGeneration: self.firstBufferCaptureGeneration,
+            accepting: self.acceptingBuffers,
+            writerFailure: self.writerFailureMessage != nil,
+            recoveryAttempted: self.firstBufferRecoveryAttempted
+          )
+        }
+
+        guard state.firstBufferGeneration != captureGeneration else {
+          return
+        }
+
+        let engineRunning = self.audioEngine?.isRunning == true
+        let details =
+          "engineRunning=\(engineRunning), " +
+          "acceptingBuffers=\(state.accepting), " +
+          "writerFailure=\(state.writerFailure), " +
+          "captureGeneration=\(captureGeneration)"
+
+        self.appendTimingEvent(
+          "FIRST_BUFFER_TIMEOUT_3S",
+          destinationURL: self.currentDestinationURL,
+          details: details
+        )
+
+        guard !state.recoveryAttempted else {
+          self.appendTimingEvent(
+            "FIRST_BUFFER_RECOVERY_EXHAUSTED",
+            destinationURL: self.currentDestinationURL
+          )
+          return
+        }
+
+        guard !self.lifecycleRestartPending, !state.writerFailure else {
+          return
+        }
+
+        let shouldRecover = self.withStateLock { () -> Bool in
+          guard !self.firstBufferRecoveryAttempted else { return false }
+          self.firstBufferRecoveryAttempted = true
+          return true
+        }
+
+        guard shouldRecover else { return }
+
+        self.appendTimingEvent(
+          "FIRST_BUFFER_RECOVERY_BEGIN",
+          destinationURL: self.currentDestinationURL
+        )
+
+        self.restartCaptureAfterLifecycleChange(
+          reason: "first microphone buffer timeout"
+        )
+      }
+    }
   }
 
   private func stopCaptureEngine() {
@@ -3454,7 +3538,10 @@ public final class LectureRecorderModule: Module {
   }
 
   private func beginRecordingSession() {
-    withStateLock { recordingSessionID = UUID() }
+    withStateLock {
+      recordingSessionID = UUID()
+      firstBufferRecoveryAttempted = false
+    }
   }
 
   private func endRecordingSession() {
