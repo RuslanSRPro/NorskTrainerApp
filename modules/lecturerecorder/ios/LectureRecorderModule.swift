@@ -41,6 +41,13 @@ public final class LectureRecorderModule: Module {
     qos: .userInitiated
   )
 
+  // Recovery owns only durable files from inactive/previous sessions.
+  // Keeping it off writerQueue prevents background recovery from delaying Start.
+  private let recoveryQueue = DispatchQueue(
+    label: "com.norsktrainer.lecture-recorder.recovery",
+    qos: .utility
+  )
+
   private let timingQueue = DispatchQueue(
     label: "com.norsktrainer.audio-timing",
     qos: .utility
@@ -102,6 +109,8 @@ public final class LectureRecorderModule: Module {
   private var firstBufferCaptureGeneration: UInt64 = 0
   private var timingFirstBufferLogged = false
   private var timingFirstDurableWriteLogged = false
+  // Accessed only on writerQueue; telemetry for its first buffer per session.
+  private var timingFirstWriterAttemptLogged = false
 
   // Segment-backed playback is a read-only fallback for a durably saved
   // lecture whose derived audio.m4a is not ready yet. It never exports,
@@ -234,9 +243,11 @@ public final class LectureRecorderModule: Module {
         withIntermediateDirectories: true
       )
 
+      self.appendTimingEvent("MANIFEST_CREATE_BEGIN", destinationURL: destinationURL)
       try self.createInitialRecordingManifest(
         for: destinationURL
       )
+      self.appendTimingEvent("MANIFEST_CREATE_END", destinationURL: destinationURL)
 
       self.currentDestinationURL = destinationURL
       self.currentSegmentsDirectoryURL = segmentsDirectoryURL
@@ -247,7 +258,9 @@ public final class LectureRecorderModule: Module {
       self.lifecycleRestartPending = false
 
       self.resetLiveState()
+      self.appendTimingEvent("WRITER_RESET_BEGIN", destinationURL: destinationURL)
       self.resetWriterState()
+      self.appendTimingEvent("WRITER_RESET_END", destinationURL: destinationURL)
 
       do {
         self.appendTimingEvent(
@@ -337,6 +350,7 @@ public final class LectureRecorderModule: Module {
 
       self.pendingStopPromise = promise
       self.isStopping = true
+      self.appendTimingEvent("STOP_BEGIN", destinationURL: destinationURL)
       self.resumeToken = nil
       self.beginStopBackgroundTask()
 
@@ -353,10 +367,15 @@ public final class LectureRecorderModule: Module {
       DispatchQueue.global(qos: .utility).async { [weak self] in
         guard let self else { return }
 
+        self.appendTimingEvent("STOP_DRAIN_BEGIN", destinationURL: destinationURL)
         let drained =
           self.tapCallbackGroup.wait(
             timeout: .now() + 5.0
           ) == .success
+        self.appendTimingEvent(
+          drained ? "STOP_DRAIN_END" : "STOP_DRAIN_TIMEOUT",
+          destinationURL: destinationURL
+        )
 
         if !drained {
           DispatchQueue.main.async {
@@ -413,10 +432,13 @@ public final class LectureRecorderModule: Module {
           return
         }
 
+        self.appendTimingEvent("STOP_WRITER_FINALIZE_QUEUED", destinationURL: destinationURL)
         self.writerQueue.async { [weak self] in
           guard let self else { return }
 
-        self.finalizeCurrentSegmentOnWriterQueue()
+          self.appendTimingEvent("STOP_WRITER_FINALIZE_BEGIN", destinationURL: destinationURL)
+          self.finalizeCurrentSegmentOnWriterQueue()
+          self.appendTimingEvent("STOP_WRITER_FINALIZE_END", destinationURL: destinationURL)
 
         // Retry any checkpoint that was kept as .part.m4a because its
         // first immediate validation happened before the container became
@@ -975,12 +997,15 @@ public final class LectureRecorderModule: Module {
         return
       }
 
-      self.writerQueue.async { [weak self] in
+      self.appendTimingEvent("RECOVERY_QUEUED", destinationURL: destinationURL)
+      self.recoveryQueue.async { [weak self] in
         guard let self else { return }
+        self.appendTimingEvent("RECOVERY_BEGIN", destinationURL: destinationURL)
 
         self.promoteRecoverablePartialSegments(
           in: segmentsDirectoryURL,
-          destinationURL: destinationURL
+          destinationURL: destinationURL,
+          reportFailureToActiveWriter: false
         )
 
         let unresolvedPartialURLs =
@@ -1082,10 +1107,16 @@ public final class LectureRecorderModule: Module {
           return
         }
 
+        self.appendTimingEvent(
+          "RECOVERY_RECONCILED",
+          destinationURL: destinationURL,
+          details: "segments=\(reconciledManifest.segments.count);durationMillis=\(reconciledManifest.committedDurationMillis)"
+        )
         self.assembleRecordingFromManifest(
           reconciledManifest,
           destinationURL: destinationURL
         ) { result in
+          self.appendTimingEvent("RECOVERY_END", destinationURL: destinationURL)
           DispatchQueue.main.async {
             promise.resolve(result)
           }
@@ -1777,6 +1808,9 @@ public final class LectureRecorderModule: Module {
         return
       }
 
+      if shouldLogFirstBuffer {
+        self.appendTimingEvent("WRITER_FIRST_BUFFER_ENQUEUED", destinationURL: self.currentDestinationURL)
+      }
       self.writerQueue.async { [weak self] in
         guard
           let self,
@@ -2324,15 +2358,26 @@ public final class LectureRecorderModule: Module {
   private func writeBufferOnWriterQueue(
     _ buffer: AVAudioPCMBuffer
   ) {
+    let traceFirstWriterAttempt = !timingFirstWriterAttemptLogged
+    if traceFirstWriterAttempt {
+      timingFirstWriterAttemptLogged = true
+      appendTimingEvent("WRITER_FIRST_BUFFER_ENTER", destinationURL: currentDestinationURL)
+    }
     guard writerFailureMessage == nil else {
       return
     }
 
     do {
       if currentSegmentFile == nil {
+        if traceFirstWriterAttempt {
+          appendTimingEvent("WRITER_FILE_OPEN_BEGIN", destinationURL: currentDestinationURL)
+        }
         try openNextSegmentOnWriterQueue(
           processingFormat: buffer.format
         )
+        if traceFirstWriterAttempt {
+          appendTimingEvent("WRITER_FILE_OPEN_END", destinationURL: currentDestinationURL)
+        }
       }
 
       /*
@@ -2344,9 +2389,15 @@ public final class LectureRecorderModule: Module {
        * open. The checkpoint could then be rejected/deleted and force-quit
        * recovery had nothing durable to rebuild.
        */
+      if traceFirstWriterAttempt {
+        appendTimingEvent("WRITER_FILE_WRITE_BEGIN", destinationURL: currentDestinationURL)
+      }
       try writeToCurrentSegmentOnWriterQueue(
         buffer
       )
+      if traceFirstWriterAttempt {
+        appendTimingEvent("WRITER_FILE_WRITE_END", destinationURL: currentDestinationURL)
+      }
 
       let shouldLogFirstWrite = withStateLock { () -> Bool in
         if timingFirstDurableWriteLogged {
@@ -2545,6 +2596,7 @@ public final class LectureRecorderModule: Module {
       self.currentPartURL = nil
       self.nextSegmentIndex = 1
       self.currentSegmentDurationSeconds = 0
+      self.timingFirstWriterAttemptLogged = false
     }
   }
 
@@ -3160,7 +3212,8 @@ public final class LectureRecorderModule: Module {
 
   private func promoteRecoverablePartialSegments(
     in directoryURL: URL,
-    destinationURL explicitDestinationURL: URL? = nil
+    destinationURL explicitDestinationURL: URL? = nil,
+    reportFailureToActiveWriter: Bool = true
   ) {
     guard
       let entries = try? FileManager.default.contentsOfDirectory(
@@ -3231,9 +3284,17 @@ public final class LectureRecorderModule: Module {
           )
         }
       } catch {
-        reportWriterFailure(
-          "Could not durably promote a recoverable lecture checkpoint: \(error.localizedDescription)"
-        )
+        if reportFailureToActiveWriter {
+          reportWriterFailure(
+            "Could not durably promote a recoverable lecture checkpoint: \(error.localizedDescription)"
+          )
+        } else {
+          appendTimingEvent(
+            "RECOVERY_PROMOTE_FAILED",
+            destinationURL: explicitDestinationURL,
+            details: "file=\(partURL.lastPathComponent);error=\(error.localizedDescription)"
+          )
+        }
       }
     }
   }

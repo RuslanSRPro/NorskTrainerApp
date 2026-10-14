@@ -404,7 +404,7 @@ export function useLectureRecorder(
 
 
   const recoverInterruptedRecordings =
-    async () => {
+    async (onlyLectureId?: string) => {
       try {
         const root =
           new Directory(
@@ -423,6 +423,12 @@ export function useLectureRecorder(
           if (
             !(entry instanceof Directory)
           ) {
+            continue;
+          }
+
+          // Stop-error recovery should touch only the lecture that just failed.
+          // Startup recovery omits onlyLectureId and can still repair the archive.
+          if (onlyLectureId && entry.name !== onlyLectureId) {
             continue;
           }
 

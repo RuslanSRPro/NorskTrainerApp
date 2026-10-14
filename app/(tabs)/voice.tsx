@@ -1,6 +1,7 @@
 // app/(tabs)/voice.tsx
 
 import { useEffect, useRef, useState } from 'react';
+import { enqueueAudioDiagnostic, newAudioDiagnosticId, retryAudioDiagnostics } from '@/services/audioDiagnostics';
 import {
   Alert,
   Pressable,
@@ -832,6 +833,25 @@ export default function VoiceScreen() {
     };
 
 
+  const normalDiagnosticRef = useRef<{ id: string; startedAt: string; t0: number; startupMs?: number; events: { name: string; at_ms: number }[] } | null>(null);
+  useEffect(() => { retryAudioDiagnostics(); }, []);
+  const addNormalDiagnosticEvent = (name: string) => {
+    const item = normalDiagnosticRef.current;
+    if (!item) return;
+    item.events.push({ name, at_ms: Math.max(0, Date.now() - item.t0) });
+  };
+  const finishNormalDiagnostic = (status: 'saved' | 'failed' | 'cancelled', errorCode?: string) => {
+    const item = normalDiagnosticRef.current;
+    if (!item) return;
+    normalDiagnosticRef.current = null;
+    enqueueAudioDiagnostic({
+      session_id: item.id, mode: 'normal', status,
+      started_at: item.startedAt, finished_at: new Date().toISOString(),
+      startup_ms: item.startupMs ?? null, error_code: errorCode ?? null,
+      events: [...item.events, { name: status.toUpperCase(), at_ms: Date.now() - item.t0 }],
+    });
+  };
+
   const handleStart =
     async () => {
 
@@ -850,6 +870,7 @@ export default function VoiceScreen() {
       recordAudioTiming(
         'START_TAPPED'
       );
+      normalDiagnosticRef.current = { id: newAudioDiagnosticId(), startedAt: new Date().toISOString(), t0: Date.now(), events: [{ name: 'START_TAPPED', at_ms: 0 }] };
 
 
       try {
@@ -858,6 +879,7 @@ export default function VoiceScreen() {
           isLectureProcessing
         ) {
 
+          finishNormalDiagnostic('cancelled', 'PROCESSING_IN_PROGRESS');
           Alert.alert(
             audioUi.processingInProgress,
             audioUi.waitForProcessing
@@ -887,6 +909,7 @@ export default function VoiceScreen() {
 
         if (!permission.granted) {
 
+          finishNormalDiagnostic('failed', 'MICROPHONE_PERMISSION_DENIED');
           Alert.alert(
             audioUi.microphonePermission,
             audioUi.microphoneRequired
@@ -995,6 +1018,8 @@ export default function VoiceScreen() {
         commitStartedRecording(
           verifiedAttempt
         );
+        if (normalDiagnosticRef.current) normalDiagnosticRef.current.startupMs = Date.now() - normalDiagnosticRef.current.t0;
+        addNormalDiagnosticEvent('START_VERIFIED');
 
         setStatus(
           'recording'
@@ -1010,6 +1035,7 @@ export default function VoiceScreen() {
           'Lecture recording start error:',
           error
         );
+        finishNormalDiagnostic('failed', 'NORMAL_START_FAILED');
 
 
         try {
@@ -1124,6 +1150,7 @@ export default function VoiceScreen() {
       recordAudioTiming(
         'STOP_TAPPED'
       );
+      addNormalDiagnosticEvent('STOP_TAPPED');
 
 
       const active =
@@ -1160,6 +1187,8 @@ export default function VoiceScreen() {
         const result =
           await stopRecording();
 
+
+        addNormalDiagnosticEvent('STOP_NATIVE_RESOLVED');
 
         const durationMillis =
           result.durationMillis;
@@ -1232,6 +1261,7 @@ export default function VoiceScreen() {
           'UI_SAVED',
           `lecture=${active.id}`
         );
+        finishNormalDiagnostic('saved');
 
         loadLectures();
 
@@ -1305,7 +1335,8 @@ export default function VoiceScreen() {
          */
         letRecovery: {
           try {
-            await recoverInterruptedRecordings();
+            addNormalDiagnosticEvent('STOP_RECOVERY_BEGIN');
+            await recoverInterruptedRecordings(active?.id);
           } catch (recoveryError) {
             devConsole.error(
               'Lecture recovery after failed stop error:',
@@ -1350,6 +1381,8 @@ export default function VoiceScreen() {
                   setLastSavedLectureId(active.id);
                   setStatus('saved');
                   loadLectures();
+                  addNormalDiagnosticEvent('STOP_RECOVERY_CONFIRMED');
+                  finishNormalDiagnostic('saved', 'RECOVERED_AFTER_STOP_ERROR');
                   break letRecovery;
                 }
               }
@@ -1363,6 +1396,7 @@ export default function VoiceScreen() {
 
           loadLectures();
 
+          finishNormalDiagnostic('failed', 'NORMAL_STOP_RECOVERY_UNCONFIRMED');
           Alert.alert(
             audioUi.recordingNotSaved,
             error instanceof Error
