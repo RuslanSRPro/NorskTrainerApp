@@ -612,6 +612,17 @@ export function useLectureRecorder(
                 ? 'RECOVERY_BEGIN'
                 : 'RECOVERY_ASSEMBLY_BEGIN';
 
+            // Commit the begin event to local storage before native work.
+            // Existing server status values are preserved; the explicit pending
+            // code distinguishes this snapshot from a terminal recovery failure.
+            await enqueueAudioDiagnostic({
+              session_id: recoveryDiagnosticId,
+              mode: 'normal', status: 'failed',
+              started_at: recoveryStartedAt, finished_at: recoveryStartedAt,
+              error_code: isInterruptedRecording ? 'RECOVERY_PENDING' : 'RECOVERY_ASSEMBLY_PENDING',
+              events: [{ name: recoveryBeginEvent, at_ms: 0 }],
+            });
+
             try {
               const recovery =
                 isInterruptedRecording

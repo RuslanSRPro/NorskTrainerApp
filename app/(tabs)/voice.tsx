@@ -137,6 +137,26 @@ type LectureTextTab =
   | 'uk'
   | 'ru';
 
+function getAudioPreparationText(language: string) {
+  const code = language.toLowerCase();
+  if (code.startsWith('ru')) return {
+    failed: 'Не удалось подготовить аудиофайл. Запись сохранена в частях.',
+    retry: 'Повторить подготовку аудио',
+  };
+  if (code.startsWith('uk')) return {
+    failed: 'Не вдалося підготувати аудіофайл. Запис збережено частинами.',
+    retry: 'Повторити підготовку аудіо',
+  };
+  if (code.startsWith('nb') || code.startsWith('no') || code.startsWith('nn')) return {
+    failed: 'Lydfilen kunne ikke klargjøres. Opptaket er lagret i deler.',
+    retry: 'Prøv å klargjøre lyden på nytt',
+  };
+  return {
+    failed: 'Could not prepare the audio file. The recording is saved in parts.',
+    retry: 'Retry audio preparation',
+  };
+}
+
 
 export default function VoiceScreen() {
 
@@ -246,6 +266,9 @@ export default function VoiceScreen() {
 
   const [lectures, setLectures] =
     useState<LectureItem[]>([]);
+  const [audioAssemblyStates, setAudioAssemblyStates] = useState<Record<string, string>>({});
+  const audioPreparationRequestsRef = useRef(new Set<string>());
+  const audioPreparationText = getAudioPreparationText(String(app_language));
 
   const [
     openedLectureId,
@@ -400,11 +423,13 @@ export default function VoiceScreen() {
         });
 
         setLectures([]);
+        setAudioAssemblyStates({});
         return;
       }
 
 
       const items: LectureItem[] = [];
+      const assemblyStates: Record<string, string> = {};
 
 
       for (
@@ -423,6 +448,17 @@ export default function VoiceScreen() {
 
           const metadata =
             readMetadata(entry);
+
+          try {
+            const manifest = new File(entry, 'recording-manifest.json');
+            if (manifest.exists) {
+              const parsed: unknown = JSON.parse(manifest.textSync());
+              const state = (parsed as { assembly?: { state?: unknown } } | null)?.assembly?.state;
+              if (typeof state === 'string') assemblyStates[metadata.id || entry.name] = state;
+            }
+          } catch {
+            // Audio and transcript availability remain independent of this badge.
+          }
 
           const audio =
             findAudioFile(
@@ -589,6 +625,7 @@ export default function VoiceScreen() {
 
 
       setLectures(items);
+      setAudioAssemblyStates(assemblyStates);
 
     } catch (error) {
 
@@ -601,6 +638,40 @@ export default function VoiceScreen() {
 
 
 
+
+  const handleRetryAudioPreparation = async (lecture: LectureItem) => {
+    if (audioPreparationRequestsRef.current.has(lecture.id)) return;
+    audioPreparationRequestsRef.current.add(lecture.id);
+    setAudioAssemblyStates(current => ({ ...current, [lecture.id]: 'assembling' }));
+    const t0 = Date.now();
+    const report = {
+      session_id: newAudioDiagnosticId(), mode: 'normal' as const,
+      status: 'saved' as const,
+      started_at: new Date().toISOString(), finished_at: new Date().toISOString(),
+      error_code: 'ASSEMBLY_PENDING',
+      events: [{ name: 'ASSEMBLY_RETRY_BEGIN', at_ms: 0 }],
+    };
+    try {
+      await enqueueAudioDiagnostic(report);
+      const destination = new File(getLectureDirectory(lecture.id), 'audio.m4a');
+      const result = await assembleSavedRecording(destination.uri);
+      const ready = result.valid && result.playable;
+      await enqueueAudioDiagnostic({
+        ...report, finished_at: new Date().toISOString(),
+        error_code: ready ? null : (result.code ?? 'ASSEMBLY_FAILED'),
+        events: [...report.events, { name: ready ? 'AUDIO_READY' : 'ASSEMBLY_FAILED', at_ms: Date.now() - t0 }],
+      });
+    } catch (error) {
+      devConsole.warn('Audio preparation retry failed; source segments were preserved:', error);
+      await enqueueAudioDiagnostic({
+        ...report, finished_at: new Date().toISOString(), error_code: 'ASSEMBLY_EXCEPTION',
+        events: [...report.events, { name: 'ASSEMBLY_FAILED', at_ms: Date.now() - t0 }],
+      });
+    } finally {
+      audioPreparationRequestsRef.current.delete(lecture.id);
+      loadLectures();
+    }
+  };
 
   const translation =
     useLectureTranslation({
@@ -858,10 +929,10 @@ export default function VoiceScreen() {
       session_id: item.id, mode: 'normal' as const, status,
       started_at: item.startedAt, finished_at: new Date().toISOString(),
       startup_ms: item.startupMs ?? null, error_code: errorCode ?? null,
-      events: [...item.events, { name: status.toUpperCase(), at_ms: Date.now() - item.t0 }],
+      events: [...item.events, { name: errorCode === 'ASSEMBLY_PENDING' ? 'ASSEMBLY_PENDING' : status.toUpperCase(), at_ms: Date.now() - item.t0 }],
     };
-    enqueueAudioDiagnostic(report);
-    return { report, t0: item.t0 };
+    const persisted = enqueueAudioDiagnostic(report);
+    return { report, t0: item.t0, persisted };
   };
 
   const handleStart =
@@ -956,24 +1027,6 @@ export default function VoiceScreen() {
           );
 
 
-        /*
-         * Native recorder lifecycle, event-first verification,
-         * the proven 450 ms fallback and one 500 ms retry are
-         * isolated in useLectureRecorder without behavior changes.
-         */
-        const verifiedAttempt =
-          await startRecording(
-            audioFile.uri
-          );
-
-
-        const {
-          verified:
-            verifiedStart,
-        } =
-          verifiedAttempt;
-
-
         activeRecordingRef.current = {
           id,
           createdAt,
@@ -1010,7 +1063,7 @@ export default function VoiceScreen() {
             characters:
               0,
             audioBytes:
-              verifiedStart.bytes,
+              0,
             source:
               'recorded',
             originalFileName:
@@ -1025,6 +1078,14 @@ export default function VoiceScreen() {
               ),
           }
         );
+
+
+        // UI starts on the first successfully written buffer. The first
+        // committed checkpoint is reported independently; never wait five seconds.
+        const verifiedAttempt =
+          await startRecording(
+            audioFile.uri
+          );
 
 
         commitStartedRecording(
@@ -1057,8 +1118,32 @@ export default function VoiceScreen() {
         }
 
 
+        const failedStart = activeRecordingRef.current;
+        if (failedStart) {
+          try {
+            const metadata = readMetadata(failedStart.directory);
+            writeMetadata(failedStart.directory, {
+              ...metadata,
+              id: failedStart.id,
+              createdAt: failedStart.createdAt,
+              durationMillis: metadata.durationMillis ?? 0,
+              language: failedStart.language,
+              audioFile: metadata.audioFile || 'audio.m4a',
+              transcriptFile: metadata.transcriptFile ?? null,
+              transcriptReady: metadata.transcriptReady ?? false,
+              characters: metadata.characters ?? 0,
+              audioBytes: metadata.audioBytes ?? 0,
+              source: metadata.source ?? 'recorded',
+              originalFileName: metadata.originalFileName ?? null,
+              transcription: metadata.transcription ?? getDefaultTranscription(0),
+              recordingState: 'interrupted',
+              interruptionReason: error instanceof Error ? error.message : String(error),
+            });
+          } catch (metadataError) {
+            devConsole.warn('Could not mark failed Start for recovery:', metadataError);
+          }
+        }
         await resetRecordingState();
-
 
         Alert.alert(
           audioUi.recordingError,
@@ -1276,19 +1361,18 @@ export default function VoiceScreen() {
         addNormalDiagnosticEvent('SEGMENTS_SAVED');
         addNormalDiagnosticEvent('ASSEMBLY_BEGIN');
         const savedDiagnostic =
-          finishNormalDiagnostic('saved');
+          finishNormalDiagnostic('saved', 'ASSEMBLY_PENDING');
 
         loadLectures();
 
         /*
          * Stop has already committed this lecture durably.
          * Assemble only this recording's derived M4A. The diagnostic row
-         * is updated again when assembly actually finishes, so SAVED no
-         * longer hides a lecture that is still stuck in Preparing audio.
+         * starts as ASSEMBLY_PENDING and is updated on AUDIO_READY or failure.
+         * The legacy saved status means committed segments, not a ready M4A.
          */
-        void assembleSavedRecording(
-          active.audioFile.uri
-        )
+        void Promise.resolve(savedDiagnostic?.persisted)
+          .then(() => assembleSavedRecording(active.audioFile.uri))
           .then(result => {
             if (savedDiagnostic) {
               enqueueAudioDiagnostic({
@@ -2790,6 +2874,8 @@ export default function VoiceScreen() {
                 !hasPlayableAudio &&
                 lecture.recordingState ===
                   'saved';
+              const audioPreparationFailed = isAudioPending &&
+                audioAssemblyStates[lecture.id] === 'assembly_failed';
 
               const canPlayAudio =
                 hasPlayableAudio ||
@@ -2913,7 +2999,7 @@ export default function VoiceScreen() {
                                 : audioUi.audioSavedShort}
                               {'  ·  '}
                               {!lecture.audioFileName
-                                ? audioUi.preparingAudio
+                                ? (audioPreparationFailed ? audioPreparationText.failed : audioUi.preparingAudio)
                                 : (
                                   lecture.audioFileName
                                     .split('.')
@@ -3214,6 +3300,17 @@ export default function VoiceScreen() {
                         )
                     }
                   />
+
+                  {audioPreparationFailed && (
+                    <AudioActionButton
+                      accent={T.accent}
+                      fontSize={F.base - 1}
+                      disabled={isLectureProcessing || recordingActionPendingRef.current || liveBusy}
+                      accessibilityLabel={audioPreparationText.retry}
+                      label={audioPreparationText.retry}
+                      onPress={() => { void handleRetryAudioPreparation(lecture); }}
+                    />
+                  )}
 
 
                   <View

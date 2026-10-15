@@ -1,6 +1,7 @@
 import ExpoModulesCore
 @preconcurrency import AVFoundation
 import UIKit
+import Foundation
 
 private final class LectureRecorderException: Exception {
   private let recorderReason: String
@@ -27,6 +28,251 @@ private final class LectureRecorderException: Exception {
   override var reason: String {
     recorderReason
   }
+}
+
+// One terminal result for the whole assembly, including fallback. The deadline
+// does not depend on AVAssetExportSession calling its completion handler.
+private final class LectureAssemblyOperation: @unchecked Sendable {
+  private let lock = NSLock()
+  private var completed = false
+  private var publicationClaimed = false
+  private var exporter: AVAssetExportSession?
+  private var deadlineWork: DispatchWorkItem?
+  private var completion: ((Result<[String: Any], Error>) -> Void)?
+
+  init(completion: @escaping (Result<[String: Any], Error>) -> Void) {
+    self.completion = completion
+  }
+
+  var isActive: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return !completed
+  }
+
+  func armDeadline(after seconds: TimeInterval, onTimeout: @escaping () -> Void) {
+    let work = DispatchWorkItem { [weak self] in
+      guard self?.isActive == true else { return }
+      onTimeout()
+    }
+    lock.lock()
+    if completed {
+      lock.unlock()
+      return
+    }
+    deadlineWork = work
+    lock.unlock()
+    DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + seconds, execute: work)
+  }
+
+  func attach(_ exporter: AVAssetExportSession) -> Bool {
+    lock.lock()
+    guard !completed else {
+      lock.unlock()
+      exporter.cancelExport()
+      return false
+    }
+    self.exporter = exporter
+    lock.unlock()
+    return true
+  }
+
+  @discardableResult
+  func finish(_ result: Result<[String: Any], Error>, cancelExport: Bool = false) -> Bool {
+    lock.lock()
+    guard !completed else { lock.unlock(); return false }
+    completed = true
+    let handler = completion
+    completion = nil
+    let activeExporter = exporter
+    exporter = nil
+    deadlineWork?.cancel()
+    deadlineWork = nil
+    lock.unlock()
+    // A cancellation callback may run immediately; ownership is already closed.
+    handler?(result)
+    if cancelExport, let activeExporter {
+      DispatchQueue.global(qos: .utility).async { activeExporter.cancelExport() }
+    }
+    return true
+  }
+
+  // Admission and all filesystem work happen after releasing this lock.
+  // Timeout may win while publication is blocked; the file lease then remains
+  // held until the publisher finishes its transaction/rollback.
+  func claimPublication() -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    guard !completed && !publicationClaimed else { return false }
+    publicationClaimed = true
+    return true
+  }
+
+}
+
+// A timed-out passthrough attempt and its late callback must not both start
+// fallback. The operation above remains shared by both attempts.
+private final class LectureAssemblyAttempt: @unchecked Sendable {
+  private let lock = NSLock()
+  private var claimed = false
+  func claim() -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    guard !claimed else { return false }
+    claimed = true
+    return true
+  }
+}
+
+// One admission domain owns each destination, from Start preflight through
+// Stop, or from archive admission through publication cleanup. No stateLock is
+// acquired here. Lease tokens prevent a late release from removing a new owner.
+private final class LectureFileAdmission: @unchecked Sendable {
+  enum Kind: Equatable, Sendable { case recording, archive }
+  struct Lease: Equatable, Sendable {
+    let key: String
+    let token: UUID
+    let kind: Kind
+  }
+  private struct Entry {
+    let lease: Lease
+    var publicationHolds = 0
+    var finishing = false
+  }
+  private let lock = NSLock()
+  private var entries: [String: Entry] = [:]
+  private var recordingToken: UUID?
+
+  func claimRecording(_ key: String) -> Lease? { claim(key, kind: .recording) }
+  func claimArchive(_ key: String) -> Lease? { claim(key, kind: .archive) }
+
+  private func claim(_ key: String, kind: Kind) -> Lease? {
+    lock.lock()
+    defer { lock.unlock() }
+    guard entries[key] == nil, kind != .recording || recordingToken == nil else { return nil }
+    let lease = Lease(key: key, token: UUID(), kind: kind)
+    entries[key] = Entry(lease: lease)
+    if kind == .recording { recordingToken = lease.token }
+    return lease
+  }
+
+  // The terminal result can be delivered while I/O is still settling. Admission
+  // stays busy until every publication hold has returned, including rollback.
+  func finish(_ lease: Lease) {
+    lock.lock()
+    defer { lock.unlock() }
+    guard var entry = entries[lease.key], entry.lease == lease else { return }
+    entry.finishing = true
+    if entry.publicationHolds == 0 {
+      entries.removeValue(forKey: lease.key)
+      if recordingToken == lease.token { recordingToken = nil }
+    } else { entries[lease.key] = entry }
+  }
+
+  func retainPublication(_ lease: Lease) -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    guard var entry = entries[lease.key], entry.lease == lease,
+      lease.kind == .archive, !entry.finishing else { return false }
+    entry.publicationHolds += 1
+    entries[lease.key] = entry
+    return true
+  }
+
+  func releasePublication(_ lease: Lease) {
+    lock.lock()
+    defer { lock.unlock() }
+    guard var entry = entries[lease.key], entry.lease == lease,
+      entry.publicationHolds > 0 else { return }
+    entry.publicationHolds -= 1
+    if entry.finishing && entry.publicationHolds == 0 {
+      entries.removeValue(forKey: lease.key)
+    } else { entries[lease.key] = entry }
+  }
+}
+
+// The I/O adapter lets the standalone tests pause an actual transaction without
+// replacing the admission or completion implementation used by the recorder.
+private enum LectureFilePublication {
+  struct IO {
+    let exists: (URL) -> Bool
+    let move: (URL, URL) throws -> Void
+    let remove: (URL) throws -> Void
+    let size: (URL) -> Int
+    static var system: IO {
+      let fm = FileManager.default
+      return IO(
+        exists: { fm.fileExists(atPath: $0.path) },
+        move: { try fm.moveItem(at: $0, to: $1) },
+        remove: { try fm.removeItem(at: $0) },
+        size: { url in
+          let attributes = try? fm.attributesOfItem(atPath: url.path)
+          return (attributes?[.size] as? NSNumber)?.intValue ?? 0
+        }
+      )
+    }
+  }
+
+  static func publish(
+    temporaryURL: URL, destinationURL: URL, validation: [String: Any],
+    operation: LectureAssemblyOperation, admission: LectureFileAdmission,
+    lease: LectureFileAdmission.Lease, io: IO = .system
+  ) throws -> Bool {
+    guard operation.claimPublication() else { return false }
+    guard admission.retainPublication(lease) else {
+      throw failure("ERR_ASSEMBLY_LEASE", "The archive request no longer owns this recording.")
+    }
+    defer { admission.releasePublication(lease) }
+    let rollbackURL = destinationURL.deletingLastPathComponent()
+      .appendingPathComponent("audio-rollback-\(UUID().uuidString).m4a")
+    var movedOriginal = false
+    var movedCandidate = false
+    func requireActive() throws {
+      guard operation.isActive else {
+        throw failure("ERR_ASSEMBLY_CANCELLED", "Assembly timed out during publication. Source segments were preserved.")
+      }
+    }
+    do {
+      try requireActive()
+      if io.exists(destinationURL) {
+        try io.move(destinationURL, rollbackURL)
+        movedOriginal = true
+      }
+      try requireActive()
+      try io.move(temporaryURL, destinationURL)
+      movedCandidate = true
+      try requireActive()
+      let bytes = io.size(destinationURL)
+      guard bytes > 0, bytes == (validation["bytes"] as? Int ?? 0) else {
+        throw failure("ERR_INVALID_FINAL_M4A", "The validated M4A payload changed during publication.")
+      }
+      var result = validation
+      result["uri"] = destinationURL.absoluteString
+      result["bytes"] = bytes
+      // Claim terminal success before discarding rollback data. Timeout may
+      // already have completed the request; in that case restore the old file.
+      guard operation.finish(.success(result)) else {
+        throw failure("ERR_ASSEMBLY_CANCELLED", "Assembly timed out before publication completed.")
+      }
+      if movedOriginal { try? io.remove(rollbackURL) }
+      return true
+    } catch {
+      if movedCandidate { try? io.remove(destinationURL) }
+      if movedOriginal { try? io.move(rollbackURL, destinationURL) }
+      // If rollback itself failed its unique file remains discoverable by recovery.
+      throw error
+    }
+  }
+
+  private static func failure(_ code: String, _ message: String) -> NSError {
+    NSError(domain: "LectureRecorder", code: 1,
+      userInfo: ["recorderCode": code, NSLocalizedDescriptionKey: message])
+  }
+}
+
+private struct LectureArchiveRequest {
+  let lease: LectureFileAdmission.Lease
+  let finish: ([String: Any]) -> Void
 }
 
 public final class LectureRecorderModule: Module {
@@ -59,6 +305,10 @@ public final class LectureRecorderModule: Module {
     label: "com.norsktrainer.lecture-recorder.live-pcm",
     qos: .userInitiated
   )
+
+  private let fileAdmission = LectureFileAdmission()
+  // Main-thread lifecycle ownership; admission's own lock protects the path.
+  private var recordingFileLease: LectureFileAdmission.Lease?
 
   private let stateLock = NSLock()
   private let tapCallbackGroup = DispatchGroup()
@@ -197,6 +447,12 @@ public final class LectureRecorderModule: Module {
         destinationURL: destinationURL
       )
 
+      guard let lease = self.fileAdmission.claimRecording(destinationURL.standardizedFileURL.path) else {
+        throw self.makeException(code: "ERR_AUDIO_OPERATION_BUSY", message: "This destination is already owned by recording or recovery.")
+      }
+      var transferredLease = false
+      defer { if !transferredLease { self.fileAdmission.finish(lease) } }
+
       let parentURL = destinationURL.deletingLastPathComponent()
       try FileManager.default.createDirectory(
         at: parentURL,
@@ -252,6 +508,8 @@ public final class LectureRecorderModule: Module {
 
       self.currentDestinationURL = destinationURL
       self.currentSegmentsDirectoryURL = segmentsDirectoryURL
+      self.recordingFileLease = lease
+      transferredLease = true
       self.beginRecordingSession()
       self.isStopping = false
       self.isPausedForInterruption = false
@@ -905,7 +1163,11 @@ public final class LectureRecorderModule: Module {
         return
       }
 
-      self.writerQueue.async { [weak self] in
+      guard let request = self.beginArchiveRequest(for: destinationURL, promise: promise) else {
+        return
+      }
+
+      self.recoveryQueue.async { [weak self] in
         guard let self else { return }
 
         guard
@@ -924,7 +1186,7 @@ public final class LectureRecorderModule: Module {
           )
 
           DispatchQueue.main.async {
-            promise.resolve(result)
+            request.finish(result)
           }
           return
         }
@@ -941,17 +1203,18 @@ public final class LectureRecorderModule: Module {
           (existingValidation["playable"] as? Bool) == true
         {
           DispatchQueue.main.async {
-            promise.resolve(existingValidation)
+            request.finish(existingValidation)
           }
           return
         }
 
         self.assembleRecordingFromManifest(
           manifest,
-          destinationURL: destinationURL
+          destinationURL: destinationURL,
+          archiveLease: request.lease
         ) { result in
           DispatchQueue.main.async {
-            promise.resolve(result)
+            request.finish(result)
           }
         }
       }
@@ -976,33 +1239,37 @@ public final class LectureRecorderModule: Module {
         return
       }
 
-      let existingValidation =
-        self.validateAudioFile(
-          destinationURL
-        )
-
-      let segmentsDirectoryURL =
-        self.segmentsDirectoryURL(
-          for: destinationURL
-        )
-
-      let hasSegmentsDirectory =
-        FileManager.default.fileExists(
-          atPath: segmentsDirectoryURL.path
-        )
-
-      if
-        (existingValidation["valid"] as? Bool) == true,
-        (existingValidation["playable"] as? Bool) == true,
-        !hasSegmentsDirectory
-      {
-        promise.resolve(existingValidation)
+      guard let request = self.beginArchiveRequest(for: destinationURL, promise: promise) else {
         return
       }
 
-      self.appendTimingEvent("RECOVERY_QUEUED", destinationURL: destinationURL)
       self.recoveryQueue.async { [weak self] in
         guard let self else { return }
+        let existingValidation =
+          self.validateAudioFile(
+            destinationURL
+          )
+
+        let segmentsDirectoryURL =
+          self.segmentsDirectoryURL(
+            for: destinationURL
+          )
+
+        let hasSegmentsDirectory =
+          FileManager.default.fileExists(
+            atPath: segmentsDirectoryURL.path
+          )
+
+        if
+          (existingValidation["valid"] as? Bool) == true,
+          (existingValidation["playable"] as? Bool) == true,
+          !hasSegmentsDirectory
+        {
+          request.finish(existingValidation)
+          return
+        }
+
+        self.appendTimingEvent("RECOVERY_QUEUED", destinationURL: destinationURL)
         self.appendTimingEvent("RECOVERY_BEGIN", destinationURL: destinationURL)
 
         self.promoteRecoverablePartialSegments(
@@ -1058,7 +1325,7 @@ public final class LectureRecorderModule: Module {
             )
 
           DispatchQueue.main.async {
-            promise.resolve(result)
+            request.finish(result)
           }
 
           return
@@ -1104,7 +1371,7 @@ public final class LectureRecorderModule: Module {
             )
 
           DispatchQueue.main.async {
-            promise.resolve(result)
+            request.finish(result)
           }
 
           return
@@ -1117,20 +1384,45 @@ public final class LectureRecorderModule: Module {
         )
         self.assembleRecordingFromManifest(
           reconciledManifest,
-          destinationURL: destinationURL
+          destinationURL: destinationURL,
+          archiveLease: request.lease
         ) { result in
           self.appendTimingEvent("RECOVERY_END", destinationURL: destinationURL)
           DispatchQueue.main.async {
-            promise.resolve(result)
+            request.finish(result)
           }
         }
       }
     }
   }
 
+  private func beginArchiveRequest(
+    for destinationURL: URL,
+    promise: Promise
+  ) -> LectureArchiveRequest? {
+    guard let lease = fileAdmission.claimArchive(destinationURL.standardizedFileURL.path) else {
+      promise.resolve(makeValidationResult(
+        valid: false, playable: false, durationMillis: 0,
+        uri: destinationURL.absoluteString, bytes: 0,
+        code: "ERR_AUDIO_OPERATION_BUSY",
+        message: "This lecture is recording, stopping, or finishing audio preparation. Its files were preserved."
+      ))
+      return nil
+    }
+    return LectureArchiveRequest(lease: lease, finish: { result in
+      DispatchQueue.main.async {
+        // A timed-out publication may still hold this lease for rollback. Its
+        // terminal Promise completes now; a concurrent retry remains busy.
+        self.fileAdmission.finish(lease)
+        promise.resolve(result)
+      }
+    })
+  }
+
   private func assembleRecordingFromManifest(
     _ manifest: RecordingManifest,
     destinationURL: URL,
+    archiveLease: LectureFileAdmission.Lease,
     completion: @escaping ([String: Any]) -> Void
   ) {
     let committedBytes =
@@ -1217,84 +1509,87 @@ public final class LectureRecorderModule: Module {
     self.mergeSegments(
       segmentURLs,
       to: destinationURL,
-      protectExistingRecording: true
+      protectExistingRecording: true,
+      archiveLease: archiveLease
     ) { result in
-      switch result {
-      case .success(let validation):
-        do {
-          try self.updateRecordingManifestDurably(
-            for: destinationURL
-          ) {
-            $0.state = "ready"
-            $0.assembly.state = "ready"
-            $0.assembly.output = destinationURL.lastPathComponent
+      self.recoveryQueue.async {
+        switch result {
+        case .success(let validation):
+          do {
+            try self.updateRecordingManifestDurably(
+              for: destinationURL
+            ) {
+              $0.state = "ready"
+              $0.assembly.state = "ready"
+              $0.assembly.output = destinationURL.lastPathComponent
+            }
+          } catch {
+            completion(
+              self.makeValidationResult(
+                valid: false,
+                playable: false,
+                durationMillis: manifest.committedDurationMillis,
+                uri: destinationURL.absoluteString,
+                bytes: committedBytes,
+                code: "ERR_ASSEMBLY_READY_MANIFEST",
+                message: "The audio file was assembled, but its ready state could not be committed durably: \(error.localizedDescription)"
+              )
+            )
+            return
           }
-        } catch {
+
+          completion(validation)
+
+        case .failure(let error):
+          do {
+            try self.updateRecordingManifestDurably(
+              for: destinationURL
+            ) {
+              $0.state = "saved"
+              $0.assembly.state = "assembly_failed"
+            }
+          } catch let manifestError {
+            completion(
+              self.makeValidationResult(
+                valid: false,
+                playable: false,
+                durationMillis: manifest.committedDurationMillis,
+                uri: destinationURL.absoluteString,
+                bytes: committedBytes,
+                code: "ERR_ASSEMBLY_FAILURE_MANIFEST",
+                message: "Lecture assembly failed and the failure state could not be committed durably. Assembly error: \(error.localizedDescription). Manifest error: \(manifestError.localizedDescription)"
+              )
+            )
+            return
+          }
+
+          let latestManifest =
+            self.loadRecordingManifest(
+              for: destinationURL
+            )
+
+          let latestDurationMillis =
+            latestManifest?.committedDurationMillis ??
+            manifest.committedDurationMillis
+
+          let latestBytes =
+            latestManifest?.segments.reduce(0) {
+              $0 + $1.bytes
+            } ?? committedBytes
+
           completion(
             self.makeValidationResult(
               valid: false,
               playable: false,
-              durationMillis: manifest.committedDurationMillis,
+              durationMillis: latestDurationMillis,
               uri: destinationURL.absoluteString,
-              bytes: committedBytes,
-              code: "ERR_ASSEMBLY_READY_MANIFEST",
-              message: "The audio file was assembled, but its ready state could not be committed durably: \(error.localizedDescription)"
+              bytes: latestBytes,
+                code: (error as NSError).userInfo["recorderCode"] as? String ?? "ERR_ASSEMBLY_MERGE",
+              message: error.localizedDescription
             )
           )
-          return
         }
-
-        completion(validation)
-
-      case .failure(let error):
-        do {
-          try self.updateRecordingManifestDurably(
-            for: destinationURL
-          ) {
-            $0.state = "saved"
-            $0.assembly.state = "assembly_failed"
-          }
-        } catch let manifestError {
-          completion(
-            self.makeValidationResult(
-              valid: false,
-              playable: false,
-              durationMillis: manifest.committedDurationMillis,
-              uri: destinationURL.absoluteString,
-              bytes: committedBytes,
-              code: "ERR_ASSEMBLY_FAILURE_MANIFEST",
-              message: "Lecture assembly failed and the failure state could not be committed durably. Assembly error: \(error.localizedDescription). Manifest error: \(manifestError.localizedDescription)"
-            )
-          )
-          return
         }
-
-        let latestManifest =
-          self.loadRecordingManifest(
-            for: destinationURL
-          )
-
-        let latestDurationMillis =
-          latestManifest?.committedDurationMillis ??
-          manifest.committedDurationMillis
-
-        let latestBytes =
-          latestManifest?.segments.reduce(0) {
-            $0 + $1.bytes
-          } ?? committedBytes
-
-        completion(
-          self.makeValidationResult(
-            valid: false,
-            playable: false,
-            durationMillis: latestDurationMillis,
-            uri: destinationURL.absoluteString,
-            bytes: latestBytes,
-            code: "ERR_ASSEMBLY_MERGE",
-            message: error.localizedDescription
-          )
-        )
-      }
     }
   }
 
@@ -2779,110 +3074,90 @@ public final class LectureRecorderModule: Module {
       return
     }
 
-    do {
-      // Rebuild durable manifest from the finalized checkpoint inventory.
-      // This closes any bookkeeping gap left by a transient manifest failure
-      // during capture without reintroducing a fatal writer-path dependency.
-      _ = try reconcileRecordingManifestDurably(
-        for: destinationURL
-      )
-
-      let verifiedManifest =
-        try verifyRecordingManifestInventoryForStop(
-          segmentURLs: segmentURLs,
-          destinationURL: destinationURL
+    recoveryQueue.async {
+      let outcome: Result<[String: Any], Error> = Result {
+        // Full validation is deliberately off main and off writerQueue. It also
+        // repairs a checkpoint whose manifest update failed during capture.
+        _ = try self.reconcileRecordingManifestDurably(for: destinationURL)
+        _ = try self.verifyRecordingManifestInventoryForStop(
+          segmentURLs: segmentURLs, destinationURL: destinationURL
         )
-
-      guard
-        !verifiedManifest.segments.isEmpty,
-        verifiedManifest.committedDurationMillis > 0
-      else {
-        throw makeNSError(
-          code: "ERR_MANIFEST_NOT_DURABLE",
-          message: "The lecture checkpoints exist, but their durable manifest could not be confirmed."
+        try self.updateRecordingManifestDurably(for: destinationURL) {
+          $0.state = "saved"
+          $0.assembly.state = "not_started"
+          $0.assembly.output = nil
+        }
+        guard let manifest = self.loadRecordingManifest(for: destinationURL),
+          manifest.state == "saved", !manifest.segments.isEmpty,
+          manifest.committedDurationMillis > 0 else {
+          throw self.makeNSError(
+            code: "ERR_MANIFEST_SAVE_VERIFY",
+            message: "The saved recording state could not be verified. Source checkpoints were preserved."
+          )
+        }
+        self.appendTimingEvent(
+          "LAST_SEGMENT_DURABLE", destinationURL: destinationURL,
+          details: "segments=\(manifest.segments.count);durationMillis=\(manifest.committedDurationMillis)"
         )
+        return [
+          "ok": true, "isRecording": false,
+          "durationMillis": manifest.committedDurationMillis,
+          "uri": destinationURL.absoluteString,
+          "bytes": manifest.segments.reduce(0) { $0 + $1.bytes },
+          "levelDb": -160.0, "peakDb": -160.0,
+          "isPausedForInterruption": false,
+          "segmentCount": manifest.segments.count
+        ]
       }
-
-      try updateRecordingManifestDurably(
-        for: destinationURL
-      ) {
-        $0.state = "saved"
-        $0.assembly.state = "not_started"
-        $0.assembly.output = nil
+      DispatchQueue.main.async {
+        guard self.pendingStopPromise != nil else { return }
+        self.pendingStopPromise = nil
+        switch outcome {
+        case .success(let result):
+          self.cleanupAfterSuccessfulStop()
+          self.sendEvent("onRecorderStopped", result)
+          promise.resolve(result)
+        case .failure(let error):
+          self.cleanupAfterFailedStopPreservingSegments()
+          promise.reject(self.makeException(
+            code: "ERR_MANIFEST_SAVE",
+            message: "Audio checkpoints were preserved, but Stop could not verify the saved state: \(error.localizedDescription)"
+          ))
+        }
       }
-    } catch {
-      pendingStopPromise = nil
-      cleanupAfterFailedStopPreservingSegments()
-
-      promise.reject(
-        makeException(
-          code: "ERR_MANIFEST_SAVE",
-          message: "The lecture checkpoints were preserved, but the recorder could not durably reconcile and mark the recording as saved: \(error.localizedDescription)"
-        )
-      )
-      return
     }
-
-    guard
-      let savedManifest =
-        loadRecordingManifest(
-          for: destinationURL
-        ),
-      savedManifest.state == "saved",
-      !savedManifest.segments.isEmpty,
-      savedManifest.committedDurationMillis > 0
-    else {
-      pendingStopPromise = nil
-      cleanupAfterFailedStopPreservingSegments()
-
-      promise.reject(
-        makeException(
-          code: "ERR_MANIFEST_SAVE_VERIFY",
-          message: "The lecture checkpoints were preserved, but the saved recording state could not be verified."
-        )
-      )
-      return
-    }
-
-    appendTimingEvent(
-      "LAST_SEGMENT_DURABLE",
-      destinationURL: destinationURL,
-      details: "segments=\(savedManifest.segments.count);durationMillis=\(savedManifest.committedDurationMillis)"
-    )
-
-    let bytes =
-      savedManifest.segments.reduce(
-        0
-      ) {
-        $0 + $1.bytes
-      }
-    let result: [String: Any] = [
-      "ok": true,
-      "isRecording": false,
-      "durationMillis": savedManifest.committedDurationMillis,
-      "uri": destinationURL.absoluteString,
-      "bytes": bytes,
-      "levelDb": -160.0,
-      "peakDb": -160.0,
-      "isPausedForInterruption": false,
-      "segmentCount": savedManifest.segments.count
-    ]
-
-    pendingStopPromise = nil
-    cleanupAfterSuccessfulStop()
-    sendEvent("onRecorderStopped", result)
-    promise.resolve(result)
   }
 
   private func mergeSegments(
     _ segmentURLs: [URL],
     to destinationURL: URL,
     protectExistingRecording: Bool = false,
-    forceReencode: Bool = false,
+    archiveLease: LectureFileAdmission.Lease,
     completion: @escaping (Result<[String: Any], Error>) -> Void
   ) {
-    mergeQueue.async { [weak self] in
-      guard let self else { return }
+    let operation = LectureAssemblyOperation(completion: completion)
+    operation.armDeadline(after: 120.0) {
+      if operation.finish(.failure(self.makeNSError(
+        code: "ERR_ASSEMBLY_TIMEOUT",
+        message: "Audio preparation exceeded its 120-second deadline. All source segments were preserved; preparation can be retried."
+      )), cancelExport: true) {
+        self.appendTimingEvent("ASSEMBLY_TIMEOUT", destinationURL: destinationURL)
+      }
+    }
+    mergeSegmentsAttempt(segmentURLs, to: destinationURL,
+      protectExistingRecording: protectExistingRecording, archiveLease: archiveLease, operation: operation)
+  }
+
+  private func mergeSegmentsAttempt(
+    _ segmentURLs: [URL],
+    to destinationURL: URL,
+    protectExistingRecording: Bool = false,
+    forceReencode: Bool = false,
+    archiveLease: LectureFileAdmission.Lease,
+    operation: LectureAssemblyOperation
+  ) {
+    mergeQueue.async { [self] in
+      guard operation.isActive else { return }
 
       do {
         let composition = AVMutableComposition()
@@ -2915,6 +3190,7 @@ public final class LectureRecorderModule: Module {
         }
 
         for (offset, url) in segmentURLs.enumerated() {
+          guard operation.isActive else { return }
           let expectedIndex = offset + 1
 
           guard
@@ -3037,17 +3313,38 @@ public final class LectureRecorderModule: Module {
             presetName: exportPreset
           )
         else {
+          if exportPreset == AVAssetExportPresetPassthrough {
+            self.appendTimingEvent("ASSEMBLY_PASSTHROUGH_FALLBACK", destinationURL: destinationURL, details: "reason=session_unavailable")
+            self.mergeSegmentsAttempt(segmentURLs, to: destinationURL,
+              protectExistingRecording: protectExistingRecording, forceReencode: true, archiveLease: archiveLease, operation: operation)
+            return
+          }
           throw self.makeNSError(
             code: "ERR_EXPORT_SESSION",
             message: "Could not create an iOS M4A export session."
           )
         }
 
+        guard exporter.supportedFileTypes.contains(.m4a) else {
+          if exportPreset == AVAssetExportPresetPassthrough {
+            self.appendTimingEvent("ASSEMBLY_PASSTHROUGH_FALLBACK", destinationURL: destinationURL, details: "reason=m4a_unsupported")
+            self.mergeSegmentsAttempt(segmentURLs, to: destinationURL,
+              protectExistingRecording: protectExistingRecording, forceReencode: true, archiveLease: archiveLease, operation: operation)
+            return
+          }
+          throw self.makeNSError(code: "ERR_EXPORT_FILE_TYPE", message: "This iOS export session cannot produce an M4A file. Source segments were preserved.")
+        }
         exporter.outputURL = temporaryURL
         exporter.outputFileType = .m4a
         exporter.shouldOptimizeForNetworkUse = false
 
+        guard operation.attach(exporter) else { return }
+        let attempt = LectureAssemblyAttempt()
         exporter.exportAsynchronously {
+          guard attempt.claim(), operation.isActive else {
+            self.removeFileIfPresent(temporaryURL)
+            return
+          }
           self.appendTimingEvent(
             "ASSEMBLY_EXPORT_END",
             destinationURL: destinationURL,
@@ -3074,15 +3371,15 @@ public final class LectureRecorderModule: Module {
                   destinationURL: destinationURL,
                   details: "reason=invalid_output"
                 )
-                self.mergeSegments(
+                self.mergeSegmentsAttempt(
                   segmentURLs,
                   to: destinationURL,
                   protectExistingRecording: protectExistingRecording,
                   forceReencode: true,
-                  completion: completion
+                  archiveLease: archiveLease, operation: operation
                 )
               } else {
-                completion(
+                operation.finish(
                   .failure(
                     self.makeNSError(
                       code: "ERR_INVALID_MERGE",
@@ -3102,7 +3399,7 @@ public final class LectureRecorderModule: Module {
                 temporaryURL
               )
 
-              completion(
+              operation.finish(
                 .failure(
                   self.makeNSError(
                     code: "ERR_MERGE_DURATION_MISSING",
@@ -3143,15 +3440,15 @@ public final class LectureRecorderModule: Module {
                   destinationURL: destinationURL,
                   details: "reason=duration_mismatch;expected=\(expectedDurationMillis);assembled=\(assembledDurationMillis)"
                 )
-                self.mergeSegments(
+                self.mergeSegmentsAttempt(
                   segmentURLs,
                   to: destinationURL,
                   protectExistingRecording: protectExistingRecording,
                   forceReencode: true,
-                  completion: completion
+                  archiveLease: archiveLease, operation: operation
                 )
               } else {
-                completion(
+                operation.finish(
                   .failure(
                     self.makeNSError(
                       code: "ERR_INCOMPLETE_ASSEMBLY_DURATION",
@@ -3184,7 +3481,7 @@ public final class LectureRecorderModule: Module {
                 temporaryURL
               )
 
-              completion(
+              operation.finish(
                 .failure(
                   self.makeNSError(
                     code: "ERR_RECOVERY_CANDIDATE_SHORTER",
@@ -3196,91 +3493,18 @@ public final class LectureRecorderModule: Module {
             }
 
             do {
-              let fileManager = FileManager.default
-              let destinationExisted =
-                fileManager.fileExists(
-                  atPath: destinationURL.path
-                )
-
-              let rollbackURL =
-                destinationURL
-                  .deletingLastPathComponent()
-                  .appendingPathComponent(
-                    "audio-rollback-\(UUID().uuidString).m4a"
-                  )
-
-              if destinationExisted {
-                try fileManager.moveItem(
-                  at: destinationURL,
-                  to: rollbackURL
-                )
-              }
-
-              do {
-                try fileManager.moveItem(
-                  at: temporaryURL,
-                  to: destinationURL
-                )
-
-                let finalValidation =
-                  self.validateAudioFileWithRetry(
-                    destinationURL,
-                    attempts: 8,
-                    delaySeconds: 0.10
-                  )
-
-                guard
-                  (finalValidation["valid"] as? Bool) == true,
-                  (finalValidation["playable"] as? Bool) == true
-                else {
-                  throw self.makeNSError(
-                    code: "ERR_INVALID_FINAL_M4A",
-                    message: "The final merged M4A is not playable."
-                  )
-                }
-
-                if destinationExisted {
-                  self.removeFileIfPresent(
-                    rollbackURL
-                  )
-                }
-
-                self.appendTimingEvent(
-                  "M4A_READY",
-                  destinationURL: destinationURL,
-                  details: "durationMillis=\(finalValidation["durationMillis"] ?? 0)"
-                )
-
-                completion(
-                  .success(
-                    finalValidation
-                  )
-                )
-
-              } catch {
-                self.removeFileIfPresent(
-                  destinationURL
-                )
-
-                if
-                  destinationExisted,
-                  fileManager.fileExists(
-                    atPath: rollbackURL.path
-                  )
-                {
-                  try? fileManager.moveItem(
-                    at: rollbackURL,
-                    to: destinationURL
-                  )
-                }
-
-                throw error
-              }
-
-            } catch {
-              completion(
-                .failure(error)
+              let published = try LectureFilePublication.publish(
+                temporaryURL: temporaryURL, destinationURL: destinationURL,
+                validation: temporaryValidation, operation: operation,
+                admission: self.fileAdmission, lease: archiveLease
               )
+              if published {
+                self.appendTimingEvent("M4A_READY", destinationURL: destinationURL,
+                  details: "durationMillis=\(temporaryValidation["durationMillis"] ?? 0)")
+              } else { self.removeFileIfPresent(temporaryURL) }
+            } catch {
+              self.removeFileIfPresent(temporaryURL)
+              operation.finish(.failure(error))
             }
 
           case .failed, .cancelled:
@@ -3292,15 +3516,15 @@ public final class LectureRecorderModule: Module {
                 destinationURL: destinationURL,
                 details: "reason=export_failed_or_cancelled"
               )
-              self.mergeSegments(
+              self.mergeSegmentsAttempt(
                 segmentURLs,
                 to: destinationURL,
                 protectExistingRecording: protectExistingRecording,
                 forceReencode: true,
-                completion: completion
+                archiveLease: archiveLease, operation: operation
               )
             } else {
-              completion(
+              operation.finish(
                 .failure(
                   exporter.error ??
                   self.makeNSError(
@@ -3316,7 +3540,7 @@ public final class LectureRecorderModule: Module {
               temporaryURL
             )
 
-            completion(
+            operation.finish(
               .failure(
                 self.makeNSError(
                   code: "ERR_EXPORT_STATE",
@@ -3327,25 +3551,23 @@ public final class LectureRecorderModule: Module {
           }
         }
 
-        // AVAssetExportSession has no built-in deadline.  A stuck export must
-        // not leave a lecture in Preparing audio forever.  Cancelling the
-        // passthrough attempt triggers the safe AppleM4A fallback above; a
-        // stuck fallback resolves as a controlled export failure.
-        DispatchQueue.global(qos: .utility).asyncAfter(
-          deadline: .now() + 120.0
-        ) {
-          if exporter.status == .waiting || exporter.status == .exporting {
-            self.appendTimingEvent(
-              "ASSEMBLY_EXPORT_TIMEOUT",
-              destinationURL: destinationURL,
-              details: "preset=\(exportPreset)"
-            )
+        // Cover a deadline racing with export startup after attach().
+        if !operation.isActive { exporter.cancelExport() }
+
+        // Reserve most of the shared 120-second budget for re-encoding.
+        // Fallback begins even if the cancelled passthrough never calls back.
+        if exportPreset == AVAssetExportPresetPassthrough {
+          DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 20.0) {
+            guard operation.isActive, attempt.claim() else { return }
+            self.appendTimingEvent("ASSEMBLY_PASSTHROUGH_TIMEOUT", destinationURL: destinationURL)
+            self.mergeSegmentsAttempt(segmentURLs, to: destinationURL,
+              protectExistingRecording: protectExistingRecording, forceReencode: true, archiveLease: archiveLease, operation: operation)
             exporter.cancelExport()
           }
         }
 
       } catch {
-        completion(
+        operation.finish(
           .failure(error)
         )
       }
@@ -3786,6 +4008,11 @@ public final class LectureRecorderModule: Module {
 
   private func endRecordingSession() {
     withStateLock { recordingSessionID = nil }
+    // Never acquire admission's lock while stateLock is held.
+    if let lease = recordingFileLease {
+      recordingFileLease = nil
+      fileAdmission.finish(lease)
+    }
   }
 
   private func currentRecordingSession() -> UUID? {
@@ -4739,6 +4966,7 @@ public final class LectureRecorderModule: Module {
       domain: "LectureRecorder",
       code: abs(code.hashValue),
       userInfo: [
+        "recorderCode": code,
         NSLocalizedDescriptionKey:
           message
       ]
