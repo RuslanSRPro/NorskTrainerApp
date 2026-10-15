@@ -153,7 +153,8 @@ public final class LectureRecorderModule: Module {
     Events(
       "onRecorderReady",
       "onRecorderStopped",
-      "onRecorderError"
+      "onRecorderError",
+      "onRecorderCheckpoint"
     )
 
     AsyncFunction("recordTimingEvent") {
@@ -2496,6 +2497,16 @@ public final class LectureRecorderModule: Module {
       return
     }
 
+    // Capture writer-owned facts before releasing the AVAudioFile.  Periodic
+    // checkpoint rotation must never run AVAudioPlayer/retry/sleep on the
+    // critical writer queue: that can stall microphone buffers and can turn a
+    // transient container-readability delay into a fatal segment-sequence gap.
+    let measuredDurationSeconds = currentSegmentDurationSeconds
+    let measuredDurationMillis = max(
+      0,
+      Int((measuredDurationSeconds * 1000.0).rounded())
+    )
+
     currentSegmentFile = nil
     currentPartURL = nil
     currentSegmentDurationSeconds = 0
@@ -2504,65 +2515,117 @@ public final class LectureRecorderModule: Module {
       currentPartURLSnapshot = nil
     }
 
-    let validation =
-      validateAudioFileWithRetry(
-        partURL,
-        attempts: 8,
-        delaySeconds: 0.10
-      )
+    let existingCommittedCount = withStateLock {
+      finalizedSegmentCount
+    }
 
-    guard
-      (validation["valid"] as? Bool) == true,
-      (validation["playable"] as? Bool) == true
-    else {
-      // Never destroy a checkpoint merely because immediate validation
-      // failed. Keep the .part.m4a so Stop/recovery can retry promotion
-      // after every AVAudioFile reference has definitely been released.
+    // A tiny tail can legitimately be created when Stop lands immediately
+    // after a checkpoint rotation.  If earlier checkpoints are already safe,
+    // discard only that unusable tail instead of failing the whole lecture.
+    if measuredDurationMillis < 100 && existingCommittedCount > 0 {
+      appendTimingEvent(
+        "SEGMENT_REJECTED_SHORT_TAIL",
+        destinationURL: currentDestinationURL,
+        details: "durationMillis=\(measuredDurationMillis);bytes=\(fileSize(partURL))"
+      )
+      removeFileIfPresent(partURL)
       return
     }
 
-    let finalURL =
-      finalizedSegmentURL(
-        forPartURL: partURL
+    let bytes = fileSize(partURL)
+
+    guard bytes > 0, measuredDurationMillis > 0 else {
+      // Preserve a non-empty unexpected partial for recovery/diagnostics.  A
+      // checkpoint bookkeeping problem must not stop an otherwise healthy
+      // capture engine.
+      appendTimingEvent(
+        "SEGMENT_REJECTED",
+        destinationURL: currentDestinationURL,
+        details: "durationMillis=\(measuredDurationMillis);bytes=\(bytes)"
       )
+      return
+    }
+
+    let finalURL = finalizedSegmentURL(forPartURL: partURL)
 
     do {
-      guard
-        !FileManager.default.fileExists(
-          atPath: finalURL.path
-        )
-      else {
+      guard !FileManager.default.fileExists(atPath: finalURL.path) else {
         throw makeNSError(
           code: "ERR_SEGMENT_DESTINATION_EXISTS",
           message: "A finalized lecture checkpoint already exists for segment \(finalURL.lastPathComponent). Existing durable audio was preserved."
         )
       }
 
-      try FileManager.default.moveItem(
-        at: partURL,
-        to: finalURL
-      )
+      try FileManager.default.moveItem(at: partURL, to: finalURL)
 
-      let bytes = fileSize(
-        finalURL
-      )
-
-      withStateLock {
-        finalizedBytes += bytes
-        finalizedSegmentCount += 1
-      }
-
-      if let destinationURL = currentDestinationURL {
-        try commitSegmentToRecordingManifestDurably(
-          segmentURL: finalURL,
-          validation: validation,
-          destinationURL: destinationURL
+      let finalizedFileBytes = fileSize(finalURL)
+      guard finalizedFileBytes > 0 else {
+        throw makeNSError(
+          code: "ERR_SEGMENT_BYTES",
+          message: "A finalized lecture checkpoint has no readable payload."
         )
       }
 
+      withStateLock {
+        finalizedBytes += finalizedFileBytes
+        finalizedSegmentCount += 1
+      }
+
+      let lightweightValidation: [String: Any] = [
+        "valid": true,
+        "playable": true,
+        "durationMillis": measuredDurationMillis,
+        "uri": finalURL.absoluteString,
+        "bytes": finalizedFileBytes,
+        "code": NSNull(),
+        "message": NSNull()
+      ]
+
+      if let destinationURL = currentDestinationURL {
+        do {
+          try commitSegmentToRecordingManifestDurably(
+            segmentURL: finalURL,
+            validation: lightweightValidation,
+            destinationURL: destinationURL
+          )
+          appendTimingEvent(
+            "SEGMENT_COMMITTED",
+            destinationURL: destinationURL,
+            details: "file=\(finalURL.lastPathComponent);durationMillis=\(measuredDurationMillis);bytes=\(finalizedFileBytes)"
+          )
+
+          let checkpointIndex = segmentIndex(from: finalURL) ?? 0
+          DispatchQueue.main.async { [weak self] in
+            self?.sendEvent(
+              "onRecorderCheckpoint",
+              [
+                "index": checkpointIndex,
+                "durationMillis": measuredDurationMillis,
+                "bytes": finalizedFileBytes,
+                "uri": finalURL.absoluteString
+              ]
+            )
+          }
+        } catch {
+          // The finalized M4A is the durable source of truth.  Manifest
+          // bookkeeping is reconciled from finalized checkpoints on Stop and
+          // recovery, so a manifest write/sequence problem must not kill the
+          // ongoing microphone capture.
+          appendTimingEvent(
+            "SEGMENT_MANIFEST_DEFERRED",
+            destinationURL: destinationURL,
+            details: "file=\(finalURL.lastPathComponent);error=\(error.localizedDescription)"
+          )
+        }
+      }
+
     } catch {
-      reportWriterFailure(
-        "Could not durably finalize a lecture segment: \(error.localizedDescription)"
+      // Finalized/partial source audio is preserved.  Do not stop the capture
+      // engine for a checkpoint-finalization bookkeeping failure.
+      appendTimingEvent(
+        "SEGMENT_FINALIZE_DEFERRED",
+        destinationURL: currentDestinationURL,
+        details: error.localizedDescription
       )
     }
   }
@@ -2714,6 +2777,13 @@ public final class LectureRecorderModule: Module {
     }
 
     do {
+      // Rebuild durable manifest from the finalized checkpoint inventory.
+      // This closes any bookkeeping gap left by a transient manifest failure
+      // during capture without reintroducing a fatal writer-path dependency.
+      _ = try reconcileRecordingManifestDurably(
+        for: destinationURL
+      )
+
       let verifiedManifest =
         try verifyRecordingManifestInventoryForStop(
           segmentURLs: segmentURLs,
@@ -2805,6 +2875,7 @@ public final class LectureRecorderModule: Module {
     _ segmentURLs: [URL],
     to destinationURL: URL,
     protectExistingRecording: Bool = false,
+    forceReencode: Bool = false,
     completion: @escaping (Result<[String: Any], Error>) -> Void
   ) {
     mergeQueue.async { [weak self] in
@@ -2947,7 +3018,7 @@ public final class LectureRecorderModule: Module {
          * the normalized AppleM4A re-encode path for correctness.
          */
         let exportPreset =
-          canPassthroughWithoutReencode
+          !forceReencode && canPassthroughWithoutReencode
             ? AVAssetExportPresetPassthrough
             : AVAssetExportPresetAppleM4A
 
@@ -2992,18 +3063,31 @@ public final class LectureRecorderModule: Module {
               (temporaryValidation["valid"] as? Bool) == true,
               (temporaryValidation["playable"] as? Bool) == true
             else {
-              self.removeFileIfPresent(
-                temporaryURL
-              )
+              self.removeFileIfPresent(temporaryURL)
 
-              completion(
-                .failure(
-                  self.makeNSError(
-                    code: "ERR_INVALID_MERGE",
-                    message: "The merged temporary M4A is not playable. All source segments were preserved."
+              if exportPreset == AVAssetExportPresetPassthrough {
+                self.appendTimingEvent(
+                  "ASSEMBLY_PASSTHROUGH_FALLBACK",
+                  destinationURL: destinationURL,
+                  details: "reason=invalid_output"
+                )
+                self.mergeSegments(
+                  segmentURLs,
+                  to: destinationURL,
+                  protectExistingRecording: protectExistingRecording,
+                  forceReencode: true,
+                  completion: completion
+                )
+              } else {
+                completion(
+                  .failure(
+                    self.makeNSError(
+                      code: "ERR_INVALID_MERGE",
+                      message: "The merged temporary M4A is not playable. All source segments were preserved."
+                    )
                   )
                 )
-              )
+              }
               return
             }
 
@@ -3032,24 +3116,47 @@ public final class LectureRecorderModule: Module {
             // AAC/M4A export can introduce a small encoder-boundary
             // difference, but it must never silently lose meaningful
             // portions of the committed recording.
-            let durationToleranceMillis = 1500
+            // AAC priming/container rounding accumulates across many
+            // checkpoints.  Use a small bounded proportional tolerance rather
+            // than a fixed 1.5 s for recordings that can last several hours.
+            // This remains far stricter than accepting a percentage-sized loss.
+            let durationToleranceMillis = max(
+              2000,
+              min(
+                10000,
+                Int((Double(expectedDurationMillis) * 0.0015).rounded())
+              )
+            )
 
             guard
               abs(assembledDurationMillis - expectedDurationMillis)
                 <= durationToleranceMillis
             else {
-              self.removeFileIfPresent(
-                temporaryURL
-              )
+              self.removeFileIfPresent(temporaryURL)
 
-              completion(
-                .failure(
-                  self.makeNSError(
-                    code: "ERR_INCOMPLETE_ASSEMBLY_DURATION",
-                    message: "Lecture assembly duration does not cover the committed segments (expected \(expectedDurationMillis) ms, assembled \(assembledDurationMillis) ms). All source segments were preserved."
+              if exportPreset == AVAssetExportPresetPassthrough {
+                self.appendTimingEvent(
+                  "ASSEMBLY_PASSTHROUGH_FALLBACK",
+                  destinationURL: destinationURL,
+                  details: "reason=duration_mismatch;expected=\(expectedDurationMillis);assembled=\(assembledDurationMillis)"
+                )
+                self.mergeSegments(
+                  segmentURLs,
+                  to: destinationURL,
+                  protectExistingRecording: protectExistingRecording,
+                  forceReencode: true,
+                  completion: completion
+                )
+              } else {
+                completion(
+                  .failure(
+                    self.makeNSError(
+                      code: "ERR_INCOMPLETE_ASSEMBLY_DURATION",
+                      message: "Lecture assembly duration does not cover the committed segments (expected \(expectedDurationMillis) ms, assembled \(assembledDurationMillis) ms). All source segments were preserved."
+                    )
                   )
                 )
-              )
+              }
               return
             }
 
@@ -3174,19 +3281,32 @@ public final class LectureRecorderModule: Module {
             }
 
           case .failed, .cancelled:
-            self.removeFileIfPresent(
-              temporaryURL
-            )
+            self.removeFileIfPresent(temporaryURL)
 
-            completion(
-              .failure(
-                exporter.error ??
-                self.makeNSError(
-                  code: "ERR_EXPORT_FAILED",
-                  message: "iOS could not export the merged lecture M4A."
+            if exportPreset == AVAssetExportPresetPassthrough {
+              self.appendTimingEvent(
+                "ASSEMBLY_PASSTHROUGH_FALLBACK",
+                destinationURL: destinationURL,
+                details: "reason=export_failed_or_cancelled"
+              )
+              self.mergeSegments(
+                segmentURLs,
+                to: destinationURL,
+                protectExistingRecording: protectExistingRecording,
+                forceReencode: true,
+                completion: completion
+              )
+            } else {
+              completion(
+                .failure(
+                  exporter.error ??
+                  self.makeNSError(
+                    code: "ERR_EXPORT_FAILED",
+                    message: "iOS could not export the merged lecture M4A."
+                  )
                 )
               )
-            )
+            }
 
           default:
             self.removeFileIfPresent(
@@ -3201,6 +3321,23 @@ public final class LectureRecorderModule: Module {
                 )
               )
             )
+          }
+        }
+
+        // AVAssetExportSession has no built-in deadline.  A stuck export must
+        // not leave a lecture in Preparing audio forever.  Cancelling the
+        // passthrough attempt triggers the safe AppleM4A fallback above; a
+        // stuck fallback resolves as a controlled export failure.
+        DispatchQueue.global(qos: .utility).asyncAfter(
+          deadline: .now() + 120.0
+        ) {
+          if exporter.status == .waiting || exporter.status == .exporting {
+            self.appendTimingEvent(
+              "ASSEMBLY_EXPORT_TIMEOUT",
+              destinationURL: destinationURL,
+              details: "preset=\(exportPreset)"
+            )
+            exporter.cancelExport()
           }
         }
 

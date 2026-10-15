@@ -62,6 +62,13 @@ export type LectureRecorderErrorEvent = {
   durationMillis: number;
 };
 
+export type LectureRecorderCheckpointEvent = {
+  index: number;
+  durationMillis: number;
+  bytes: number;
+  uri: string;
+};
+
 export type LectureRecorderEvents = {
   onRecorderReady(
     event: LectureRecorderResult
@@ -73,6 +80,10 @@ export type LectureRecorderEvents = {
 
   onRecorderError(
     event: LectureRecorderErrorEvent
+  ): void;
+
+  onRecorderCheckpoint(
+    event: LectureRecorderCheckpointEvent
   ): void;
 };
 

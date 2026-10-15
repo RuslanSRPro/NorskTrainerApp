@@ -6,6 +6,11 @@ import {
 import { AppState } from 'react-native';
 
 import {
+  enqueueAudioDiagnostic,
+  newAudioDiagnosticId,
+} from '@/services/audioDiagnostics';
+
+import {
   Directory,
   File,
   Paths,
@@ -14,6 +19,7 @@ import {
 import LectureRecorder, {
   type LectureAudioInfo,
   type LectureRecorderErrorEvent,
+  type LectureRecorderCheckpointEvent,
   type LectureRecorderResult,
   type LectureRecorderStatus,
 } from '@/modules/lecturerecorder';
@@ -64,14 +70,26 @@ export type VerifiedRecordingStart = {
 
 type UseLectureRecorderOptions = {
   pollingActive: boolean;
+  onCheckpointCommitted?: (
+    event: LectureRecorderCheckpointEvent
+  ) => void;
 };
 
 
 export function useLectureRecorder(
   {
     pollingActive,
+    onCheckpointCommitted,
   }: UseLectureRecorderOptions
 ) {
+
+  const onCheckpointCommittedRef =
+    useRef(onCheckpointCommitted);
+
+  useEffect(() => {
+    onCheckpointCommittedRef.current =
+      onCheckpointCommitted;
+  }, [onCheckpointCommitted]);
 
   const [
     recorderState,
@@ -153,6 +171,21 @@ export function useLectureRecorder(
         }
       );
 
+    const checkpointSubscription =
+      LectureRecorder.addListener(
+        'onRecorderCheckpoint',
+        event => {
+          onCheckpointCommittedRef.current?.(event);
+
+          if (__DEV__) {
+            devConsole.log(
+              'LECTURE CHECKPOINT COMMITTED',
+              event
+            );
+          }
+        }
+      );
+
     const errorSubscription =
       LectureRecorder.addListener(
         'onRecorderError',
@@ -195,6 +228,7 @@ export function useLectureRecorder(
     return () => {
       readySubscription.remove();
       stoppedSubscription.remove();
+      checkpointSubscription.remove();
       errorSubscription.remove();
     };
   }, []);
@@ -568,6 +602,16 @@ export function useLectureRecorder(
                 expectedAudioName
               );
 
+            const recoveryDiagnosticId =
+              newAudioDiagnosticId();
+            const recoveryStartedAt =
+              new Date().toISOString();
+            const recoveryT0 = Date.now();
+            const recoveryBeginEvent =
+              isInterruptedRecording
+                ? 'RECOVERY_BEGIN'
+                : 'RECOVERY_ASSEMBLY_BEGIN';
+
             try {
               const recovery =
                 isInterruptedRecording
@@ -579,6 +623,39 @@ export function useLectureRecorder(
                       .assembleRecording(
                         expectedAudio.uri
                       );
+
+              enqueueAudioDiagnostic({
+                session_id: recoveryDiagnosticId,
+                mode: 'normal',
+                status:
+                  recovery.valid && recovery.playable
+                    ? 'saved'
+                    : 'failed',
+                started_at: recoveryStartedAt,
+                finished_at: new Date().toISOString(),
+                error_code:
+                  recovery.valid && recovery.playable
+                    ? null
+                    : (recovery.code ?? 'RECOVERY_NOT_READY'),
+                events: [
+                  { name: recoveryBeginEvent, at_ms: 0 },
+                  {
+                    name:
+                      recovery.valid && recovery.playable
+                        ? (
+                          isInterruptedRecording
+                            ? 'RECOVERY_AUDIO_READY'
+                            : 'RECOVERY_ASSEMBLY_AUDIO_READY'
+                        )
+                        : (
+                          isInterruptedRecording
+                            ? 'RECOVERY_FAILED'
+                            : 'RECOVERY_ASSEMBLY_FAILED'
+                        ),
+                    at_ms: Math.max(0, Date.now() - recoveryT0),
+                  },
+                ],
+              });
 
               recoveredCheckpointDurationMillis =
                 Math.max(
@@ -609,6 +686,28 @@ export function useLectureRecorder(
                 );
               }
             } catch (error) {
+              enqueueAudioDiagnostic({
+                session_id: recoveryDiagnosticId,
+                mode: 'normal',
+                status: 'failed',
+                started_at: recoveryStartedAt,
+                finished_at: new Date().toISOString(),
+                error_code:
+                  isInterruptedRecording
+                    ? 'RECOVERY_EXCEPTION'
+                    : 'RECOVERY_ASSEMBLY_EXCEPTION',
+                events: [
+                  { name: recoveryBeginEvent, at_ms: 0 },
+                  {
+                    name:
+                      isInterruptedRecording
+                        ? 'RECOVERY_EXCEPTION'
+                        : 'RECOVERY_ASSEMBLY_EXCEPTION',
+                    at_ms: Math.max(0, Date.now() - recoveryT0),
+                  },
+                ],
+              });
+
               devConsole.warn(
                 isInterruptedRecording
                   ? 'Could not recover lecture checkpoint segments:'

@@ -206,6 +206,15 @@ export default function VoiceScreen() {
     >('idle');
 
 
+
+  const normalDiagnosticRef = useRef<{ id: string; startedAt: string; t0: number; startupMs?: number; events: { name: string; at_ms: number }[] } | null>(null);
+
+  const addNormalDiagnosticEvent = (name: string) => {
+    const item = normalDiagnosticRef.current;
+    if (!item) return;
+    item.events.push({ name, at_ms: Math.max(0, Date.now() - item.t0) });
+  };
+
   const {
     recorderState,
     micNoSignalWarning,
@@ -225,6 +234,13 @@ export default function VoiceScreen() {
       pollingActive:
         status ===
           'recording',
+      onCheckpointCommitted: event => {
+        addNormalDiagnosticEvent(
+          event.index === 1
+            ? 'FIRST_SEGMENT_COMMITTED'
+            : 'SEGMENT_COMMITTED'
+        );
+      },
     });
 
 
@@ -833,13 +849,7 @@ export default function VoiceScreen() {
     };
 
 
-  const normalDiagnosticRef = useRef<{ id: string; startedAt: string; t0: number; startupMs?: number; events: { name: string; at_ms: number }[] } | null>(null);
   useEffect(() => { retryAudioDiagnostics(); }, []);
-  const addNormalDiagnosticEvent = (name: string) => {
-    const item = normalDiagnosticRef.current;
-    if (!item) return;
-    item.events.push({ name, at_ms: Math.max(0, Date.now() - item.t0) });
-  };
   const finishNormalDiagnostic = (status: 'saved' | 'failed' | 'cancelled', errorCode?: string) => {
     const item = normalDiagnosticRef.current;
     if (!item) return null;
@@ -2785,6 +2795,19 @@ export default function VoiceScreen() {
                 hasPlayableAudio ||
                 isAudioPending;
 
+              // Saved committed segments are independently transcribable.
+              // A derived audio.m4a that is still assembling must not block
+              // WhisperKit's existing segment-transcription fallback.
+              const canTranscribeAudio =
+                lecture.transcriptReady ||
+                (
+                  !isInterrupted &&
+                  (
+                    hasPlayableAudio ||
+                    lecture.recordingState === 'saved'
+                  )
+                );
+
               const displayedDuration =
                 isCurrent &&
                 playerStatus.duration > 0
@@ -3251,22 +3274,10 @@ export default function VoiceScreen() {
                       }
                       disabled={
                         isLectureProcessing ||
-                        (
-                          !lecture.transcriptReady &&
-                          (
-                            isInterrupted ||
-                            isAudioPending ||
-                            !hasPlayableAudio
-                          )
-                        )
+                        !canTranscribeAudio
                       }
                       accessibilityLabel={
-                        !lecture.transcriptReady &&
-                        (
-                          isInterrupted ||
-                          isAudioPending ||
-                          !hasPlayableAudio
-                        )
+                        !canTranscribeAudio
                           ? audioUi.cannotTranscribeInterrupted
                           : lecture.transcriptReady
                           ? (
@@ -3277,12 +3288,7 @@ export default function VoiceScreen() {
                           : audioUi.createTranscriptAccessibility
                       }
                       label={
-                        !lecture.transcriptReady &&
-                        (
-                          isInterrupted ||
-                          isAudioPending ||
-                          !hasPlayableAudio
-                        )
+                        !canTranscribeAudio
                           ? audioUi.noTranscript
                           : lecture.transcriptReady
                             ? (
