@@ -422,7 +422,8 @@ public final class LectureRecorderModule: Module {
               self.currentSegmentsDirectoryURL
             {
               self.promoteRecoverablePartialSegments(
-                in: segmentsDirectoryURL
+                in: segmentsDirectoryURL,
+                reportFailureToActiveWriter: false
               )
             }
 
@@ -446,7 +447,8 @@ public final class LectureRecorderModule: Module {
         // readable. This is also used by next-launch force-quit recovery.
         if let segmentsDirectoryURL = self.currentSegmentsDirectoryURL {
           self.promoteRecoverablePartialSegments(
-            in: segmentsDirectoryURL
+            in: segmentsDirectoryURL,
+            reportFailureToActiveWriter: false
           )
 
           // Every finalized checkpoint is committed durably at the
@@ -2519,30 +2521,31 @@ public final class LectureRecorderModule: Module {
       finalizedSegmentCount
     }
 
-    // A tiny tail can legitimately be created when Stop lands immediately
-    // after a checkpoint rotation.  If earlier checkpoints are already safe,
-    // discard only that unusable tail instead of failing the whole lecture.
-    if measuredDurationMillis < 100 && existingCommittedCount > 0 {
+    // validateAudioFile() rejects media shorter than 500 ms. Never promote
+    // such a checkpoint into the durable sequence: doing so would make Stop
+    // reconciliation reject the whole lecture. If capture resumes after an
+    // interruption/route restart, reclaim this segment index so the next
+    // checkpoint stays contiguous instead of creating a permanent gap.
+    let bytes = fileSize(partURL)
+    if measuredDurationMillis < 500 {
       appendTimingEvent(
         "SEGMENT_REJECTED_SHORT_TAIL",
         destinationURL: currentDestinationURL,
-        details: "durationMillis=\(measuredDurationMillis);bytes=\(fileSize(partURL))"
+        details: "durationMillis=\(measuredDurationMillis);bytes=\(bytes);committed=\(existingCommittedCount)"
       )
       removeFileIfPresent(partURL)
+      nextSegmentIndex = max(1, nextSegmentIndex - 1)
       return
     }
 
-    let bytes = fileSize(partURL)
-
-    guard bytes > 0, measuredDurationMillis > 0 else {
-      // Preserve a non-empty unexpected partial for recovery/diagnostics.  A
-      // checkpoint bookkeeping problem must not stop an otherwise healthy
-      // capture engine.
+    guard bytes > 0 else {
       appendTimingEvent(
         "SEGMENT_REJECTED",
         destinationURL: currentDestinationURL,
         details: "durationMillis=\(measuredDurationMillis);bytes=\(bytes)"
       )
+      removeFileIfPresent(partURL)
+      nextSegmentIndex = max(1, nextSegmentIndex - 1)
       return
     }
 
