@@ -23,6 +23,7 @@ type Props = {
   textSecondary: string;
   fontBase: number;
   disabled: boolean;
+  audioAvailable?: boolean;
   onExport: (
     kind: LectureExportKind
   ) => void;
@@ -34,6 +35,7 @@ export function ExportMenu({
   textSecondary,
   fontBase,
   disabled,
+  audioAvailable = true,
   onExport,
 }: Props) {
   const { app_language } =
@@ -98,7 +100,7 @@ export function ExportMenu({
             key={kind}
             accessibilityRole="button"
             accessibilityLabel={label}
-            disabled={disabled}
+            disabled={disabled || (!audioAvailable && (kind === 'audio' || kind === 'zip'))}
             onPress={() =>
               onExport(kind)
             }
@@ -108,7 +110,7 @@ export function ExportMenu({
                 borderColor:
                   accent,
                 opacity:
-                  disabled
+                  (disabled || (!audioAvailable && (kind === 'audio' || kind === 'zip')))
                     ? 0.45
                     : 1,
               },

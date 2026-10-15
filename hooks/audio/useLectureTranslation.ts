@@ -26,12 +26,13 @@ import type {
 
 import {
   getLectureDirectory,
+  recoverPendingTextTransaction,
   getTranslationFileName,
   getTranslationSegmentsFileName,
   getTranslationSourceLanguageCode,
   readTranscriptSegments,
   readTranslationSegments,
-  writeJsonArray,
+  commitLectureTextSnapshot,
 } from '@/features/audio/lectureStorage';
 
 import {
@@ -146,6 +147,7 @@ export function useLectureTranslation({
           getLectureDirectory(
             lecture.id
           );
+        recoverPendingTextTransaction(directory);
 
         const translationFile =
           new File(
@@ -245,6 +247,7 @@ export function useLectureTranslation({
           getLectureDirectory(
             lecture.id
           );
+        recoverPendingTextTransaction(directory);
 
         let sourceText =
           openedLectureId ===
@@ -432,44 +435,11 @@ export function useLectureTranslation({
           );
         }
 
-        const translationFile =
-          new File(
-            directory,
-            getTranslationFileName(
-              translationTarget
-            )
-          );
-
-        translationFile.create({
-          overwrite: true,
-          intermediates: true,
+        commitLectureTextSnapshot(directory, {
+          [getTranslationFileName(translationTarget)]: translatedText,
+          [getTranslationSegmentsFileName(translationTarget)]: translatedSegments.length > 0
+            ? JSON.stringify(translatedSegments) : null,
         });
-
-        translationFile.write(
-          translatedText
-        );
-
-        const segmentFile =
-          new File(
-            directory,
-            getTranslationSegmentsFileName(
-              translationTarget
-            )
-          );
-
-        if (
-          translatedSegments.length >
-            0
-        ) {
-          writeJsonArray(
-            segmentFile,
-            translatedSegments
-          );
-        } else if (
-          segmentFile.exists
-        ) {
-          segmentFile.delete();
-        }
 
         setOpenedTranslation(
           translatedText

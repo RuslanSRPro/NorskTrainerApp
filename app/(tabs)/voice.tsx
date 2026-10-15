@@ -3442,7 +3442,7 @@ export default function VoiceScreen() {
                         F.base - 1
                       }
                       disabled={
-                        !hasPlayableAudio ||
+                        (!hasPlayableAudio && !lecture.transcriptUri) ||
                         exportingLectureId ===
                           lecture.id
                       }
@@ -3479,9 +3479,10 @@ export default function VoiceScreen() {
 
                   {exportLectureId ===
                     lecture.id &&
-                    hasPlayableAudio && (
+                    (hasPlayableAudio || !!lecture.transcriptUri) && (
 
                     <ExportMenu
+                      audioAvailable={hasPlayableAudio}
                       accent={
                         T.accent
                       }
@@ -3492,7 +3493,6 @@ export default function VoiceScreen() {
                         F.base
                       }
                       disabled={
-                        !hasPlayableAudio ||
                         exportingLectureId ===
                           lecture.id
                       }

@@ -1,5 +1,6 @@
 import {
   useState,
+  useRef,
 } from 'react';
 
 import {
@@ -8,6 +9,7 @@ import {
 
 import {
   File,
+  FileMode,
   Paths,
 } from 'expo-file-system';
 
@@ -16,7 +18,8 @@ import * as Sharing
 
 import {
   strToU8,
-  zipSync,
+  Zip,
+  ZipPassThrough,
 } from 'fflate';
 
 import type {
@@ -27,6 +30,7 @@ import {
   buildTimestampText,
   formatLectureDate,
   getLectureDirectory,
+  recoverPendingTextTransaction,
   getTranslationFileName,
   getTranslationSegmentsFileName,
   readTranscriptSegments,
@@ -42,6 +46,69 @@ import {
   useSettingsStore,
 } from '@/store/settingsStore';
 
+// M4A is already compressed. Stream stored ZIP entries in bounded chunks,
+// writing each emitted output directly to the cache file instead of collecting it.
+export async function writeStreamingLectureZip(target: File, entries: Record<string, File | Uint8Array>) {
+  const limit = 0xff000000; // Classic ZIP; leave room for headers/central directory.
+  let total = 0;
+  for (const value of Object.values(entries)) {
+    const size = value instanceof File ? value.size : value.length;
+    if (!Number.isFinite(size) || size < 0 || (total += size) > limit) {
+      throw new Error('This ZIP exceeds the supported size. Export the audio separately.');
+    }
+  }
+  target.create({ overwrite: true, intermediates: true });
+  let output: ReturnType<File['open']> | null = null;
+  let failure: unknown = null;
+  let completed = false;
+  let zip: Zip | null = null;
+  try {
+    output = target.open(FileMode.WriteOnly);
+    zip = new Zip((error, data, final) => {
+      if (error) { failure = error; return; }
+      if (failure) return;
+      try { output!.writeBytes(data); completed = final; }
+      catch (error) { failure = error; }
+    });
+    let sinceYield = 0;
+    for (const [name, value] of Object.entries(entries)) {
+      const entry = new ZipPassThrough(name);
+      zip.add(entry);
+      let input: ReturnType<File['open']> | null = null;
+      try {
+        const length = value instanceof File ? value.size : value.length;
+        if (value instanceof File) input = value.open(FileMode.ReadOnly);
+        for (let offset = 0; offset < length;) {
+          const count = Math.min(64 * 1024, length - offset);
+          const chunk = input ? input.readBytes(count) : (value as Uint8Array).subarray(offset, offset + count);
+          if (chunk.length !== count) throw new Error('A ZIP source changed or could not be read completely.');
+          offset += count;
+          entry.push(chunk, offset === length);
+          if (failure) throw failure;
+          sinceYield += count;
+          if (sinceYield >= 1024 * 1024) {
+            sinceYield = 0;
+            await new Promise<void>(resolve => setTimeout(resolve, 0));
+          }
+        }
+        if (length === 0) entry.push(new Uint8Array(), true);
+        if (failure) throw failure;
+      } finally { input?.close(); }
+    }
+    zip.end();
+    if (failure) throw failure;
+    if (!completed) throw new Error('The ZIP did not finish.');
+    output.close();
+    output = null;
+  } catch (error) {
+    zip?.terminate();
+    try { output?.close(); } catch {}
+    output = null;
+    try { if (target.exists) target.delete(); } catch {}
+    throw error;
+  }
+}
+
 export type LectureExportKind =
   | 'audio'
   | 'transcript'
@@ -50,6 +117,7 @@ export type LectureExportKind =
   | 'zip';
 
 export function useLectureExport() {
+  const exportInFlightRef = useRef(false);
   const { app_language } =
     useSettingsStore();
 
@@ -142,11 +210,12 @@ export function useLectureExport() {
         LectureExportKind
     ) => {
       if (
-        exportingLectureId
+        exportInFlightRef.current
       ) {
         return;
       }
 
+      exportInFlightRef.current = true;
       try {
         setExportingLectureId(
           lecture.id
@@ -156,6 +225,7 @@ export function useLectureExport() {
           getLectureDirectory(
             lecture.id
           );
+        if (kind !== 'audio') recoverPendingTextTransaction(directory);
 
         const fallbackDate =
           (() => {
@@ -312,7 +382,7 @@ export function useLectureExport() {
         const zipEntries:
           Record<
             string,
-            Uint8Array
+            File | Uint8Array
           > = {};
 
         const audioFile =
@@ -329,7 +399,7 @@ export function useLectureExport() {
         zipEntries[
           lecture.audioFileName
         ] =
-          audioFile.bytesSync();
+          audioFile;
 
         const transcriptFile =
           new File(
@@ -474,33 +544,13 @@ export function useLectureExport() {
           }
         }
 
-        /*
-         * Still level 0 intentionally. M4A is already compressed.
-         * Async/background ZIP remains a later optimization if
-         * long-lecture testing proves this blocks the UI.
-         */
-        const zipped =
-          zipSync(
-            zipEntries,
-            {
-              level: 0,
-            }
-          );
-
         const zipFile =
           new File(
             Paths.cache,
             `${stem}-complete.zip`
           );
 
-        zipFile.create({
-          overwrite: true,
-          intermediates: true,
-        });
-
-        zipFile.write(
-          zipped
-        );
+        await writeStreamingLectureZip(zipFile, zipEntries);
 
         await shareLocalFile(
           zipFile,
@@ -523,6 +573,7 @@ export function useLectureExport() {
         );
 
       } finally {
+        exportInFlightRef.current = false;
         setExportingLectureId(
           null
         );

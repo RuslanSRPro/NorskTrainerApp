@@ -40,7 +40,8 @@ import {
   getWhisperLanguageCode,
   isMeaningfulTranscriptText,
   readMetadata,
-  writeJsonArray,
+  commitLectureTextSnapshot,
+  writeTextFile,
   writeMetadata,
 } from '@/features/audio/lectureStorage';
 
@@ -700,42 +701,6 @@ export function useLectureTranscription({
           );
         }
 
-        /*
-         * Only invalidate translations AFTER a successful new
-         * transcription. If re-transcription fails, the previous
-         * transcript/translation remains usable.
-         */
-        for (
-          const target
-          of ['uk', 'ru'] as const
-        ) {
-          for (
-            const fileName
-            of [
-              getTranslationFileName(
-                target
-              ),
-              getTranslationSegmentsFileName(
-                target
-              ),
-            ]
-          ) {
-            const oldFile =
-              new File(
-                directory,
-                fileName
-              );
-
-            if (
-              oldFile.exists
-            ) {
-              oldFile.delete();
-            }
-          }
-        }
-
-        onTranslationsInvalidated();
-
         const rawWhisperText =
           finalText;
 
@@ -794,75 +759,8 @@ export function useLectureTranscription({
                 b.start
             );
 
-        const transcriptSegmentsFile =
-          new File(
-            directory,
-            'transcript-segments.json'
-          );
-
-        writeJsonArray(
-          transcriptSegmentsFile,
-          transcriptSegments
-        );
-
-        const whisperDebugFile =
-          new File(
-            directory,
-            'whisper-debug.json'
-          );
-
-        whisperDebugFile.create({
-          overwrite: true,
-          intermediates: true,
-        });
-
-        whisperDebugFile.write(
-          JSON.stringify(
-            {
-              createdAt:
-                new Date()
-                  .toISOString(),
-              audioDurationMillis:
-                lecture.durationMillis,
-              sourceLanguage:
-                lecture.language,
-              whisperLanguage:
-                whisperLanguage,
-              rawText:
-                rawWhisperText,
-              rawSegments:
-                rawTranscriptSegments,
-              cleanedSegments:
-                transcriptSegments,
-              audioLoadingMode:
-                result.audioLoadingMode ??
-                'unknown',
-              chunkingStrategy:
-                result.chunkingStrategy ??
-                'unknown',
-            },
-            null,
-            2
-          )
-        );
-
         finalText =
           rawWhisperText;
-
-        const transcriptFile =
-          new File(
-            directory,
-            'transcript.txt'
-          );
-
-        transcriptFile.create({
-          overwrite: true,
-          intermediates: true,
-        });
-
-        transcriptFile.write(
-          finalText
-        );
 
         const doneTranscription:
           LectureTranscription = {
@@ -892,10 +790,15 @@ export function useLectureTranscription({
                 ),
           };
 
-        writeMetadata(
-          directory,
-          {
-            ...metadata,
+        commitLectureTextSnapshot(directory, {
+          'transcript.txt': finalText,
+          'transcript-segments.json': JSON.stringify(transcriptSegments),
+          [getTranslationFileName('uk')]: null,
+          [getTranslationSegmentsFileName('uk')]: null,
+          [getTranslationFileName('ru')]: null,
+          [getTranslationSegmentsFileName('ru')]: null,
+          'session.json': JSON.stringify({
+            ...readMetadata(directory),
             id:
               lecture.id,
             createdAt:
@@ -914,8 +817,48 @@ export function useLectureTranscription({
               finalText.length,
             transcription:
               doneTranscription,
-          }
+          }),
+        });
+        onTranslationsInvalidated();
+        try {
+        const whisperDebugFile =
+          new File(
+            directory,
+            'whisper-debug.json'
+          );
+
+        writeTextFile(whisperDebugFile,
+          JSON.stringify(
+            {
+              createdAt:
+                new Date()
+                  .toISOString(),
+              audioDurationMillis:
+                lecture.durationMillis,
+              sourceLanguage:
+                lecture.language,
+              whisperLanguage:
+                whisperLanguage,
+              rawText:
+                rawWhisperText,
+              rawSegments:
+                rawTranscriptSegments,
+              cleanedSegments:
+                transcriptSegments,
+              audioLoadingMode:
+                result.audioLoadingMode ??
+                'unknown',
+              chunkingStrategy:
+                result.chunkingStrategy ??
+                'unknown',
+            },
+            null,
+            2
+          )
         );
+
+        } catch { /* Diagnostics cannot invalidate a committed transcript. */ }
+
 
         if (
           isRetranscription

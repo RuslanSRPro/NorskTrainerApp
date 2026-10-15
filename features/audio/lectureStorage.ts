@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import LectureRecorder from '@/modules/lecturerecorder';
 import {
   Directory,
   File,
@@ -14,6 +16,92 @@ import type {
   TranscriptionChunk,
   TranslationTarget,
 } from './lectureTypes';
+
+const TEXT_JOURNAL = '.derived-text-transaction.json';
+type TextUpdates = Record<string, string | null>;
+type TextJournal = { version: 1; state: 'prepared' | 'committed'; before: TextUpdates };
+
+function parentDirectory(file: File) {
+  return new Directory(file.uri.slice(0, file.uri.lastIndexOf('/')));
+}
+
+export function writeTextFile(file: File, text: string) {
+  if (Platform.OS === 'ios') {
+    const parent = parentDirectory(file);
+    if (!parent.exists) parent.create({ intermediates: true, idempotent: true });
+    LectureRecorder.writeTextSnapshot(file.uri, text);
+    return;
+  }
+  file.create({ overwrite: true, intermediates: true });
+  file.write(text);
+}
+
+function checkTextUpdates(value: unknown): asserts value is TextUpdates {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Invalid derived text transaction. Recovery data was preserved.');
+  }
+  const entries = Object.entries(value);
+  if (entries.length > 16 || entries.some(([name, text]) =>
+    !/^(session\.json|transcript\.txt|transcript-segments\.json|translation-(uk|ru)(\.txt|-segments\.json))$/.test(name) ||
+    (text !== null && typeof text !== 'string')
+  )) throw new Error('Unsafe derived text transaction. Recovery data was preserved.');
+}
+
+function applyTextUpdates(directory: Directory, updates: TextUpdates) {
+  for (const [name, text] of Object.entries(updates)) {
+    const file = new File(directory, name);
+    if (text === null) {
+      if (file.exists) file.delete();
+    } else {
+      writeTextFile(file, text);
+    }
+  }
+}
+
+// Called before reading metadata or writing another snapshot. A prepared journal
+// restores the entire previous group; a committed journal only needs cleanup.
+export function recoverPendingTextTransaction(directory: Directory) {
+  const journalFile = new File(directory, TEXT_JOURNAL);
+  if (!journalFile.exists) return;
+  const journal = JSON.parse(journalFile.textSync()) as TextJournal;
+  if (journal.version !== 1 || !['prepared', 'committed'].includes(journal.state)) {
+    throw new Error('Unknown derived text transaction. Recovery data was preserved.');
+  }
+  checkTextUpdates(journal.before);
+  if (journal.state === 'prepared') {
+    applyTextUpdates(directory, journal.before);
+    // A journal that cannot be removed must not roll back a later successful
+    // write. Persist the completed rollback before permitting another writer.
+    writeTextFile(journalFile, JSON.stringify({ ...journal, state: 'committed' }));
+  }
+  // Failed cleanup after a committed/rolled-back group must not undo success.
+  try { journalFile.delete(); } catch {}
+}
+
+// No await is allowed between journal preparation and commit: JS callers cannot
+// interleave another snapshot in this transaction. Audio/manifest are excluded.
+export function commitLectureTextSnapshot(directory: Directory, updates: TextUpdates) {
+  checkTextUpdates(updates);
+  if (!directory.exists) throw new Error('The lecture directory no longer exists.');
+  recoverPendingTextTransaction(directory);
+  const before: TextUpdates = {};
+  for (const name of Object.keys(updates)) {
+    const file = new File(directory, name);
+    before[name] = file.exists ? file.textSync() : null;
+  }
+  const journalFile = new File(directory, TEXT_JOURNAL);
+  const journal: TextJournal = { version: 1, state: 'prepared', before };
+  writeTextFile(journalFile, JSON.stringify(journal));
+  try {
+    applyTextUpdates(directory, updates);
+    writeTextFile(journalFile, JSON.stringify({ ...journal, state: 'committed' }));
+  } catch (failure) {
+    try { recoverPendingTextTransaction(directory); }
+    catch { throw new Error(`Text save failed; recovery journal retained. ${String(failure)}`); }
+    throw failure;
+  }
+  try { journalFile.delete(); } catch {}
+}
 
 const CHUNK_SECONDS =
   5 * 60;
@@ -345,6 +433,7 @@ export function getDefaultTranscription(
 export function readJsonArray<T>(
   file: File
 ): T[] {
+  recoverPendingTextTransaction(parentDirectory(file));
   if (!file.exists) {
     return [];
   }
@@ -365,22 +454,9 @@ export function readJsonArray<T>(
   }
 }
 
-export function writeJsonArray<T>(
-  file: File,
-  value: T[]
-) {
-  file.create({
-    overwrite: true,
-    intermediates: true,
-  });
-
-  file.write(
-    JSON.stringify(
-      value,
-      null,
-      2
-    )
-  );
+export function writeJsonArray<T>(file: File, value: T[]) {
+  recoverPendingTextTransaction(parentDirectory(file));
+  writeTextFile(file, JSON.stringify(value, null, 2));
 }
 
 export function readLectureMarkers(
@@ -581,6 +657,7 @@ export function readMetadata(
   directory:
     Directory
 ): LectureMetadata {
+  recoverPendingTextTransaction(directory);
   const metadataFile =
     new File(
       directory,
@@ -603,30 +680,9 @@ export function readMetadata(
   }
 }
 
-export function writeMetadata(
-  directory:
-    Directory,
-  metadata:
-    LectureMetadata
-) {
-  const metadataFile =
-    new File(
-      directory,
-      'session.json'
-    );
-
-  metadataFile.create({
-    overwrite: true,
-    intermediates: true,
-  });
-
-  metadataFile.write(
-    JSON.stringify(
-      metadata,
-      null,
-      2
-    )
-  );
+export function writeMetadata(directory: Directory, metadata: LectureMetadata) {
+  recoverPendingTextTransaction(directory);
+  writeTextFile(new File(directory, 'session.json'), JSON.stringify(metadata, null, 2));
 }
 
 export function findAudioFile(
