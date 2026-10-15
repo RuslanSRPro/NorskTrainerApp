@@ -842,14 +842,16 @@ export default function VoiceScreen() {
   };
   const finishNormalDiagnostic = (status: 'saved' | 'failed' | 'cancelled', errorCode?: string) => {
     const item = normalDiagnosticRef.current;
-    if (!item) return;
+    if (!item) return null;
     normalDiagnosticRef.current = null;
-    enqueueAudioDiagnostic({
-      session_id: item.id, mode: 'normal', status,
+    const report = {
+      session_id: item.id, mode: 'normal' as const, status,
       started_at: item.startedAt, finished_at: new Date().toISOString(),
       startup_ms: item.startupMs ?? null, error_code: errorCode ?? null,
       events: [...item.events, { name: status.toUpperCase(), at_ms: Date.now() - item.t0 }],
-    });
+    };
+    enqueueAudioDiagnostic(report);
+    return { report, t0: item.t0 };
   };
 
   const handleStart =
@@ -1261,20 +1263,43 @@ export default function VoiceScreen() {
           'UI_SAVED',
           `lecture=${active.id}`
         );
-        finishNormalDiagnostic('saved');
+        addNormalDiagnosticEvent('SEGMENTS_SAVED');
+        addNormalDiagnosticEvent('ASSEMBLY_BEGIN');
+        const savedDiagnostic =
+          finishNormalDiagnostic('saved');
 
         loadLectures();
 
         /*
          * Stop has already committed this lecture durably.
-         * Assemble only this recording's derived M4A.
-         *
-         * Historical lectures are not scanned here.
+         * Assemble only this recording's derived M4A. The diagnostic row
+         * is updated again when assembly actually finishes, so SAVED no
+         * longer hides a lecture that is still stuck in Preparing audio.
          */
         void assembleSavedRecording(
           active.audioFile.uri
         )
           .then(result => {
+            if (savedDiagnostic) {
+              enqueueAudioDiagnostic({
+                ...savedDiagnostic.report,
+                finished_at: new Date().toISOString(),
+                error_code:
+                  result.valid && result.playable
+                    ? null
+                    : (result.code ?? 'ASSEMBLY_NOT_READY'),
+                events: [
+                  ...(savedDiagnostic.report.events ?? []),
+                  {
+                    name:
+                      result.valid && result.playable
+                        ? 'AUDIO_READY'
+                        : 'ASSEMBLY_FAILED',
+                    at_ms: Math.max(0, Date.now() - savedDiagnostic.t0),
+                  },
+                ],
+              });
+            }
             if (__DEV__) {
               devConsole.log(
                 'LECTURE TARGETED ASSEMBLY COMPLETE',
@@ -1288,6 +1313,20 @@ export default function VoiceScreen() {
             loadLectures();
           })
           .catch(error => {
+            if (savedDiagnostic) {
+              enqueueAudioDiagnostic({
+                ...savedDiagnostic.report,
+                finished_at: new Date().toISOString(),
+                error_code: 'ASSEMBLY_EXCEPTION',
+                events: [
+                  ...(savedDiagnostic.report.events ?? []),
+                  {
+                    name: 'ASSEMBLY_EXCEPTION',
+                    at_ms: Math.max(0, Date.now() - savedDiagnostic.t0),
+                  },
+                ],
+              });
+            }
             devConsole.warn(
               'Background lecture assembly failed; committed segments remain recoverable:',
               error

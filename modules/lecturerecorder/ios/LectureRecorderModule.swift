@@ -2830,6 +2830,8 @@ public final class LectureRecorderModule: Module {
         var cursor = CMTime.zero
         var insertedSegments = 0
         var expectedDurationSeconds = 0.0
+        var commonAudioSignature: String? = nil
+        var canPassthroughWithoutReencode = true
 
         guard !segmentURLs.isEmpty else {
           throw self.makeNSError(
@@ -2866,6 +2868,25 @@ public final class LectureRecorderModule: Module {
               code: "ERR_SEGMENT_AUDIO_TRACK",
               message: "Lecture segment \(expectedIndex) has no readable audio track. Assembly was aborted and all source segments were preserved."
             )
+          }
+
+          if
+            let formatDescription = assetTrack.formatDescriptions.first,
+            let audioDescription = formatDescription as? CMAudioFormatDescription,
+            let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(audioDescription)?.pointee
+          {
+            let signature =
+              "\(asbd.mFormatID):\(asbd.mSampleRate):\(asbd.mChannelsPerFrame):\(asbd.mFramesPerPacket)"
+
+            if let commonAudioSignature {
+              if commonAudioSignature != signature {
+                canPassthroughWithoutReencode = false
+              }
+            } else {
+              commonAudioSignature = signature
+            }
+          } else {
+            canPassthroughWithoutReencode = false
           }
 
           let duration = asset.duration
@@ -2917,16 +2938,29 @@ public final class LectureRecorderModule: Module {
           temporaryURL
         )
 
-        // Always re-encode the assembled lecture to one normalized M4A.
-        // After an AVAudioSession interruption (for example an accepted
-        // phone call), iOS may resume the microphone with a different
-        // hardware sample rate / channel configuration. Passthrough can
-        // then fail because it tries to preserve the source formats.
-        // AppleM4A decodes the segments and encodes one consistent output.
+        /*
+         * Normal uninterrupted lectures use identical AAC checkpoint
+         * formats. Re-encoding 1-2 hours of already encoded AAC can keep
+         * the UI in Preparing audio for an hour, so use passthrough when
+         * every committed segment has the same codec/sample-rate/channel
+         * signature. If an interruption changed the hardware format, keep
+         * the normalized AppleM4A re-encode path for correctness.
+         */
+        let exportPreset =
+          canPassthroughWithoutReencode
+            ? AVAssetExportPresetPassthrough
+            : AVAssetExportPresetAppleM4A
+
+        self.appendTimingEvent(
+          "ASSEMBLY_EXPORT_BEGIN",
+          destinationURL: destinationURL,
+          details: "segments=\(segmentURLs.count);preset=\(exportPreset)"
+        )
+
         guard
           let exporter = AVAssetExportSession(
             asset: composition,
-            presetName: AVAssetExportPresetAppleM4A
+            presetName: exportPreset
           )
         else {
           throw self.makeNSError(
@@ -2940,6 +2974,11 @@ public final class LectureRecorderModule: Module {
         exporter.shouldOptimizeForNetworkUse = false
 
         exporter.exportAsynchronously {
+          self.appendTimingEvent(
+            "ASSEMBLY_EXPORT_END",
+            destinationURL: destinationURL,
+            details: "status=\(exporter.status.rawValue)"
+          )
           switch exporter.status {
           case .completed:
             let temporaryValidation =
