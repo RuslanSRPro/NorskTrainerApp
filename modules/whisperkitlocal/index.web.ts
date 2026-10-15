@@ -80,6 +80,10 @@ const WhisperKitLocal = {
     unsupported();
   },
 
+  async waitForLiveCleanup(_timeoutMillis: number): Promise<{ ready: boolean }> {
+    return { ready: true };
+  },
+
   async stopLive(): Promise<any> {
     unsupported();
   },

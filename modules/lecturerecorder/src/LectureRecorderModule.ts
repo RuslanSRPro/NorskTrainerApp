@@ -37,6 +37,7 @@ export type LectureAudioInfo = {
 };
 
 export type LectureRecordingValidation = {
+  durableSegmentsVerified?: boolean;
   valid: boolean;
   playable: boolean;
   durationMillis: number;
@@ -107,6 +108,8 @@ declare class LectureRecorderNativeModule
   cancel(): Promise<{
     ok: boolean;
   }>;
+
+  writeTextSnapshot(uri: string, text: string): boolean;
 
   getStatus(): LectureRecorderStatus;
 

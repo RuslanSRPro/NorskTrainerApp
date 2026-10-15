@@ -57,6 +57,10 @@ const LectureRecorder = {
     return { ok: true };
   },
 
+  writeTextSnapshot(_uri: string, _text: string): boolean {
+    unsupported();
+  },
+
   getStatus(): LectureRecorderStatus {
     return {
       isRecording: false,

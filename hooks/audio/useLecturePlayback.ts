@@ -56,6 +56,14 @@ export function useLecturePlayback({
       app_language
     );
 
+  const playbackGenerationRef = useRef(0);
+  const audioModePendingRef = useRef<Promise<void>>(Promise.resolve());
+  const setPlaybackAudioMode = (mode: Parameters<typeof setAudioModeAsync>[0]) => {
+    const pending = setAudioModeAsync(mode);
+    audioModePendingRef.current = pending;
+    return pending;
+  };
+
   const player =
     useAudioPlayer(
       null,
@@ -500,7 +508,11 @@ export function useLecturePlayback({
 
 
   const beginRecordingTransition =
-    () => {
+    async () => {
+      playbackGenerationRef.current += 1;
+      clearPlaybackLoadTimers();
+      clearPendingPlayback();
+      await audioModePendingRef.current.catch(() => {});
 
       clearPlaybackLoadTimers();
 
@@ -624,6 +636,8 @@ export function useLecturePlayback({
         return;
       }
 
+      const requestGeneration = ++playbackGenerationRef.current;
+      const requestIsCurrent = () => requestGeneration === playbackGenerationRef.current && !isPlaybackBlocked();
       try {
 
         setPlaybackError(
@@ -638,6 +652,7 @@ export function useLecturePlayback({
             await LectureRecorder.validateRecording(
               lecture.audioUri
             );
+          if (!requestIsCurrent()) return;
 
           finalAudioUsable =
             validation.valid &&
@@ -652,13 +667,15 @@ export function useLecturePlayback({
             'saved'
         ) {
 
-          await setAudioModeAsync({
+          if (!requestIsCurrent()) return;
+          await setPlaybackAudioMode({
             playsInSilentMode: true,
             allowsRecording: false,
             allowsBackgroundRecording: false,
             shouldPlayInBackground: false,
             interruptionMode: 'doNotMix',
           });
+          if (!requestIsCurrent()) return;
 
           if (
             segmentPlaybackActiveRef.current &&
@@ -674,6 +691,7 @@ export function useLecturePlayback({
               const paused =
                 await LectureRecorder
                   .pauseSegmentPlayback();
+          if (!requestIsCurrent()) return;
 
               setSegmentPlayerStatus(
                 paused
@@ -689,11 +707,13 @@ export function useLecturePlayback({
                   .seekSegmentPlayback(
                     0
                   );
+          if (!requestIsCurrent()) return;
               }
 
               const playing =
                 await LectureRecorder
                   .playSegmentPlayback();
+          if (!requestIsCurrent()) return;
 
               setSegmentPlayerStatus(
                 playing
@@ -718,6 +738,7 @@ export function useLecturePlayback({
                   lecture.id
                 )
               );
+          if (!requestIsCurrent()) return;
 
           segmentPlaybackActiveRef.current =
             true;
@@ -749,6 +770,7 @@ export function useLecturePlayback({
               .seekSegmentPlayback(
                 pendingSeek.seconds
               );
+          if (!requestIsCurrent()) return;
 
             if (
               pendingSeek.autoplay
@@ -756,6 +778,7 @@ export function useLecturePlayback({
               const playing =
                 await LectureRecorder
                   .playSegmentPlayback();
+          if (!requestIsCurrent()) return;
 
               setSegmentPlayerStatus(
                 playing
@@ -770,6 +793,7 @@ export function useLecturePlayback({
           const playing =
             await LectureRecorder
               .playSegmentPlayback();
+          if (!requestIsCurrent()) return;
 
           setSegmentPlayerStatus(
             playing
@@ -796,6 +820,7 @@ export function useLecturePlayback({
 
           await LectureRecorder
             .stopSegmentPlayback();
+          if (!requestIsCurrent()) return;
         }
 
 
@@ -856,16 +881,19 @@ export function useLecturePlayback({
           setLoadingLectureId(
             lecture.id
           );
+          if (!requestIsCurrent()) return;
         }
 
 
-        await setAudioModeAsync({
+        if (!requestIsCurrent()) return;
+        await setPlaybackAudioMode({
           playsInSilentMode: true,
           allowsRecording: false,
           allowsBackgroundRecording: false,
           shouldPlayInBackground: false,
           interruptionMode: 'doNotMix',
         });
+          if (!requestIsCurrent()) return;
 
 
         if (
@@ -959,6 +987,7 @@ export function useLecturePlayback({
                   });
 
                 } catch (error) {
+        if (!requestIsCurrent()) return;
 
                   devConsole.error(
                     'Automatic playback reload error:',

@@ -823,6 +823,7 @@ export default function VoiceScreen() {
         () =>
           !!(
             liveBusy ||
+            status === 'recording' || recordingActionPendingRef.current ||
             transcribingLectureId ||
             processingLockRef.current ===
               'transcription'
@@ -845,6 +846,11 @@ export default function VoiceScreen() {
       translatingLectureId
     );
 
+
+  const libraryMutationBlockedRef = useRef(false);
+  useEffect(() => {
+    libraryMutationBlockedRef.current = isLectureProcessing || liveBusy || status === 'recording' || recordingActionPhase !== 'idle';
+  }, [isLectureProcessing, liveBusy, status, recordingActionPhase]);
 
   useEffect(() => {
     loadLectures();
@@ -983,7 +989,7 @@ export default function VoiceScreen() {
          * has time to finish before LectureRecorder
          * activates its recording session.
          */
-        beginRecordingTransition();
+        await beginRecordingTransition();
         finishRecordingTransition();
 
         const permission =
@@ -1910,6 +1916,7 @@ export default function VoiceScreen() {
       lecture:
         LectureItem
     ) => {
+      if (libraryMutationBlockedRef.current) return;
 
       Alert.prompt(
         audioUi.renameLecture,
@@ -1926,6 +1933,7 @@ export default function VoiceScreen() {
               audioUi.save,
             onPress:
               (value: string | undefined) => {
+                if (libraryMutationBlockedRef.current || processingLockRef.current) return;
                 try {
                   const directory =
                     getLectureDirectory(
@@ -1984,6 +1992,7 @@ export default function VoiceScreen() {
     (
       lecture: LectureItem
     ) => {
+      if (libraryMutationBlockedRef.current) return;
 
       Alert.alert(
         audioUi.deleteLecture,
@@ -2004,6 +2013,7 @@ export default function VoiceScreen() {
 
             onPress:
               () => {
+                if (libraryMutationBlockedRef.current || processingLockRef.current) return;
 
                 try {
 
@@ -2693,11 +2703,15 @@ export default function VoiceScreen() {
             }
             disabled={
               status === 'recording' ||
+              recordingActionPhase !== 'idle' ||
               isLectureProcessing
             }
             beforeStart={
               async () => {
-                beginRecordingTransition();
+                if (recordingActionPendingRef.current || status === 'recording') {
+                  throw new Error('Another recording operation is in progress.');
+                }
+                await beginRecordingTransition();
                 finishRecordingTransition();
               }
             }
@@ -3022,6 +3036,7 @@ export default function VoiceScreen() {
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={audioUi.renameAccessibility}
+                        disabled={isLectureProcessing || liveBusy || status === 'recording' || recordingActionPhase !== 'idle'}
                         onPress={() =>
                           handleRenameLecture(
                             lecture
@@ -3050,6 +3065,7 @@ export default function VoiceScreen() {
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={audioUi.deleteAccessibility}
+                        disabled={isLectureProcessing || liveBusy || status === 'recording' || recordingActionPhase !== 'idle'}
                         onPress={() =>
                           handleDeleteLecture(
                             lecture

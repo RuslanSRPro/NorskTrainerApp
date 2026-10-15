@@ -182,7 +182,7 @@ function normalizeTranscriptKey(
 ) {
   return value
     .toLocaleLowerCase()
-    .replace(/[^\\p{L}\\p{N}]+/gu, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
 }
 
@@ -201,8 +201,8 @@ function appendTextWithBoundaryDedup(
     return left;
   }
 
-  const leftWords = left.split(/\\s+/);
-  const rightWords = right.split(/\\s+/);
+  const leftWords = left.split(/\s+/);
+  const rightWords = right.split(/\s+/);
   const maxOverlap = Math.min(
     16,
     leftWords.length,

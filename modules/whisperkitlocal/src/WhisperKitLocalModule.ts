@@ -50,6 +50,7 @@ export type WhisperTailTranscriptResult =
   };
 
 export type WhisperLiveUpdateEvent = {
+  sessionId: string;
   isRecording: boolean;
   elapsedMillis: number;
   partialText: string;
@@ -58,6 +59,7 @@ export type WhisperLiveUpdateEvent = {
 };
 
 export type WhisperLiveErrorEvent = {
+  sessionId: string;
   message: string;
 };
 
@@ -128,6 +130,8 @@ declare class WhisperKitLocalNativeModule
     model: string,
     timingLogUri: string
   ): Promise<WhisperLiveStartResult>;
+
+  waitForLiveCleanup(timeoutMillis: number): Promise<{ ready: boolean }>;
 
   stopLive():
     Promise<WhisperLiveStopResult>;

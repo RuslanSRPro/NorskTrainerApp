@@ -584,6 +584,7 @@ export function useLectureRecorder(
           let recoveredCheckpointBytes =
             0;
 
+          let segmentRecoveryValidated = false;
           let segmentRecoveryMessage:
             string | null =
               null;
@@ -682,6 +683,7 @@ export function useLectureRecorder(
 
               segmentRecoveryMessage =
                 recovery.message;
+              segmentRecoveryValidated = recovery.valid || recovery.durableSegmentsVerified === true;
 
               if (__DEV__) {
                 devConsole.log(
@@ -845,7 +847,8 @@ export function useLectureRecorder(
 
             const segmentBackedSaved =
               hasRecoverableSegments &&
-              !hasUnresolvedPartialSegments;
+              !hasUnresolvedPartialSegments &&
+              (!isInterruptedRecording || segmentRecoveryValidated);
 
             writeMetadata(
               entry,
@@ -888,7 +891,7 @@ export function useLectureRecorder(
                       segmentRecoveryMessage ||
                       'The lecture checkpoints are saved, but the playable audio file is not assembled yet.'
                     )
-                    : 'The app closed before the first recoverable audio checkpoint was finalized.',
+                    : (segmentRecoveryMessage || 'Audio recovery is incomplete. Source checkpoints were preserved; retry recovery.'),
                 transcription:
                   metadata.transcription ??
                   getDefaultTranscription(

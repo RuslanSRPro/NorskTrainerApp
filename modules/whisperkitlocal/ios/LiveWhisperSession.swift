@@ -91,6 +91,7 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   private var _relativeEnergyWindow = 20
   private var audioBufferCallback: (([Float]) -> Void)?
   private var pcmObserver: NSObjectProtocol?
+  private var captureCancelled = false
 
   init(outputURL: URL) throws {
     self.outputURL = outputURL
@@ -193,6 +194,10 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
 
   func beginCapture() throws {
     stateLock.lock()
+    if captureCancelled {
+      stateLock.unlock()
+      throw CancellationError()
+    }
     samplesStorage = []
     relativeEnergyStorage = []
     averageEnergyStorage = []
@@ -234,6 +239,9 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   }
 
   func stopRecording() {
+    stateLock.lock()
+    captureCancelled = true
+    stateLock.unlock()
     detachFromRecorder()
     stateLock.lock()
     audioBufferCallback = nil
@@ -291,14 +299,15 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
       object: nil,
       queue: nil
     ) { [weak self] notification in
-      guard let buffer = notification.object as? AVAudioPCMBuffer else {
+      guard notification.userInfo?["sourceURI"] as? String == self?.outputURL.absoluteString,
+        let buffer = notification.object as? AVAudioPCMBuffer else {
         return
       }
       self?.handleRecorderBuffer(buffer)
     }
 
     stateLock.lock()
-    if pcmObserver == nil {
+    if pcmObserver == nil && !captureCancelled {
       pcmObserver = observer
       stateLock.unlock()
     } else {
@@ -338,6 +347,7 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
     let signalEnergy = AudioProcessor.calculateEnergy(of: samples)
 
     stateLock.lock()
+    guard !captureCancelled else { stateLock.unlock(); return }
     let baseline: Float? = {
       let window = averageEnergyStorage.suffix(_relativeEnergyWindow)
       return window.min()
@@ -378,6 +388,9 @@ final class LiveWhisperSession: @unchecked Sendable {
   ) -> Void
 
   private let processor: LiveRecorderAudioProcessor
+  private let inferenceLease: WhisperInferenceLease
+  private let lifecycleLock = NSLock()
+  private var stopping = false
   private var streamCleanupTask: Task<Void, Never>?
   private let transcriber: AudioStreamTranscriber
   private let audioURL: URL
@@ -400,6 +413,7 @@ final class LiveWhisperSession: @unchecked Sendable {
     audioURL: URL,
     language: String,
     processor: LiveRecorderAudioProcessor,
+    inferenceLease: WhisperInferenceLease,
     onUpdate: @escaping UpdateHandler,
     onError: @escaping ErrorHandler
   ) throws {
@@ -426,6 +440,7 @@ final class LiveWhisperSession: @unchecked Sendable {
     )
 
     self.processor = processor
+    self.inferenceLease = inferenceLease
     self.audioURL = audioURL
     self.onUpdate = onUpdate
     self.onError = onError
@@ -455,7 +470,9 @@ final class LiveWhisperSession: @unchecked Sendable {
   }
 
   func start() {
-    guard task == nil else {
+    lifecycleLock.lock()
+    defer { lifecycleLock.unlock() }
+    guard task == nil && !stopping else {
       return
     }
 
@@ -467,6 +484,7 @@ final class LiveWhisperSession: @unchecked Sendable {
       }
 
       do {
+        try Task.checkCancellation()
         try await self.transcriber
           .startStreamTranscription()
       } catch is CancellationError {
@@ -479,37 +497,38 @@ final class LiveWhisperSession: @unchecked Sendable {
     }
   }
 
+  private func cleanupTaskSnapshot() -> Task<Void, Never>? {
+    lifecycleLock.lock()
+    defer { lifecycleLock.unlock() }
+    return streamCleanupTask
+  }
+
   func awaitStreamCleanupCompletion() async {
-    if let streamCleanupTask {
-      await streamCleanupTask.value
+    if let cleanup = cleanupTaskSnapshot() { await cleanup.value }
+  }
+
+  private func beginStop() -> Task<Void, Never> {
+    lifecycleLock.lock()
+    defer { lifecycleLock.unlock() }
+    if let cleanup = streamCleanupTask { return cleanup }
+    stopping = true
+    let streamingTask = task
+    streamingTask?.cancel()
+    let transcriber = self.transcriber
+    let lease = inferenceLease
+    let cleanup = Task {
+      await transcriber.stopStreamTranscription()
+      if let streamingTask { await streamingTask.value }
+      lease.release() // Only the real completion releases inference ownership.
     }
+    streamCleanupTask = cleanup
+    return cleanup
   }
 
   func stop() async -> LiveWhisperStopSnapshot {
-    /*
-     * Audio is primary: finalize M4A first. Then give streaming Whisper
-     * a bounded opportunity to terminate. If it misses the deadline, JS
-     * keeps the audio but must defer the authoritative full-file pass so
-     * two Whisper operations never race.
-     */
-    let audioSnapshot =
-      processor.stopAndSnapshot()
-
-    let streamingTask = self.task
-    streamingTask?.cancel()
-
-    let transcriber = self.transcriber
-    let cleanupTask = Task {
-      await transcriber
-        .stopStreamTranscription()
-
-      // Do not release native ownership until the original streaming task
-      // has actually exited as well.
-      if let streamingTask {
-        await streamingTask.value
-      }
-    }
-    self.streamCleanupTask = cleanupTask
+    // LectureRecorder owns durable capture; this only detaches its PCM consumer.
+    let audioSnapshot = processor.stopAndSnapshot()
+    let cleanupTask = beginStop()
 
     let cleanupFinished =
       await withCheckedContinuation {

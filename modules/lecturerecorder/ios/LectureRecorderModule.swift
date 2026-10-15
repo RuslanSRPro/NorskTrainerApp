@@ -331,6 +331,11 @@ public final class LectureRecorderModule: Module {
   // Main-thread lifecycle state.
   private var currentDestinationURL: URL?
   private var currentSegmentsDirectoryURL: URL?
+  private let stopResponseLock = NSLock()
+  private var stopResponseSettled = false // Response gate; native ownership is separate.
+  private var stopRequestToken = UUID()
+  private var interruptionCleanupPending = false
+  private var interruptionResumeRequested = false
   private var pendingStopPromise: Promise?
   private var isStopping = false
   private var isPausedForInterruption = false
@@ -608,6 +613,14 @@ public final class LectureRecorderModule: Module {
       }
 
       self.pendingStopPromise = promise
+      let stopToken = self.beginStopResponse()
+      DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
+        guard let self else { return }
+        self.completeStopResponse(token: stopToken) {
+          promise.reject(self.makeException(code: "ERR_STOP_DEADLINE",
+            message: "Saving is still finishing. Audio checkpoints are preserved; native cleanup retains ownership until it really completes."))
+        }
+      }
       self.isStopping = true
       self.appendTimingEvent("STOP_BEGIN", destinationURL: destinationURL)
       self.resumeToken = nil
@@ -645,14 +658,14 @@ public final class LectureRecorderModule: Module {
             self.pendingStopPromise = nil
             let snapshot = self.statusSnapshot()
 
-            promise.reject(
+            self.completeStopResponse(token: stopToken) { promise.reject(
               self.makeException(
                 code: "ERR_STOP_DRAIN_TIMEOUT",
                 message:
                   "The recorder could not finish draining microphone callbacks within 5 seconds. " +
                   "Committed audio checkpoints were preserved for recovery."
               )
-            )
+            ) }
 
             self.emitRecorderError(
               code: "ERR_STOP_DRAIN_TIMEOUT",
@@ -732,6 +745,7 @@ public final class LectureRecorderModule: Module {
           self.finishStopBySaving(
             destinationURL: destinationURL,
             promise: promise,
+            stopToken: stopToken,
             segmentURLs: segmentURLs,
             unresolvedPartialURLs: unresolvedPartialURLs
           )
@@ -844,6 +858,14 @@ public final class LectureRecorderModule: Module {
           }
         }
       }
+    }
+
+    Function("writeTextSnapshot") { (uri: String, text: String) throws -> Bool in
+      guard let url = URL(string: uri), url.isFileURL else {
+        throw self.makeException(code: "ERR_SNAPSHOT_URI", message: "Invalid snapshot file URI.")
+      }
+      try Data(text.utf8).write(to: url, options: .atomic)
+      return true
     }
 
     Function("getStatus") { () -> [String: Any] in
@@ -1198,6 +1220,10 @@ public final class LectureRecorderModule: Module {
 
         if
           manifest.assembly.state == "ready",
+          (try? self.verifyRecordingManifestInventoryForStop(
+            segmentURLs: self.completedSegmentURLs(in: self.segmentsDirectoryURL(for: destinationURL)),
+            destinationURL: destinationURL)) != nil,
+          self.unresolvedPartialSegmentURLs(in: self.segmentsDirectoryURL(for: destinationURL)).isEmpty,
           manifest.assembly.output == destinationURL.lastPathComponent,
           (existingValidation["valid"] as? Bool) == true,
           (existingValidation["playable"] as? Bool) == true
@@ -1388,8 +1414,12 @@ public final class LectureRecorderModule: Module {
           archiveLease: request.lease
         ) { result in
           self.appendTimingEvent("RECOVERY_END", destinationURL: destinationURL)
+          var recovered = result
+          // Reconciliation independently verified the complete durable inventory.
+          // A derived exporter failure must not block segment transcription.
+          recovered["durableSegmentsVerified"] = true
           DispatchQueue.main.async {
-            request.finish(result)
+            request.finish(recovered)
           }
         }
       }
@@ -1478,6 +1508,13 @@ public final class LectureRecorderModule: Module {
       }
 
     do {
+      let actualSegments = self.completedSegmentURLs(in: segmentsDirectoryURL)
+      _ = try self.verifyRecordingManifestInventoryForStop(
+        segmentURLs: actualSegments, destinationURL: destinationURL)
+      guard self.unresolvedPartialSegmentURLs(in: segmentsDirectoryURL).isEmpty else {
+        throw self.makeNSError(code: "ERR_ASSEMBLY_PARTIAL_INVENTORY",
+          message: "Unresolved audio tail exists. Recover it before assembly; source audio is preserved.")
+      }
       try self.updateRecordingManifestDurably(
         for: destinationURL
       ) {
@@ -1881,6 +1918,8 @@ public final class LectureRecorderModule: Module {
     }
 
     isPausedForInterruption = true
+    interruptionCleanupPending = true
+    interruptionResumeRequested = false
     resumeToken = nil
     stopAcceptingNewBuffers()
     stopCaptureEngine()
@@ -1896,6 +1935,14 @@ public final class LectureRecorderModule: Module {
         self.writerQueue.async { [weak self] in
           guard let self, self.isCurrentRecordingSession(sessionID) else { return }
           self.finalizeCurrentSegmentOnWriterQueue()
+          DispatchQueue.main.async {
+            guard self.isCurrentRecordingSession(sessionID) else { return }
+            self.interruptionCleanupPending = false
+            if self.interruptionResumeRequested {
+              self.interruptionResumeRequested = false
+              self.handleInterruptionEnded()
+            }
+          }
         }
       }
     }
@@ -1907,6 +1954,11 @@ public final class LectureRecorderModule: Module {
       !isStopping,
       isPausedForInterruption
     else {
+      return
+    }
+
+    if interruptionCleanupPending {
+      interruptionResumeRequested = true
       return
     }
 
@@ -1930,6 +1982,7 @@ public final class LectureRecorderModule: Module {
   ) {
     guard
       resumeToken == token,
+      !interruptionCleanupPending,
       currentDestinationURL != nil,
       !isStopping,
       isPausedForInterruption
@@ -2049,6 +2102,7 @@ public final class LectureRecorderModule: Module {
     }
 
     let captureGeneration = nextCaptureGeneration()
+    let captureSourceURI = currentDestinationURL?.absoluteString
 
     // Do not pre-open the compressed M4A writer before the engine is
     // running. The first real microphone buffer carries the authoritative
@@ -2126,12 +2180,14 @@ public final class LectureRecorderModule: Module {
       // Whisper may be cold/loading/slow; none of that is allowed to block
       // durable segment writes or own a second microphone engine.
       if let liveBuffer = self.copyPCMBuffer(buffer) {
-        self.livePCMQueue.async {
+        self.livePCMQueue.async { [weak self] in
+          guard let self, self.isCurrentCaptureGeneration(captureGeneration) else { return }
           NotificationCenter.default.post(
             name: Notification.Name(
               "NorskTrainer.LectureRecorder.PCMBuffer"
             ),
-            object: liveBuffer
+            object: liveBuffer,
+            userInfo: ["sourceURI": captureSourceURI ?? ""]
           )
         }
       }
@@ -2812,25 +2868,12 @@ public final class LectureRecorderModule: Module {
       currentPartURLSnapshot = nil
     }
 
-    let existingCommittedCount = withStateLock {
-      finalizedSegmentCount
-    }
-
-    // validateAudioFile() rejects media shorter than 500 ms. Never promote
-    // such a checkpoint into the durable sequence: doing so would make Stop
-    // reconciliation reject the whole lecture. If capture resumes after an
-    // interruption/route restart, reclaim this segment index so the next
-    // checkpoint stays contiguous instead of creating a permanent gap.
+    // A positive sub-500ms tail still contains real audio. Segment validation
+    // accepts it; the final assembled lecture retains its normal 500ms minimum.
     let bytes = fileSize(partURL)
-    if measuredDurationMillis < 500 {
-      appendTimingEvent(
-        "SEGMENT_REJECTED_SHORT_TAIL",
-        destinationURL: currentDestinationURL,
-        details: "durationMillis=\(measuredDurationMillis);bytes=\(bytes);committed=\(existingCommittedCount)"
-      )
-      removeFileIfPresent(partURL)
-      nextSegmentIndex = max(1, nextSegmentIndex - 1)
-      return
+    guard measuredDurationMillis > 0 else {
+      appendTimingEvent("SEGMENT_ZERO_DURATION_PRESERVED", destinationURL: currentDestinationURL)
+      return // Keep the raw .part for explicit recovery; never silently delete it.
     }
 
     guard bytes > 0 else {
@@ -3025,9 +3068,29 @@ public final class LectureRecorderModule: Module {
 
   // MARK: - Stop / merge / recovery
 
+  private func beginStopResponse() -> UUID {
+    stopResponseLock.lock()
+    defer { stopResponseLock.unlock() }
+    stopRequestToken = UUID()
+    stopResponseSettled = false
+    return stopRequestToken
+  }
+
+  private func completeStopResponse(token: UUID, _ action: () -> Void) {
+    stopResponseLock.lock()
+    guard stopRequestToken == token, !stopResponseSettled else {
+      stopResponseLock.unlock()
+      return
+    }
+    stopResponseSettled = true
+    stopResponseLock.unlock()
+    action() // No Promise callbacks, file I/O or other locks under this lock.
+  }
+
   private func finishStopBySaving(
     destinationURL: URL,
     promise: Promise,
+    stopToken: UUID,
     segmentURLs: [URL],
     unresolvedPartialURLs: [URL]
   ) {
@@ -3041,14 +3104,14 @@ public final class LectureRecorderModule: Module {
       let writerFailure = statusSnapshot().writerFailureMessage
       pendingStopPromise = nil
       cleanupAfterFailedStopPreservingSegments()
-      promise.reject(
+      self.completeStopResponse(token: stopToken) { promise.reject(
         makeException(
           code: "ERR_NO_SEGMENTS",
           message: writerFailure.map {
             "No finalized lecture segments were available to save. Writer error: \($0)"
           } ?? "No finalized lecture segments were available to save."
         )
-      )
+      ) }
       return
     }
 
@@ -3065,12 +3128,12 @@ public final class LectureRecorderModule: Module {
       pendingStopPromise = nil
       cleanupAfterFailedStopPreservingSegments()
 
-      promise.reject(
+      self.completeStopResponse(token: stopToken) { promise.reject(
         makeException(
           code: "ERR_UNRESOLVED_PARTIAL_SEGMENT",
           message: "The finalized lecture checkpoints were preserved, but Stop could not safely commit the current audio tail. Recovery data was preserved: \(unresolvedNames)"
         )
-      )
+      ) }
       return
     }
 
@@ -3116,13 +3179,13 @@ public final class LectureRecorderModule: Module {
         case .success(let result):
           self.cleanupAfterSuccessfulStop()
           self.sendEvent("onRecorderStopped", result)
-          promise.resolve(result)
+          self.completeStopResponse(token: stopToken) { promise.resolve(result) }
         case .failure(let error):
           self.cleanupAfterFailedStopPreservingSegments()
-          promise.reject(self.makeException(
+          self.completeStopResponse(token: stopToken) { promise.reject(self.makeException(
             code: "ERR_MANIFEST_SAVE",
             message: "Audio checkpoints were preserved, but Stop could not verify the saved state: \(error.localizedDescription)"
-          ))
+          )) }
         }
       }
     }
@@ -4841,7 +4904,8 @@ public final class LectureRecorderModule: Module {
 
     let bytes = fileSize(url)
 
-    guard bytes >= 4096 else {
+    let isCheckpoint = url.deletingLastPathComponent().lastPathComponent == ".audio-segments"
+    guard bytes >= (isCheckpoint ? 1 : 4096) else {
       return makeValidationResult(
         valid: false,
         playable: false,
@@ -4865,7 +4929,7 @@ public final class LectureRecorderModule: Module {
         ).rounded()
       )
 
-      guard durationMillis >= 500 else {
+      guard durationMillis >= (isCheckpoint ? 1 : 500) else {
         return makeValidationResult(
           valid: false,
           playable: false,

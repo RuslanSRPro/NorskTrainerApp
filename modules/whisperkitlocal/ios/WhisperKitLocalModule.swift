@@ -30,17 +30,19 @@ private final class WhisperEventSink: @unchecked Sendable {
 private final class LiveWhisperEventSink: @unchecked Sendable {
   weak var module: WhisperKitLocalModule?
 
-  init(module: WhisperKitLocalModule) {
+  private let sessionId: String
+
+  init(module: WhisperKitLocalModule, sessionId: String) {
     self.module = module
+    self.sessionId = sessionId
   }
 
   func emitUpdate(
     _ update: LiveWhisperUpdateSnapshot
   ) {
-    module?.sendEvent(
-      "onLiveUpdate",
-      update.dictionary
-    )
+    var payload = update.dictionary
+    payload["sessionId"] = sessionId
+    module?.sendEvent("onLiveUpdate", payload)
   }
 
   func emitError(
@@ -48,14 +50,301 @@ private final class LiveWhisperEventSink: @unchecked Sendable {
   ) {
     module?.sendEvent(
       "onLiveError",
-      ["message": message]
+      ["message": message, "sessionId": sessionId]
     )
   }
 }
 
+// A request may stop waiting without abandoning ownership of the actual loader.
+private final class WhisperModelLoadRequest: @unchecked Sendable {
+  let id = UUID()
+  private let lock = NSLock()
+  private var cancelled = false
+  private var claimed = false
+  private var cancellation: (@Sendable () -> Void)?
+
+  var isCancelled: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return cancelled
+  }
+
+  func checkCancellation() throws {
+    if isCancelled { throw CancellationError() }
+  }
+
+  func bindCancellation(_ action: @escaping @Sendable () -> Void) -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    guard !cancelled && !claimed else { return false }
+    claimed = true
+    cancellation = action
+    return true
+  }
+
+  func finish() {
+    lock.lock()
+    cancellation = nil
+    lock.unlock()
+  }
+
+  func cancel() {
+    lock.lock()
+    cancelled = true
+    let action = cancellation
+    cancellation = nil
+    lock.unlock()
+    action?() // Never call back into an actor while the request lock is held.
+  }
+}
+
+private enum WhisperModelLoadFailure: Error, LocalizedError {
+  case timedOut
+  case cleanupPending
+  case differentModelLoading
+
+  var errorDescription: String? {
+    switch self {
+    case .timedOut:
+      return "Model preparation timed out. Audio recording is preserved. The native loader is cancelling; retry when it finishes."
+    case .cleanupPending:
+      return "The previous model load is still terminating. No second load was started. Retry after it finishes; if it never finishes, restart the app. Saved audio is preserved."
+    case .differentModelLoading:
+      return "Another model is preparing. Retry after model preparation finishes."
+    }
+  }
+}
+
+// Only this actor owns loader tasks and publication into the cache.
+// A deadline completes waiters, but never pretends the underlying task exited.
+// A cancelled generation stays quarantined until its worker actually returns.
+private actor WhisperModelLoadCoordinator<Model: Sendable> {
+  typealias Factory = @Sendable (String) async throws -> Model
+  private struct Waiter {
+    let request: WhisperModelLoadRequest
+    let continuation: CheckedContinuation<Model, Error>
+  }
+  private struct Operation {
+    let id: UUID
+    let model: String
+    var worker: Task<Void, Never>?
+    var deadline: Task<Void, Never>?
+    var waiters: [UUID: Waiter] = [:]
+    var cancelling = false
+  }
+
+  private let factory: Factory
+  private let timeoutNanoseconds: UInt64
+  private var cached: Model?
+  private var cachedModel: String?
+  private var active: Operation?
+
+  init(timeoutNanoseconds: UInt64 = 40_000_000_000, factory: @escaping Factory) {
+    self.timeoutNanoseconds = timeoutNanoseconds
+    self.factory = factory
+  }
+
+  var cleanupPending: Bool { active?.cancelling == true }
+  var waitingRequestCount: Int { active?.waiters.count ?? 0 }
+
+  func load(model: String, request: WhisperModelLoadRequest) async throws -> Model {
+    try Task.checkCancellation()
+    try request.checkCancellation()
+    if let cached, cachedModel == model { return cached }
+    return try await withTaskCancellationHandler(operation: {
+      try await withCheckedThrowingContinuation { continuation in
+        register(model: model, request: request, continuation: continuation)
+      }
+    }, onCancel: { request.cancel() })
+  }
+
+  private func register(model: String, request: WhisperModelLoadRequest,
+    continuation: CheckedContinuation<Model, Error>) {
+    let requestID = request.id
+    guard request.bindCancellation({ [weak self] in
+      Task { await self?.cancelRequest(requestID) }
+    }) else {
+      continuation.resume(throwing: CancellationError())
+      return
+    }
+    if let operation = active {
+      guard !operation.cancelling, operation.model == model else {
+        request.finish()
+        continuation.resume(throwing: operation.cancelling
+          ? WhisperModelLoadFailure.cleanupPending : WhisperModelLoadFailure.differentModelLoading)
+        return
+      }
+      active?.waiters[request.id] = Waiter(request: request, continuation: continuation)
+      return
+    }
+    let id = UUID()
+    let factory = self.factory
+    let timeout = timeoutNanoseconds
+    active = Operation(id: id, model: model,
+      waiters: [request.id: Waiter(request: request, continuation: continuation)])
+    // Unstructured owner tasks are intentional: cancelling a waiter must not
+    // await a non-cooperative SDK task as a structured task-group scope would.
+    active?.worker = Task.detached { [weak self] in
+      let result: Result<Model, Error>
+      do {
+        try Task.checkCancellation()
+        let loaded = try await factory(model)
+        try Task.checkCancellation()
+        result = .success(loaded)
+      } catch { result = .failure(error) }
+      await self?.finished(id: id, result: result)
+    }
+    active?.deadline = Task.detached { [weak self] in
+      do { try await Task.sleep(nanoseconds: timeout) }
+      catch { return }
+      await self?.expire(id: id)
+    }
+  }
+
+  private func cancelRequest(_ id: UUID) {
+    guard let waiter = active?.waiters.removeValue(forKey: id) else { return }
+    waiter.request.finish()
+    waiter.continuation.resume(throwing: CancellationError())
+    if active?.waiters.isEmpty == true {
+      active?.cancelling = true
+      active?.worker?.cancel()
+      active?.deadline?.cancel()
+      active?.deadline = nil
+    }
+  }
+
+  private func expire(id: UUID) {
+    guard let operation = active, operation.id == id else { return }
+    active?.cancelling = true
+    active?.worker?.cancel()
+    active?.deadline = nil
+    active?.waiters = [:]
+    for waiter in operation.waiters.values {
+      waiter.request.finish()
+      waiter.continuation.resume(throwing: WhisperModelLoadFailure.timedOut)
+    }
+  }
+
+  private func finished(id: UUID, result: Result<Model, Error>) {
+    guard let operation = active, operation.id == id else { return }
+    active = nil
+    operation.deadline?.cancel()
+    let hasCurrentWaiter = operation.waiters.values.contains { !$0.request.isCancelled }
+    if !operation.cancelling, hasCurrentWaiter, case let .success(model) = result {
+      cached = model
+      cachedModel = operation.model
+    }
+    for waiter in operation.waiters.values {
+      waiter.request.finish()
+      if waiter.request.isCancelled { waiter.continuation.resume(throwing: CancellationError()) }
+      else { waiter.continuation.resume(with: result) }
+    }
+  }
+}
+
+
+// The object under construction is private to the loader generation. It never
+// becomes an inference target until all stages finish and the cache publishes it.
+private final class WhisperPreparedModel: @unchecked Sendable {
+  let kit: WhisperKit
+  init(_ kit: WhisperKit) { self.kit = kit }
+}
+
+private func prepareWhisperModel(_ model: String) async throws -> WhisperPreparedModel {
+  let config = WhisperKitConfig(model: model, verbose: false, prewarm: false,
+    load: false, download: true, useBackgroundDownloadSession: false)
+  try Task.checkCancellation()
+  let kit = try await WhisperKit(config)
+  try Task.checkCancellation()
+  try await kit.prewarmModels()
+  try Task.checkCancellation()
+  try await kit.loadModels()
+  try Task.checkCancellation()
+  return WhisperPreparedModel(kit)
+}
+
+// One inference owner across Live, cleanup, file, segment and tail paths.
+// A lease remains held until the real native task exits, not a JS timeout.
+final class WhisperInferenceLease: @unchecked Sendable {
+  private let lock = NSLock()
+  private var releaseAction: (() -> Void)?
+  init(_ release: @escaping () -> Void) { releaseAction = release }
+  func release() {
+    lock.lock()
+    let action = releaseAction
+    releaseAction = nil
+    lock.unlock()
+    action?()
+  }
+  deinit { release() }
+}
+
+private final class WhisperInferenceAdmission: @unchecked Sendable {
+  private let lock = NSLock()
+  private var owner: UUID?
+  func acquire() throws -> WhisperInferenceLease {
+    lock.lock()
+    guard owner == nil else {
+      lock.unlock()
+      throw NSError(domain: "WhisperKitLocal", code: 33, userInfo: [
+        NSLocalizedDescriptionKey: "Whisper is still busy. Audio is saved; retry transcription shortly."
+      ])
+    }
+    let id = UUID()
+    owner = id
+    lock.unlock()
+    return WhisperInferenceLease { [weak self] in self?.finish(id) }
+  }
+  private func finish(_ id: UUID) {
+    lock.lock()
+    if owner == id { owner = nil }
+    lock.unlock()
+  }
+  var isBusy: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return owner != nil
+  }
+}
+
 public class WhisperKitLocalModule: Module {
-  private var whisperKit: WhisperKit?
-  private var loadedModel: String?
+  private let modelLoader = WhisperModelLoadCoordinator<WhisperPreparedModel> {
+    try await prepareWhisperModel($0)
+  }
+  private let inferenceAdmission = WhisperInferenceAdmission()
+  private let liveStateLock = NSLock()
+
+  // No await, model work, callbacks or filesystem I/O inside this lock.
+  private func withLiveState<T>(_ body: () -> T) -> T {
+    liveStateLock.lock()
+    defer { liveStateLock.unlock() }
+    return body()
+  }
+
+  private func claimLiveStop() -> (LiveRecorderAudioProcessor?, WhisperModelLoadRequest?, LiveWhisperSession?, Bool) {
+    withLiveState {
+      if liveCleanupSession != nil { return (nil, nil, nil, true) }
+      if let pending = livePendingProcessor {
+        let request = livePendingLoadRequest
+        livePendingProcessor = nil
+        livePendingLoadRequest = nil
+        return (pending, request, nil, false)
+      }
+      if let session = liveSession {
+        // Reserve cleanup ownership BEFORE releasing running ownership.
+        liveCleanupSession = session
+        liveSession = nil
+        return (nil, nil, session, false)
+      }
+      return (nil, nil, nil, false)
+    }
+  }
+
+  private func completeLiveStop(_ session: LiveWhisperSession) {
+    withLiveState {
+      if liveCleanupSession === session { liveCleanupSession = nil }
+    }
+  }
 
   /*
    * Live is deliberately additive. The existing full-file
@@ -64,6 +353,7 @@ public class WhisperKitLocalModule: Module {
    */
   private var liveSession: LiveWhisperSession?
   private var livePendingProcessor: LiveRecorderAudioProcessor?
+  private var livePendingLoadRequest: WhisperModelLoadRequest?
   private var liveCleanupSession: LiveWhisperSession?
   private let timingQueue = DispatchQueue(
     label: "com.norsktrainer.whisper-audio-timing",
@@ -155,6 +445,7 @@ public class WhisperKitLocalModule: Module {
         model: String
       ) async throws -> [String: Any] in
 
+
       let selectedModel = model.isEmpty
         ? defaultWhisperModel
         : model
@@ -183,6 +474,9 @@ public class WhisperKitLocalModule: Module {
       let kit = try await self.getOrCreateWhisperKit(
         model: selectedModel
       )
+      let inferenceLease = try self.inferenceAdmission.acquire()
+      defer { inferenceLease.release() }
+
 
       let sink = WhisperEventSink(
         module: self
@@ -288,6 +582,7 @@ public class WhisperKitLocalModule: Module {
         overlapSeconds: Double
       ) async throws -> [String: Any] in
 
+
       let selectedModel = model.isEmpty
         ? defaultWhisperModel
         : model
@@ -352,6 +647,9 @@ public class WhisperKitLocalModule: Module {
       let kit = try await self.getOrCreateWhisperKit(
         model: selectedModel
       )
+      let inferenceLease = try self.inferenceAdmission.acquire()
+      defer { inferenceLease.release() }
+
 
       let sink = WhisperEventSink(
         module: self
@@ -453,6 +751,7 @@ public class WhisperKitLocalModule: Module {
         overlapSeconds: Double
       ) async throws -> [String: Any] in
 
+
       let selectedModel = model.isEmpty
         ? defaultWhisperModel
         : model
@@ -493,6 +792,9 @@ public class WhisperKitLocalModule: Module {
       let kit = try await self.getOrCreateWhisperKit(
         model: selectedModel
       )
+      let inferenceLease = try self.inferenceAdmission.acquire()
+      defer { inferenceLease.release() }
+
 
       let sink = WhisperEventSink(
         module: self
@@ -585,272 +887,156 @@ public class WhisperKitLocalModule: Module {
     }
 
     AsyncFunction("startLive") {
-      (
-        audioUri: String,
-        language: String,
-        model: String,
-        timingLogUri: String
-      ) async throws -> [String: Any] in
+      (audioUri: String, language: String, model: String, timingLogUri: String) async throws -> [String: Any] in
 
-      guard
-        self.liveSession == nil,
-        self.livePendingProcessor == nil,
-        self.liveCleanupSession == nil
-      else {
-        throw NSError(
-          domain: "WhisperKitLocal",
-          code: 30,
-          userInfo: [
-            NSLocalizedDescriptionKey:
-              "A Live transcription is already running."
-          ]
-        )
+      // Pending model preparation has its own cancellation/ownership domain.
+      // Only a ready model can acquire inference admission.
+      let request = WhisperModelLoadRequest()
+      var lease: WhisperInferenceLease?
+      var transferred = false
+      defer { if !transferred { lease?.release() } }
+      let selectedModel = model.isEmpty ? defaultWhisperModel : model
+      let selectedLanguage = language.isEmpty ? "no" : language
+      let outputURL = URL(fileURLWithPath: try self.filePath(from: audioUri))
+      let processor = try LiveRecorderAudioProcessor(outputURL: outputURL)
+      let admitted = self.withLiveState { () -> Bool in
+        guard self.liveSession == nil, self.livePendingProcessor == nil,
+              self.liveCleanupSession == nil else { return false }
+        self.livePendingProcessor = processor
+        self.livePendingLoadRequest = request
+        return true
       }
-
-      let selectedModel = model.isEmpty
-        ? defaultWhisperModel
-        : model
-
-      let selectedLanguage = language.isEmpty
-        ? "no"
-        : language
-
-      let outputPath = try self.filePath(
-        from: audioUri
-      )
-
-      let outputURL = URL(
-        fileURLWithPath: outputPath
-      )
-
-      /*
-       * Step 8.2: begin microphone capture before model preparation.
-       * This preserves the first words even when Core ML needs several
-       * seconds to load on a cold Live start. AudioStreamTranscriber later
-       * attaches to the same processor and consumes the buffered samples.
-       */
-      let processor = try LiveRecorderAudioProcessor(
-        outputURL: outputURL
-      )
-
-      try processor.beginCapture()
-      self.livePendingProcessor = processor
-
+      guard admitted else {
+        throw NSError(domain: "WhisperKitLocal", code: 30, userInfo: [
+          NSLocalizedDescriptionKey: "A Live transcription is already running or finishing."
+        ])
+      }
       do {
-        self.appendTimingEvent(
-          "LIVE_MODEL_LOADING",
-          timingLogUri: timingLogUri,
-          details: "model=\(selectedModel)"
-        )
-
-        let kit = try await self.getOrCreateWhisperKit(
-          model: selectedModel
-        )
-
-        self.appendTimingEvent(
-          "LIVE_MODEL_READY",
-          timingLogUri: timingLogUri,
-          details: "model=\(selectedModel)"
-        )
-
-        guard self.livePendingProcessor === processor else {
-          processor.stopRecording()
-          throw NSError(
-            domain: "WhisperKitLocal",
-            code: 32,
-            userInfo: [
-              NSLocalizedDescriptionKey:
-                "Live startup was cancelled."
-            ]
-          )
-        }
-
-        let sink = LiveWhisperEventSink(
-          module: self
-        )
-
-        let session = try LiveWhisperSession(
-          whisperKit: kit,
-          audioURL: outputURL,
-          language: selectedLanguage,
-          processor: processor,
-          onUpdate: { update in
-            sink.emitUpdate(update)
-          },
-          onError: { message in
-            sink.emitError(message)
-          }
-        )
-
-        self.livePendingProcessor = nil
-        self.liveSession = session
-        session.start()
-      } catch {
-        processor.stopRecording()
-        if self.livePendingProcessor === processor {
+        // Attachment itself is synchronized inside the processor: Cancel cannot
+        // race between pending admission and beginCapture and reattach old audio.
+        try processor.beginCapture()
+        self.appendTimingEvent("LIVE_MODEL_LOADING", timingLogUri: timingLogUri,
+          details: "model=\(selectedModel)")
+        let kit = try await self.getOrCreateWhisperKit(model: selectedModel, request: request)
+        try request.checkCancellation()
+        let readyLease = try self.inferenceAdmission.acquire()
+        lease = readyLease
+        try request.checkCancellation()
+        try Task.checkCancellation()
+        self.appendTimingEvent("LIVE_MODEL_READY", timingLogUri: timingLogUri,
+          details: "model=\(selectedModel)")
+        let sink = LiveWhisperEventSink(module: self, sessionId: audioUri)
+        let session = try LiveWhisperSession(whisperKit: kit, audioURL: outputURL,
+          language: selectedLanguage, processor: processor, inferenceLease: readyLease,
+          onUpdate: { update in sink.emitUpdate(update) },
+          onError: { message in sink.emitError(message) })
+        let installed = self.withLiveState { () -> Bool in
+          guard self.livePendingProcessor === processor,
+                self.livePendingLoadRequest === request else { return false }
           self.livePendingProcessor = nil
+          self.livePendingLoadRequest = nil
+          self.liveSession = session
+          return true
+        }
+        guard installed else {
+          throw NSError(domain: "WhisperKitLocal", code: 32, userInfo: [
+            NSLocalizedDescriptionKey: "Live startup was cancelled."
+          ])
+        }
+        transferred = true
+        session.start() // start() cannot resurrect a concurrently stopped session.
+      } catch {
+        request.cancel()
+        processor.stopRecording()
+        self.withLiveState {
+          if self.livePendingProcessor === processor {
+            self.livePendingProcessor = nil
+            self.livePendingLoadRequest = nil
+          }
         }
         throw error
       }
-
-      return [
-        "ok": true,
-        "model": selectedModel,
-        "language": selectedLanguage,
-        "audioUri": outputURL.absoluteString
-      ]
+      return ["ok": true, "model": selectedModel, "language": selectedLanguage,
+              "audioUri": outputURL.absoluteString]
     }
 
     AsyncFunction("stopLive") {
       () async throws -> [String: Any] in
-
-      if let pending = self.livePendingProcessor {
-        /*
-         * Microphone capture begins before model preparation. Stop must
-         * therefore work even while startLive() is still awaiting the
-         * model and no LiveWhisperSession exists yet.
-         */
-        self.livePendingProcessor = nil
-        let result =
-          pending.stopAndSnapshot()
-        return result.dictionary
+      let (pending, request, session, cleanupPending) = self.claimLiveStop()
+      if let pending {
+        request?.cancel()
+        var result = pending.stopAndSnapshot().dictionary
+        // Its waiter is cancelled now. A non-cooperative loader still owns
+        // its separate quarantined generation, never an inference lease.
+        result["streamCleanupTimedOut"] = true
+        return result
       }
-
-      guard let session = self.liveSession else {
-        throw NSError(
-          domain: "WhisperKitLocal",
-          code: 31,
-          userInfo: [
-            NSLocalizedDescriptionKey:
-              "No Live transcription is running."
-          ]
-        )
-      }
-
-      let result = await session.stop()
-
-      if result.streamCleanupTimedOut {
-        /*
-         * Keep native ownership after the JS-visible timeout. A new Live
-         * session must not reuse WhisperKit while the previous streaming
-         * transcriber is still terminating.
-         */
-        // Establish cleanup ownership before releasing active ownership so
-        // startLive() never observes both ownership slots empty.
-        self.liveCleanupSession = session
-        self.liveSession = nil
-
-        Task { [weak self, weak session] in
-          guard let session else {
-            return
-          }
-
-          await session
-            .awaitStreamCleanupCompletion()
-
-          guard let self else {
-            return
-          }
-
-          if self.liveCleanupSession === session {
-            self.liveCleanupSession = nil
-          }
+      guard let session else {
+        if cleanupPending {
+          return ["ok": true, "streamCleanupTimedOut": true,
+                  "audioUri": "", "durationMillis": 0, "bytes": 0]
         }
-      } else {
-        self.liveSession = nil
+        throw NSError(domain: "WhisperKitLocal", code: 31, userInfo: [
+          NSLocalizedDescriptionKey: "No Live transcription is running."
+        ])
       }
-
+      let result = await session.stop()
+      if result.streamCleanupTimedOut {
+        Task { [weak self] in
+          await session.awaitStreamCleanupCompletion()
+          self?.completeLiveStop(session)
+        }
+      } else { self.completeLiveStop(session) }
       return result.dictionary
     }
 
     AsyncFunction("cancelLive") {
       () async -> [String: Any] in
-
-      if self.liveCleanupSession != nil {
-        // Cleanup ownership is intentionally retained until the background
-        // owner task observes real Whisper termination. cancelLive() must
-        // not turn that unbounded native cleanup into an unbounded JS wait.
-        return [
-          "ok": true,
-          "cleanupPending": true
-        ]
+      let (pending, request, session, cleanupPending) = self.claimLiveStop()
+      if let pending {
+        request?.cancel()
+        var result = pending.stopAndSnapshot().dictionary
+        result["streamCleanupTimedOut"] = true
+        return result
       }
-
-      if let pending = self.livePendingProcessor {
-        pending.stopRecording()
-        self.livePendingProcessor = nil
-      }
-
-      guard let session = self.liveSession else {
-        return ["ok": true]
-      }
-
+      guard let session else { return ["ok": true, "cleanupPending": cleanupPending] }
       let result = await session.stop()
-
       if result.streamCleanupTimedOut {
-        /*
-         * Keep ownership of the old Whisper session until its asynchronous
-         * cleanup really finishes. This prevents a new Live session from
-         * starting on top of a still-terminating stream.
-         */
-        self.liveCleanupSession = session
-        self.liveSession = nil
-
-        Task { [weak self, weak session] in
-          guard let session else {
-            return
-          }
-
+        Task { [weak self] in
           await session.awaitStreamCleanupCompletion()
-
-          guard let self else {
-            return
-          }
-
-          if self.liveCleanupSession === session {
-            self.liveCleanupSession = nil
-          }
+          self?.completeLiveStop(session)
         }
-      } else {
-        self.liveSession = nil
-      }
-
-      // Cancellation is non-destructive. Return the finalized audio result
-      // to JS so it can be promoted into the durable lecture library.
+      } else { self.completeLiveStop(session) }
       return result.dictionary
+    }
+
+    // A bounded retry hook: never hold the lifecycle lock across a suspension.
+    // False is an explicit retryable outcome, not an eternal processing state.
+    AsyncFunction("waitForLiveCleanup") {
+      (timeoutMillis: Int) async -> [String: Any] in
+      let boundedMillis = min(15000, max(0, timeoutMillis))
+      let deadline = ProcessInfo.processInfo.systemUptime + Double(boundedMillis) / 1000
+      repeat {
+        let idle = self.withLiveState {
+          self.liveSession == nil && self.livePendingProcessor == nil && self.liveCleanupSession == nil
+        }
+        let loaderCleanup = await self.modelLoader.cleanupPending
+        if idle && !loaderCleanup && !self.inferenceAdmission.isBusy { return ["ready": true] }
+        if Task.isCancelled || ProcessInfo.processInfo.systemUptime >= deadline { break }
+        try? await Task.sleep(nanoseconds: 100_000_000)
+      } while true
+      return ["ready": false]
     }
   }
 
   private func getOrCreateWhisperKit(
-    model: String
+    model: String,
+    request: WhisperModelLoadRequest = WhisperModelLoadRequest()
   ) async throws -> WhisperKit {
-
-    if let existing = whisperKit,
-       loadedModel == model {
-      return existing
-    }
-
-    /*
-     * prewarm=true lowers peak model-specialization memory.
-     * download=true downloads the Core ML model on first use.
-     */
-    let config = WhisperKitConfig(
-      model: model,
-      verbose: false,
-      prewarm: true,
-      load: true,
-      download: true,
-      useBackgroundDownloadSession: false
-    )
-
-    let created = try await WhisperKit(
-      config
-    )
-
-    whisperKit = created
-    loadedModel = model
-
-    return created
+    let prepared = try await modelLoader.load(model: model, request: request)
+    try request.checkCancellation()
+    try Task.checkCancellation()
+    return prepared.kit
   }
 
   private struct SegmentTranscriptionWindow {
