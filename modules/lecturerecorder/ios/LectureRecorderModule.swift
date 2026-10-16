@@ -3278,20 +3278,24 @@ public final class LectureRecorderModule: Module {
             )
           }
 
-          if
-            let formatDescription = assetTrack.formatDescriptions.first,
-            let audioDescription = formatDescription as! CMAudioFormatDescription,
-            let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(audioDescription)?.pointee
-          {
-            let signature =
-              "\(asbd.mFormatID):\(asbd.mSampleRate):\(asbd.mChannelsPerFrame):\(asbd.mFramesPerPacket)"
+          if let formatDescription = assetTrack.formatDescriptions.first {
+            let audioDescription = formatDescription as! CMAudioFormatDescription
 
-            if let commonAudioSignature {
-              if commonAudioSignature != signature {
-                canPassthroughWithoutReencode = false
+            if let asbd =
+              CMAudioFormatDescriptionGetStreamBasicDescription(audioDescription)?.pointee
+            {
+              let signature =
+                "\(asbd.mFormatID):\(asbd.mSampleRate):\(asbd.mChannelsPerFrame):\(asbd.mFramesPerPacket)"
+
+              if let commonAudioSignature {
+                if commonAudioSignature != signature {
+                  canPassthroughWithoutReencode = false
+                }
+              } else {
+                commonAudioSignature = signature
               }
             } else {
-              commonAudioSignature = signature
+              canPassthroughWithoutReencode = false
             }
           } else {
             canPassthroughWithoutReencode = false
