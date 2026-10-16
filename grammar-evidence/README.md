@@ -1,0 +1,41 @@
+﻿# Grammar Evidence System V1
+
+Purpose: persistent, Git-versioned evidence bookkeeping for NorskTrainer Grammar Graph.
+
+## Files
+
+- `registry.json` вЂ” source of truth for proof claims and proof status.
+- `index.json` вЂ” generated current-source index; never promotes a proof.
+- `matrix.csv` вЂ” generated human-readable view.
+- `tools/build-evidence-index.py` вЂ” read-only source scanner and stale detector.
+
+## Status model
+
+- `PROVEN` вЂ” supported by the declared proof kind. Runtime/execution claims require executable/runtime evidence.
+- `INFERRED` вЂ” strongly suggested by source/evidence but not directly proven.
+- `UNVERIFIED` вЂ” required claim has not been proven.
+- `STALE` вЂ” was proven, but a tracked dependency changed after the proof commit or a time-sensitive snapshot needs refresh.
+
+## Non-negotiable rules
+
+1. Text search, symbol presence, import wiring, matching names, and static matrix compatibility MUST NOT promote runtime claims to `PROVEN`.
+2. `SOURCE_INSPECTION` can prove source architecture/wiring claims only.
+3. `EXECUTABLE_TEST` / `EXECUTABLE_COMPOSITION` are required for executable producer/composition claims.
+4. DB-state claims are snapshots and become stale when a newer authoritative snapshot supersedes them.
+5. The generated index/matrix may downgrade a tracked proof to `STALE`; they never upgrade `UNVERIFIED` or `INFERRED` to `PROVEN`.
+6. Evidence ZIPs stay outside Git. Registry stores run identifiers and concise results.
+7. `sentenceIndex` is never canonical object identity.
+8. Existing authority IDs, object identity, provenance and candidate status must not be rewritten to make a proof pass.
+9. Activation requires explicit canonical activation authority. READY is not ACTIVATED.
+
+## Workflow
+
+1. Run the index builder at the current HEAD.
+2. Read `matrix.csv` for unresolved/stale claims.
+3. Run the narrow executable/runtime proof for the selected claim.
+4. Review evidence.
+5. Update `registry.json` deliberately with the exact proof result and HEAD.
+6. Rebuild index/matrix.
+7. Govern and commit exact files only.
+
+`registry.json` is deliberately editable. Generated files are reproducible views, not evidence authority.

@@ -1,0 +1,157 @@
+﻿{
+  "schema_version": "grammar-evidence-registry-v1",
+  "project": "NorskTrainer Grammar Graph",
+  "baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
+  "status_model": ["PROVEN", "INFERRED", "UNVERIFIED", "STALE"],
+  "proofs": [
+    {
+      "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "S0 preserves and reuses the exact canonical binding definition authority object identity through owner evidence and association.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["A3.8F-R24F", "A3.8F-R25C", "A3.8F-R26"],
+      "result": "Recovered exact R15D proof passed 6/6 after the minimal identity-preservation patch; patch committed as current HEAD.",
+      "dependencies": [
+        "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
+      ],
+      "invalidation": "STALE if a dependency file changes after proved_at_head.",
+      "notes": "Authority IDs remain distinct; object identity contract was not weakened."
+    },
+    {
+      "proof_id": "S0_FOCUSED_REGRESSION_SUITE",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "Focused S0/runtime regression suite passes with required read permission.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["A3.8F-R24J"],
+      "result": "10/10 focused tests PASS.",
+      "dependencies": [],
+      "invalidation": "Manual dependency expansion required before automatic stale detection can be authoritative.",
+      "notes": "Kept separate from the exact recovered R15D proof."
+    },
+    {
+      "proof_id": "D4_COMPLETE_PRECONDITION_FIXTURE",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "Recovered runtime fixture reaches complete_action_execution_precondition_evidence with satisfied final disposition and no blocking reasons.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["A3.8F-R25C-D4-LOGGING"],
+      "result": "One create_dependency candidate, coherent readiness, two resolved endpoint evidences, complete precondition evidence, blockingReasons=[], finalDecisionDisposition=satisfied.",
+      "dependencies": [],
+      "invalidation": "Manual dependency expansion required.",
+      "notes": "Fixture endpoints both resolve to subject; this proves D4 mechanics, not activation suitability."
+    },
+    {
+      "proof_id": "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY",
+      "status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "claim": "Production activation authority table contained zero grants at the audited snapshot.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["PRODUCTION_ACTIVATION_AUDIT_2026-10-16"],
+      "result": "canonical_dependency_action_activation_authority_v1 row count = 0.",
+      "dependencies": [],
+      "invalidation": "STALE when a newer DB snapshot is taken.",
+      "notes": "No activation grant was created by R24F-R35B."
+    },
+    {
+      "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",
+      "status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "claim": "ir.structural.dependency.subject_of_predicate is activation-ready through the full runtime chain.",
+      "proved_at_head": null,
+      "evidence_runs": ["A3.8F-R27", "A3.8F-R28"],
+      "result": "Not proven. Clause/phrase occurrence-domain execution remains an upstream compatibility boundary; add_trace execution is also not proven.",
+      "dependencies": [],
+      "invalidation": "N/A until proven.",
+      "notes": "Do not activate."
+    },
+    {
+      "proof_id": "ONE_OR_MORE_CARDINALITY_RUNTIME",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_AND_TEST",
+      "claim": "Runtime cardinality semantics support one_or_more as minimum 1 with unbounded maximum.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["A3.8F-R28"],
+      "result": "Existing runtime contract and tests support one_or_more.",
+      "dependencies": [
+        "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts"
+      ],
+      "invalidation": "STALE if dependency file changes.",
+      "notes": ""
+    },
+    {
+      "proof_id": "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "Existing canonical graph/legacy adapter path can materialize canonical clause nodes with spans and provenance; no new clause authority contract is required.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["A3.8F-R30"],
+      "result": "Existing clause node and legacy adapter authority path identified.",
+      "dependencies": [],
+      "invalidation": "Manual dependency expansion required.",
+      "notes": "Source-level architectural proof only; not clause producer executable proof."
+    },
+    {
+      "proof_id": "PHRASE_PRODUCER_EXECUTION",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "buildCanonicalPhraseCandidateLatticePatchV1 passes its direct repository tests.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["A3.8F-R32B"],
+      "result": "2 direct phrase producer tests executed; 0 failures.",
+      "dependencies": [],
+      "invalidation": "Manual dependency expansion required.",
+      "notes": "Phrase status remains candidate; this is not clause+phrase composition proof."
+    },
+    {
+      "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "Real clause and phrase producers execute over one source-backed compatible fixture and yield containment-compatible canonical occurrences.",
+      "proved_at_head": null,
+      "evidence_runs": ["A3.8F-R31", "A3.8F-R32B"],
+      "result": "No existing composed fixture/test found.",
+      "dependencies": ["PHRASE_PRODUCER_EXECUTION", "CLAUSE_PRODUCER_EXECUTION"],
+      "invalidation": "N/A until proven.",
+      "notes": "Neutral span predicate proof does not promote this claim."
+    },
+    {
+      "proof_id": "CLAUSE_PUBLIC_BOUNDARY_WIRING",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "projectLegacyNonPhraseStructureIntoCanonicalGraphV143 is a public production boundary that creates adapter context internally and invokes clausePatchFromLegacyV11.",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "evidence_runs": ["A3.8F-R34", "A3.8F-R35B"],
+      "result": "Public boundary and production wiring found in source.",
+      "dependencies": [],
+      "invalidation": "Manual dependency expansion required.",
+      "notes": "Does not prove executable source-backed clause fixture."
+    },
+    {
+      "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
+      "status": "UNVERIFIED",
+      "proof_kind": "FIXTURE_AUTHORITY",
+      "claim": "A reusable source-backed executable clause fixture exists for the public boundary.",
+      "proved_at_head": null,
+      "evidence_runs": ["A3.8F-R34", "A3.8F-R35B"],
+      "result": "Construction/wiring sources found, but no executable reusable fixture proven.",
+      "dependencies": [],
+      "invalidation": "N/A until proven.",
+      "notes": "R35B heuristic classification was intentionally not promoted to PROVEN."
+    },
+    {
+      "proof_id": "CLAUSE_PRODUCER_EXECUTION",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
+      "proved_at_head": null,
+      "evidence_runs": ["A3.8F-R33", "A3.8F-R34", "A3.8F-R35B"],
+      "result": "No executable call-site fixture/test proven yet.",
+      "dependencies": ["CLAUSE_PUBLIC_BOUNDARY_WIRING", "CLAUSE_SOURCE_BACKED_FIXTURE"],
+      "invalidation": "N/A until proven.",
+      "notes": "Next concrete proof target."
+    }
+  ]
+}
