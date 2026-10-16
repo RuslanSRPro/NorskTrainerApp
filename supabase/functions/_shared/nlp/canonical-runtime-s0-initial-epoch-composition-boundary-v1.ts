@@ -417,7 +417,9 @@ export async function deriveCanonicalRuntimeS0InitialEpochCompositionBoundaryV1(
     const association =
       deriveCanonicalRuntimeDependencyActionBindingAssociationBoundaryV1(
         dependencyAuthorityResult.authorities,
-        bindingAuthorityResult.authorities,
+        exactOwnerEvidence.map(
+          (evidence) => evidence.sourceBindingDefinitionAuthority,
+        ),
         exactOwnerEvidence,
       );
     associationResults.push(association);

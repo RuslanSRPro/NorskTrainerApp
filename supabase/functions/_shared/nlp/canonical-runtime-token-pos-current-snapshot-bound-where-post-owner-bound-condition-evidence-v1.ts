@@ -66,6 +66,7 @@ export type CanonicalRuntimeTokenPosCurrentSnapshotBoundWherePostOwnerBoundCondi
     | null;
 
   sourceFinalRuntimeBindingDomain: FinalBindingDomain;
+  sourceBindingDefinitionAuthority: SourceCardinalitySemanticDomain["sourceBindingDefinitionAuthority"];
   sourceFinalWhereDecision: SourceFinalWhereDecision;
   sourceRootCandidate: SourceRootCandidate;
 
@@ -168,6 +169,10 @@ function projectDomain(
     sentenceNodeId: domain.sentenceNodeId,
     sourceBindingState: domain.bindingState,
     sourceFinalRuntimeBindingDomain: domain,
+    sourceBindingDefinitionAuthority:
+      domain.sourceProjectionDomain.sourceReadinessDomain
+        .sourceCardinalityEnforcementDomain.sourceCardinalitySemanticDomain
+        .sourceBindingDefinitionAuthority,
     sourceFinalWhereDecision: finalWhereDecision,
     sourceRootCandidate: rootCandidate,
   };
