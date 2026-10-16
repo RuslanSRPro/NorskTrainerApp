@@ -59,6 +59,7 @@ export type WhisperLiveUpdateEvent = {
 };
 
 export type WhisperLiveErrorEvent = {
+  requiresFullTranscription?: boolean;
   sessionId: string;
   message: string;
 };
@@ -71,6 +72,7 @@ export type WhisperLiveStartResult = {
 };
 
 export type WhisperLiveStopResult = {
+  requiresFullTranscription?: boolean;
   ok: boolean;
   audioUri: string;
   durationMillis: number;

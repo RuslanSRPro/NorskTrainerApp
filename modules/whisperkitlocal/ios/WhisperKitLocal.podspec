@@ -29,8 +29,8 @@ Pod::Spec.new do |s|
     s,
     url: 'https://github.com/argmaxinc/argmax-oss-swift.git',
     requirement: {
-      kind: 'upToNextMajorVersion',
-      minimumVersion: '1.1.0'
+      kind: 'exactVersion',
+      version: '1.1.1'
     },
     products: ['WhisperKit']
   )

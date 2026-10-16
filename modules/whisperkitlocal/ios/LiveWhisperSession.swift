@@ -69,6 +69,7 @@ struct LiveWhisperStopSnapshot {
   let bytes: Int64
   let writerError: String?
   let streamCleanupTimedOut: Bool
+  var requiresFullTranscription: Bool = false
 
   var dictionary: [String: Any] {
     [
@@ -78,6 +79,7 @@ struct LiveWhisperStopSnapshot {
       "bytes": bytes,
       "writerError": writerError ?? NSNull(),
       "streamCleanupTimedOut": streamCleanupTimedOut,
+      "requiresFullTranscription": requiresFullTranscription,
     ]
   }
 }
@@ -92,6 +94,61 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   private var audioBufferCallback: (([Float]) -> Void)?
   private var pcmObserver: NSObjectProtocol?
   private var captureCancelled = false
+  private var gapObserver: NSObjectProtocol?
+  private var failureMessage: String?
+  private var failureHandler: (@Sendable (String) -> Void)?
+  private var windowOffset = 0.0
+  private var capturedEnd = 0.0
+  private var receivedFirstSample = false
+  private let maximumSamples = Int(liveSampleRate * 150)
+  private let maximumRetainedSamples = Int(liveSampleRate * 60)
+  private let energyLimit = 32768
+
+  var windowInfo: (samples: Int, offset: Double, duration: Double) {
+    stateLock.lock(); defer { stateLock.unlock() }
+    return (samplesStorage.count, windowOffset, Double(samplesStorage.count) / liveSampleRate)
+  }
+  var hasStreamingCallback: Bool {
+    stateLock.lock(); defer { stateLock.unlock() }; return audioBufferCallback != nil
+  }
+  func setFailureHandler(_ action: @escaping @Sendable (String) -> Void) {
+    stateLock.lock(); failureHandler = action; let failure = failureMessage; stateLock.unlock()
+    if let failure { action(failure) }
+  }
+  func checkCaptureHealth() throws {
+    stateLock.lock(); let failure = failureMessage; let cancelled = captureCancelled; stateLock.unlock()
+    if let failure { throw NSError(domain: "LivePCM", code: 51, userInfo: [NSLocalizedDescriptionKey: failure]) }
+    if cancelled { throw CancellationError() }
+  }
+  private func failCapture(_ message: String) {
+    stateLock.lock()
+    guard failureMessage == nil else { stateLock.unlock(); return }
+    failureMessage = message; captureCancelled = true; audioBufferCallback = nil
+    let handler = failureHandler
+    stateLock.unlock()
+    detachFromRecorder()
+    handler?(message)
+  }
+  func cancelCapture() {
+    stateLock.lock(); captureCancelled = true; audioBufferCallback = nil; stateLock.unlock()
+    detachFromRecorder()
+  }
+  // Called only after the previous SDK streaming task has actually terminated.
+  func rotateWindow(confirmedUntil: Double) throws -> Bool {
+    try checkCaptureHealth()
+    stateLock.lock()
+    defer { stateLock.unlock() }
+    guard !captureCancelled else { throw CancellationError() }
+    let preferredDrop = Int(max(0, confirmedUntil - 3 - windowOffset) * liveSampleRate)
+    let minimumDrop = max(0, samplesStorage.count - maximumRetainedSamples)
+    let drop = min(samplesStorage.count, max(preferredDrop, minimumDrop))
+    let retained = samplesStorage.count - drop
+    samplesStorage = ContiguousArray(samplesStorage.suffix(retained))
+    windowOffset = max(windowOffset, capturedEnd - Double(retained) / liveSampleRate)
+    // Keep bounded energy history for VAD over the retained overlap.
+    audioBufferCallback = nil
+    return windowOffset > confirmedUntil + 0.05
+  }
 
   init(outputURL: URL) throws {
     self.outputURL = outputURL
@@ -148,11 +205,9 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   }
 
   func purgeAudioSamples(keepingLast keep: Int) {
-    stateLock.lock()
-    defer { stateLock.unlock() }
-    if samplesStorage.count > keep {
-      samplesStorage.removeFirst(samplesStorage.count - keep)
-    }
+    // Window rotation replaces the actor before rebasing; in-place trimming
+    // would invalidate AudioStreamTranscriber's lastBufferSize/clip timestamps.
+    _ = keep
   }
 
   var relativeEnergy: [Float] {
@@ -169,7 +224,7 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
     }
     set {
       stateLock.lock()
-      _relativeEnergyWindow = max(1, newValue)
+      _relativeEnergyWindow = min(energyLimit, max(1, newValue))
       stateLock.unlock()
     }
   }
@@ -180,7 +235,9 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   ) throws {
     _ = inputDeviceID
 
+    try checkCaptureHealth()
     stateLock.lock()
+    guard !captureCancelled else { stateLock.unlock(); throw CancellationError() }
     audioBufferCallback = callback
     let alreadyAttached = pcmObserver != nil
     stateLock.unlock()
@@ -199,6 +256,7 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
       throw CancellationError()
     }
     samplesStorage = []
+    receivedFirstSample = false; windowOffset = 0; capturedEnd = 0
     relativeEnergyStorage = []
     averageEnergyStorage = []
     stateLock.unlock()
@@ -216,16 +274,19 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
     AsyncThrowingStream<[Float], Error>.Continuation
   ) {
     let pair = AsyncThrowingStream<[Float], Error>.makeStream(
-      bufferingPolicy: .unbounded
+      bufferingPolicy: .bufferingNewest(8)
     )
 
     pair.continuation.onTermination = { [weak self] _ in
-      self?.stopRecording()
+      self?.cancelCapture()
     }
 
     do {
       try startRecordingLive(inputDeviceID: inputDeviceID) { samples in
-        pair.continuation.yield(samples)
+        if case .dropped = pair.continuation.yield(samples) {
+          self.failCapture("Live PCM stream overflowed. Durable audio continues; retry transcription after Stop.")
+          pair.continuation.finish(throwing: CancellationError())
+        }
       }
     } catch {
       pair.continuation.finish(throwing: error)
@@ -239,17 +300,13 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   }
 
   func stopRecording() {
-    stateLock.lock()
-    captureCancelled = true
-    stateLock.unlock()
-    detachFromRecorder()
-    stateLock.lock()
-    audioBufferCallback = nil
-    stateLock.unlock()
+    // SDK window shutdown is not permanent capture cancellation. The observer
+    // keeps a bounded handoff buffer while the old inference task finishes.
+    stateLock.lock(); audioBufferCallback = nil; stateLock.unlock()
   }
 
   func stopAndSnapshot() -> LiveWhisperStopSnapshot {
-    stopRecording()
+    cancelCapture()
     return LiveWhisperStopSnapshot(
       audioUri: outputURL.absoluteString,
       durationMillis: durationMillis,
@@ -285,7 +342,7 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   var durationMillis: Int {
     stateLock.lock()
     defer { stateLock.unlock() }
-    return Int((Double(samplesStorage.count) / liveSampleRate) * 1000.0)
+    return Int((capturedEnd * 1000.0).rounded())
   }
 
   var writerError: String? { nil }
@@ -303,16 +360,25 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
         let buffer = notification.object as? AVAudioPCMBuffer else {
         return
       }
-      self?.handleRecorderBuffer(buffer)
+      self?.handleRecorderBuffer(buffer,
+        captureStart: (notification.userInfo?["captureStartSeconds"] as? NSNumber)?.doubleValue)
     }
 
+    let gap = NotificationCenter.default.addObserver(
+      forName: Notification.Name("NorskTrainer.LectureRecorder.PCMGap"), object: nil, queue: nil
+    ) { [weak self] notification in
+      guard let self, notification.userInfo?["sourceURI"] as? String == self.outputURL.absoluteString else { return }
+      self.failCapture("Live PCM delivery exceeded its queue budget. Audio capture continues; Stop can finish transcription from saved audio.")
+    }
     stateLock.lock()
     if pcmObserver == nil && !captureCancelled {
+      gapObserver = gap
       pcmObserver = observer
       stateLock.unlock()
     } else {
       stateLock.unlock()
       NotificationCenter.default.removeObserver(observer)
+      NotificationCenter.default.removeObserver(gap)
     }
   }
 
@@ -320,14 +386,14 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
     stateLock.lock()
     let observer = pcmObserver
     pcmObserver = nil
+    let gap = gapObserver; gapObserver = nil
     stateLock.unlock()
 
-    if let observer {
-      NotificationCenter.default.removeObserver(observer)
-    }
+    if let observer { NotificationCenter.default.removeObserver(observer) }
+    if let gap { NotificationCenter.default.removeObserver(gap) }
   }
 
-  private func handleRecorderBuffer(_ buffer: AVAudioPCMBuffer) {
+  private func handleRecorderBuffer(_ buffer: AVAudioPCMBuffer, captureStart: Double?) {
     guard buffer.frameLength > 0 else { return }
 
     guard let whisperBuffer = AudioProcessor.resampleAudio(
@@ -335,19 +401,32 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
       toSampleRate: liveSampleRate,
       channelCount: 1
     ) else {
+      failCapture("Live PCM resampling failed. Saved audio remains available for transcription.")
       return
     }
 
     let samples = AudioProcessor.convertBufferToArray(buffer: whisperBuffer)
-    guard !samples.isEmpty else { return }
-    consumeWhisperSamples(samples)
+    guard !samples.isEmpty else {
+      failCapture("Live PCM conversion returned no samples. Retry from saved audio.")
+      return
+    }
+    consumeWhisperSamples(samples, captureStart: captureStart, sourceDuration: Double(buffer.frameLength) / buffer.format.sampleRate)
   }
 
-  private func consumeWhisperSamples(_ samples: [Float]) {
+  private func consumeWhisperSamples(_ samples: [Float], captureStart: Double?, sourceDuration: Double) {
     let signalEnergy = AudioProcessor.calculateEnergy(of: samples)
 
     stateLock.lock()
     guard !captureCancelled else { stateLock.unlock(); return }
+    guard samplesStorage.count + samples.count <= maximumSamples else {
+      stateLock.unlock()
+      failCapture("Whisper did not finish its previous window before the bounded PCM buffer filled. Durable audio continues; Stop and retry transcription.")
+      return
+    }
+    if !receivedFirstSample {
+      windowOffset = max(0, captureStart ?? 0); capturedEnd = windowOffset; receivedFirstSample = true
+    }
+    capturedEnd = max(capturedEnd, (captureStart ?? capturedEnd) + sourceDuration)
     let baseline: Float? = {
       let window = averageEnergyStorage.suffix(_relativeEnergyWindow)
       return window.min()
@@ -359,6 +438,8 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
     samplesStorage.append(contentsOf: samples)
     averageEnergyStorage.append(signalEnergy.avg)
     relativeEnergyStorage.append(relative)
+    if averageEnergyStorage.count > energyLimit { averageEnergyStorage.removeFirst(averageEnergyStorage.count - energyLimit) }
+    if relativeEnergyStorage.count > energyLimit { relativeEnergyStorage.removeFirst(relativeEnergyStorage.count - energyLimit) }
     let callback = audioBufferCallback
     stateLock.unlock()
 
@@ -366,305 +447,246 @@ final class LiveRecorderAudioProcessor: AudioProcessing, @unchecked Sendable {
   }
 }
 
+private final class LiveWindowCompletion: @unchecked Sendable {
+  private let lock = NSLock()
+  private var done = false
+  private var failure: String?
+  func finish(_ message: String?) { lock.lock(); failure = message; done = true; lock.unlock() }
+  var snapshot: (done: Bool, error: String?) {
+    lock.lock(); defer { lock.unlock() }; return (done, failure)
+  }
+}
+
 private final class LiveWhisperStateSink: @unchecked Sendable {
   weak var session: LiveWhisperSession?
-
-  func receive(
-    _ state: AudioStreamTranscriber.State
-  ) {
-    session?.receive(
-      state
-    )
+  let id: UUID
+  let offset: Double
+  init(session: LiveWhisperSession, id: UUID, offset: Double) {
+    self.session = session; self.id = id; self.offset = offset
+  }
+  func receive(_ state: AudioStreamTranscriber.State) {
+    session?.receive(state, id: id, offset: offset)
   }
 }
 
 final class LiveWhisperSession: @unchecked Sendable {
-  typealias UpdateHandler = @Sendable (
-    LiveWhisperUpdateSnapshot
-  ) -> Void
-
-  typealias ErrorHandler = @Sendable (
-    String
-  ) -> Void
-
+  typealias UpdateHandler = @Sendable (LiveWhisperUpdateSnapshot) -> Void
+  typealias ErrorHandler = @Sendable (String, Bool) -> Void
   private let processor: LiveRecorderAudioProcessor
   private let inferenceLease: WhisperInferenceLease
-  private let lifecycleLock = NSLock()
-  private var stopping = false
-  private var streamCleanupTask: Task<Void, Never>?
-  private let transcriber: AudioStreamTranscriber
-  private let audioURL: URL
+  private let kit: WhisperKit
+  private let language: String
   private let onUpdate: UpdateHandler
   private let onError: ErrorHandler
-  private let stateSink: LiveWhisperStateSink
-
+  private let lifecycleLock = NSLock()
+  private var stopping = false
+  private var rotating = false
+  private var task: Task<Void, Never>?
+  private var transcriber: AudioStreamTranscriber?
+  private var windowTask: Task<Void, Never>?
+  private var streamCleanupTask: Task<Void, Never>?
   private let stateLock = NSLock()
-  private var latestConfirmed:
-    [LiveWhisperSegmentSnapshot] = []
-  private var latestUnconfirmed:
-    [LiveWhisperSegmentSnapshot] = []
-  private var latestPartialText = ""
+  private var activeWindowID = UUID()
+  private var requiresFullTranscription = false
+  private var confirmedUntil = 0.0
   private var lastEmittedConfirmedCount = 0
   private var lastEmitTime = Date.distantPast
-  private var task: Task<Void, Never>?
 
-  init(
-    whisperKit: WhisperKit,
-    audioURL: URL,
-    language: String,
-    processor: LiveRecorderAudioProcessor,
-    inferenceLease: WhisperInferenceLease,
-    onUpdate: @escaping UpdateHandler,
-    onError: @escaping ErrorHandler
-  ) throws {
-    guard let tokenizer = whisperKit.tokenizer else {
-      throw NSError(
-        domain: "LiveWhisperSession",
-        code: 20,
-        userInfo: [
-          NSLocalizedDescriptionKey:
-            "Whisper tokenizer is not ready for Live mode."
-        ]
-      )
+  init(whisperKit: WhisperKit, audioURL: URL, language: String,
+       processor: LiveRecorderAudioProcessor, inferenceLease: WhisperInferenceLease,
+       onUpdate: @escaping UpdateHandler, onError: @escaping ErrorHandler) throws {
+    guard whisperKit.tokenizer != nil else {
+      throw NSError(domain: "LiveWhisperSession", code: 20,
+        userInfo: [NSLocalizedDescriptionKey: "Whisper tokenizer is not ready."])
     }
-
-    let stateSink = LiveWhisperStateSink()
-
-    let options = DecodingOptions(
-      task: .transcribe,
-      language: language,
-      skipSpecialTokens: true,
-      wordTimestamps: false,
-      maxInitialTimestamp: 1.0,
-      chunkingStrategy: .none
-    )
-
-    self.processor = processor
-    self.inferenceLease = inferenceLease
-    self.audioURL = audioURL
-    self.onUpdate = onUpdate
-    self.onError = onError
-    self.stateSink = stateSink
-
-    self.transcriber = AudioStreamTranscriber(
-      audioEncoder: whisperKit.audioEncoder,
-      featureExtractor: whisperKit.featureExtractor,
-      segmentSeeker: whisperKit.segmentSeeker,
-      textDecoder: whisperKit.textDecoder,
-      tokenizer: tokenizer,
-      audioProcessor: processor,
-      decodingOptions: options,
-      requiredSegmentsForConfirmation: 1,
-      silenceThreshold: 0.3,
-      compressionCheckWindow: 60,
-      useVAD: true,
-      stateChangeCallback: {
-        _, newState in
-        stateSink.receive(
-          newState
-        )
-      }
-    )
-
-    stateSink.session = self
+    self.kit = whisperKit; self.language = language
+    self.processor = processor; self.inferenceLease = inferenceLease
+    self.onUpdate = onUpdate; self.onError = onError
+    processor.setFailureHandler { [weak self] message in
+      guard let self else { return }
+      self.onError(message, false)
+      _ = self.beginStop()
+    }
   }
 
   func start() {
     lifecycleLock.lock()
     defer { lifecycleLock.unlock() }
-    guard task == nil && !stopping else {
-      return
-    }
-
-    task = Task {
-      [weak self] in
-
-      guard let self else {
-        return
-      }
-
-      do {
-        try Task.checkCancellation()
-        try await self.transcriber
-          .startStreamTranscription()
-      } catch is CancellationError {
-        return
-      } catch {
-        self.onError(
-          error.localizedDescription
-        )
-      }
+    guard task == nil && !stopping else { return }
+    task = Task { [weak self] in
+      guard let self else { return }
+      await self.runWindows()
     }
   }
-
-  private func cleanupTaskSnapshot() -> Task<Void, Never>? {
+  private var stopRequested: Bool {
+    lifecycleLock.lock(); defer { lifecycleLock.unlock() }; return stopping
+  }
+  private func setRotating(_ value: Bool) {
+    lifecycleLock.lock(); rotating = value; lifecycleLock.unlock()
+  }
+  private func lifecycleSnapshot() -> (stopping: Bool, rotating: Bool) {
+    lifecycleLock.lock(); defer { lifecycleLock.unlock() }; return (stopping, rotating)
+  }
+  private func reportCoverageGap(_ message: String) {
+    stateLock.lock(); requiresFullTranscription = true; stateLock.unlock()
+    onError(message, true)
+  }
+  private func coverageGapSnapshot() -> Bool {
+    stateLock.lock(); defer { stateLock.unlock() }; return requiresFullTranscription
+  }
+  private func confirmedSnapshot() -> Double {
+    stateLock.lock(); defer { stateLock.unlock() }; return confirmedUntil
+  }
+  private func prepareState(_ id: UUID) {
+    stateLock.lock(); activeWindowID = id; lastEmittedConfirmedCount = 0
+    lastEmitTime = .distantPast; stateLock.unlock()
+  }
+  private func install(_ value: AudioStreamTranscriber, completion: LiveWindowCompletion) -> Task<Void, Never>? {
     lifecycleLock.lock()
     defer { lifecycleLock.unlock() }
-    return streamCleanupTask
+    guard !stopping else { return nil }
+    transcriber = value
+    let worker = Task {
+      do {
+        try Task.checkCancellation()
+        try await value.startStreamTranscription()
+        completion.finish(nil)
+      } catch { completion.finish(error.localizedDescription) }
+    }
+    windowTask = worker
+    return worker
+  }
+  private func clearWindow() {
+    lifecycleLock.lock(); transcriber = nil; windowTask = nil; rotating = false; lifecycleLock.unlock()
+  }
+  private func makeTranscriber(id: UUID, offset: Double) throws -> AudioStreamTranscriber {
+    guard let tokenizer = kit.tokenizer else { throw CancellationError() }
+    let sink = LiveWhisperStateSink(session: self, id: id, offset: offset)
+    let options = DecodingOptions(task: .transcribe, language: language,
+      skipSpecialTokens: true, wordTimestamps: false, maxInitialTimestamp: 1.0, chunkingStrategy: .none)
+    return AudioStreamTranscriber(audioEncoder: kit.audioEncoder, featureExtractor: kit.featureExtractor,
+      segmentSeeker: kit.segmentSeeker, textDecoder: kit.textDecoder, tokenizer: tokenizer,
+      audioProcessor: processor, decodingOptions: options, requiredSegmentsForConfirmation: 1,
+      silenceThreshold: 0.3, compressionCheckWindow: 60, useVAD: true,
+      stateChangeCallback: { _, state in sink.receive(state) })
   }
 
-  func awaitStreamCleanupCompletion() async {
-    if let cleanup = cleanupTaskSnapshot() { await cleanup.value }
+  private func runWindows() async {
+    // Capture starts before model loading. Wait for the first timestamped PCM,
+    // without blocking durable capture or holding an inference/lifecycle lock.
+    let firstDeadline = ProcessInfo.processInfo.systemUptime + 3
+    while processor.windowInfo.samples == 0 && !stopRequested {
+      if ProcessInfo.processInfo.systemUptime >= firstDeadline {
+        onError("Live PCM did not arrive. Durable audio capture remains available.", false)
+        processor.cancelCapture(); _ = beginStop(); return
+      }
+      try? await Task.sleep(nanoseconds: 20_000_000)
+    }
+    if processor.windowInfo.offset > 0.25 {
+      reportCoverageGap("Live attached after the beginning of captured audio. Full transcription is required to verify the prefix.")
+    }
+    while !stopRequested && !Task.isCancelled {
+      do {
+        try processor.checkCaptureHealth()
+        let id = UUID()
+        prepareState(id)
+        let value = try makeTranscriber(id: id, offset: processor.windowInfo.offset)
+        let completion = LiveWindowCompletion()
+        guard let worker = install(value, completion: completion) else { return }
+        while !stopRequested && !Task.isCancelled && !completion.snapshot.done &&
+          !(processor.windowInfo.duration >= 120 && processor.hasStreamingCallback) {
+          try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        let rollover = !stopRequested && !Task.isCancelled && !completion.snapshot.done
+        setRotating(rollover)
+        // The previous SDK actor/task must really finish before its PCM array is
+        // reset or another actor touches the shared model. Cancellation is not proof.
+        worker.cancel()
+        await value.stopStreamTranscription()
+        await worker.value
+        let finished = completion.snapshot
+        clearWindow()
+        if stopRequested || Task.isCancelled { return }
+        if !rollover {
+          onError(finished.error ?? "Live recognition ended unexpectedly. Audio capture continues.", false)
+          processor.cancelCapture(); _ = beginStop(); return
+        }
+        let gap = try processor.rotateWindow(confirmedUntil: confirmedSnapshot())
+        if gap {
+          reportCoverageGap("An unconfirmed Live interval exceeded the retained overlap. Audio is saved; full transcription is required to close the gap.")
+        }
+      } catch {
+        if !stopRequested { onError(error.localizedDescription, false) }
+        processor.cancelCapture(); _ = beginStop(); return
+      }
+    }
   }
 
   private func beginStop() -> Task<Void, Never> {
+    // Permanent detach also prevents an actor start already queued behind Stop
+    // from resurrecting capture via startRecordingLive.
+    processor.cancelCapture()
     lifecycleLock.lock()
     defer { lifecycleLock.unlock() }
     if let cleanup = streamCleanupTask { return cleanup }
     stopping = true
     let streamingTask = task
-    streamingTask?.cancel()
-    let transcriber = self.transcriber
+    let current = transcriber
+    streamingTask?.cancel(); windowTask?.cancel()
     let lease = inferenceLease
     let cleanup = Task {
-      await transcriber.stopStreamTranscription()
+      if let current { await current.stopStreamTranscription() }
       if let streamingTask { await streamingTask.value }
-      lease.release() // Only the real completion releases inference ownership.
+      lease.release() // Only actual outer + per-window task completion releases it.
     }
     streamCleanupTask = cleanup
     return cleanup
   }
-
+  private func cleanupSnapshot() -> Task<Void, Never>? {
+    lifecycleLock.lock(); defer { lifecycleLock.unlock() }; return streamCleanupTask
+  }
+  func awaitStreamCleanupCompletion() async {
+    if let cleanup = cleanupSnapshot() { await cleanup.value }
+  }
   func stop() async -> LiveWhisperStopSnapshot {
-    // LectureRecorder owns durable capture; this only detaches its PCM consumer.
-    let audioSnapshot = processor.stopAndSnapshot()
-    let cleanupTask = beginStop()
-
-    let cleanupFinished =
-      await withCheckedContinuation {
-        (continuation: CheckedContinuation<Bool, Never>) in
-
-        let gate =
-          LiveStopCompletionGate()
-
-        Task {
-          await cleanupTask.value
-          gate.finish(
-            true,
-            continuation: continuation
-          )
-        }
-
-        DispatchQueue.global(
-          qos: .utility
-        ).asyncAfter(
-          deadline: .now() + 5.0
-        ) {
-          gate.finish(
-            false,
-            continuation: continuation
-          )
-        }
+    let audio = processor.stopAndSnapshot()
+    let cleanup = beginStop()
+    let finished = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+      let gate = LiveStopCompletionGate()
+      Task { await cleanup.value; gate.finish(true, continuation: continuation) }
+      DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5) {
+        gate.finish(false, continuation: continuation)
       }
-
-    return LiveWhisperStopSnapshot(
-      audioUri: audioSnapshot.audioUri,
-      durationMillis:
-        audioSnapshot.durationMillis,
-      bytes: audioSnapshot.bytes,
-      writerError:
-        audioSnapshot.writerError,
-      streamCleanupTimedOut:
-        !cleanupFinished
-    )
+    }
+    return LiveWhisperStopSnapshot(audioUri: audio.audioUri, durationMillis: audio.durationMillis,
+      bytes: audio.bytes, writerError: audio.writerError, streamCleanupTimedOut: !finished,
+      requiresFullTranscription: coverageGapSnapshot())
   }
 
-  func receive(
-    _ state: AudioStreamTranscriber.State
-  ) {
-    let confirmed = state.confirmedSegments
-      .map(Self.snapshot)
-
-    let unconfirmed = state.unconfirmedSegments
-      .map(Self.snapshot)
-
-    let partialParts = [
-      unconfirmed
-        .map(\.text)
-        .joined(separator: " "),
-      state.currentText,
-    ]
-      .map {
-        $0.trimmingCharacters(
-          in: .whitespacesAndNewlines
-        )
-      }
-      .filter {
-        !$0.isEmpty
-      }
-
-    let partialText = partialParts
-      .joined(separator: " ")
-      .replacingOccurrences(
-        of: #"\s+"#,
-        with: " ",
-        options: .regularExpression
-      )
-      .trimmingCharacters(
-        in: .whitespacesAndNewlines
-      )
-
+  func receive(_ state: AudioStreamTranscriber.State, id: UUID, offset: Double) {
+    let lifecycle = lifecycleSnapshot()
+    guard !lifecycle.stopping else { return }
+    let confirmed = state.confirmedSegments.map { Self.snapshot($0, offset: offset) }
+    let unconfirmed = state.unconfirmedSegments.map { Self.snapshot($0, offset: offset) }
+    let partial = (unconfirmed.map(\.text) + [state.currentText]).joined(separator: " ")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
     let now = Date()
-
     stateLock.lock()
-
-    latestConfirmed = confirmed
-    latestUnconfirmed = unconfirmed
-    latestPartialText = partialText
-
-    let newConfirmed = confirmed.count >
-      lastEmittedConfirmedCount
-      ? Array(
-          confirmed.dropFirst(
-            lastEmittedConfirmedCount
-          )
-        )
-      : []
-
-    let shouldEmit =
-      !newConfirmed.isEmpty ||
-      now.timeIntervalSince(
-        lastEmitTime
-      ) >= 0.25 ||
-      !state.isRecording
-
-    if shouldEmit {
-      lastEmittedConfirmedCount =
-        confirmed.count
-      lastEmitTime = now
-    }
-
+    guard activeWindowID == id else { stateLock.unlock(); return }
+    let fresh = Array(confirmed.dropFirst(min(lastEmittedConfirmedCount, confirmed.count)))
+      .filter { $0.end > confirmedUntil + 0.01 }
+    if let end = fresh.last?.end { confirmedUntil = max(confirmedUntil, end) }
+    let emit = !fresh.isEmpty || now.timeIntervalSince(lastEmitTime) >= 0.25 || !state.isRecording
+    if emit { lastEmittedConfirmedCount = confirmed.count; lastEmitTime = now }
     stateLock.unlock()
-
-    guard shouldEmit else {
-      return
-    }
-
-    onUpdate(
-      LiveWhisperUpdateSnapshot(
-        isRecording: state.isRecording,
-        elapsedMillis: processor.durationMillis,
-        partialText: partialText,
-        confirmedSegments: newConfirmed,
-        unconfirmedSegments: unconfirmed
-      )
-    )
+    guard emit else { return }
+    onUpdate(LiveWhisperUpdateSnapshot(isRecording: state.isRecording || lifecycle.rotating,
+      elapsedMillis: processor.durationMillis, partialText: partial,
+      confirmedSegments: fresh, unconfirmedSegments: unconfirmed))
   }
-
-  private static func snapshot(
-    _ segment: TranscriptionSegment
-  ) -> LiveWhisperSegmentSnapshot {
-    LiveWhisperSegmentSnapshot(
-      start: Double(segment.start),
-      end: Double(segment.end),
-      text: segment.text
-        .trimmingCharacters(
-          in: .whitespacesAndNewlines
-        ),
-      noSpeechProb:
-        Double(segment.noSpeechProb),
-      avgLogProb:
-        Double(segment.avgLogprob)
-    )
+  private static func snapshot(_ segment: TranscriptionSegment, offset: Double) -> LiveWhisperSegmentSnapshot {
+    LiveWhisperSegmentSnapshot(start: offset + Double(segment.start), end: offset + Double(segment.end),
+      text: segment.text.trimmingCharacters(in: .whitespacesAndNewlines),
+      noSpeechProb: Double(segment.noSpeechProb), avgLogProb: Double(segment.avgLogprob))
   }
 }

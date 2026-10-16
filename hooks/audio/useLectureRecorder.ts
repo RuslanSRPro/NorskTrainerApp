@@ -26,6 +26,7 @@ import LectureRecorder, {
 
 import {
   findAudioFile,
+  withAudioOperationDeadline,
   getDefaultTranscription,
   readMetadata,
   writeMetadata,
@@ -627,14 +628,14 @@ export function useLectureRecorder(
             try {
               const recovery =
                 isInterruptedRecording
-                  ? await LectureRecorder
+                  ? await withAudioOperationDeadline(LectureRecorder
                       .recoverRecording(
                         expectedAudio.uri
-                      )
-                  : await LectureRecorder
+                      ), 135000, 'Audio preparation/recovery')
+                  : await withAudioOperationDeadline(LectureRecorder
                       .assembleRecording(
                         expectedAudio.uri
-                      );
+                      ), 135000, 'Audio preparation/recovery');
 
               enqueueAudioDiagnostic({
                 session_id: recoveryDiagnosticId,
@@ -1291,10 +1292,10 @@ export function useLectureRecorder(
     async (
       destinationUri: string
     ) =>
-      LectureRecorder
+      withAudioOperationDeadline(LectureRecorder
         .assembleRecording(
           destinationUri
-        );
+        ), 135000, 'Audio preparation/recovery');
 
 
   const getRecorderStatus =

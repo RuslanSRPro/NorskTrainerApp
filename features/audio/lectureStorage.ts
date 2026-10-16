@@ -17,6 +17,86 @@ import type {
   TranslationTarget,
 } from './lectureTypes';
 
+// A UI deadline settles only the caller; it does not cancel or release a native
+// recording/archive/inference owner. Late native results cannot settle it twice.
+export function withAudioOperationDeadline<T>(work: Promise<T>, milliseconds: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} exceeded its deadline. Saved audio is preserved; retry when native cleanup finishes.`)), milliseconds);
+    work.then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
+  });
+}
+
+export type LectureAudioCandidate = { id: string; key: string; uri: string };
+export class LectureAudioValidationQueue {
+  private cache = new Map<string, { key: string; ready: boolean }>();
+  private current = new Map<string, string>();
+  private pending = new Map<string, LectureAudioCandidate>();
+  private active: LectureAudioCandidate | null = null;
+  private running = false;
+  private disposed = false;
+  constructor(
+    private validate: (uri: string) => Promise<{ valid: boolean; playable: boolean; bytes: number; durationMillis: number }>,
+    private changed: () => void,
+  ) {}
+  result(id: string, key: string): boolean | undefined {
+    const found = this.cache.get(id);
+    return found?.key === key ? found.ready : undefined;
+  }
+  invalidate(id: string) { this.cache.delete(id); }
+  resume() { this.disposed = false; }
+  dispose() { this.disposed = true; this.pending.clear(); this.current.clear(); }
+  submit(jobs: LectureAudioCandidate[]) {
+    if (this.disposed) return;
+    this.current = new Map(jobs.map(job => [job.id, job.key]));
+    this.pending.clear();
+    for (const id of this.cache.keys()) if (!this.current.has(id)) this.cache.delete(id);
+    for (const job of jobs) {
+      if (this.result(job.id, job.key) !== undefined) continue;
+      if (this.active?.id === job.id && this.active.key === job.key) continue;
+      this.pending.set(job.id, job);
+    }
+    void this.run();
+  }
+  private async run() {
+    if (this.running || this.disposed) return;
+    this.running = true;
+    try {
+      while (!this.disposed && this.pending.size > 0) {
+        const job = this.pending.values().next().value!;
+        this.pending.delete(job.id);
+        this.active = job;
+        let ready = false;
+        try {
+          const value = await withAudioOperationDeadline(this.validate(job.uri), 10000, 'Audio validation');
+          ready = value.valid && value.playable && value.bytes >= 4096 && value.durationMillis >= 500;
+        } catch { /* Failed validation must not hide segment-based retry. */ }
+        if (this.disposed || this.current.get(job.id) !== job.key) continue;
+        const previous = this.cache.get(job.id);
+        this.cache.set(job.id, { key: job.key, ready });
+        if (!ready || previous?.ready === false) {
+          try { this.changed(); } catch { /* The next library refresh uses the cached result. */ }
+        }
+      }
+    } finally { this.active = null; this.running = false; }
+  }
+}
+
+export function trimLiveWindowOverlap(previous: SavedTranscriptSegment[], incoming: SavedTranscriptSegment): SavedTranscriptSegment | null {
+  const last = previous[previous.length - 1];
+  if (!last || incoming.start >= last.end - 0.01) return incoming;
+  if (incoming.end <= last.end + 0.01) return null;
+  const key = (word: string) => word.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const before = previous.slice(-3).flatMap(segment => segment.text.split(/\s+/)).map(key).filter(Boolean).slice(-32);
+  const words = incoming.text.split(/\s+/).filter(word => key(word));
+  let overlap = 0;
+  for (let size = Math.min(before.length, words.length); size > 0; size--) {
+    if (before.slice(-size).every((word, index) => word === key(words[index]))) { overlap = size; break; }
+  }
+  if (!overlap) return incoming;
+  const text = words.slice(overlap).join(' ').trim();
+  return text ? { ...incoming, text, start: Math.max(incoming.start, last.end) } : null;
+}
+
 const TEXT_JOURNAL = '.derived-text-transaction.json';
 type TextUpdates = Record<string, string | null>;
 type TextJournal = { version: 1; state: 'prepared' | 'committed'; before: TextUpdates };
@@ -85,15 +165,19 @@ export function commitLectureTextSnapshot(directory: Directory, updates: TextUpd
   if (!directory.exists) throw new Error('The lecture directory no longer exists.');
   recoverPendingTextTransaction(directory);
   const before: TextUpdates = {};
+  const changes: TextUpdates = {};
   for (const name of Object.keys(updates)) {
     const file = new File(directory, name);
     before[name] = file.exists ? file.textSync() : null;
+    if (before[name] !== updates[name]) changes[name] = updates[name];
+    else delete before[name];
   }
+  if (Object.keys(changes).length === 0) return;
   const journalFile = new File(directory, TEXT_JOURNAL);
   const journal: TextJournal = { version: 1, state: 'prepared', before };
   writeTextFile(journalFile, JSON.stringify(journal));
   try {
-    applyTextUpdates(directory, updates);
+    applyTextUpdates(directory, changes);
     writeTextFile(journalFile, JSON.stringify({ ...journal, state: 'committed' }));
   } catch (failure) {
     try { recoverPendingTextTransaction(directory); }

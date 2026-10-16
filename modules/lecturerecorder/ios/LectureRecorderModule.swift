@@ -275,7 +275,32 @@ private struct LectureArchiveRequest {
   let finish: ([String: Any]) -> Void
 }
 
+// Reservations include the item currently executing, not just waiting items.
+// Never reset on route/session changes: old queued copies still consume memory.
+private final class LecturePCMQueueBudget: @unchecked Sendable {
+  private let lock = NSLock()
+  private let limit: Double
+  private var seconds = 0.0
+  init(seconds: Double) { limit = seconds }
+  func reserve(_ duration: Double) -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    guard duration.isFinite, duration > 0, seconds + duration <= limit + 0.000001 else { return false }
+    seconds += duration
+    return true
+  }
+  func release(_ duration: Double) {
+    lock.lock()
+    seconds = max(0, seconds - duration)
+    lock.unlock()
+  }
+}
+
 public final class LectureRecorderModule: Module {
+  private let writerPCMBudget = LecturePCMQueueBudget(seconds: 4)
+  private let livePCMBudget = LecturePCMQueueBudget(seconds: 2)
+  private var livePCMFailureGeneration: UInt64?
+  private var writerBackpressure = false
   private let writerQueue = DispatchQueue(
     label: "com.norsktrainer.lecture-recorder.writer",
     qos: .userInitiated
@@ -2144,9 +2169,15 @@ public final class LectureRecorderModule: Module {
         )
       }
 
-      self.updateLiveMetrics(
-        from: buffer
-      )
+      let duration = Double(buffer.frameLength) / buffer.format.sampleRate
+      guard self.writerPCMBudget.reserve(duration) else {
+        self.withStateLock { if self.writerFailureMessage == nil { self.writerBackpressure = true } }
+        self.stopAcceptingNewBuffers()
+        self.reportWriterFailure("The audio writer exceeded its 4-second queue budget. Capture stopped visibly; accepted buffers and checkpoints are preserved.")
+        return
+      }
+      self.updateLiveMetrics(from: buffer)
+      let captureStart = self.withStateLock { max(0, self.capturedDurationSeconds - duration) }
 
       guard
         let copiedBuffer =
@@ -2154,6 +2185,7 @@ public final class LectureRecorderModule: Module {
             buffer
           )
       else {
+        self.writerPCMBudget.release(duration)
         self.reportWriterFailure(
           "Could not copy a microphone buffer."
         )
@@ -2163,9 +2195,9 @@ public final class LectureRecorderModule: Module {
       if shouldLogFirstBuffer {
         self.appendTimingEvent("WRITER_FIRST_BUFFER_ENQUEUED", destinationURL: self.currentDestinationURL)
       }
-      self.writerQueue.async { [weak self] in
+      self.writerQueue.async { [self] in
+        defer { self.writerPCMBudget.release(duration) }
         guard
-          let self,
           self.isCurrentCaptureGeneration(captureGeneration)
         else {
           return
@@ -2179,17 +2211,21 @@ public final class LectureRecorderModule: Module {
       // Fan out a separate immutable copy off the realtime tap callback.
       // Whisper may be cold/loading/slow; none of that is allowed to block
       // durable segment writes or own a second microphone engine.
-      if let liveBuffer = self.copyPCMBuffer(buffer) {
-        self.livePCMQueue.async { [weak self] in
-          guard let self, self.isCurrentCaptureGeneration(captureGeneration) else { return }
-          NotificationCenter.default.post(
-            name: Notification.Name(
-              "NorskTrainer.LectureRecorder.PCMBuffer"
-            ),
-            object: liveBuffer,
-            userInfo: ["sourceURI": captureSourceURI ?? ""]
-          )
-        }
+      let deliverLive = self.withStateLock { self.livePCMFailureGeneration != captureGeneration }
+      if deliverLive {
+        if self.livePCMBudget.reserve(duration) {
+          if let liveBuffer = self.copyPCMBuffer(buffer) {
+            self.livePCMQueue.async { [self] in
+              defer { self.livePCMBudget.release(duration) }
+              guard self.isCurrentCaptureGeneration(captureGeneration) else { return }
+              NotificationCenter.default.post(name: Notification.Name("NorskTrainer.LectureRecorder.PCMBuffer"),
+                object: liveBuffer, userInfo: ["sourceURI": captureSourceURI ?? "", "captureStartSeconds": captureStart])
+            }
+          } else {
+            self.livePCMBudget.release(duration)
+            self.reportLivePCMGap(generation: captureGeneration, sourceURI: captureSourceURI)
+          }
+        } else { self.reportLivePCMGap(generation: captureGeneration, sourceURI: captureSourceURI) }
       }
     }
 
@@ -2717,7 +2753,7 @@ public final class LectureRecorderModule: Module {
       timingFirstWriterAttemptLogged = true
       appendTimingEvent("WRITER_FIRST_BUFFER_ENTER", destinationURL: currentDestinationURL)
     }
-    guard writerFailureMessage == nil else {
+    guard withStateLock({ writerFailureMessage == nil || writerBackpressure }) else {
       return
     }
 
@@ -2790,6 +2826,7 @@ public final class LectureRecorderModule: Module {
       }
 
     } catch {
+      withStateLock { writerBackpressure = false }
       reportWriterFailure(
         error.localizedDescription
       )
@@ -3001,6 +3038,20 @@ public final class LectureRecorderModule: Module {
       self.nextSegmentIndex = 1
       self.currentSegmentDurationSeconds = 0
       self.timingFirstWriterAttemptLogged = false
+    }
+  }
+
+  private func reportLivePCMGap(generation: UInt64, sourceURI: String?) {
+    let first = withStateLock { () -> Bool in
+      guard captureGeneration == generation, livePCMFailureGeneration != generation else { return false }
+      livePCMFailureGeneration = generation
+      return true
+    }
+    guard first else { return }
+    // Delivery must not wait behind the stalled PCM consumer or block the tap.
+    DispatchQueue.global(qos: .utility).async {
+      NotificationCenter.default.post(name: Notification.Name("NorskTrainer.LectureRecorder.PCMGap"),
+        object: nil, userInfo: ["sourceURI": sourceURI ?? ""])
     }
   }
 
@@ -4064,6 +4115,7 @@ public final class LectureRecorderModule: Module {
 
   private func beginRecordingSession() {
     withStateLock {
+      writerBackpressure = false
       recordingSessionID = UUID()
       firstBufferRecoveryAttempted = false
     }

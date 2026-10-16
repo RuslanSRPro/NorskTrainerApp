@@ -46,11 +46,11 @@ private final class LiveWhisperEventSink: @unchecked Sendable {
   }
 
   func emitError(
-    _ message: String
+    _ message: String, requiresFullTranscription: Bool = false
   ) {
     module?.sendEvent(
       "onLiveError",
-      ["message": message, "sessionId": sessionId]
+      ["message": message, "sessionId": sessionId, "requiresFullTranscription": requiresFullTranscription]
     )
   }
 }
@@ -919,6 +919,7 @@ public class WhisperKitLocalModule: Module {
           details: "model=\(selectedModel)")
         let kit = try await self.getOrCreateWhisperKit(model: selectedModel, request: request)
         try request.checkCancellation()
+        try processor.checkCaptureHealth()
         let readyLease = try self.inferenceAdmission.acquire()
         lease = readyLease
         try request.checkCancellation()
@@ -929,7 +930,7 @@ public class WhisperKitLocalModule: Module {
         let session = try LiveWhisperSession(whisperKit: kit, audioURL: outputURL,
           language: selectedLanguage, processor: processor, inferenceLease: readyLease,
           onUpdate: { update in sink.emitUpdate(update) },
-          onError: { message in sink.emitError(message) })
+          onError: { message, fullRetry in sink.emitError(message, requiresFullTranscription: fullRetry) })
         let installed = self.withLiveState { () -> Bool in
           guard self.livePendingProcessor === processor,
                 self.livePendingLoadRequest === request else { return false }
@@ -947,7 +948,7 @@ public class WhisperKitLocalModule: Module {
         session.start() // start() cannot resurrect a concurrently stopped session.
       } catch {
         request.cancel()
-        processor.stopRecording()
+        processor.cancelCapture()
         self.withLiveState {
           if self.livePendingProcessor === processor {
             self.livePendingProcessor = nil

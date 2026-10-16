@@ -51,6 +51,8 @@ import type {
 
 import {
   createChunkPlan,
+  LectureAudioValidationQueue,
+  type LectureAudioCandidate,
   findAudioFile,
   formatLectureDate,
   formatPlaybackTime,
@@ -268,6 +270,13 @@ export default function VoiceScreen() {
     useState<LectureItem[]>([]);
   const [audioAssemblyStates, setAudioAssemblyStates] = useState<Record<string, string>>({});
   const audioPreparationRequestsRef = useRef(new Set<string>());
+  const [audioValidation] = useState(() => new LectureAudioValidationQueue(
+    uri => LectureRecorder.validateRecording(uri), () => loadLectures()
+  ));
+  useEffect(() => {
+    audioValidation.resume();
+    return () => audioValidation.dispose();
+  }, [audioValidation]);
   const audioPreparationText = getAudioPreparationText(String(app_language));
 
   const [
@@ -424,12 +433,14 @@ export default function VoiceScreen() {
 
         setLectures([]);
         setAudioAssemblyStates({});
+        audioValidation.submit([]);
         return;
       }
 
 
       const items: LectureItem[] = [];
       const assemblyStates: Record<string, string> = {};
+      const validationJobs: LectureAudioCandidate[] = [];
 
 
       for (
@@ -449,10 +460,13 @@ export default function VoiceScreen() {
           const metadata =
             readMetadata(entry);
 
+          let hasCommittedSegments = false;
           try {
             const manifest = new File(entry, 'recording-manifest.json');
             if (manifest.exists) {
               const parsed: unknown = JSON.parse(manifest.textSync());
+              hasCommittedSegments = Array.isArray((parsed as { segments?: unknown[] } | null)?.segments) &&
+                ((parsed as { segments: { status?: string }[] }).segments.some(segment => segment.status === 'committed'));
               const state = (parsed as { assembly?: { state?: unknown } } | null)?.assembly?.state;
               if (typeof state === 'string') assemblyStates[metadata.id || entry.name] = state;
             }
@@ -466,9 +480,18 @@ export default function VoiceScreen() {
               metadata
             );
 
-          const recordingState =
-            metadata.recordingState ??
-            'ready';
+          let recordingState = metadata.recordingState ?? 'ready';
+          let validatedAudio = true;
+          if (audio) {
+            const id = metadata.id || entry.name;
+            const key = `${audio.file.uri}|${audio.file.size}|${audio.file.modificationTime ?? ''}`;
+            validationJobs.push({ id, key, uri: audio.file.uri });
+            validatedAudio = audioValidation.result(id, key) !== false;
+            if (!validatedAudio && hasCommittedSegments) {
+              assemblyStates[id] = 'assembly_failed';
+              if (recordingState === 'ready') recordingState = 'saved';
+            }
+          }
 
           /*
            * Durable checkpoints are the source of truth.
@@ -559,8 +582,7 @@ export default function VoiceScreen() {
                 : null,
 
             audioUri:
-              audio?.file.uri ??
-              '',
+              validatedAudio ? (audio?.file.uri ?? '') : '',
 
             audioFileName:
               audio?.name ??
@@ -572,7 +594,7 @@ export default function VoiceScreen() {
                 : null,
 
             transcriptReady:
-              transcriptFile.exists,
+              transcriptFile.exists && metadata.transcriptReady !== false,
 
             characters,
 
@@ -626,6 +648,7 @@ export default function VoiceScreen() {
 
       setLectures(items);
       setAudioAssemblyStates(assemblyStates);
+      audioValidation.submit(validationJobs);
 
     } catch (error) {
 
@@ -642,6 +665,7 @@ export default function VoiceScreen() {
   const handleRetryAudioPreparation = async (lecture: LectureItem) => {
     if (audioPreparationRequestsRef.current.has(lecture.id)) return;
     audioPreparationRequestsRef.current.add(lecture.id);
+    audioValidation.invalidate(lecture.id);
     setAudioAssemblyStates(current => ({ ...current, [lecture.id]: 'assembling' }));
     const t0 = Date.now();
     const report = {

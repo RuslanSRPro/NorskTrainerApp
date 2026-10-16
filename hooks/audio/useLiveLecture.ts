@@ -33,6 +33,7 @@ import WhisperKitLocal, {
 
 import type {
   LectureSourceLanguage,
+  LectureMetadata,
   LectureTranscription,
   SavedTranscriptSegment,
   TranslationTarget,
@@ -40,6 +41,9 @@ import type {
 
 import {
   createChunkPlan,
+  commitLectureTextSnapshot,
+  withAudioOperationDeadline,
+  trimLiveWindowOverlap,
   getLectureDirectory,
   getTranslationFileName,
   getTranslationSegmentsFileName,
@@ -48,10 +52,6 @@ import {
   isMeaningfulTranscriptText,
   writeMetadata,
 } from '@/features/audio/lectureStorage';
-
-function writeLiveJsonArray(file: File, values: SavedTranscriptSegment[]) {
-  LectureRecorder.writeTextSnapshot(file.uri, JSON.stringify(values));
-}
 
 const KEEP_AWAKE_TAG =
   'lecture-live-transcription';
@@ -300,6 +300,7 @@ export function useLiveLecture({
     useRef(0);
 
   const stoppingRef = useRef(false);
+  const coverageGapRef = useRef(false);
   const stopOnUnmountRef = useRef<() => Promise<void>>(async () => {});
   const startInFlightRef = useRef(false);
 
@@ -423,7 +424,8 @@ export function useLiveLecture({
       segments: SavedTranscriptSegment[],
       translatedSegments:
         SavedTranscriptSegment[] =
-          translatedRef.current
+          translatedRef.current,
+      snapshotMetadata?: LectureMetadata
     ) => {
       const directory =
         getLectureDirectory(
@@ -455,33 +457,10 @@ export function useLiveLecture({
           )
           .trim();
 
+      const updates: Record<string, string | null> = {};
       if (text) {
-        const transcriptFile =
-          new File(
-            directory,
-            'transcript.txt'
-          );
-
-        LectureRecorder.writeTextSnapshot(transcriptFile.uri, text);
-
-        writeLiveJsonArray(
-          new File(
-            directory,
-            'transcript-segments.json'
-          ),
-          confirmed
-        );
-
-        if (
-          !liveTranscriptPersistedTimingLoggedRef.current
-        ) {
-          liveTranscriptPersistedTimingLoggedRef.current =
-            true;
-          recordAudioTiming(
-            'LIVE_TRANSCRIPT_PERSISTED',
-            `lecture=${active.id};segments=${confirmed.length}`
-          );
-        }
+        updates['transcript.txt'] = text;
+        updates['transcript-segments.json'] = JSON.stringify(confirmed);
       }
 
       const translated =
@@ -501,25 +480,17 @@ export function useLiveLecture({
           .trim();
 
       if (translatedText) {
-        const translationFile =
-          new File(
-            directory,
-            getTranslationFileName(
-              active.translationTarget
-            )
-          );
-
-        LectureRecorder.writeTextSnapshot(translationFile.uri, translatedText);
-
-        writeLiveJsonArray(
-          new File(
-            directory,
-            getTranslationSegmentsFileName(
-              active.translationTarget
-            )
-          ),
-          translated
-        );
+        updates[getTranslationFileName(active.translationTarget)] = translatedText;
+        updates[getTranslationSegmentsFileName(active.translationTarget)] = JSON.stringify(translated);
+      }
+      if (snapshotMetadata) {
+        updates['session.json'] = JSON.stringify({ ...snapshotMetadata,
+          transcriptFile: text ? 'transcript.txt' : null, characters: text.length });
+      }
+      if (Object.keys(updates).length > 0) commitLectureTextSnapshot(directory, updates);
+      if (text && !liveTranscriptPersistedTimingLoggedRef.current) {
+        liveTranscriptPersistedTimingLoggedRef.current = true;
+        recordAudioTiming('LIVE_TRANSCRIPT_PERSISTED', `lecture=${active.id};segments=${confirmed.length}`);
       }
 
       return {
@@ -795,9 +766,11 @@ export function useLiveLecture({
               [];
 
           for (
-            const segment
+            const rawSegment
             of incoming
           ) {
+            const segment = trimLiveWindowOverlap(confirmedRef.current, rawSegment);
+            if (!segment) continue;
             const key =
               segmentKey(
                 segment
@@ -905,21 +878,21 @@ export function useLiveLecture({
           const currentActive =
             activeRef.current;
 
-          if (!currentActive || stoppingRef.current || event.sessionId !== currentActive.audioFile.uri) {
+          if (!currentActive || event.sessionId !== currentActive.audioFile.uri) {
             return;
           }
 
+          if (event.requiresFullTranscription) coverageGapRef.current = true;
+          if (stoppingRef.current) return;
           const message =
             String(
               event.message ||
               'Live transcription failed.'
             );
 
-          persistLiveProgress(
-            currentActive,
-            confirmedRef.current,
-            translatedRef.current
-          );
+          try {
+            persistLiveProgress(currentActive, confirmedRef.current, translatedRef.current);
+          } catch { /* Preserve the previous transaction; still report the recognizer error. */ }
 
           setError(message);
           setPhase('error');
@@ -994,9 +967,9 @@ export function useLiveLecture({
           );
         }
 
-        const assembled = allowAssembly ? await LectureRecorder.assembleRecording(
+        const assembled = allowAssembly ? await withAudioOperationDeadline(LectureRecorder.assembleRecording(
           active.audioFile.uri
-        ) : null;
+        ), 135000, 'Audio preparation/recovery') : null;
 
         if (assembled?.valid && assembled.playable) {
           finalDurationMillis = Math.max(
@@ -1016,8 +989,8 @@ export function useLiveLecture({
         } catch {}
       }
 
-      writeMetadata(
-        directory,
+      persistLiveProgress(
+        active, confirmedRef.current, translatedRef.current,
         {
           id: active.id,
           createdAt: active.createdAt,
@@ -1089,6 +1062,7 @@ export function useLiveLecture({
     setBusy(true);
 
     confirmedRef.current = [];
+    coverageGapRef.current = false;
     translatedRef.current = [];
     liveFirstTextTimingLoggedRef.current =
       false;
@@ -1394,8 +1368,8 @@ export function useLiveLecture({
       if (!durableStopped) return;
       const text = confirmedRef.current.map(segment => segment.text).join(' ').trim();
       const duration = durableStopped.durationMillis;
-      const processed = Math.min(duration / 1000, Math.max(0, ...confirmedRef.current.map(segment => segment.end)));
-      writeMetadata(getLectureDirectory(active.id), {
+      const processed = coverageGapRef.current ? 0 : Math.min(duration / 1000, Math.max(0, ...confirmedRef.current.map(segment => segment.end)));
+      persistLiveProgress(active, confirmedRef.current, translatedRef.current, {
         id: active.id, createdAt: active.createdAt, durationMillis: duration,
         language: active.sourceLanguage, title: null, audioFile: '',
         transcriptFile: text ? 'transcript.txt' : null, transcriptReady: false,
@@ -1417,6 +1391,7 @@ export function useLiveLecture({
       try {
         const stoppedLive =
           await WhisperKitLocal.stopLive();
+        if (stoppedLive.requiresFullTranscription) coverageGapRef.current = true;
         streamCleanupTimedOut =
           stoppedLive.streamCleanupTimedOut === true;
       } catch (liveStopError) {
@@ -1450,9 +1425,9 @@ export function useLiveLecture({
       recordAudioTiming('LIVE_SEGMENTS_SAVED', `lecture=${active.id};segments=${stopped.segmentCount}`);
 
       const assembled =
-        await LectureRecorder.assembleRecording(
+        await withAudioOperationDeadline(LectureRecorder.assembleRecording(
           active.audioFile.uri
-        );
+        ), 135000, 'Audio preparation/recovery');
 
       if (
         !assembled.valid ||
@@ -1481,8 +1456,8 @@ export function useLiveLecture({
       const baseTranscription =
         createChunkPlan(durationMillis);
 
-      writeMetadata(
-        directory,
+      persistLiveProgress(
+        active, confirmedRef.current, translatedRef.current,
         {
           id:
             active.id,
@@ -1670,9 +1645,9 @@ export function useLiveLecture({
         recordAudioTiming('LIVE_TRANSLATION_RETRY_REQUIRED', `lecture=${active.id}`);
       }
 
+      if (coverageGapRef.current) processedUntilSeconds = 0;
       const transcriptComplete =
-        !streamCleanupTimedOut &&
-        tailCompleted;
+        !coverageGapRef.current && !streamCleanupTimedOut && tailCompleted;
 
       const transcription:
         LectureTranscription = {
@@ -1688,7 +1663,9 @@ export function useLiveLecture({
             transcriptComplete
               ? null
               : (
-                streamCleanupTimedOut
+                coverageGapRef.current
+                  ? 'Live contains an unconfirmed coverage gap. Audio and confirmed text are saved. Retry full transcription.'
+                  : streamCleanupTimedOut
                   ? 'Whisper is still finishing. Audio and confirmed text are saved. Retry transcription to complete the tail.'
                   : tailError
                     ? `Final Live tail transcription failed: ${tailError}. Confirmed transcript was preserved.`
@@ -1711,8 +1688,9 @@ export function useLiveLecture({
               ),
         };
 
-      writeMetadata(
-        directory,
+      if (!transcriptComplete) setError(transcription.error || 'Retry transcription to finish the saved lecture.');
+      persistLiveProgress(
+        active, finalSegments, translatedRef.current,
         {
           id:
             active.id,
@@ -1825,6 +1803,7 @@ export function useLiveLecture({
       if (durableStopped && !assembledAudioReady) {
         try { checkpointSegments(`Audio preparation failed: ${message}. Saved segments remain available for transcription and retry.`); }
         catch { /* Existing manifest/checkpoints remain the authority. */ }
+        permanentAudioCreated = durableStopped.segmentCount > 0;
       }
 
       /*
