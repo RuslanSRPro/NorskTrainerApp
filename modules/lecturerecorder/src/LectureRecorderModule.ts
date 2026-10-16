@@ -4,6 +4,8 @@ import {
 } from 'expo';
 
 export type LectureRecorderStatus = {
+  isStarting?: boolean;
+  cleanupPending?: boolean;
   isRecording: boolean;
   durationMillis: number;
   uri: string | null;
@@ -108,6 +110,8 @@ declare class LectureRecorderNativeModule
   cancel(): Promise<{
     ok: boolean;
   }>;
+
+  cancelForUri(destinationUri: string): Promise<{ok: boolean; cleanupPending?: boolean; staleRequestSkipped?: boolean}>;
 
   writeTextSnapshot(uri: string, text: string): boolean;
 

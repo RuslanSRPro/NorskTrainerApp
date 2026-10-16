@@ -57,6 +57,8 @@ const LectureRecorder = {
     return { ok: true };
   },
 
+  async cancelForUri(_destinationUri: string): Promise<{ok: boolean}> { return {ok:true}; },
+
   writeTextSnapshot(_uri: string, _text: string): boolean {
     unsupported();
   },

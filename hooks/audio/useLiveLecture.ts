@@ -911,6 +911,8 @@ export function useLiveLecture({
   const cleanupAudioSession =
     async () => {
       try {
+        const native = LectureRecorder.getStatus();
+        if (native.uri || native.isStarting || native.cleanupPending) return;
         await setAudioModeAsync({
           playsInSilentMode: true,
           allowsRecording: false,
@@ -956,7 +958,7 @@ export function useLiveLecture({
           } else {
             // A native session can own this URI before its first durable
             // buffer, while isRecording is still false.
-            await LectureRecorder.cancel();
+            await withAudioOperationDeadline(LectureRecorder.cancelForUri(active.audioFile.uri), 12000, 'Live recorder cleanup');
           }
         }
 
@@ -983,8 +985,8 @@ export function useLiveLecture({
         // Durable segments/manifest remain the recovery authority.
         try {
           const status = LectureRecorder.getStatus();
-          if (status.uri === active.audioFile.uri) {
-            await LectureRecorder.cancel();
+          if (status.uri === active.audioFile.uri && !status.cleanupPending && !status.isStarting) {
+            await withAudioOperationDeadline(LectureRecorder.cancelForUri(active.audioFile.uri), 12000, 'Live recorder cleanup');
           }
         } catch {}
       }
@@ -1185,7 +1187,7 @@ export function useLiveLecture({
         } else { recordAudioTiming('LIVE_RECOGNIZER_READY'); }
       });
 
-      await LectureRecorder.start(liveAudioFile.uri);
+      await withAudioOperationDeadline(LectureRecorder.start(liveAudioFile.uri), 10000, 'Live recorder Start');
       if (generationRef.current !== generation) return;
 
       const recorderDeadline =

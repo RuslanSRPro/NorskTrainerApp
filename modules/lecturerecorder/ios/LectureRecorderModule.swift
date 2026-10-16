@@ -3,6 +3,32 @@ import ExpoModulesCore
 import UIKit
 import Foundation
 
+// Response ownership is independent from real queue/file ownership.
+private final class LectureRecorderReply<Value>: @unchecked Sendable {
+  private let lock = NSLock()
+  private var handler: ((Result<Value, Error>) -> Void)?
+  private var deadline: DispatchWorkItem?
+  init(_ handler: @escaping (Result<Value, Error>) -> Void) { self.handler = handler }
+  var isPending: Bool { lock.lock(); defer { lock.unlock() }; return handler != nil }
+  @discardableResult func finish(_ result: Result<Value, Error>) -> Bool {
+    lock.lock()
+    guard let callback = handler else { lock.unlock(); return false }
+    handler = nil; let timer = deadline; deadline = nil
+    lock.unlock()
+    timer?.cancel(); callback(result) // No callback or filesystem work under the gate lock.
+    return true
+  }
+  func arm(after seconds: Double, error: Error, timedOut: @escaping () -> Void) {
+    let timer = DispatchWorkItem { [weak self] in
+      if self?.finish(.failure(error)) == true { timedOut() }
+    }
+    lock.lock()
+    guard handler != nil else { lock.unlock(); return }
+    deadline = timer; lock.unlock()
+    DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + seconds, execute: timer)
+  }
+}
+
 private final class LectureRecorderException: Exception {
   private let recorderReason: String
 
@@ -344,7 +370,9 @@ public final class LectureRecorderModule: Module {
   private let firstSegmentDurationSeconds = 5.0
   private let segmentDurationSeconds = 30.0
 
-  private var audioEngine: AVAudioEngine?
+  private var audioEngine: AVAudioEngine? {
+    didSet { withStateLock { statusEngineSnapshot = audioEngine } }
+  }
   private var inputTapInstalled = false
 
   // Writer-queue-owned state.
@@ -354,16 +382,36 @@ public final class LectureRecorderModule: Module {
   private var currentSegmentDurationSeconds = 0.0
 
   // Main-thread lifecycle state.
-  private var currentDestinationURL: URL?
+  private var currentDestinationURL: URL? {
+    didSet { withStateLock { statusHasDestination = currentDestinationURL != nil } }
+  }
   private var currentSegmentsDirectoryURL: URL?
   private let stopResponseLock = NSLock()
   private var stopResponseSettled = false // Response gate; native ownership is separate.
   private var stopRequestToken = UUID()
   private var interruptionCleanupPending = false
   private var interruptionResumeRequested = false
+  private var pendingStartReply: LectureRecorderReply<[String: Any]>? {
+    didSet { withStateLock { statusPendingStart = pendingStartReply } }
+  }
+  private var pendingStartURL: URL?
+  // Process-lifetime cancellation tombstones: a reordered Start cannot activate a cancelled URI.
+  private var cancelledStartURIs = Set<String>()
+  private var pendingStartLease: LectureFileAdmission.Lease?
+  private let startResponseDeadlineSeconds = 8.0
+  private let cancelResponseDeadlineSeconds = 10.0
+  private let startupDrainDeadlineSeconds = 5.0
+  private var cleanupTicket: UUID?
+  private var cleanupCompletions: [() -> Void] = []
+  // State-lock-protected URI for targeted cancellation and pending-start diagnostics.
+  private var ownerDestinationSnapshot: String?
   private var pendingStopPromise: Promise?
-  private var isStopping = false
-  private var isPausedForInterruption = false
+  private var isStopping = false {
+    didSet { withStateLock { statusStopping = isStopping } }
+  }
+  private var isPausedForInterruption = false {
+    didSet { withStateLock { statusPaused = isPausedForInterruption } }
+  }
   private var resumeToken: UUID?
   private var interruptionObserver: NSObjectProtocol?
   private var routeChangeObserver: NSObjectProtocol?
@@ -371,6 +419,13 @@ public final class LectureRecorderModule: Module {
   private var lifecycleRestartPending = false
   private var activeInputSampleRate = 0.0
   private var activeInputChannelCount: AVAudioChannelCount = 0
+
+  // Status readers never synchronously dispatch to main or race main-owned lifecycle pointers.
+  private weak var statusEngineSnapshot: AVAudioEngine?
+  private weak var statusPendingStart: LectureRecorderReply<[String: Any]>?
+  private var statusHasDestination = false
+  private var statusStopping = false
+  private var statusPaused = false
 
   // Lock-protected live metrics/state snapshots.
   private var capturedDurationSeconds = 0.0
@@ -448,172 +503,7 @@ public final class LectureRecorderModule: Module {
     }
 
     AsyncFunction("start") { (destinationUri: String) async throws -> [String: Any] in
-      if self.pendingStopPromise != nil || self.isStopping {
-        throw self.makeException(
-          code: "ERR_STOP_PENDING",
-          message: "The previous lecture recording is still finishing."
-        )
-      }
-
-      if self.currentDestinationURL != nil {
-        throw self.makeException(
-          code: "ERR_ALREADY_RECORDING",
-          message: "A lecture recording is already in progress."
-        )
-      }
-
-      guard
-        let destinationURL = URL(string: destinationUri),
-        destinationURL.isFileURL
-      else {
-        throw self.makeException(
-          code: "ERR_INVALID_DESTINATION",
-          message: "The recording destination is not a valid local file URL."
-        )
-      }
-
-      self.appendTimingEvent(
-        "NATIVE_START_ENTERED",
-        destinationURL: destinationURL
-      )
-
-      guard let lease = self.fileAdmission.claimRecording(destinationURL.standardizedFileURL.path) else {
-        throw self.makeException(code: "ERR_AUDIO_OPERATION_BUSY", message: "This destination is already owned by recording or recovery.")
-      }
-      var transferredLease = false
-      defer { if !transferredLease { self.fileAdmission.finish(lease) } }
-
-      let parentURL = destinationURL.deletingLastPathComponent()
-      try FileManager.default.createDirectory(
-        at: parentURL,
-        withIntermediateDirectories: true
-      )
-
-      let segmentsDirectoryURL =
-        self.segmentsDirectoryURL(
-          for: destinationURL
-        )
-
-      let manifestURL =
-        self.recordingManifestURL(
-          for: destinationURL
-        )
-
-      let destinationExists =
-        FileManager.default.fileExists(
-          atPath: destinationURL.path
-        )
-
-      let segmentsDirectoryExists =
-        FileManager.default.fileExists(
-          atPath: segmentsDirectoryURL.path
-        )
-
-      let manifestExists =
-        FileManager.default.fileExists(
-          atPath: manifestURL.path
-        )
-
-      guard
-        !destinationExists,
-        !segmentsDirectoryExists,
-        !manifestExists
-      else {
-        throw self.makeException(
-          code: "ERR_DESTINATION_EXISTS",
-          message: "The lecture recording destination already contains durable recording data. Start refused to overwrite it."
-        )
-      }
-
-      try FileManager.default.createDirectory(
-        at: segmentsDirectoryURL,
-        withIntermediateDirectories: true
-      )
-
-      self.appendTimingEvent("MANIFEST_CREATE_BEGIN", destinationURL: destinationURL)
-      try self.createInitialRecordingManifest(
-        for: destinationURL
-      )
-      self.appendTimingEvent("MANIFEST_CREATE_END", destinationURL: destinationURL)
-
-      self.currentDestinationURL = destinationURL
-      self.currentSegmentsDirectoryURL = segmentsDirectoryURL
-      self.recordingFileLease = lease
-      transferredLease = true
-      self.beginRecordingSession()
-      self.isStopping = false
-      self.isPausedForInterruption = false
-      self.resumeToken = nil
-      self.lifecycleRestartPending = false
-
-      self.resetLiveState()
-      self.appendTimingEvent("WRITER_RESET_BEGIN", destinationURL: destinationURL)
-      self.resetWriterState()
-      self.appendTimingEvent("WRITER_RESET_END", destinationURL: destinationURL)
-
-      do {
-        self.appendTimingEvent(
-          "SESSION_CONFIG_BEGIN",
-          destinationURL: destinationURL
-        )
-        try self.configureAudioSessionForRecording()
-        self.appendTimingEvent(
-          "SESSION_CONFIG_END",
-          destinationURL: destinationURL
-        )
-        self.appendTimingEvent(
-          "SESSION_ACTIVE",
-          destinationURL: destinationURL
-        )
-        self.appendTimingEvent(
-          "ENGINE_START_BEGIN",
-          destinationURL: destinationURL
-        )
-        try self.startCaptureEngine()
-        self.appendTimingEvent(
-          "ENGINE_STARTED",
-          destinationURL: destinationURL
-        )
-
-        // Register lifecycle observers only after the initial audio
-        // session configuration and engine start have succeeded.
-        //
-        // configureAudioSessionForRecording() can itself cause iOS to
-        // publish route-change notifications. Observing those during
-        // initial Start can make the recorder restart itself before the
-        // first durable microphone write has been confirmed.
-        self.ensureAudioLifecycleObservers()
-      } catch {
-        self.stopCaptureEngine()
-        self.deactivateAudioSession()
-        // Preserve any checkpoint or partial created before Start failed,
-        // but never block the main queue behind pending writer work.
-        self.isStopping = true
-        await withCheckedContinuation { continuation in
-          self.writerQueue.async {
-            self.finalizeCurrentSegmentOnWriterQueue()
-            continuation.resume()
-          }
-        }
-        await withCheckedContinuation { continuation in
-          DispatchQueue.main.async {
-            self.cleanupAfterFailedStopPreservingSegments()
-            continuation.resume()
-          }
-        }
-
-        throw self.makeException(
-          code: "ERR_START_RECORDING",
-          message: "Could not start the native lecture recorder: \(error.localizedDescription)"
-        )
-      }
-
-      // Engine start alone is not proof that microphone data can be
-      // persisted. onRecorderReady is emitted only after the first
-      // AVAudioFile.write(from:) succeeds.
-      return self.makeStatusResult(
-        ok: true
-      )
+      try await self.startRecorderRequest(destinationUri)
     }
 
     AsyncFunction("stop") { (promise: Promise) in
@@ -627,7 +517,7 @@ public final class LectureRecorderModule: Module {
         return
       }
 
-      guard self.pendingStopPromise == nil else {
+      guard !self.isStopping, self.pendingStartReply == nil, self.pendingStopPromise == nil else {
         promise.reject(
           self.makeException(
             code: "ERR_STOP_PENDING",
@@ -639,7 +529,7 @@ public final class LectureRecorderModule: Module {
 
       self.pendingStopPromise = promise
       let stopToken = self.beginStopResponse()
-      DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
+      DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 20) { [weak self] in
         guard let self else { return }
         self.completeStopResponse(token: stopToken) {
           promise.reject(self.makeException(code: "ERR_STOP_DEADLINE",
@@ -777,112 +667,15 @@ public final class LectureRecorderModule: Module {
         }
       }
       }
-    }
+    }.runOnQueue(.main)
 
     AsyncFunction("cancel") { () async throws -> [String: Any] in
-      guard !self.isStopping else {
-        throw self.makeException(
-          code: "ERR_STOP_PENDING",
-          message: "The lecture recording is already finishing."
-        )
-      }
+      let target = self.withStateLock { self.ownerDestinationSnapshot }
+      return try await self.cancelRecorderRequest(target)
+    }
 
-      guard self.pendingStopPromise == nil else {
-        throw self.makeException(
-          code: "ERR_STOP_PENDING",
-          message: "Cannot cancel while the lecture recording is already finishing."
-        )
-      }
-
-      // Cancellation is non-destructive, including automatic failed-Start cleanup.
-      // The manifest, finalized checkpoints and unresolved partials remain recoverable.
-      self.resumeToken = nil
-      self.isStopping = true
-      self.isPausedForInterruption = false
-
-      self.stopAcceptingNewBuffers()
-      self.stopCaptureEngine()
-      self.deactivateAudioSession()
-
-      let drained: Bool = await withCheckedContinuation { continuation in
-        DispatchQueue.global(qos: .utility).async {
-          continuation.resume(
-            returning:
-              self.tapCallbackGroup.wait(
-                timeout: .now() + 5.0
-              ) == .success
-          )
-        }
-      }
-
-      /*
-       * The bounded drain above resumes an async continuation from a
-       * background queue. Do not rely on the continuation resuming on
-       * the module's original main GCD queue. All terminal recorder
-       * ownership/state transitions are explicitly returned to main.
-       *
-       * On timeout, isStopping remains true until the writer queue has
-       * finalized the recoverable tail and main performs the preserving
-       * cleanup. A new recording therefore cannot overlap the old
-       * recorder cleanup.
-       */
-      return try await withCheckedThrowingContinuation { continuation in
-        DispatchQueue.main.async {
-          if !drained {
-            // Never let a late callback cross into a future recording.
-            // Preserve committed checkpoints instead of deleting recovery data.
-            self.invalidateCaptureGeneration()
-
-            self.writerQueue.async { [weak self] in
-              guard let self else { return }
-              self.finalizeCurrentSegmentOnWriterQueue()
-
-              DispatchQueue.main.async {
-                self.cleanupAfterFailedStopPreservingSegments()
-                // Do not release JS until native ownership is cleared.
-                continuation.resume(
-                  throwing: self.makeException(
-                    code: "ERR_CANCEL_DRAIN_TIMEOUT",
-                    message:
-                      "Microphone callbacks exceeded the 5-second drain limit. " +
-                      "Native cleanup completed; recoverable audio checkpoints were preserved."
-                  )
-                )
-              }
-            }
-            return
-          }
-
-          // Finish queued writer work off the main queue. Cancellation remains
-          // non-destructive: finalized checkpoints and recoverable partials stay
-          // on disk for recovery.
-          self.writerQueue.async { [weak self] in
-            guard let self else {
-              continuation.resume(
-                throwing: LectureRecorderException(
-                  code: "ERR_CANCEL_INTERNAL",
-                  message: "The recorder was released while cancelling.",
-                  file: #fileID,
-                  line: #line,
-                  function: #function
-                )
-              )
-              return
-            }
-
-            self.finalizeCurrentSegmentOnWriterQueue()
-
-            DispatchQueue.main.async {
-              self.cleanupAfterFailedStopPreservingSegments()
-              continuation.resume(
-                returning: [
-                  "ok": true
-                ]
-              )
-            }
-          }
-        }
-      }
+    AsyncFunction("cancelForUri") { (destinationUri: String) async throws -> [String: Any] in
+      return try await self.cancelRecorderRequest(destinationUri)
     }
 
     Function("writeTextSnapshot") { (uri: String, text: String) throws -> Bool in
@@ -2250,7 +2043,7 @@ public final class LectureRecorderModule: Module {
       invalidateCaptureGeneration()
 
       writerQueue.async { [weak self] in
-        self?.abortCurrentPartialOnWriterQueue()
+        self?.finalizeCurrentSegmentOnWriterQueue()
       }
 
       let nsError = error as NSError
@@ -3008,37 +2801,12 @@ public final class LectureRecorderModule: Module {
     }
   }
 
-  private func abortCurrentPartialOnWriterQueue() {
+  private func resetWriterStateOnWriterQueue() {
     currentSegmentFile = nil
-
-    if let currentPartURL {
-      removeFileIfPresent(
-        currentPartURL
-      )
-    }
-
     currentPartURL = nil
+    nextSegmentIndex = 1
     currentSegmentDurationSeconds = 0
-
-    withStateLock {
-      currentPartURLSnapshot = nil
-    }
-  }
-
-  private func abortWriterAndDeletePartial() {
-    writerQueue.sync {
-      self.abortCurrentPartialOnWriterQueue()
-    }
-  }
-
-  private func resetWriterState() {
-    writerQueue.sync {
-      self.currentSegmentFile = nil
-      self.currentPartURL = nil
-      self.nextSegmentIndex = 1
-      self.currentSegmentDurationSeconds = 0
-      self.timingFirstWriterAttemptLogged = false
-    }
+    timingFirstWriterAttemptLogged = false
   }
 
   private func reportLivePCMGap(generation: UInt64, sourceURI: String?) {
@@ -3118,6 +2886,181 @@ public final class LectureRecorderModule: Module {
   }
 
   // MARK: - Stop / merge / recovery
+
+  // Public async functions never synchronously wait for the serial writer.
+  private func startRecorderRequest(_ uri: String) async throws -> [String: Any] {
+    guard let destination = URL(string: uri), destination.isFileURL else {
+      throw makeException(code: "ERR_INVALID_DESTINATION", message: "Invalid local recording destination.")
+    }
+    return try await withCheckedThrowingContinuation { continuation in
+      let reply = LectureRecorderReply<[String: Any]> { continuation.resume(with: $0) }
+      reply.arm(after: self.startResponseDeadlineSeconds, error: self.makeException(code: "ERR_START_DEADLINE",
+        message: "Recorder preparation exceeded 8 seconds. Start was cancelled; previous native work retains ownership until it really finishes.")) {
+        self.appendTimingEvent("START_DEADLINE", destinationURL: destination)
+      }
+      DispatchQueue.main.async {
+        guard reply.isPending else { return } // A request delayed before main admission cannot start late.
+        guard !self.cancelledStartURIs.contains(destination.absoluteString) else {
+          reply.finish(.failure(self.makeException(code: "ERR_START_CANCELLED", message: "This Start was cancelled before native admission."))); return
+        }
+        guard self.pendingStartReply == nil, self.currentDestinationURL == nil,
+              !self.isStopping, self.pendingStopPromise == nil else {
+          reply.finish(.failure(self.makeException(code: "ERR_RECORDER_BUSY",
+            message: "The previous recorder operation is still preparing or cleaning up. Source audio was preserved; retry after it completes.")))
+          return
+        }
+        guard let lease = self.fileAdmission.claimRecording(destination.standardizedFileURL.path) else {
+          reply.finish(.failure(self.makeException(code: "ERR_AUDIO_OPERATION_BUSY", message: "This destination is already owned by recording or recovery.")))
+          return
+        }
+        self.pendingStartReply = reply
+        self.pendingStartURL = destination
+        self.pendingStartLease = lease
+        self.withStateLock { self.ownerDestinationSnapshot = destination.absoluteString }
+        self.appendTimingEvent("NATIVE_START_ENTERED", destinationURL: destination)
+        self.appendTimingEvent("WRITER_RESET_QUEUED", destinationURL: destination)
+        self.writerQueue.async {
+          guard reply.isPending else {
+            DispatchQueue.main.async { self.releasePreparedStart(reply) }
+            return
+          }
+          self.appendTimingEvent("WRITER_RESET_BEGIN", destinationURL: destination)
+          self.resetWriterStateOnWriterQueue()
+          self.appendTimingEvent("WRITER_RESET_END", destinationURL: destination)
+          guard reply.isPending else {
+            DispatchQueue.main.async { self.releasePreparedStart(reply) }
+            return
+          }
+          do {
+            let folder = self.segmentsDirectoryURL(for: destination)
+            let manifest = self.recordingManifestURL(for: destination)
+            guard !FileManager.default.fileExists(atPath: destination.path),
+                  !FileManager.default.fileExists(atPath: folder.path),
+                  !FileManager.default.fileExists(atPath: manifest.path) else {
+              throw self.makeException(code: "ERR_DESTINATION_EXISTS", message: "Start refused to overwrite existing durable recording data.")
+            }
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            guard reply.isPending else {
+              DispatchQueue.main.async { self.releasePreparedStart(reply) }; return
+            }
+            self.appendTimingEvent("MANIFEST_CREATE_BEGIN", destinationURL: destination)
+            try self.createInitialRecordingManifest(for: destination)
+            self.appendTimingEvent("MANIFEST_CREATE_END", destinationURL: destination)
+            DispatchQueue.main.async {
+              guard self.pendingStartReply === reply, reply.isPending else {
+                self.releasePreparedStart(reply); return
+              }
+              self.currentDestinationURL = destination
+              self.currentSegmentsDirectoryURL = folder
+              self.recordingFileLease = lease
+              self.pendingStartLease = nil
+              self.beginRecordingSession()
+              self.isStopping = false; self.isPausedForInterruption = false
+              self.resumeToken = nil; self.lifecycleRestartPending = false
+              self.resetLiveState()
+              do {
+                guard reply.isPending else { throw CancellationError() }
+                self.appendTimingEvent("SESSION_CONFIG_BEGIN", destinationURL: destination)
+                try self.configureAudioSessionForRecording()
+                self.appendTimingEvent("SESSION_CONFIG_END", destinationURL: destination)
+                guard reply.isPending else { throw CancellationError() }
+                self.appendTimingEvent("ENGINE_START_BEGIN", destinationURL: destination)
+                try self.startCaptureEngine()
+                guard reply.isPending else { throw CancellationError() }
+                self.appendTimingEvent("ENGINE_STARTED", destinationURL: destination)
+                self.ensureAudioLifecycleObservers()
+                // finish() is the linearization point: a deadline may win even after the last check.
+                if reply.finish(.success(self.makeStatusResult(ok: true))) {
+                  self.pendingStartReply = nil; self.pendingStartURL = nil
+                } else { self.cleanupFailedStart(reply) }
+              } catch {
+                reply.finish(.failure(self.makeException(code: "ERR_START_RECORDING",
+                  message: "Native recorder startup failed: \(error.localizedDescription). Cleanup preserves source audio.")))
+                self.cleanupFailedStart(reply)
+              }
+            }
+          } catch {
+            reply.finish(.failure(error))
+            DispatchQueue.main.async { self.releasePreparedStart(reply) }
+          }
+        }
+      }
+    }
+  }
+
+  // Called on main only after preparation really exited writerQueue. No active engine owns this lease.
+  private func releasePreparedStart(_ reply: LectureRecorderReply<[String: Any]>) {
+    guard pendingStartReply === reply, currentDestinationURL == nil else { return }
+    if let lease = pendingStartLease { fileAdmission.finish(lease) }
+    pendingStartLease = nil; pendingStartReply = nil; pendingStartURL = nil
+    withStateLock { ownerDestinationSnapshot = nil }
+  }
+
+  private func cleanupFailedStart(_ reply: LectureRecorderReply<[String: Any]>) {
+    guard pendingStartReply === reply, !isStopping else { return }
+    isStopping = true; resumeToken = nil
+    stopAcceptingNewBuffers(); stopCaptureEngine(); deactivateAudioSession()
+    let session = currentRecordingSession()
+    DispatchQueue.global(qos: .utility).async {
+      let drained = self.tapCallbackGroup.wait(timeout: .now() + self.startupDrainDeadlineSeconds) == .success
+      DispatchQueue.main.async {
+        guard self.pendingStartReply === reply, self.currentRecordingSession() == session else { return }
+        if !drained { self.invalidateCaptureGeneration() }
+        self.writerQueue.async {
+          self.finalizeCurrentSegmentOnWriterQueue()
+          DispatchQueue.main.async { self.cleanupAfterFailedStopPreservingSegments() }
+        }
+      }
+    }
+  }
+
+  private func cancelRecorderRequest(_ expectedURI: String?) async throws -> [String: Any] {
+    return try await withCheckedThrowingContinuation { continuation in
+      let reply = LectureRecorderReply<[String: Any]> { continuation.resume(with: $0) }
+      reply.arm(after: self.cancelResponseDeadlineSeconds, error: self.makeException(code: "ERR_CANCEL_DEADLINE",
+        message: "Recorder cancellation is still finishing. Audio was preserved; native ownership remains held until cleanup actually completes.")) {
+        self.appendTimingEvent("CANCEL_DEADLINE", destinationURL: expectedURI.flatMap { URL(string: $0) })
+      }
+      DispatchQueue.main.async {
+        if let expectedURI { self.cancelledStartURIs.insert(expectedURI) }
+        let actual = self.currentDestinationURL?.absoluteString ?? self.pendingStartURL?.absoluteString
+        guard let expectedURI, actual == expectedURI else {
+          reply.finish(.success(["ok": true, "staleRequestSkipped": true])); return
+        }
+        if let start = self.pendingStartReply {
+          start.finish(.failure(self.makeException(code: "ERR_START_CANCELLED", message: "Recorder Start was cancelled before completion.")))
+          if self.currentDestinationURL == nil {
+            // Pending writer work owns this reservation until it exits. Never enqueue a second reset.
+            reply.finish(.success(["ok": true, "cleanupPending": true])); return
+          }
+        }
+        guard !self.isStopping, self.pendingStopPromise == nil else {
+          reply.finish(.failure(self.makeException(code: "ERR_STOP_PENDING", message: "The recorder is already finishing; native ownership remains held."))); return
+        }
+        self.isStopping = true; self.resumeToken = nil; self.isPausedForInterruption = false
+        self.stopAcceptingNewBuffers(); self.stopCaptureEngine(); self.deactivateAudioSession()
+        let session = self.currentRecordingSession()
+        DispatchQueue.global(qos: .utility).async {
+          let drained = self.tapCallbackGroup.wait(timeout: .now() + self.startupDrainDeadlineSeconds) == .success
+          DispatchQueue.main.async {
+            guard self.currentRecordingSession() == session else {
+              reply.finish(.failure(self.makeException(code: "ERR_CANCEL_STALE", message: "Stale cancellation was discarded."))); return
+            }
+            if !drained { self.invalidateCaptureGeneration() }
+            self.writerQueue.async {
+              self.finalizeCurrentSegmentOnWriterQueue()
+              DispatchQueue.main.async {
+                self.cleanupAfterFailedStopPreservingSegments {
+                  if drained { reply.finish(.success(["ok": true])) }
+                  else { reply.finish(.failure(self.makeException(code: "ERR_CANCEL_DRAIN_TIMEOUT", message: "Microphone callbacks exceeded the drain limit. Native cleanup completed; source audio was preserved."))) }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   private func beginStopResponse() -> UUID {
     stopResponseLock.lock()
@@ -3228,9 +3171,10 @@ public final class LectureRecorderModule: Module {
         self.pendingStopPromise = nil
         switch outcome {
         case .success(let result):
-          self.cleanupAfterSuccessfulStop()
-          self.sendEvent("onRecorderStopped", result)
-          self.completeStopResponse(token: stopToken) { promise.resolve(result) }
+          self.cleanupAfterSuccessfulStop {
+            self.sendEvent("onRecorderStopped", result)
+            self.completeStopResponse(token: stopToken) { promise.resolve(result) }
+          }
         case .failure(let error):
           self.cleanupAfterFailedStopPreservingSegments()
           self.completeStopResponse(token: stopToken) { promise.reject(self.makeException(
@@ -3922,12 +3866,18 @@ public final class LectureRecorderModule: Module {
     ok: Bool
   ) -> [String: Any] {
     let snapshot = statusSnapshot()
+    let lifecycle = withStateLock {
+      (engine: statusEngineSnapshot, pending: statusPendingStart, active: statusHasDestination,
+       stopping: statusStopping, paused: statusPaused, uri: ownerDestinationSnapshot)
+    }
+    // SDK property access and the reply gate lock happen outside stateLock.
+    let engineRunning = lifecycle.engine?.isRunning == true
 
     let activelyRecording =
-      currentDestinationURL != nil &&
-      !isStopping &&
-      !isPausedForInterruption &&
-      audioEngine?.isRunning == true &&
+      lifecycle.active &&
+      !lifecycle.stopping &&
+      !lifecycle.paused &&
+      engineRunning &&
       snapshot.writerFailureMessage == nil &&
       snapshot.hasSuccessfulWrite
 
@@ -3936,15 +3886,16 @@ public final class LectureRecorderModule: Module {
       "isRecording": activelyRecording,
       "durationMillis": snapshot.durationMillis,
       "uri":
-        currentDestinationURL?.absoluteString ??
-        NSNull(),
+        (lifecycle.uri as Any?) ?? NSNull(),
+      "isStarting": lifecycle.pending != nil,
+      "cleanupPending": lifecycle.stopping || (lifecycle.pending != nil && lifecycle.pending?.isPending == false),
       "bytes": snapshot.bytes,
       "levelDb": snapshot.levelDb,
       "peakDb": snapshot.peakDb,
       "isPausedForInterruption":
-        isPausedForInterruption,
+        lifecycle.paused,
       "engineRunning":
-        audioEngine?.isRunning == true,
+        engineRunning,
       "hasSuccessfulWrite":
         snapshot.hasSuccessfulWrite,
       "writerFailureMessage":
@@ -4075,42 +4026,39 @@ public final class LectureRecorderModule: Module {
     UIApplication.shared.endBackgroundTask(task)
   }
 
-  private func cleanupAfterSuccessfulStop() {
-    endRecordingSession()
-    lifecycleRestartPending = false
-    stopAcceptingNewBuffers()
-    stopCaptureEngine()
-    deactivateAudioSession()
-    endStopBackgroundTask()
-
-    currentDestinationURL = nil
-    currentSegmentsDirectoryURL = nil
-    isStopping = false
-    isPausedForInterruption = false
-    resumeToken = nil
-
-    resetLiveState()
-    resetWriterState()
+  private func cleanupAfterSuccessfulStop(_ completion: @escaping () -> Void = {}) {
+    finishRecorderCleanup(completion)
   }
 
-  private func cleanupAfterFailedStopPreservingSegments() {
-    endRecordingSession()
-    lifecycleRestartPending = false
-    stopAcceptingNewBuffers()
-    stopCaptureEngine()
-    deactivateAudioSession()
-    endStopBackgroundTask()
+  private func cleanupAfterFailedStopPreservingSegments(_ completion: @escaping () -> Void = {}) {
+    finishRecorderCleanup(completion)
+  }
 
-    // Clear runtime ownership so JS can recover on the next launch,
-    // but intentionally keep the finalized segment directory on disk.
-    currentDestinationURL = nil
-    currentSegmentsDirectoryURL = nil
-    isStopping = false
-    isPausedForInterruption = false
-    resumeToken = nil
-
-    resetLiveState()
-    resetWriterState()
+  // Main-owned lifecycle -> writer-owned reset -> main-owned terminal publication.
+  // Neither Start nor recovery can claim the old destination before reset really exits.
+  private func finishRecorderCleanup(_ completion: @escaping () -> Void) {
+    cleanupCompletions.append(completion)
+    if cleanupTicket != nil { return }
+    let ticket = UUID(), session = currentRecordingSession()
+    cleanupTicket = ticket
+    isStopping = true; lifecycleRestartPending = false
+    stopAcceptingNewBuffers(); stopCaptureEngine(); deactivateAudioSession()
+    writerQueue.async {
+      self.resetWriterStateOnWriterQueue()
+      DispatchQueue.main.async {
+        guard self.cleanupTicket == ticket, self.currentRecordingSession() == session else { return }
+        self.endRecordingSession()
+        self.endStopBackgroundTask()
+        self.currentDestinationURL = nil; self.currentSegmentsDirectoryURL = nil
+        self.pendingStartReply = nil; self.pendingStartURL = nil; self.pendingStartLease = nil
+        self.withStateLock { self.ownerDestinationSnapshot = nil }
+        self.isStopping = false; self.isPausedForInterruption = false; self.resumeToken = nil
+        self.resetLiveState()
+        self.cleanupTicket = nil
+        let callbacks = self.cleanupCompletions; self.cleanupCompletions = []
+        callbacks.forEach { $0() }
+      }
+    }
   }
 
   private func beginRecordingSession() {

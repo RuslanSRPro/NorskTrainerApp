@@ -89,6 +89,7 @@ export function useLectureRecorder(
   }: UseLectureRecorderOptions
 ) {
 
+  const requestedAudioUriRef = useRef<string | null>(null);
   const onCheckpointCommittedRef =
     useRef(onCheckpointCommitted);
 
@@ -616,10 +617,8 @@ export function useLectureRecorder(
       recorderErrorEventRef.current =
         null;
 
-      const started =
-        await LectureRecorder.start(
-          audioUri
-        );
+      requestedAudioUriRef.current = audioUri;
+      const started = await withAudioOperationDeadline(LectureRecorder.start(audioUri), 10000, 'Native recorder Start');
 
       /*
        * Native start() now means "the engine accepted the start request".
@@ -811,9 +810,10 @@ export function useLectureRecorder(
       LectureRecorder.stop();
 
 
-  const cancelRecording =
-    () =>
-      LectureRecorder.cancel();
+  const cancelRecording = () => {
+    const uri = requestedAudioUriRef.current || LectureRecorder.getStatus().uri;
+    return uri ? withAudioOperationDeadline(LectureRecorder.cancelForUri(uri), 12000, 'Recorder cleanup') : Promise.resolve({ok:true});
+  };
 
 
   const getAudioInfo =

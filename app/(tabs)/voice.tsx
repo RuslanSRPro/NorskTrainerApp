@@ -919,6 +919,8 @@ export default function VoiceScreen() {
       );
 
       try {
+        const native = LectureRecorder.getStatus();
+        if (native.uri || native.isStarting || native.cleanupPending) return;
 
         await setAudioModeAsync({
           playsInSilentMode: true,
