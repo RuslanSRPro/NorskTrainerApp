@@ -3280,7 +3280,8 @@ public final class LectureRecorderModule: Module {
 
           if
             let formatDescription = assetTrack.formatDescriptions.first,
-            let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)?.pointee
+            let audioDescription = formatDescription as! CMAudioFormatDescription,
+            let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(audioDescription)?.pointee
           {
             let signature =
               "\(asbd.mFormatID):\(asbd.mSampleRate):\(asbd.mChannelsPerFrame):\(asbd.mFramesPerPacket)"
