@@ -1,10 +1,11 @@
-﻿# Grammar Evidence System V1
+# Grammar Evidence System V1
 
 Purpose: persistent, Git-versioned evidence bookkeeping for NorskTrainer Grammar Graph.
 
 ## Files
 
 - `registry.json` вЂ” source of truth for proof claims and proof status.
+- `history.jsonl` вЂ” append-only chronological record of proof runs, discoveries, harness errors, patches and commits.
 - `index.json` вЂ” generated current-source index; never promotes a proof.
 - `matrix.csv` вЂ” generated human-readable view.
 - `tools/build-evidence-index.py` вЂ” read-only source scanner and stale detector.
@@ -39,3 +40,14 @@ Purpose: persistent, Git-versioned evidence bookkeeping for NorskTrainer Grammar
 7. Govern and commit exact files only.
 
 `registry.json` is deliberately editable. Generated files are reproducible views, not evidence authority.
+
+## History rules
+
+`history.jsonl` records how the current proof state was reached. One JSON object equals one historical event.
+
+- History is append-only in normal operation.
+- Harness/package errors use `project_failure=false`; invalid runs must not be interpreted as project evidence.
+- `updates_proofs` links an event to registry claims.
+- History never promotes a registry claim automatically.
+- The builder validates that every non-empty `updates_proofs` identifier exists in `registry.json`.
+- Failed and superseded attempts remain in history so searches and mistakes are not repeated.

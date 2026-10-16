@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import csv, hashlib, json, subprocess
 from pathlib import Path
 
@@ -68,6 +68,24 @@ def effective_status(proof):
 
 def main():
     registry = json.loads(REGISTRY.read_text(encoding="utf-8-sig"))
+    history_path = BASE / "history.jsonl"
+    history = []
+    if history_path.exists():
+        for line_no, raw in enumerate(history_path.read_text(encoding="utf-8-sig").splitlines(), 1):
+            if not raw.strip():
+                continue
+            event = json.loads(raw)
+            event["_line"] = line_no
+            history.append(event)
+    known_proofs = {p["proof_id"] for p in registry["proofs"]}
+    unknown_history_proofs = sorted({
+        proof_id
+        for event in history
+        for proof_id in event.get("updates_proofs", [])
+        if proof_id not in known_proofs
+    })
+    if unknown_history_proofs:
+        raise SystemExit("Unknown proof ids in history: " + ", ".join(unknown_history_proofs))
     head = git("rev-parse", "HEAD")
     files = collect_files()
     proof_rows = []
@@ -92,6 +110,8 @@ def main():
         "head": head,
         "registry_baseline_head": registry.get("baseline_head"),
         "file_count": len(files),
+        "history_event_count": len(history),
+        "history_runs": [event.get("run") for event in history],
         "files": files,
         "proofs": proof_rows,
         "policy": {
