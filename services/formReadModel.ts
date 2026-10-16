@@ -23,7 +23,45 @@ export async function fetchFormsMap(
   const ids = [...new Set(lexemeIds.filter(Boolean))];
   if (ids.length === 0) return new Map();
 
-  return await fetchV2FormsMap(ids);
+  const forms = await fetchV2FormsMap(ids);
+  // D10 15.10.2026: a compound word without its own Ordbøkene article gets
+  // forms built from its head card (vinterjakke <- jakke). Read only for
+  // words with no V2 rows at all, so one word never mixes two sources.
+  const withoutForms = ids.filter((id) => !forms.has(id));
+  if (withoutForms.length > 0) {
+    try {
+      for (const [id, bundle] of await fetchCompoundHeadFormsMap(withoutForms)) {
+        forms.set(id, bundle);
+      }
+    } catch (error) {
+      // An addition only: without it the word simply has no forms, as before.
+      console.warn('[forms] compound head forms unavailable', error);
+    }
+  }
+  return forms;
+}
+
+async function fetchCompoundHeadFormsMap(
+  lexemeIds: string[],
+): Promise<Map<string, FormsBundle>> {
+  const rows: V2FormRow[] = [];
+  for (const idBatch of chunkValues(lexemeIds, FORM_QUERY_ID_BATCH_SIZE)) {
+    const { data, error } = await supabase
+      .from('lexeme_compound_head_forms_v1')
+      .select(
+        'lexeme_id, form_key, primary_values, alternative_values, accepted_articles, regularity_marker, display_order, compound_parts, headword',
+      )
+      .in('lexeme_id', idBatch)
+      .order('lexeme_id', { ascending: true })
+      .order('display_order', { ascending: true });
+    if (error) throw new Error(`fetchCompoundHeadFormsMap failed: ${error.message}`);
+    for (const row of (data ?? []) as any[]) {
+      rows.push({ ...row, is_compound: true, morphology_source_lemma: null } as V2FormRow);
+    }
+  }
+  const bundles = buildV2Bundles(rows);
+  for (const bundle of bundles.values()) bundle.forms_by_head = true;
+  return bundles;
 }
 
 async function fetchV2FormsMap(

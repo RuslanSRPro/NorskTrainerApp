@@ -19,6 +19,13 @@ import {
 import { generateExpressionCandidates } from './candidate-generator.ts';
 import { resolveExpressions } from './expression-resolver.ts';
 import { resolveCandidatesAgainstCatalog } from './candidate-catalog-bridge.ts';
+import {
+  needsNeighbours,
+  neighbourPos,
+  normalizeSurface,
+  selectByContext,
+  type SurfaceCandidateV2,
+} from './surface-resolver-v2.ts';
 
 declare const EdgeRuntime: {
   waitUntil(promise: Promise<unknown>): void;
@@ -212,6 +219,7 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
     normalized_key?: string | null;
     pos?: string | null;
     expression_subtype?: string | null;
+    legacy_lexeme_id?: string;
   }) {
     const rawKey =
       row.normalized_key ||
@@ -236,6 +244,7 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
       pos: 'expression',
       expression_subtype: row.expression_subtype ?? null,
       token_len: tokenLen,
+      legacy_lexeme_id: row.legacy_lexeme_id,
     };
 
     if (!item.id) return;
@@ -340,13 +349,18 @@ async function loadExpressions(): Promise<Map<string, ExpressionRow>> {
       .range(from, to);
   });
 
+  const legacyCatalogIds = new Map(catalogData.map((row: any) => [String(row.lexeme_id), String(row.id)]));
   for (const row of lexemeExpressionData) {
+    const catalogId = legacyCatalogIds.get(String(row.id));
+    // A legacy lexeme without a catalog row still participates in matching;
+    // its lexeme ID remains separate from expression_catalog identity.
     const expressionData = Array.isArray(row.expression_data)
       ? row.expression_data[0]
       : null;
 
     addExpression({
-      id: row.id,
+      id: catalogId ?? String(row.id),
+      legacy_lexeme_id: catalogId ? undefined : String(row.id),
       lemma: row.lemma,
       display_form: row.display_form || row.lemma,
       normalized_key: row.lemma,
@@ -501,6 +515,9 @@ async function loadLexemeFallbackResolution(
     .select('id, lemma, pos')
     .eq('lemma', lemma)
     .eq('pos', pos)
+    // D10 15.10.2026: with a second homograph card (bok II) the main card
+    // (empty homograph_key) comes first instead of a random one.
+    .order('homograph_key', { ascending: true })
     .limit(1)
     .maybeSingle();
 
@@ -558,35 +575,73 @@ function hasResolution(
 // одну строку (как раньше для однозначных слов), массив будет содержать
 // один элемент — вызывающий код (grammar-parser.ts) обрабатывает оба
 // случая одинаково через цикл.
+// D10 (11.10.2026): candidates come from resolve_surface_form_v2, which reads
+// the canonical V2 forms (lexeme_form_display_v2) and exact lexemes; the
+// legacy resolve_surface_form (emptied legacy form tables) is no longer
+// called. The legacy context choice is reproduced in surface-resolver-v2.ts.
+// GRAMMAR GRAPH (future): see the header of surface-resolver-v2.ts.
+type SurfaceCandidateCache = Map<string, Promise<SurfaceCandidateV2[]>>;
+
+function loadSurfaceCandidatesV2(
+  cache: SurfaceCandidateCache,
+  surfaceForm: string | null | undefined,
+): Promise<SurfaceCandidateV2[]> {
+  const key = normalizeSurface(surfaceForm);
+  if (!key) return Promise.resolve([]);
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const request = (async () => {
+    const { data, error } = await supabase.rpc('resolve_surface_form_v2', {
+      p_surface_form: String(surfaceForm),
+    });
+    if (error) throw error;
+    return (Array.isArray(data) ? data : [])
+      .filter((row: any) => row?.lexeme_id && row?.lemma) as SurfaceCandidateV2[];
+  })();
+  cache.set(key, request);
+  request.catch(() => cache.delete(key));
+  return request;
+}
+
+// One cache per request: neighbour lookups reuse the candidates of the
+// neighbouring tokens, so a text costs about one RPC per distinct word.
+function createSurfaceResolver() {
+  const cache: SurfaceCandidateCache = new Map();
+  return (surfaceForm: string, context?: SurfaceFormContext) =>
+    resolveSurfaceForm(cache, surfaceForm, context);
+}
+
 async function resolveSurfaceForm(
+  cache: SurfaceCandidateCache,
   surfaceForm: string,
   context?: SurfaceFormContext,
 ): Promise<SurfaceResolution[]> {
-  const { data, error } = await supabase.rpc('resolve_surface_form', {
-    p_surface_form: surfaceForm,
-    p_prev_token: context?.prevToken ?? null,
-    p_next_token: context?.nextToken ?? null,
-    p_preceded_by_infinitive_marker:
-      context?.precededByInfinitiveMarker ?? false,
-  });
+  const resolutionContext: SurfaceFormContext = {
+    prevToken: context?.prevToken ?? null,
+    nextToken: context?.nextToken ?? null,
+    precededByInfinitiveMarker: context?.precededByInfinitiveMarker ?? false,
+  };
 
-  if (error) throw error;
+  const rows = await loadSurfaceCandidatesV2(cache, surfaceForm);
 
-  const rows = Array.isArray(data) ? data : [];
+  let neighbours = neighbourPos(null, null);
+  if (needsNeighbours(rows, resolutionContext)) {
+    const [prevRows, nextRows] = await Promise.all([
+      resolutionContext.prevToken
+        ? loadSurfaceCandidatesV2(cache, resolutionContext.prevToken)
+        : Promise.resolve(null),
+      resolutionContext.nextToken
+        ? loadSurfaceCandidatesV2(cache, resolutionContext.nextToken)
+        : Promise.resolve(null),
+    ]);
+    neighbours = neighbourPos(prevRows, nextRows);
+  }
 
-  const resolutions: SurfaceResolution[] = rows
-    .filter((row: any) => row?.lexeme_id && row?.lemma)
-    .map((row: any) =>
-      normalizeKnownResolutionPos(surfaceForm, {
-        lexeme_id: row.lexeme_id,
-        lemma: row.lemma,
-        pos: row.pos,
-        form_type: row.form_type,
-        grammatical_features: row.grammatical_features ?? {},
-        confidence: row.confidence,
-        source: row.source,
-      })
-    );
+  const resolutions: SurfaceResolution[] = selectByContext(
+    rows,
+    resolutionContext,
+    neighbours,
+  ).map((resolution) => normalizeKnownResolutionPos(surfaceForm, resolution));
 
   const surface = normalizeExpression(surfaceForm);
 
@@ -1098,19 +1153,17 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
     const text = String(body.text || '').trim();
 
     // analysis_mode is separate from the parser's existing mode=word_list.
-    // Audit is the current production contract: every submitted occurrence
-    // gets fresh source checks and job-scoped enrichment. Read mode will
-    // return a preview and require an explicit user selection before any
-    // persistence; never let it fall through to the job-writing path.
+    // audit: every submitted occurrence is written as a job (source checks,
+    //        promotion, enrichment, admission) — automatic database write.
+    // read:  the same analysis is returned as a preview; nothing is written.
+    //        The app saves only the words the user selects, by calling
+    //        analysis_mode=audit + mode=word_list with those words.
     const analysisMode = body.analysis_mode ?? 'audit';
     if (analysisMode !== 'audit' && analysisMode !== 'read') {
       return Response.json({ ok: false, error: 'INVALID_ANALYSIS_MODE' },
         { status: 400, headers: corsHeaders });
     }
-    if (analysisMode === 'read') {
-      return Response.json({ ok: false, error: 'READ_MODE_NOT_READY' },
-        { status: 501, headers: corsHeaders });
-    }
+    const readOnly = analysisMode === 'read';
 
     const isolatedMode = body.mode === 'word_list';
 
@@ -1133,19 +1186,6 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
       );
     }
 
-    const { data: jobId, error: jobError } = await supabase.rpc(
-      'create_empty_text_analysis_job',
-      {
-        p_text: text,
-        // Ownership is derived only from the verified session JWT.
-        // A caller-supplied user_id must never be trusted.
-        p_user_id: authenticatedUserId,
-        p_ingestion_version: INGESTION_VERSION,
-      },
-    );
-
-    if (jobError) throw jobError;
-
     const expressionDict = await loadExpressions();
 
     console.log('[PARSER DICT]', {
@@ -1161,16 +1201,44 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
 
     const verbMaps = await loadVerbMaps();
 
-    const plannedItems = await planItems(
-      text,
-      expressionDict,
-      verbMaps,
-      resolveSurfaceForm,
-      { isolatedMode },
-    );
+    const surfaceResolver = createSurfaceResolver();
+    const plannedItems: PlannedItem[] = [];
 
-    const generatedCandidates = generateExpressionCandidates(plannedItems);
-    plannedItems.push(...generatedCandidates);
+    if (isolatedMode && /\n/.test(text)) {
+      // Word list with one entry per line (the app's "save selected" sends
+      // this): every line is planned on its own, so neighbouring entries can
+      // never be joined into an expression or a generated candidate. Token
+      // positions stay unique across lines.
+      let tokenOffset = 0;
+      for (const line of text.split(/\r?\n/)) {
+        if (!line.trim()) continue;
+        const lineItems = await planItems(
+          line,
+          expressionDict,
+          verbMaps,
+          surfaceResolver,
+          { isolatedMode },
+        );
+        lineItems.push(...generateExpressionCandidates(lineItems));
+        for (const item of lineItems) {
+          item.token_start += tokenOffset;
+          item.token_end += tokenOffset;
+          plannedItems.push(item);
+        }
+        tokenOffset += tokenize(line).length + 1;
+      }
+    } else {
+      plannedItems.push(...await planItems(
+        text,
+        expressionDict,
+        verbMaps,
+        surfaceResolver,
+        { isolatedMode },
+      ));
+
+      const generatedCandidates = generateExpressionCandidates(plannedItems);
+      plannedItems.push(...generatedCandidates);
+    }
 
     const candidateBridgeResult = await resolveCandidatesAgainstCatalog(
       supabase,
@@ -1223,6 +1291,49 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
         }
       }
     }
+
+    // Read mode: planning above only reads the database. Return the preview
+    // before any job, item or source check is created.
+    if (readOnly) {
+      return Response.json(
+        {
+          ok: true,
+          analysis_mode: 'read',
+          job: null,
+          ingestion: {
+            planned_items: plannedItems,
+            candidate_catalog_bridge_matched: candidateBridgeResult.matched,
+            candidate_catalog_bridge_unmatched: candidateBridgeResult.unmatched,
+            resolved_expressions: expressionResolution.resolved,
+            unresolved_expressions: expressionResolution.unresolved,
+            lexeme360_roots: lexeme360Network.roots,
+            lexeme360_candidates_found: lexeme360Network.candidates.length,
+          },
+          orchestrator: null,
+        },
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+    }
+
+    // Audit mode: the job is created only after planning succeeded, so a
+    // planning error no longer leaves an empty job behind.
+    const { data: jobId, error: jobError } = await supabase.rpc(
+      'create_empty_text_analysis_job',
+      {
+        p_text: text,
+        // Ownership is derived only from the verified session JWT.
+        // A caller-supplied user_id must never be trusted.
+        p_user_id: authenticatedUserId,
+        p_ingestion_version: INGESTION_VERSION,
+      },
+    );
+
+    if (jobError) throw jobError;
 
     // Every expression also receives fresh job-scoped source checks.
 
@@ -1325,6 +1436,7 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
     return Response.json(
       {
         ok: true,
+        analysis_mode: 'audit',
         job,
         ingestion: {
           planned_items: plannedItems,

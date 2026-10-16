@@ -1,5 +1,6 @@
 import { norwegianExample, createAiExampleBinding } from '../_shared/example-evidence.ts';
-import { QUALITY_VERSION, loadSelectedContext, reviewGenerated, buildEnrichmentEvidence } from './pos-sense-guard.ts';
+import { QUALITY_VERSION, loadSelectedContext, reviewGenerated, buildEnrichmentEvidence,
+  noArticleBlocker, noArticleContext, isNoArticleContext, selectedArticle } from './pos-sense-guard.ts';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -242,6 +243,153 @@ function extractLexinRawPreview(verificationEvidence: unknown): string | null {
   }
 }
 
+// D10 15.10.2026: Wiktionary excerpt for the no-article path (same shape and
+// length limit as NAOB / Lexin above).
+function extractWiktionaryRawPreview(verificationEvidence: unknown): string | null {
+  try {
+    const raw = (verificationEvidence as any)?.Wiktionary?.evidence?.raw_preview;
+    const text = typeof raw === 'string' ? raw : raw && typeof raw === 'object' ? JSON.stringify(raw) : null;
+    if (!text) return null;
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+    return trimmed.length > NAOB_CONTEXT_MAX_CHARS
+      ? trimmed.slice(0, NAOB_CONTEXT_MAX_CHARS) + '…'
+      : trimmed;
+  } catch {
+    return null;
+  }
+}
+
+// D10 15.10.2026 (agreed, rule R12): the context of a lexeme for AI.
+//   1. its own Ordbøkene article (unchanged path);
+//   2. only when Ordbøkene answered "no article" for this POS: part of
+//      speech + NAOB / Lexin / Wiktionary excerpts, translations only
+//      (no example, no notes), low reliability. See noArticleBlocker().
+// Returns the fields that may be requested from AI.
+async function loadLexemeContext(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+  missing: string[],
+): Promise<string[]> {
+  try {
+    candidate.selectedContext = await loadSelectedContext(candidate.verificationEvidence, candidate.lemma, candidate.pos);
+    return missing;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.startsWith('SELECTED_BM_ARTICLE_REQUIRED')) throw error;
+    // D10 15.10.2026: the Ordbøkene check saw several articles (styr I/II),
+    // but the card is already bound to ONE of them (homograph step
+    // "main_article" / September binding). The bound article is used.
+    const boundContext = await boundArticleContext(supabase, candidate);
+    if (boundContext) {
+      candidate.selectedContext = boundContext;
+      return missing;
+    }
+    let hasSibling = false;
+    if (!candidate.homographKey) {
+      const { data: siblings, error: siblingError } = await supabase.from('lexemes')
+        .select('id').eq('lemma', candidate.lemma).eq('pos', candidate.pos ?? '')
+        .neq('id', candidate.id).limit(1);
+      if (siblingError) throw new Error(`${message}; no-article path: SIBLING_READ_FAILED ${siblingError.message}`);
+      hasSibling = (siblings ?? []).length > 0;
+    }
+    const blocker = noArticleBlocker(candidate.verificationEvidence, candidate.pos,
+      candidate.homographKey ?? null, hasSibling);
+    if (blocker) throw new Error(`${message}; no-article path: ${blocker}`);
+    const requested = missing.filter((field) => field === 'translation_ua' || field === 'translation_en');
+    if (!requested.length) throw new Error(`${message}; no-article path: NO_ARTICLE_NOTHING_TO_TRANSLATE`);
+    try {
+      candidate.selectedContext = noArticleContext(candidate.lemma, candidate.pos, {
+        NAOB: candidate.naobContext, Lexin: candidate.lexinContext, Wiktionary: candidate.wiktionaryContext ?? null,
+      });
+    } catch (contextError) {
+      throw new Error(`${message}; no-article path: ${contextError instanceof Error ? contextError.message : String(contextError)}`);
+    }
+    return requested;
+  }
+}
+
+// D10 15.10.2026: evidence of a card whose check found several articles,
+// narrowed to the ONE article the card is bound to. Only when that article
+// is one of the articles the check found (or the check listed none) and the
+// binding is unique for the card's part of speech. Otherwise null.
+export function evidenceWithBoundArticle(evidence: any, pos: string | null,
+  boundIds: Array<number | string>): any | null {
+  const ids = [...new Set(boundIds.map(String))].filter((id) => /^[1-9][0-9]*$/.test(id));
+  if (!pos || ids.length !== 1) return null;
+  const source = evidence?.Ordbokene;
+  if (!source || (source.status !== 'done' && source.status !== 'partial')) return null;
+  const raw = source.evidence?.raw_preview ?? {};
+  const seen = [...(Array.isArray(raw.article_ids) ? raw.article_ids : []),
+    ...(Array.isArray(raw.candidate_article_ids) ? raw.candidate_article_ids : [])].map(String);
+  if (seen.length > 0 && !seen.includes(ids[0])) return null;
+  return {
+    ...evidence,
+    Ordbokene: {
+      ...source,
+      status: 'done',
+      evidence: { ...(source.evidence ?? {}), raw_preview: { ...raw, dictionary_code: 'bm', pos,
+        article_ids: [ids[0]], article_selection: 'bound_card_article' } },
+    },
+  };
+}
+
+async function boundArticleContext(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+): Promise<string | null> {
+  if (candidate.kind !== 'lexeme') return null;
+  const { data, error } = await supabase.rpc('get_authoritative_morphology_article_bindings_v2',
+    { p_lexeme_ids: [candidate.id] });
+  if (error || !Array.isArray(data)) return null;
+  const ids = (data as any[]).filter((row) => row?.lexeme_id === candidate.id &&
+    row?.dictionary_code === 'bm' && row?.pos === candidate.pos).map((row) => row.article_id);
+  const evidence = evidenceWithBoundArticle(candidate.verificationEvidence, candidate.pos, ids);
+  if (!evidence) return null;
+  try {
+    return await loadSelectedContext(evidence, candidate.lemma, candidate.pos);
+  } catch {
+    return null;
+  }
+}
+
+// D10 15.10.2026 (rule R12, agreed): a word without its own Ordbøkene
+// article gets AI translations only. Example and notes cannot be made for it,
+// so they are not "missing" (otherwise the job auditor heals them forever and
+// the chain fails with NO_ARTICLE_NOTHING_TO_TRANSLATE). Words with an
+// article, expressions and words the no-article rule does not admit
+// (second card, homograph group, Ordbøkene not answered) are unchanged.
+export function noArticleFieldScope(missing: string[], evidence: unknown, pos: string | null,
+  homographKey: string | null, hasSibling: boolean): string[] {
+  try {
+    selectedArticle(evidence, pos);
+    return missing; // own article: unchanged
+  } catch {
+    // no unique article id: the no-article rule decides below
+  }
+  if (noArticleBlocker(evidence, pos, homographKey, hasSibling)) return missing;
+  return missing.filter((field) => field === 'translation_ua' || field === 'translation_en');
+}
+
+async function scopeMissingForNoArticle(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+  missing: string[],
+): Promise<string[]> {
+  if (candidate.kind !== 'lexeme' || missing.length === 0) return missing;
+  if (missing.every((field) => field === 'translation_ua' || field === 'translation_en')) return missing;
+  let hasSibling = false;
+  if (!candidate.homographKey) {
+    const { data: siblings, error } = await supabase.from('lexemes')
+      .select('id').eq('lemma', candidate.lemma).eq('pos', candidate.pos ?? '')
+      .neq('id', candidate.id).limit(1);
+    if (error) return missing; // cannot decide: unchanged behaviour
+    hasSibling = (siblings ?? []).length > 0;
+  }
+  return noArticleFieldScope(missing, candidate.verificationEvidence, candidate.pos,
+    candidate.homographKey ?? null, hasSibling);
+}
+
 // Собирает единый текстовый блок из обоих источников для промпта — если
 // оба присутствуют, они помечены заголовками, чтобы модель не путала их
 // (NAOB — связный текст на норвежском, Lexin — сырой JSON с типами узлов).
@@ -301,6 +449,15 @@ function parseJsonFromText(text: string): any {
   }
 
   return JSON.parse(cleaned.slice(objStart, objEnd + 1));
+}
+
+// D10 15.10.2026: AI evidence written by the current review policy
+// (with or without an Ordbøkene article). Anything else is an old artifact.
+function hasCurrentAiEvidence(evidence: any): boolean {
+  return !!evidence && typeof evidence === 'object' &&
+    evidence.version === QUALITY_VERSION &&
+    (evidence.status === 'ai_reviewed' || evidence.status === 'ai_reviewed_no_article') &&
+    !!evidence.review && evidence.review.status === 'accepted';
 }
 
 function isAuthoritative(translationRow: any): boolean {
@@ -644,6 +801,10 @@ type EntityCandidate = {
   naobContext: string | null;
   lexinContext: string | null;
   verificationEvidence?: unknown;
+  // D10 15.10.2026: second homograph card key ('' = main card) and the
+  // Wiktionary excerpt, used only by the no-article path.
+  homographKey?: string | null;
+  wiktionaryContext?: string | null;
   selectedContext?: string;
   revalidateAi?: boolean;
   qualityReview?: Record<string, unknown>;
@@ -702,6 +863,7 @@ async function writeTranslations(
     candidate,
   );
 
+  const noArticle = candidate.kind === 'lexeme' && isNoArticleContext(candidate.selectedContext);
   let rank = 0;
   for (const translation of params.list) {
     rank++;
@@ -718,8 +880,10 @@ async function writeTranslations(
         source: AI_SOURCE,
         ...(candidate.kind === 'lexeme' ? { source_pos: candidate.pos,
           enrichment_evidence: boundEvidence[rank - 1] } : {}),
-        confidence: isUk ? (params.existingEnglishTranslation ? 'medium' : 'low') : 'medium',
-        notes: isUk
+        confidence: noArticle ? 'low' : isUk ? (params.existingEnglishTranslation ? 'medium' : 'low') : 'medium',
+        notes: noArticle
+          ? 'AI fallback without an Ordbøkene article: from part of speech and NAOB/Lexin/Wiktionary context (low reliability, review suggested)'
+          : isUk
           ? params.existingEnglishTranslation
             ? 'AI fallback: translated Ukrainian from existing English meaning'
             : 'AI fallback: translated Ukrainian directly from Norwegian'
@@ -788,13 +952,21 @@ async function checkCandidateMissing(
 
   const { data: allTranslations, error: translationsReadError } = await supabase
     .from('entity_translations')
-    .select('language_code, translation, translation_type, source, translation_rank')
+    .select('language_code, translation, translation_type, source, translation_rank, enrichment_evidence')
     .or(readFilter)
     .in('translation_type', ['primary', 'expression_primary']);
 
   if (translationsReadError) throw new Error(`TRANSLATION_READ_FAILED: ${translationsReadError.message}`);
 
-  const eligibleTranslations = (allTranslations ?? []).filter((t: any) => !candidate.revalidateAi || String(t.source).toLowerCase() !== AI_SOURCE);
+  // D10 15.10.2026 (agreed: audit rewrites everything): an AI translation or
+  // example of a lexeme WITHOUT current review evidence (left from earlier
+  // iterations) does not count as present, so AI writes it again. AI rows
+  // with current evidence are kept (no repeated cost). Lexin / manual rows
+  // and expressions are not affected.
+  const staleAi = (row: any) => candidate.kind === 'lexeme' &&
+    String(row?.source).toLowerCase() === AI_SOURCE && !hasCurrentAiEvidence(row?.enrichment_evidence);
+  const eligibleTranslations = (allTranslations ?? []).filter((t: any) =>
+    (!candidate.revalidateAi || String(t.source).toLowerCase() !== AI_SOURCE) && !staleAi(t));
   const usableTranslations = eligibleTranslations.filter(isUsableForCompleteness);
   const hasUsableUk = usableTranslations.some((t: any) => t.language_code === 'uk');
   const hasUsableEn = usableTranslations.some((t: any) => t.language_code === 'en');
@@ -809,7 +981,7 @@ async function checkCandidateMissing(
   const allExamples:any[]=[];
   for(let offset=0;;offset+=500){
     const {data,error}=await supabase.from('entity_examples')
-      .select('id, source, language_code, example_text, translation_uk')
+      .select('id, source, language_code, example_text, translation_uk, enrichment_evidence')
       .or(readFilter).eq('language_code','nb').order('id').range(offset,offset+499);
     if(error) throw new Error(`EXAMPLE_READ_FAILED: ${error.message}`);
     allExamples.push(...(data??[]));
@@ -817,7 +989,7 @@ async function checkCandidateMissing(
   }
 
   const hasUsableExample = (allExamples ?? []).some(
-    (e: any) => (!candidate.revalidateAi || String(e.source).toLowerCase() !== AI_SOURCE) && norwegianExample(e),
+    (e: any) => (!candidate.revalidateAi || String(e.source).toLowerCase() !== AI_SOURCE) && !staleAi(e) && norwegianExample(e),
   );
   const hasAuthoritativeExample = (allExamples ?? []).some(
     (e: any) =>
@@ -829,7 +1001,10 @@ async function checkCandidateMissing(
   if (!hasUsableUk) missing.push('translation_ua');
   if (!hasUsableEn) missing.push('translation_en');
   if (!hasUsableExample) missing.push('example');
-  if (candidate.kind === 'lexeme' && !candidate.notes) missing.push('notes');
+  // D10 15.10.2026 (agreed): notes are no longer generated. They were not
+  // shown in the app (too long or noise); existing notes stay in the database
+  // unused. A missing note no longer makes a word incomplete or costs an AI call.
+  // Was: if (candidate.kind === 'lexeme' && !candidate.notes) missing.push('notes');
 
   const needsReview: string[] = [];
   if (!hasAuthoritativeUk) needsReview.push('translation_ua');
@@ -1000,7 +1175,9 @@ async function processCandidatesBatch(
 
   for (const candidate of candidates) {
     try {
-      const { missing, needsReview, existingEnglishTranslation } = await checkCandidateMissing(supabase, candidate);
+      const checked = await checkCandidateMissing(supabase, candidate);
+      const { needsReview, existingEnglishTranslation } = checked;
+      const missing = await scopeMissingForNoArticle(supabase, candidate, checked.missing);
 
       const baseEntry = {
         kind: candidate.kind,
@@ -1014,7 +1191,7 @@ async function processCandidatesBatch(
         processed.push({
           ...baseEntry,
           skipped: true,
-          reason: 'nothing_missing',
+          reason: checked.missing.length ? 'no_article_translations_complete' : 'nothing_missing',
           needs_review: needsReview.length > 0,
           needs_review_fields: needsReview.length > 0 ? needsReview : undefined,
         });
@@ -1038,10 +1215,11 @@ async function processCandidatesBatch(
         continue;
       }
 
+      let requested = missing;
       if (candidate.kind === 'lexeme') {
-        candidate.selectedContext = await loadSelectedContext(candidate.verificationEvidence, candidate.lemma, candidate.pos);
+        requested = await loadLexemeContext(supabase, candidate, missing);
       }
-      pending.push({ candidate, missing, needsReview, existingEnglishTranslation });
+      pending.push({ candidate, missing: requested, needsReview, existingEnglishTranslation });
     } catch (rowError) {
       errors.push({
         kind: candidate.kind,
@@ -1056,8 +1234,10 @@ async function processCandidatesBatch(
     return { processed, errors };
   }
 
-  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
-    const chunk = pending.slice(i, i + BATCH_SIZE);
+  // D10 15.10.2026: one chunk = one generation call + one review call.
+  // attempt 1 is the single retry of translations rejected by the review.
+  const runChunk = async (chunk: PendingItem[], attempt: number): Promise<void> => {
+    const retry: PendingItem[] = [];
 
     const batchInput: BatchInputItem[] = chunk.map((p, idx) => ({
       ref: idx,
@@ -1083,7 +1263,7 @@ async function processCandidatesBatch(
           error: `batch_call_failed: ${safeStringify(batchError)}`,
         });
       }
-      continue;
+      return;
     }
 
     let reviews = new Map<number, string | null>();
@@ -1145,17 +1325,42 @@ async function processCandidatesBatch(
 
       if (p.candidate.kind === 'lexeme' && (reviews.get(idx) !== null ||
           typeof ai.lemma !== 'string' || ai.lemma !== p.candidate.lemma)) {
+        // D10 15.10.2026 (agreed): a translation rejected by the second model
+        // gets ONE more generation (in one batch with the other rejected
+        // words of this chunk) before it is recorded as rejected.
+        const rejection = reviews.get(idx);
+        if (attempt === 0 && typeof rejection === 'string' && REVIEW_RETRY_REASONS.has(rejection) &&
+            typeof ai.lemma === 'string' && ai.lemma === p.candidate.lemma) {
+          p.candidate.qualityReview = undefined;
+          p.candidate.qualityDiagnostic = undefined;
+          retry.push(p);
+          continue;
+        }
         processed.push({ kind: p.candidate.kind, id: p.candidate.id, lemma: p.candidate.lemma,
           needs_review: true, needs_review_fields: p.missing,
           quality_version: QUALITY_VERSION, quality_reason: reviews.get(idx) ?? 'AI_IDENTITY_MISSING',
           translations_written: 0, example_written: false });
         errors.push({ id: p.candidate.id, error: reviews.get(idx) ?? 'AI_IDENTITY_MISSING' });
+        // D10 15.10.2026: rejected after the retry -> the word is marked
+        // "for review" (it does not stop the job; see migration 20261015150000).
+        if (typeof rejection === 'string' && REVIEW_RETRY_REASONS.has(rejection)) {
+          const { error: markError } = await supabase.rpc('d10_record_ai_review_rejection_v1', {
+            p_lexeme_id: p.candidate.id, p_reason: rejection,
+            p_detail: { review: p.candidate.qualityDiagnostic ?? null, attempts: attempt + 1 },
+          });
+          if (markError) errors.push({ id: p.candidate.id, error: `review_mark_failed: ${safeStringify(markError)}` });
+        }
         continue;
       }
 
       try {
         const entry = await writeAiResult(supabase, p.candidate, p.missing, p.needsReview, p.existingEnglishTranslation, ai);
         processed.push(entry);
+        // D10 15.10.2026: an accepted translation removes a "for review" mark.
+        if (p.candidate.kind === 'lexeme' && Number(entry.translations_written ?? 0) > 0) {
+          const { error: clearError } = await supabase.rpc('d10_clear_ai_review_rejection_v1', { p_lexeme_id: p.candidate.id });
+          if (clearError) console.error('ai-enrichment-worker: review mark clear failed', p.candidate.id, safeStringify(clearError));
+        }
 
         if (entry.write_errors) {
           errors.push({
@@ -1183,17 +1388,31 @@ async function processCandidatesBatch(
         });
       }
     }
+    if (retry.length > 0) await runChunk(retry, attempt + 1);
+  };
+
+  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+    await runChunk(pending.slice(i, i + BATCH_SIZE), 0);
   }
 
   return { processed, errors };
 }
+
+// D10 15.10.2026: review outcomes worth one more generation (the answer was
+// judged, not the request). Transport/model failures are retried by the job.
+const REVIEW_RETRY_REASONS = new Set([
+  'AI_POS_SENSE_REVIEW_REJECTED', 'AI_SINGLE_TRANSLATION_REQUIRED',
+  'AI_REQUESTED_EXAMPLE_MISSING', 'AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON',
+]);
 
 async function processSingleCandidate(
   supabase: ReturnType<typeof createEnrichmentClient>,
   candidate: EntityCandidate,
   dryRun: boolean,
 ): Promise<Record<string, unknown>> {
-  const { missing, needsReview, existingEnglishTranslation } = await checkCandidateMissing(supabase, candidate);
+  let { missing, needsReview, existingEnglishTranslation } = await checkCandidateMissing(supabase, candidate);
+  const checkedMissing = missing;
+  missing = await scopeMissingForNoArticle(supabase, candidate, missing);
 
   const baseEntry = {
     kind: candidate.kind,
@@ -1207,7 +1426,7 @@ async function processSingleCandidate(
     return {
       ...baseEntry,
       skipped: true,
-      reason: 'nothing_missing',
+      reason: checkedMissing.length ? 'no_article_translations_complete' : 'nothing_missing',
       needs_review: needsReview.length > 0,
       needs_review_fields: needsReview.length > 0 ? needsReview : undefined,
     };
@@ -1230,7 +1449,7 @@ async function processSingleCandidate(
   }
 
   if (candidate.kind === 'lexeme') {
-    candidate.selectedContext = await loadSelectedContext(candidate.verificationEvidence, candidate.lemma, candidate.pos);
+    missing = await loadLexemeContext(supabase, candidate, missing);
   }
   const ai = await callGeminiSingle({
     lemma: candidate.lemma,
@@ -1294,7 +1513,7 @@ serve(async (req) => {
       if (lexemeIds.length > 0) {
         const { data, error } = await supabase
           .from('lexemes')
-          .select('id, lemma, pos, display_form, notes, verification_status, verification_evidence')
+          .select('id, lemma, pos, display_form, homograph_key, notes, verification_status, verification_evidence')
           .in('id', lexemeIds);
 
         if (error) throw error;
@@ -1314,6 +1533,8 @@ serve(async (req) => {
             verificationStatus: row.verification_status ?? null,
             naobContext: extractNaobRawPreview(row.verification_evidence),
             lexinContext: extractLexinRawPreview(row.verification_evidence),
+            homographKey: row.homograph_key ?? '',
+            wiktionaryContext: extractWiktionaryRawPreview(row.verification_evidence),
           });
         }
       }
@@ -1368,7 +1589,7 @@ serve(async (req) => {
       if (onlyLexemeId) {
         const { data, error } = await supabase
           .from('lexemes')
-          .select('id, lemma, pos, display_form, notes, verification_status, verification_evidence')
+          .select('id, lemma, pos, display_form, homograph_key, notes, verification_status, verification_evidence')
           .eq('id', onlyLexemeId)
           .maybeSingle();
 
@@ -1389,6 +1610,8 @@ serve(async (req) => {
             verificationStatus: data.verification_status ?? null,
             naobContext: extractNaobRawPreview(data.verification_evidence),
             lexinContext: extractLexinRawPreview(data.verification_evidence),
+            homographKey: data.homograph_key ?? '',
+            wiktionaryContext: extractWiktionaryRawPreview(data.verification_evidence),
           };
         }
       } else if (onlyExpressionId) {
@@ -1454,7 +1677,7 @@ serve(async (req) => {
     if (shouldRunLexemeLoop) {
       const { data, error } = await supabase
         .from('lexemes')
-        .select('id, lemma, pos, display_form, notes, verification_status, verification_evidence')
+        .select('id, lemma, pos, display_form, homograph_key, notes, verification_status, verification_evidence')
         .in('verification_status', ELIGIBLE_VERIFICATION_STATUSES)
         .not('lemma', 'ilike', '%�%')
         .order('updated_at', { ascending: true })
@@ -1477,6 +1700,8 @@ serve(async (req) => {
           verificationStatus: row.verification_status ?? null,
           naobContext: extractNaobRawPreview(row.verification_evidence),
             lexinContext: extractLexinRawPreview(row.verification_evidence),
+            homographKey: row.homograph_key ?? '',
+            wiktionaryContext: extractWiktionaryRawPreview(row.verification_evidence),
         });
       }
     }

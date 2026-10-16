@@ -53,6 +53,7 @@
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { promoteForLexemes } from './lexeme-mode.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -175,6 +176,15 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const limit = Math.min(Math.max(Number(body.limit ?? DEFAULT_BATCH_LIMIT), 1), MAX_BATCH_LIMIT);
     const dryRun = Boolean(body.dry_run ?? false);
+
+    // D10 15.10.2026: mode "only these words" for the job step after forms
+    // (see lexeme-mode.ts). Without lexeme_ids the old mode below runs as before.
+    // dry_run is ignored here (the job sends it only as a safety net for an
+    // older deployment of this function).
+    if (Array.isArray(body.lexeme_ids)) {
+      const summary = await promoteForLexemes(supabase, body.lexeme_ids);
+      return jsonResponse({ ok: summary.failed === 0, worker: WORKER_NAME, mode: 'lexemes', ...summary });
+    }
 
     const { data: relations, error: relError } = await supabase.rpc(
       'claim_next_compound_candidates',

@@ -1,6 +1,7 @@
 import { linguisticText, pairLexinExample, lexinExampleEvidence } from '../_shared/example-evidence.ts';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { parseLexinMorphology, cardFormWords, lexinEntryFitsCard } from '../_shared/d10-lexin-homograph-forms.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -541,6 +542,34 @@ serve(async (req) => {
 
     const requestedPos = normalizePos(explicitPos);
 
+    // D10 stage D3 (agreed 14.10.2026): when the lexeme has a homograph card
+    // of the same lemma and POS (rule R9: bok I "book" / bok II "beech"), a
+    // Lexin entry belongs to this card only if its inflection (E-mor) matches
+    // the card's forms. An entry without inflection is not taken: the card
+    // gets its translation from AI with the definition of its own article.
+    // Lexemes without a homograph card are unchanged.
+    let homographCardForms: Set<string> | null = null;
+    if (lexemeId && lemma && explicitPos) {
+      const { data: siblings, error: siblingError } = await supabase
+        .from('lexemes')
+        .select('id')
+        .eq('lemma', lemma)
+        .eq('pos', explicitPos)
+        .neq('id', lexemeId)
+        .limit(1);
+      if (siblingError) {
+        return jsonResponse({ ok: false, stage: 'load_homograph_cards', error: safeStringify(siblingError) }, 500);
+      }
+      if ((siblings ?? []).length > 0) {
+        const { data: formValues, error: formError } = await supabase
+          .rpc('d10_homograph_main_forms_v1', { p_lexeme_id: lexemeId });
+        if (formError) {
+          return jsonResponse({ ok: false, stage: 'load_homograph_card_forms', error: safeStringify(formError) }, 500);
+        }
+        homographCardForms = cardFormWords((formValues as string[] | null) ?? []);
+      }
+    }
+
     // ============================================================================
     // ФИКС v9 (15.07.2026 — убран root_lemma/root_word как обязательный
     // указатель "в какой статье искать").
@@ -624,6 +653,7 @@ serve(async (req) => {
     let entriesSkippedNoMatch = 0;
     let entriesSkippedPosMismatch = 0;
     let entriesSkippedUnknownPos = 0;
+    let entriesSkippedHomographForms = 0;
     let entriesMatched = 0;
     const matchedEntryIds: number[] = [];
     const posDebugEntries: Array<Record<string, unknown>> = [];
@@ -679,6 +709,16 @@ serve(async (req) => {
         } else if (requestedPos && entryPos && entryPos !== requestedPos) {
           entriesSkippedPosMismatch++;
           posBlocked = true;
+        }
+
+        if (!posBlocked && homographCardForms) {
+          const lexinForms = parseLexinMorphology(
+            entriesOfType(bucket, 'E-mor').map((e) => String(e.text ?? '')).join(' '),
+          );
+          if (!lexinEntryFitsCard(lexinForms, homographCardForms)) {
+            entriesSkippedHomographForms++;
+            posBlocked = true;
+          }
         }
 
         if (!posBlocked) {
@@ -990,6 +1030,8 @@ serve(async (req) => {
         entries_skipped_no_match: entriesSkippedNoMatch,
         entries_skipped_pos_mismatch: entriesSkippedPosMismatch,
         entries_skipped_unknown_pos: entriesSkippedUnknownPos,
+        entries_skipped_homograph_forms: entriesSkippedHomographForms,
+        homograph_card: homographCardForms !== null,
         allow_unknown_pos: allowUnknownPos,
         pos_debug_entries: posDebugEntries,
         matched_entry_ids: [...new Set(matchedEntryIds)],

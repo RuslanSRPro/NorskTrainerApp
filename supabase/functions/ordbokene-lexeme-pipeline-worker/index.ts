@@ -1,10 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { OrdbokeneClient } from '../_shared/authoritative-morphology-v2/client.ts';
+import { OrdbokeneClient, isOrdbokeneServerError } from '../_shared/authoritative-morphology-v2/client.ts';
 import {
   normalizeNorwegian,
   parseOrdbokeneArticles,
 } from '../_shared/authoritative-morphology-v2/parser.ts';
 import { isAuthoritativeLookupForm } from '../_shared/authoritative-morphology-v2/lookup-identity.ts';
+import { collectOrdbokeneArticleExamples } from '../_shared/d10-ordbokene-examples.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -222,6 +223,38 @@ async function getArticleCacheRow(articleId: number, dictionaryCode: string) {
   return data;
 }
 
+// Source examples of a standalone expression article are stored against the
+// exact expression_id supplied by the job. They are written only when the
+// cached article's own lemma is the lemma of that expression_catalog row.
+async function persistExpressionArticleExamples(expressionId:string,articleId:number,dictionaryCode:string,dryRun:boolean) {
+  const cache=await getArticleCacheRow(articleId,dictionaryCode);
+  if (!cache) return {ok:true,skipped:true,reason:'article_cache_missing',article_id:articleId};
+  const supabase=await getSupabaseClient();
+  const {data:expression,error:expressionError}=await supabase.from('expression_catalog')
+    .select('id, lemma').eq('id',expressionId).maybeSingle();
+  if(expressionError) throw toReadableError(expressionError,`loadExpressionForExamples(${expressionId})`);
+  const cacheLemma=typeof cache.lemma==='string'?normalizeKey(cache.lemma):'';
+  const expressionLemma=typeof expression?.lemma==='string'?normalizeKey(expression.lemma):'';
+  if(!expressionLemma||!cacheLemma||expressionLemma!==cacheLemma){
+    return {ok:true,skipped:true,reason:'expression_article_identity_mismatch',
+      expression_id:expressionId,article_id:articleId,
+      expression_lemma:expression?.lemma??null,article_lemma:cache.lemma??null};
+  }
+  const payload=cache.payload as Record<string,unknown>|null;
+  const examples=[...collectOrdbokeneArticleExamples(payload?.body ?? payload)].slice(0,10);
+  if (dryRun || !examples.length) return {ok:true,dry_run:dryRun,examples:examples.length};
+  const rows=examples.map((exampleText)=>({lexeme_id:null,expression_id:expressionId,
+    language_code:dictionaryCode==='nn'?'nn':'nb',example_text:exampleText,
+    translation_uk:null,source:'ordbokene',source_type:'source_example',
+    enrichment_evidence:{source:'ordbokene',dictionary_code:dictionaryCode,
+      article_id:articleId,expression_id:expressionId},
+    updated_at:new Date().toISOString()}));
+  const {error}=await supabase.from('entity_examples').upsert(rows,
+    {onConflict:'lexeme_id,expression_id,language_code,source,example_text'});
+  if(error) throw toReadableError(error,`persistExpressionArticleExamples(${expressionId})`);
+  return {ok:true,dry_run:false,examples:rows.length};
+}
+
 // ФИКС: было .maybeSingle(), которая БРОСАЕТ ошибку при >1 строке.
 // Норвежский язык имеет законную омонимию по части речи — например "møte"
 // существует как ДВЕ отдельные записи в lexemes: глагол ("встречать") и
@@ -426,6 +459,7 @@ serve(async (req) => {
 
     const parentLexemeId =
       body.parent_lexeme_id == null ? null : String(body.parent_lexeme_id);
+    const expressionId = body.expression_id == null ? null : String(body.expression_id);
 
     const dryRun = Boolean(body.dry_run ?? true);
     const compact = Boolean(body.compact ?? true);
@@ -460,12 +494,26 @@ serve(async (req) => {
     const steps: Record<string, unknown> = {};
 
     if (articleId && inputLemma && requestedPos && dictionaryCode === 'bm') {
-      const lookup = await new OrdbokeneClient().lookup(inputLemma, ['bm']);
+      // D10 15.10.2026: if the Ordbøkene search is down (5xx, timeout), the
+      // provided article itself is fetched and must carry this exact lemma
+      // with this POS; otherwise the identity check fails as before.
+      const client = new OrdbokeneClient();
+      let lookup: Awaited<ReturnType<OrdbokeneClient['lookup']>>;
+      let directIdentity = false;
+      try {
+        lookup = await client.lookup(inputLemma, ['bm']);
+      } catch (searchError) {
+        if (!isOrdbokeneServerError(searchError)) throw searchError;
+        lookup = await client.lookupKnownArticles(inputLemma, [articleId], ['bm']);
+        directIdentity = true;
+      }
       const confirmedIds = new Set(parseOrdbokeneArticles(lookup.articles)
         .filter((paradigm) =>
           paradigm.pos === requestedPos &&
-          isAuthoritativeLookupForm(inputLemma, [paradigm], normalizeNorwegian)
+          isAuthoritativeLookupForm(inputLemma, [paradigm], normalizeNorwegian) &&
+          (!directIdentity || normalizeNorwegian(paradigm.lemma) === normalizeNorwegian(inputLemma))
         ).map((paradigm) => Number(paradigm.articleId)));
+      if (directIdentity) steps.article_identity = { ok: true, mode: 'known_article_direct', article_id: articleId };
       if (lookup.errors.length > 0 || !confirmedIds.has(articleId)) {
         return jsonResponse({
           ok: false,
@@ -668,6 +716,10 @@ serve(async (req) => {
       });
 
       steps.standalone_expression_promotion = standaloneExpression;
+      if (expressionId) {
+        steps.expression_article_examples=await persistExpressionArticleExamples(
+          expressionId,articleId,dictionaryCode,dryRun);
+      }
 
       steps.expression_extraction = {
         ok: true,

@@ -33,6 +33,8 @@ export type Lexeme360CarouselItem = {
   semantic_shift_score?: number;
   learner_value_score?: number;
   example?: string;
+  example_translation_uk?: string;
+  expressionId?: string;
   learned?: boolean;
   status?: 'ready' | 'candidate';
   canOpen?: boolean;
@@ -340,7 +342,10 @@ export function Lexeme360Carousel({
           index: itemIndex,
         })}
         renderItem={({ item }) => {
-          const translation = pickTranslation(item, lang);
+          const translations = [
+            item.translation_ua,
+            item.translation_en,
+          ].filter(Boolean).join('\n') || pickTranslation(item, lang);
           const displayLemma = displayLemmaWithInfinitiveMarker(item.lemma, item.pos);
           const isCandidate = item.status === 'candidate' || item.canOpen === false;
           const label = isCandidate
@@ -379,9 +384,9 @@ export function Lexeme360Carousel({
 
               <Text style={styles.lemma}>{displayLemma}</Text>
 
-              {translation ? (
-                <Text style={styles.translation} numberOfLines={2}>
-                  {translation}
+              {translations ? (
+                <Text style={styles.translation} numberOfLines={3}>
+                  {translations}
                 </Text>
               ) : null}
 
@@ -390,6 +395,9 @@ export function Lexeme360Carousel({
                   <Text style={styles.exampleText} numberOfLines={3}>
                     {item.example}
                   </Text>
+                  {item.example_translation_uk ? (
+                    <Text style={styles.exampleText} numberOfLines={2}>{item.example_translation_uk}</Text>
+                  ) : null}
                 </View>
               ) : null}
 

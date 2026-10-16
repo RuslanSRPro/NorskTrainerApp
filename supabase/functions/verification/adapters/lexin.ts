@@ -7,11 +7,14 @@ import {
   preview,
   type SourceLookupResult,
 } from './shared.ts';
+import { posScope, type PosScopedLookup } from './pos-scope.ts';
 
 export async function checkLexinLive(
   lemma: string,
   displayForm: string,
-): Promise<SourceLookupResult> {
+  // D10 15.10.2026 (step B): card part of speech; optional, additive.
+  pos?: string | null,
+): Promise<PosScopedLookup> {
   const query = lemma || displayForm;
   const encoded = encodeURIComponent(query);
   const tokens = getTokens(query);
@@ -23,6 +26,9 @@ export async function checkLexinLive(
 
   const urls = [uaUrl, noUrl];
   const errors: string[] = [];
+  // D10 (step B): a hit whose category is not the card POS is kept, and the
+  // other Lexin dictionary is still asked; the first POS match wins.
+  let posFallback: PosScopedLookup | null = null;
 
   for (const [url, label] of [
     [uaUrl, 'nob-ukr'],
@@ -38,6 +44,7 @@ export async function checkLexinLive(
       let hasExactLemmaEntry = false;
       let hasExactTextMatch = false;
       let translationUa: string | null = null;
+      const lemmaCategories = new Set<string>();
 
       try {
         const data = JSON.parse(text);
@@ -53,6 +60,23 @@ export async function checkLexinLive(
 
         for (const group of items) {
           const entries = Array.isArray(group) ? group : [group];
+
+          // D10 (step B): category (E-kat, N-kat...) of the entries whose
+          // lemma is exactly the query, per entry id inside the group.
+          const exactIds = new Set<string>();
+          for (const entry of entries) {
+            const e = entry as Record<string, unknown> | null;
+            if (!e || typeof e !== 'object' || e.type !== 'E-lem') continue;
+            const lemmaText = normalizeForMatch(String(e.text ?? '')).replace(/^å\s+/, '').trim();
+            if (lemmaText === normalizedQuery.replace(/^å\s+/, '').trim()) exactIds.add(String(e.id ?? ''));
+          }
+          for (const entry of entries) {
+            const e = entry as Record<string, unknown> | null;
+            if (!e || typeof e !== 'object' || !/-kat$/.test(String(e.type ?? ''))) continue;
+            if (!exactIds.has(String(e.id ?? ''))) continue;
+            const category = String(e.text ?? '').trim();
+            if (category) lemmaCategories.add(category);
+          }
 
           let groupExactLemma = false;
 
@@ -94,7 +118,7 @@ export async function checkLexinLive(
           ? ` | UA: ${translationUa.slice(0, 50)}`
           : '';
 
-        return {
+        const lemmaHit: PosScopedLookup = {
           source: 'Lexin',
           checked: true,
           found: true,
@@ -108,11 +132,15 @@ export async function checkLexinLive(
             ? `Lexin OsloMet (${label}): exact lemma entry found${uaNote}`
             : `Lexin OsloMet (${label}): exact multiword learner signal found${uaNote}`,
           raw_preview: preview(text.slice(0, 500)),
+          pos_scope: posScope(pos, lemmaCategories, `lexin_${label}_category`),
         };
+        if (!pos || lemmaHit.pos_scope?.pos_match === 'match') return lemmaHit;
+        if (!posFallback || posFallback.registered_entry === false) posFallback = lemmaHit;
+        continue;
       }
 
       if (hasExactTextMatch) {
-        return {
+        const textHit: PosScopedLookup = {
           source: 'Lexin',
           checked: true,
           found: true,
@@ -124,12 +152,18 @@ export async function checkLexinLive(
           urls: [url],
           evidence_label: `Lexin OsloMet (${label}): exact text learner/usage signal found`,
           raw_preview: preview(text.slice(0, 500)),
+          pos_scope: posScope(pos, [], null),
         };
+        if (!pos) return textHit;
+        if (!posFallback) posFallback = textHit;
+        continue;
       }
     } catch (e) {
       errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+
+  if (posFallback) return posFallback;
 
   if (
     errors.length > 0 &&

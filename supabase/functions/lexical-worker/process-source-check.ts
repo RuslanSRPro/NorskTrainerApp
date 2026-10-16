@@ -138,7 +138,12 @@ export async function processSourceCheck(
   // cache receives fresh evidence for later read-mode use, but is never
   // treated as a completed audit check.
   const result: LookupResult = await lookupSource(check);
-  await saveLookupCache(supabase, check, result);
+  // D10 15.10.2026: a failed lookup (source down) and an outage-fallback
+  // result (articles fetched by known numbers, not a real search) no longer
+  // overwrite the last good cached search; that search is the cache level of
+  // the outage fallback (d10_last_ordbokene_search_v1).
+  const outageFallback = Boolean((result.evidence as any)?.raw_preview?.lookup_fallback);
+  if (result.status !== 'failed' && !outageFallback) await saveLookupCache(supabase, check, result);
 
   const evidence = {
     ...sanitizeEvidence(result.evidence),

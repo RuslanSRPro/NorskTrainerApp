@@ -29,6 +29,12 @@ const LOOKUP_CACHE_ADAPTER_VERSION =
   'lexical-worker-v2-full-refresh-2026-07-08';
 
 function cacheVersion(check: SourceCheck): string {
+  if (check.source === 'Ordbokene' && check.query_type === 'expression') {
+    const identity = check.expected_expression_article;
+    // D10 14.10.2026: v2 - multi-word expressions with a one-letter word (i tide) were checked
+    // as single words and their 'not found' was cached under v1.
+    return `lexical-worker-ordbokene-bm-expression-v2:${identity?.articleId ?? 'review'}:${identity?.parentArticleId ?? 'review'}`;
+  }
   if (check.source === 'Ordbokene' && check.query_type === 'token') {
     // Cache evidence depends on the requested POS and the new D10 lookup.
     return `lexical-worker-ordbokene-bm-pos-v1:${check.pos ?? 'unknown'}`;

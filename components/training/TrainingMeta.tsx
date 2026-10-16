@@ -62,6 +62,7 @@ export function TrainingMeta({
             lemma={current.lemma || current.word}
             size="sm"
             lang={appLanguage as any}
+            entityId={current.id}
           />
         ) : null}
 

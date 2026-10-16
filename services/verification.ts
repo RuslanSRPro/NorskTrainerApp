@@ -75,6 +75,9 @@ export type VerificationInput = {
   sourceVerified?: string | string[] | null;
   evidence?: VerificationEvidence;
   tier?: VerificationTier | string | null;
+  // D10 16.10.2026: stars computed on the server (verification_stars_v1).
+  // When present they decide the tier; the evidence is only shown.
+  server_stars?: number | null;
   [key: string]: any;
 };
 
@@ -430,8 +433,26 @@ export function normalizeTier(value?: VerificationTier | string | null): Verific
   return 'ai_candidate';
 }
 
+// D10 16.10.2026 (agreed): one rating, the server's. Stars -> tier.
+// 5 green, 4 blue, 3 yellow (intermediate), 2 and 1 grey (grey card).
+export const SERVER_STARS_TO_TIER: Record<number, VerificationTier> = {
+  5: 'dictionary_entry',
+  4: 'dictionary_match',
+  3: 'usage_evidence',
+  2: 'component_match',
+  1: 'ai_candidate',
+};
+
+export function serverStarsTier(value?: number | null): VerificationTier | null {
+  const stars = Number(value);
+  return Number.isInteger(stars) && SERVER_STARS_TO_TIER[stars] ? SERVER_STARS_TO_TIER[stars] : null;
+}
+
 export function inferVerificationTier(input?: VerificationInput | null): VerificationTier {
   if (!input) return 'ai_candidate';
+
+  const serverTier = serverStarsTier(input.server_stars);
+  if (serverTier) return serverTier;
 
   const evidenceEntries = normalizeEvidence(input.verification_evidence ?? input.evidence);
   const foundEvidence = evidenceEntries.filter(([, item]) => isFoundEvidence(item));

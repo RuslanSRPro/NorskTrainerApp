@@ -12,6 +12,7 @@ import { checkOrdbokeneLive } from '../verification/adapters/ordbokene.ts';
 import { checkWiktionaryLive } from '../verification/adapters/wiktionary.ts';
 import { checkSpraakradetLive } from '../verification/adapters/sprakradet.ts';
 import { checkLexinLive } from '../verification/adapters/lexin.ts';
+import { posScope, type PosScopedLookup } from '../verification/adapters/pos-scope.ts';
 
 export async function lookupSource(
   check: SourceCheck,
@@ -30,11 +31,14 @@ export async function lookupSource(
 
     const result =
       check.source === 'NAOB'
-        ? await checkNAOBLive(query, query)
+        ? await checkNAOBLive(query, query, check.pos)
         : check.source === 'Ordbokene'
-          ? await checkOrdbokeneLive(query, query, check.pos)
+          ? await checkOrdbokeneLive(query, query, check.pos, check.expected_expression_article, check.bound_token_article_ids,
+              check.cached_search_article_ids?.length
+                ? { articleIds: check.cached_search_article_ids, checkedAt: check.cached_search_checked_at ?? null }
+                : null)
           : check.source === 'Wiktionary'
-            ? await checkWiktionaryLive(query, query)
+            ? await checkWiktionaryLive(query, query, check.pos)
             : check.source === 'Språkrådet'
               ? await checkSpraakradetLive(
                   query,
@@ -44,6 +48,7 @@ export async function lookupSource(
                 ? await checkLexinLive(
                     query,
                     query,
+                    check.pos,
                   )
                 : null;
 
@@ -56,7 +61,15 @@ export async function lookupSource(
       };
     }
 
-    return normalizeSourceLookupResult(result);
+    // D10 15.10.2026 (step B): Ordbøkene filters by the card POS itself, so a
+    // found article is a POS match. Språkrådet shows no POS.
+    const scoped: PosScopedLookup = result as PosScopedLookup;
+    if (!scoped.pos_scope) {
+      scoped.pos_scope = check.source === 'Ordbokene' && check.query_type === 'token' && result.found === true && check.pos
+        ? posScope(check.pos, [check.pos], 'ordbokene_pos_filter')
+        : posScope(check.query_type === 'token' ? check.pos : null, [], null);
+    }
+    return normalizeSourceLookupResult(scoped);
   } catch (error) {
     return {
       status: 'failed',
@@ -71,7 +84,7 @@ export async function lookupSource(
 }
 
 function normalizeSourceLookupResult(
-  result: SourceLookupResult,
+  result: PosScopedLookup,
 ): LookupResult {
   return {
     status:
@@ -134,6 +147,12 @@ function normalizeSourceLookupResult(
 
       raw_preview:
         result.raw_preview,
+
+      // D10 15.10.2026 (step B): additive, read by the server tier.
+      requested_pos: result.pos_scope?.requested_pos ?? null,
+      found_pos: result.pos_scope?.found_pos ?? [],
+      pos_match: result.pos_scope?.pos_match ?? 'not_applicable',
+      pos_basis: result.pos_scope?.pos_basis ?? null,
     },
 
     error: result.error ?? null,

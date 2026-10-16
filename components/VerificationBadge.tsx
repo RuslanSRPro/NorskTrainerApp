@@ -27,6 +27,7 @@ import {
 } from '@/services/verification';
 
 import type { AppLanguage } from '@/services/i18n';
+import { useServerRating, type ServerRatingDetail } from '@/services/serverStars';
 
 type Props = {
   tier?: VerificationTier | string | null;
@@ -35,7 +36,152 @@ type Props = {
   lemma?: string;
   size?: 'sm' | 'md';
   lang?: AppLanguage | string | null;
+  // D10 16.10.2026: id of the lexeme / expression; its stars come from the server.
+  entityId?: string | null;
 };
+
+// ── D10 16.10.2026: server rating explained (grey card, POS per source) ─────
+const RATING_UI = {
+  ua: {
+    grey_title: 'Сіра картка',
+    grey_word: 'Слово є в базі й у навчанні, але словники ще не підтвердили його для цієї частини мови. Рівень підніметься, коли під час нової перевірки знайдеться стаття.',
+    grey_expr: 'Вираз є в базі й у навчанні, але словники ще не підтвердили його як цілісний вираз. Рівень підніметься, коли під час нової перевірки знайдеться стаття.',
+    unchecked_title: 'Ще не перевірено',
+    unchecked_body: 'Цю картку ще не перевіряли за словниками. Зірки з’являться після перевірки.',
+    no_ordbokene: 'Немає в навчальному словнику Ordbøkene — підтверджено іншими словниками.',
+    by_source: 'ЩО ДАЛО КОЖНЕ ДЖЕРЕЛО',
+    pos: 'Частина мови картки',
+    article: 'стаття цієї частини мови',
+    article_expr: 'стаття виразу',
+    article_pos_unknown: 'стаття, частину мови не підтверджено',
+    entry: 'запис цієї частини мови',
+    entry_expr: 'запис виразу',
+    other_pos: 'є лише як інша частина мови — не враховано',
+    mention: 'лише згадка',
+    mention_sprak: 'згадка (дає не більше 2★)',
+    none: 'немає',
+  },
+  en: {
+    grey_title: 'Grey card',
+    grey_word: 'The word is in the base and in training, but dictionaries have not yet confirmed it for this part of speech. The level rises when a new check finds an article.',
+    grey_expr: 'The expression is in the base and in training, but dictionaries have not yet confirmed it as a whole expression. The level rises when a new check finds an article.',
+    unchecked_title: 'Not checked yet',
+    unchecked_body: 'This card has not been checked against dictionaries yet. Stars appear after the check.',
+    no_ordbokene: 'Not in the Ordbøkene learner dictionary — confirmed by other dictionaries.',
+    by_source: 'WHAT EACH SOURCE GAVE',
+    pos: 'Card part of speech',
+    article: 'article for this part of speech',
+    article_expr: 'expression article',
+    article_pos_unknown: 'article, part of speech not confirmed',
+    entry: 'entry for this part of speech',
+    entry_expr: 'expression entry',
+    other_pos: 'only as another part of speech — not counted',
+    mention: 'mention only',
+    mention_sprak: 'mention (gives at most 2★)',
+    none: 'none',
+  },
+  no: {
+    grey_title: 'Grått kort',
+    grey_word: 'Ordet finnes i basen og i treningen, men ordbøkene har ennå ikke bekreftet det for denne ordklassen. Nivået stiger når en ny sjekk finner en artikkel.',
+    grey_expr: 'Uttrykket finnes i basen og i treningen, men ordbøkene har ennå ikke bekreftet det som et helt uttrykk. Nivået stiger når en ny sjekk finner en artikkel.',
+    unchecked_title: 'Ikke sjekket ennå',
+    unchecked_body: 'Dette kortet er ikke sjekket mot ordbøker ennå. Stjernene kommer etter sjekken.',
+    no_ordbokene: 'Ikke i læringsordboka Ordbøkene — bekreftet av andre ordbøker.',
+    by_source: 'HVA HVER KILDE GA',
+    pos: 'Kortets ordklasse',
+    article: 'artikkel for denne ordklassen',
+    article_expr: 'artikkel for uttrykket',
+    article_pos_unknown: 'artikkel, ordklasse ikke bekreftet',
+    entry: 'oppslag for denne ordklassen',
+    entry_expr: 'oppslag for uttrykket',
+    other_pos: 'bare som en annen ordklasse — ikke talt med',
+    mention: 'bare omtale',
+    mention_sprak: 'omtale (gir høyst 2★)',
+    none: 'ingen',
+  },
+} as const;
+
+const POS_NAMES: Record<string, Record<'ua' | 'en' | 'no', string>> = {
+  noun: { ua: 'іменник', en: 'noun', no: 'substantiv' },
+  verb: { ua: 'дієслово', en: 'verb', no: 'verb' },
+  adjective: { ua: 'прикметник', en: 'adjective', no: 'adjektiv' },
+  adverb: { ua: 'прислівник', en: 'adverb', no: 'adverb' },
+  preposition: { ua: 'прийменник', en: 'preposition', no: 'preposisjon' },
+  pronoun: { ua: 'займенник', en: 'pronoun', no: 'pronomen' },
+  conjunction: { ua: 'сполучник', en: 'conjunction', no: 'konjunksjon' },
+  subjunction: { ua: 'підрядний сполучник', en: 'subjunction', no: 'subjunksjon' },
+  interjection: { ua: 'вигук', en: 'interjection', no: 'interjeksjon' },
+  determiner: { ua: 'детермінатив', en: 'determiner', no: 'determinativ' },
+  numeral: { ua: 'числівник', en: 'numeral', no: 'tallord' },
+  proper_noun: { ua: 'власна назва', en: 'proper noun', no: 'egennavn' },
+};
+
+const RATING_SOURCES: Array<[keyof ServerRatingDetail, string]> = [
+  ['ordbokene', 'Ordbokene'],
+  ['naob', 'NAOB'],
+  ['lexin', 'Lexin'],
+  ['wiktionary', 'Wiktionary'],
+  ['sprakradet', 'Språkrådet'],
+];
+
+function ratingStateLabel(key: string, value: string | undefined, isExpression: boolean, lang: 'ua' | 'en' | 'no'): string {
+  const t = RATING_UI[lang];
+  const v = value || 'none';
+  if (key === 'sprakradet') return v === 'mention' ? t.mention_sprak : t.none;
+  if (v === 'article') return isExpression ? t.article_expr : t.article;
+  if (v === 'entry') return isExpression ? t.entry_expr : t.entry;
+  if (v === 'article_pos_unknown') return t.article_pos_unknown;
+  if (v === 'other_pos') return t.other_pos;
+  if (v === 'mention') return t.mention;
+  return t.none;
+}
+
+function ServerRatingBlock({ stars, rating, lang }: { stars: number; rating: ServerRatingDetail; lang: 'ua' | 'en' | 'no' }) {
+  const t = RATING_UI[lang];
+  const isExpression = rating.kind === 'expression';
+  const unchecked = rating.basis === 'no_evidence';
+  const posName = rating.card_pos ? (POS_NAMES[rating.card_pos]?.[lang] ?? rating.card_pos) : null;
+  return (
+    <View style={styles.ratingBlock}>
+      {unchecked ? (
+        <View style={styles.greyBox}>
+          <Text style={styles.greyTitle}>{t.unchecked_title}</Text>
+          <Text style={styles.greyText}>{t.unchecked_body}</Text>
+        </View>
+      ) : stars <= 2 ? (
+        <View style={styles.greyBox}>
+          <Text style={styles.greyTitle}>{t.grey_title}</Text>
+          <Text style={styles.greyText}>{isExpression ? t.grey_expr : t.grey_word}</Text>
+        </View>
+      ) : null}
+
+      {rating.note === 'no_ordbokene_article' ? (
+        <Text style={styles.ratingNote}>{t.no_ordbokene}</Text>
+      ) : null}
+
+      {!unchecked ? (
+        <>
+          <Text style={styles.sectionTitle}>{t.by_source}</Text>
+          {posName && !isExpression ? (
+            <Text style={styles.ratingPos}>{`${t.pos}: ${posName}`}</Text>
+          ) : null}
+          {RATING_SOURCES.map(([key, source]) => {
+            const value = rating[key] as string | undefined;
+            const counted = value === 'article' || value === 'entry';
+            return (
+              <View key={source} style={styles.ratingRow}>
+                <Text style={styles.ratingSource}>{getSourceLabel(source, lang)}</Text>
+                <Text style={[styles.ratingState, counted && styles.ratingStateCounted]}>
+                  {ratingStateLabel(String(key), value, isExpression, lang)}
+                </Text>
+              </View>
+            );
+          })}
+        </>
+      ) : null}
+    </View>
+  );
+}
 
 // ── Local UI strings not owned by verification resolver ───────────────────────
 const UI = {
@@ -473,9 +619,11 @@ export function VerificationBadge({
   lemma,
   size = 'md',
   lang = 'ua',
+  entityId = null,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const safeLang = normalizeLang(lang);
+  const server = useServerRating(entityId);
 
   const verification = resolveVerification(
     {
@@ -485,6 +633,7 @@ export function VerificationBadge({
       verification_tier: tier,
       source_verified: sourceVerified,
       verification_evidence: evidence,
+      server_stars: server?.stars ?? null,
     },
     safeLang
   );
@@ -564,6 +713,10 @@ export function VerificationBadge({
               <Text style={styles.popupDescription}>
                 {verification.description}
               </Text>
+
+              {server ? (
+                <ServerRatingBlock stars={server.stars} rating={server.rating} lang={safeLang} />
+              ) : null}
 
               {verification.foundSources.length > 0 ? (
                 <>
@@ -821,6 +974,59 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     flexWrap: 'wrap',
     marginTop: 4,
+  },
+  ratingBlock: {
+    marginBottom: 14,
+  },
+  greyBox: {
+    backgroundColor: '#F1EFE8',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  greyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5F5E5A',
+    marginBottom: 4,
+  },
+  greyText: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#5F5E5A',
+  },
+  ratingNote: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#185FA5',
+    marginBottom: 12,
+  },
+  ratingPos: {
+    fontSize: 12,
+    color: '#444441',
+    marginBottom: 6,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  ratingSource: {
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2C2C2A',
+  },
+  ratingState: {
+    flexShrink: 1,
+    fontSize: 12,
+    color: '#888780',
+    textAlign: 'right',
+  },
+  ratingStateCounted: {
+    color: '#0F6E56',
+    fontWeight: '600',
   },
   closeBtn: {
     margin: 12,

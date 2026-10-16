@@ -67,6 +67,7 @@ export type ExpressionRow = {
   pos: string;
   expression_subtype: string | null;
   token_len: number;
+  legacy_lexeme_id?: string;
 };
 
 export type VerbMaps = {
@@ -390,11 +391,21 @@ export async function planItems(
         surface_form: expressionMatch.rawSurface,
         pos: 'expression',
         match_type: 'expression',
-        expression_id: expr.id,
+        // Legacy-only lexemes have no expression_catalog identity. Preserve
+        // recognition without passing a lexeme UUID as an expression UUID.
+        expression_id: expr.legacy_lexeme_id ? null : expr.id,
         token_start: index,
         token_end: expressionMatch.end,
         expression_subtype: expr.expression_subtype,
-        resolved: null,
+        resolved: expr.legacy_lexeme_id ? {
+          lexeme_id: expr.legacy_lexeme_id,
+          lemma: expr.lemma,
+          pos: 'expression',
+          form_type: 'expression',
+          grammatical_features: {resolver:'legacy_expression_lexeme'},
+          confidence: 'high',
+          source: 'legacy_expression_lexeme',
+        } : null,
         match_strategy: expressionMatch.matchStrategy,
         compound_normalized: expressionMatch.compoundNormalized,
         network_root_lemma: null,
@@ -482,6 +493,12 @@ export async function planItems(
     // отдельный lexeme_processing_item на каждый вариант, а не один
     // произвольно выбранный.
     if (resolutions.length === 0) {
+      // GRAMMAR GRAPH HOOK (future): the word has no candidate in the
+      // database (resolve_surface_form_v2 found neither a V2 form nor a
+      // lexeme). When the grammar graph is enabled, run its morphology rules
+      // here to propose lemma + POS for the unknown word before the token
+      // item is created. Known words never reach this branch: their forms
+      // keep coming from resolve_surface_form_v2.
       items.push({
         raw_input: rawSurface,
         normalized_input: normalized,

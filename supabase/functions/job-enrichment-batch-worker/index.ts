@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {isResidueRetryable,residueRetryDelaySeconds} from '../_shared/d10-enrichment-residue-policy.ts';
+import {aggregateItemOutcome,selectAggregateBatch} from '../_shared/d10-enrichment-page-contract.ts';
 
 // ============================================================================
 // job-enrichment-batch-worker (v3)
@@ -211,6 +213,14 @@ async function callWorkerJson(
       data = { raw: text };
     }
 
+    const retryAfterHeader = response.headers.get('retry-after');
+    if (retryAfterHeader && data && typeof data === 'object') {
+      const seconds = Number(retryAfterHeader);
+      const parsed = Number.isFinite(seconds)
+        ? Math.ceil(seconds)
+        : Math.ceil((Date.parse(retryAfterHeader) - Date.now()) / 1000);
+      if (Number.isFinite(parsed) && parsed > 0) data.retry_after_seconds = parsed;
+    }
     return { ok: response.ok && data?.ok !== false, status: response.status, data };
   } catch (err) {
     return {
@@ -224,6 +234,8 @@ async function callWorkerJson(
 }
 
 function isRetryable(status: number, data: any): boolean {
+  return isResidueRetryable(status,data);
+  /* Legacy explanation retained below for source history.
   const text = JSON.stringify(data ?? '').toLowerCase();
   return (
     status === 0 ||
@@ -265,7 +277,11 @@ function isRetryable(status: number, data: any): boolean {
     // reorder-worker не должен блокировать весь job.
     text.includes('missing_in_batch_response') ||
     /"code"\s*:\s*429/.test(text)
-  );
+  ); */
+}
+
+function retryDelaySeconds(result: WorkerResult): number {
+  return residueRetryDelaySeconds(result);
 }
 
 type ChainResult = {
@@ -278,6 +294,8 @@ type ChainResult = {
   next_offset: number | null;
   total: number | null;
   errors?: Record<string, unknown>[];
+  residue_waiting?: number;
+  residue_failed?: number;
   forms_v2?: {
     persisted: boolean;
     persisted_count: number;
@@ -287,6 +305,8 @@ type ChainResult = {
     failed: number;
     error?: string;
   };
+  compound_v1?: Record<string, unknown>;
+  family_rebind_v1?: Record<string, unknown>;
 };
 
 const EMPTY_RESULT: ChainResult = {
@@ -304,15 +324,45 @@ async function runChunked<T>(
   items: T[],
   concurrency: number,
   processor: (item: T) => Promise<WorkerResult>,
-): Promise<{ successful: number; failed: number; retryable: number; permanent: number; errors: Record<string, unknown>[] }> {
+  tracking?: { jobId: string; chain: Chain; itemId: (item: T) => string | null },
+): Promise<{ successful: number; failed: number; retryable: number; permanent: number; errors: Record<string, unknown>[]; residueWaiting: number; residueFailed: number }> {
   let successful = 0;
   let failed = 0;
   let retryable = 0;
   let permanent = 0;
   const errors: Record<string, unknown>[] = [];
 
-  for (let i = 0; i < items.length; i += concurrency) {
-    const chunk = items.slice(i, i + concurrency);
+  let selected = items;
+  if (tracking) {
+    const candidates = items.map((item) => tracking.itemId(item)).filter((id): id is string => Boolean(id));
+    const { data, error } = await supabase.rpc('d10_claim_enrichment_residue_v1', {
+      p_job_id: tracking.jobId, p_chain: tracking.chain,
+      p_item_ids: candidates, p_stale_seconds: 180,
+    });
+    if (error) throw new Error(`ENRICHMENT_RESIDUE_CLAIM_FAILED:${safeStringify(error)}`);
+    const claimed = new Set((data ?? []).map((row: any) => String(row.item_id)));
+    selected = items.filter((item) => {
+      const id = tracking.itemId(item);
+      return id ? claimed.has(id) : false;
+    });
+  }
+
+  async function persist(item: T, status: 'done'|'no_data'|'retry'|'failed', code: string, detail?: unknown, retryAfter?: number) {
+    if (!tracking) return;
+    const id = tracking.itemId(item);
+    if (!id) return;
+    const retryDelay = status === 'retry' ? retryAfter ?? 30 : null;
+    const { error } = await supabase.rpc('d10_record_enrichment_outcome_v1', {
+      p_job_id: tracking.jobId, p_chain: tracking.chain, p_item_id: id,
+      p_status: status, p_outcome_code: code,
+      p_error: detail == null ? null : safeStringify(detail).slice(0, 2000),
+      p_evidence: {}, p_retry_after_seconds: retryDelay,
+    });
+    if (error) throw new Error(`ENRICHMENT_OUTCOME_WRITE_FAILED:${safeStringify(error)}`);
+  }
+
+  for (let i = 0; i < selected.length; i += concurrency) {
+    const chunk = selected.slice(i, i + concurrency);
     const settled = await Promise.allSettled(chunk.map((item) => processor(item)));
 
     for (let j = 0; j < settled.length; j++) {
@@ -321,6 +371,7 @@ async function runChunked<T>(
       if (outcome.status === 'rejected') {
         failed++;
         retryable++;
+        await persist(chunk[j], 'retry', 'worker_rejected', outcome.reason);
         errors.push({ item: chunk[j], retryable: true, error: safeStringify(outcome.reason) });
         continue;
       }
@@ -329,6 +380,12 @@ async function runChunked<T>(
 
       if (result.ok) {
         successful++;
+        const body = JSON.stringify(result.data ?? '').toLowerCase();
+        const noData = (result.data?.skipped === true &&
+          (body.includes('no result') || body.includes('not found') || body.includes('nothing to'))) ||
+          body.includes('no_source_article');
+        await persist(chunk[j], noData ? 'no_data' : 'done',
+          noData ? 'source_no_data' : 'worker_completed', result.data);
         continue;
       }
 
@@ -337,14 +394,32 @@ async function runChunked<T>(
       if (retry) retryable++;
       else permanent++;
 
+      await persist(chunk[j], retry ? 'retry' : 'failed',
+        retry ? 'retryable_worker_error' : 'permanent_worker_error', result.data,
+        retryDelaySeconds(result));
+
       errors.push({ item: chunk[j], retryable: retry, status: result.status, data: result.data });
     }
   }
 
-  return { successful, failed, retryable, permanent, errors };
+  let residueWaiting = 0;
+  let residueFailed = 0;
+  if (tracking) {
+    const ids = items.map((item) => tracking.itemId(item)).filter((id): id is string => Boolean(id));
+    const { data, error } = await supabase.rpc('d10_enrichment_residue_summary_v1', {
+      p_job_id: tracking.jobId, p_chain: tracking.chain, p_item_ids: ids,
+    });
+    if (error || data?.ok !== true) throw new Error(`ENRICHMENT_RESIDUE_SUMMARY_FAILED:${safeStringify(error ?? data)}`);
+    residueWaiting = Number(data.waiting ?? 0);
+    residueFailed = Number(data.failed ?? 0);
+  }
+  return { successful, failed, retryable, permanent, errors, residueWaiting, residueFailed };
 }
 
-function buildResult(processed: number, stats: Awaited<ReturnType<typeof runChunked<any>>>, count: number | null, offset: number, limit: number): ChainResult {
+function buildResult(processed: number, stats: {
+  successful: number; failed: number; retryable: number; permanent: number;
+  errors: Record<string, unknown>[]; residueWaiting?: number; residueFailed?: number;
+}, count: number | null, offset: number, limit: number): ChainResult {
   const hasMore = (count ?? 0) > offset + limit;
   return {
     processed,
@@ -356,7 +431,124 @@ function buildResult(processed: number, stats: Awaited<ReturnType<typeof runChun
     next_offset: hasMore ? offset + limit : null,
     total: count ?? null,
     errors: stats.errors.length ? stats.errors : undefined,
+    residue_waiting: stats.residueWaiting ?? 0,
+    residue_failed: stats.residueFailed ?? 0,
   };
+}
+
+async function claimBatchResidue<T extends { id: string }>(
+  jobId: string, chain: Chain, items: T[],
+): Promise<T[]> {
+  if (!items.length) return [];
+  const { data, error } = await supabase.rpc('d10_claim_enrichment_residue_v1', {
+    p_job_id: jobId, p_chain: chain, p_item_ids: items.map((item) => item.id),
+    p_stale_seconds: 180,
+  });
+  if (error) throw new Error(`ENRICHMENT_RESIDUE_CLAIM_FAILED:${safeStringify(error)}`);
+  const claimed = new Set((data ?? []).map((row: any) => String(row.item_id)));
+  return items.filter((item) => claimed.has(item.id));
+}
+
+async function writeBatchOutcome(
+  jobId: string, chain: Chain, itemId: string,
+  status: 'done'|'no_data'|'retry'|'failed', code: string, detail?: unknown,
+  retryAfterSeconds?: number,
+) {
+  const { error } = await supabase.rpc('d10_record_enrichment_outcome_v1', {
+    p_job_id: jobId, p_chain: chain, p_item_id: itemId, p_status: status,
+    p_outcome_code: code,
+    p_error: detail == null ? null : safeStringify(detail).slice(0, 2000),
+    p_evidence: {}, p_retry_after_seconds: status === 'retry' ? retryAfterSeconds ?? 30 : null,
+  });
+  if (error) throw new Error(`ENRICHMENT_OUTCOME_WRITE_FAILED:${safeStringify(error)}`);
+}
+
+async function residueCounts(jobId: string, chain: Chain, ids: string[]) {
+  if (!ids.length) return { waiting: 0, failed: 0 };
+  const { data, error } = await supabase.rpc('d10_enrichment_residue_summary_v1', {
+    p_job_id: jobId, p_chain: chain, p_item_ids: ids,
+  });
+  if (error || data?.ok !== true) throw new Error(`ENRICHMENT_RESIDUE_SUMMARY_FAILED:${safeStringify(error ?? data)}`);
+  return { waiting: Number(data.waiting ?? 0), failed: Number(data.failed ?? 0) };
+}
+
+// Attempt counts of this chain's ledger rows for the page items (missing row
+// = attempt 0). Used only to size the aggregate retry batch.
+async function residueAttempts(jobId: string, chain: Chain, ids: string[]) {
+  const attempts = new Map<string, { status: string | null; attempts: number }>();
+  if (!ids.length) return attempts;
+  const { data, error } = await supabase.rpc('d10_enrichment_residue_attempts_v1', {
+    p_job_id: jobId, p_chain: chain, p_item_ids: ids,
+  });
+  if (error) throw new Error(`ENRICHMENT_RESIDUE_ATTEMPTS_FAILED:${safeStringify(error)}`);
+  for (const row of (data ?? []) as Array<{ item_id: string; status: string | null; attempt_count: number }>) {
+    attempts.set(String(row.item_id), { status: row.status ?? null, attempts: Number(row.attempt_count ?? 0) });
+  }
+  return attempts;
+}
+
+// D10 15.10.2026: review rejections (after the one retry in ai-enrichment-worker).
+const AI_REVIEW_REJECTION=/AI_POS_SENSE_REVIEW_REJECTED|AI_SINGLE_TRANSLATION_REQUIRED|AI_REQUESTED_EXAMPLE_MISSING|AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON/;
+
+async function runAggregateResidue<T extends { id: string }>(params: {
+  jobId: string; chain: Chain; items: T[];
+  identity: (item: T) => string;
+  invoke: (items: T[]) => Promise<WorkerResult>;
+}): Promise<{
+  successful: number; failed: number; retryable: number; permanent: number;
+  errors: Record<string, unknown>[]; residueWaiting: number; residueFailed: number;
+}> {
+  // An aggregate call carries the residue of the page as one batch. After a
+  // whole-batch failure (no item attribution) the retry batch shrinks:
+  // whole residue -> half -> single items on the last attempt, highest
+  // attempt first, so a poisonous item fails alone (plan §2.3, §6).
+  const ledger = await residueAttempts(params.jobId, params.chain, params.items.map((i)=>i.id));
+  const batch = selectAggregateBatch(params.items, ledger);
+  const claimed = await claimBatchResidue(params.jobId,params.chain,batch);
+  if (!claimed.length) {
+    const residue=await residueCounts(params.jobId,params.chain,params.items.map((i)=>i.id));
+    return {successful:0,failed:0,retryable:0,permanent:0,errors:[],residueWaiting:residue.waiting,residueFailed:residue.failed};
+  }
+  const result=await params.invoke(claimed);
+  const rawErrors=Array.isArray(result.data?.errors) ? result.data.errors
+    : Array.isArray(result.data?.results) ? result.data.results.filter((r:any)=>
+      r?.action==='failed'||r?.ok===false||r?.persisted===false) : [];
+  const errorText=rawErrors.map((e:any)=>safeStringify(e));
+  let successful=0,failed=0,retryable=0,permanent=0;
+  for(const item of claimed){
+    const identity=params.identity(item);
+    const matching=errorText.filter((text:string)=>text.includes(identity)||text.includes(item.id));
+    const sourceNoData=matching.length>0 && matching.every((text:string)=>
+      text.toLowerCase().includes('no_source_article')||text.toLowerCase().includes('no results'));
+    // D10 15.10.2026 (agreed): an AI translation rejected by the review model
+    // twice is not a failure of the job: the word is marked "for review" by
+    // ai-enrichment-worker and the outcome is recorded as "no data".
+    const reviewRejected=matching.length>0 && matching.every((text:string)=>AI_REVIEW_REJECTION.test(text));
+    const noData=sourceNoData||reviewRejected;
+    const unknownWholeBatch=!result.ok || (rawErrors.length>0 && matching.length===0 &&
+      Number(result.data?.error_count??result.data?.failed??0)>=claimed.length);
+    const itemDetail=matching.length?matching:result.data;
+    const retry=isRetryable(result.status,itemDetail);
+    // An unattributed failure of a multi-item batch never fails its members:
+    // they are retried in a smaller batch (see aggregateItemOutcome).
+    const outcome=aggregateItemOutcome({batchSize:claimed.length,matchedErrors:matching.length,
+      noData,unattributedFailure:unknownWholeBatch,retryable:retry});
+    if(outcome.status==='no_data'){
+      successful++;
+      await writeBatchOutcome(params.jobId,params.chain,item.id,'no_data',
+        reviewRejected&&!sourceNoData?'ai_review_rejected':outcome.code,matching);
+    }else if(outcome.status==='retry'||outcome.status==='failed'){
+      failed++;
+      if(outcome.status==='retry')retryable++;else permanent++;
+      const delay=retry?retryDelaySeconds({...result,data:itemDetail}):5;
+      await writeBatchOutcome(params.jobId,params.chain,item.id,outcome.status,outcome.code,itemDetail,delay);
+    }else{
+      successful++;
+      await writeBatchOutcome(params.jobId,params.chain,item.id,'done',outcome.code,result.data);
+    }
+  }
+  const residue=await residueCounts(params.jobId,params.chain,params.items.map((i)=>i.id));
+  return {successful,failed,retryable,permanent,errors:rawErrors,residueWaiting:residue.waiting,residueFailed:residue.failed};
 }
 
 // ----------------------------------------------------------------------------
@@ -365,16 +557,28 @@ function buildResult(processed: number, stats: Awaited<ReturnType<typeof runChun
 async function enqueueOrdbokeneEnrichment(jobId: string, offset: number, limit: number): Promise<ChainResult> {
   const { data: promotedItems, error, count } = await supabase
     .from('lexeme_processing_items')
-    .select('id, expression_id, lexeme_id, normalized_lemma, surface_form, match_type', { count: 'exact' })
+    .select('id, expression_id, lexeme_id, normalized_lemma, surface_form, match_type, current_stage, result_summary', { count: 'exact' })
     .eq('job_id', jobId)
-    .eq('current_stage', 'semantic_audit')
+    .in('current_stage', ['semantic_audit','admission_gate'])
     .or('expression_id.not.is.null,lexeme_id.not.is.null')
     .order('id', { ascending: true })
     .range(offset, offset + limit - 1);
 
   if (error) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_items', error: safeStringify(error) }] };
 
-  const items = (promotedItems ?? []).filter((item) => item.normalized_lemma ?? item.surface_form);
+  const pageRows=promotedItems??[];
+  const admissionIds=pageRows.filter((item:any)=>item.current_stage==='admission_gate')
+    .map((item:any)=>item.id);
+  const {data: familyIds,error: familyError}=admissionIds.length
+    ? await supabase.rpc('d10_job_family_item_ids_v1',{p_job_id:jobId,p_item_ids:admissionIds})
+    : {data:[],error:null};
+  if (familyError) return { ...EMPTY_RESULT, failed: 1, retryable: 1,
+    errors: [{ stage: 'load_family_selector', error: safeStringify(familyError) }] };
+  const familyItemIds=new Set((familyIds??[]).map((id:any)=>String(id)));
+  const items = pageRows.filter((item:any) =>
+    (item.current_stage==='semantic_audit'||
+      (item.current_stage==='admission_gate'&&familyItemIds.has(String(item.id))))&&
+    (item.normalized_lemma ?? item.surface_form));
 
   // Keep the POS and the exact article established by the lexical check.
   // Expression candidates deliberately have no lexeme ID yet.
@@ -392,13 +596,15 @@ async function enqueueOrdbokeneEnrichment(jobId: string, offset: number, limit: 
       .eq('source', 'Ordbokene')
     : { data: [], error: null };
   if (checksError) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_article_checks', error: safeStringify(checksError) }] };
-  const articleByItem = new Map<string, number>();
+  const articleByItem = new Map<string, {articleId:number;parentArticleId:number|null}>();
   for (const check of articleChecks ?? []) {
     const preview = (check.evidence as any)?.raw_preview;
     const ids = preview?.article_ids;
     if (check.registered_entry === true && preview?.dictionary_code === 'bm' &&
       Array.isArray(ids) && ids.length === 1 && Number.isSafeInteger(Number(ids[0]))) {
-      articleByItem.set(check.item_id, Number(ids[0]));
+      const parent=Number(preview?.parent_article_id);
+      articleByItem.set(check.item_id, {articleId:Number(ids[0]),
+        parentArticleId:Number.isSafeInteger(parent)?parent:null});
     }
   }
 
@@ -410,12 +616,14 @@ async function enqueueOrdbokeneEnrichment(jobId: string, offset: number, limit: 
       parent_lexeme_id: isLexeme ? item.lexeme_id : null,
       entity_mode: isLexeme ? 'lexeme' : 'expression',
       pos: isLexeme ? posByLexeme.get(item.lexeme_id) ?? null : null,
-      article_id: isLexeme ? articleByItem.get(item.id) ?? null : null,
+      expression_id: item.expression_id ?? null,
+      article_id: articleByItem.get(item.id)?.articleId ?? null,
+      parent_article_id: articleByItem.get(item.id)?.parentArticleId ?? null,
       dictionary_code: 'bm',
       dry_run: false,
       force_refresh: true,
     }, ORDBOKENE_PIPELINE_TIMEOUT_MS);
-  });
+  }, { jobId, chain: 'ordbokene', itemId: (item) => item.id });
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -423,24 +631,37 @@ async function enqueueOrdbokeneEnrichment(jobId: string, offset: number, limit: 
 // ----------------------------------------------------------------------------
 // NAOB enrichment (expression-only)
 // ----------------------------------------------------------------------------
-async function enqueueNaobEnrichment(jobId: string, offset: number, limit: number): Promise<ChainResult> {
-  const { data: promotedItems, error, count } = await supabase
-    .from('lexeme_processing_items')
-    .select('id, expression_id, normalized_lemma, surface_form, match_type', { count: 'exact' })
-    .eq('job_id', jobId)
-    .eq('current_stage', 'semantic_audit')
-    .not('expression_id', 'is', null)
-    .order('id', { ascending: true })
-    .range(offset, offset + limit - 1);
+// The SQL page includes promoted expressions and gray family items admitted for this job.
+async function loadExpressionEnrichmentPage(jobId: string, offset: number, limit: number) {
+  const { data, error } = await supabase.rpc('d10_family_enrichment_items_page_v1', {
+    p_job_id: jobId, p_offset: offset, p_limit: limit,
+  });
+  if (error || data?.ok !== true || !Array.isArray(data?.items) ||
+      !Number.isInteger(data?.total)) {
+    throw new Error(`FAMILY_ENRICHMENT_PAGE_FAILED:${safeStringify(error ?? data)}`);
+  }
+  return { items: data.items as Array<{ id: string; expression_id: string;
+    normalized_lemma: string | null; surface_form: string | null; match_type: string; current_stage: string }>,
+    count: data.total as number };
+}
 
-  if (error) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_items', error: safeStringify(error) }] };
+async function enqueueNaobEnrichment(jobId: string, offset: number, limit: number): Promise<ChainResult> {
+  let promotedItems: Array<{ id: string; expression_id: string;
+    normalized_lemma: string | null; surface_form: string | null; match_type: string; current_stage: string }>;
+  let count: number;
+  try {
+    ({ items: promotedItems, count } = await loadExpressionEnrichmentPage(jobId, offset, limit));
+  } catch (error) {
+    return { ...EMPTY_RESULT, failed: 1, retryable: 1,
+      errors: [{ stage: 'load_family_expression_items', error: safeStringify(error) }] };
+  }
 
   const items = (promotedItems ?? []).filter((item) => item.normalized_lemma ?? item.surface_form);
 
   const stats = await runChunked(items, CONCURRENCY, (item) => {
     const expressionLemma = item.normalized_lemma ?? item.surface_form;
     return callWorkerJson('naob-pipeline-worker', { expression_lemma: expressionLemma, update_catalog: true, force_refresh: true });
-  });
+  }, { jobId, chain: 'naob', itemId: (item) => item.id });
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -482,16 +703,15 @@ function buildCandidateSlugs(expressionLemma: string, sourceLemma?: string | nul
 }
 
 async function enqueueNaobSynonymsEnrichment(jobId: string, offset: number, limit: number): Promise<ChainResult> {
-  const { data: promotedItems, error, count } = await supabase
-    .from('lexeme_processing_items')
-    .select('id, expression_id, normalized_lemma, surface_form, match_type', { count: 'exact' })
-    .eq('job_id', jobId)
-    .eq('current_stage', 'semantic_audit')
-    .not('expression_id', 'is', null)
-    .order('id', { ascending: true })
-    .range(offset, offset + limit - 1);
-
-  if (error) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_items', error: safeStringify(error) }] };
+  let promotedItems: Array<{ id: string; expression_id: string;
+    normalized_lemma: string | null; surface_form: string | null; match_type: string; current_stage: string }>;
+  let count: number;
+  try {
+    ({ items: promotedItems, count } = await loadExpressionEnrichmentPage(jobId, offset, limit));
+  } catch (error) {
+    return { ...EMPTY_RESULT, failed: 1, retryable: 1,
+      errors: [{ stage: 'load_family_expression_items', error: safeStringify(error) }] };
+  }
 
   const items = (promotedItems ?? []).filter((item) => item.expression_id && (item.normalized_lemma ?? item.surface_form));
 
@@ -537,7 +757,7 @@ async function enqueueNaobSynonymsEnrichment(jobId: string, offset: number, limi
     }
 
     return callWorkerJson('naob-synonym-extractor', { naob_slug: matchedSlug, dry_run: false });
-  });
+  }, { jobId, chain: 'naob_synonyms', itemId: (item) => item.id });
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -589,7 +809,7 @@ async function enqueueLexemeTranslationEnrichment(jobId: string, offset: number,
   const stats = await runChunked(items, CONCURRENCY, (item) => {
     const lemma = item.normalized_lemma ?? item.surface_form;
     return callWorkerJson('lexin-enrichment-worker', { lexeme_id: item.lexeme_id, lemma, dry_run: false });
-  });
+  }, { jobId, chain: 'lexeme_translation', itemId: (item) => item.id });
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -598,17 +818,15 @@ async function enqueueLexemeTranslationEnrichment(jobId: string, offset: number,
 // Expression translation (Lexin)
 // ----------------------------------------------------------------------------
 async function enqueueExpressionTranslationEnrichment(jobId: string, offset: number, limit: number): Promise<ChainResult> {
-  const { data: promotedItems, error, count } = await supabase
-    .from('lexeme_processing_items')
-    .select('id, expression_id, normalized_lemma, surface_form, match_type', { count: 'exact' })
-    .eq('job_id', jobId)
-    .eq('current_stage', 'semantic_audit')
-    .not('expression_id', 'is', null)
-    .eq('match_type', 'expression')
-    .order('id', { ascending: true })
-    .range(offset, offset + limit - 1);
-
-  if (error) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_items', error: safeStringify(error) }] };
+  let promotedItems: Array<{ id: string; expression_id: string;
+    normalized_lemma: string | null; surface_form: string | null; match_type: string; current_stage: string }>;
+  let count: number;
+  try {
+    ({ items: promotedItems, count } = await loadExpressionEnrichmentPage(jobId, offset, limit));
+  } catch (error) {
+    return { ...EMPTY_RESULT, failed: 1, retryable: 1,
+      errors: [{ stage: 'load_family_expression_items', error: safeStringify(error) }] };
+  }
 
   const rawItems = (promotedItems ?? []).filter((item) => item.expression_id && (item.normalized_lemma ?? item.surface_form));
 
@@ -628,7 +846,7 @@ async function enqueueExpressionTranslationEnrichment(jobId: string, offset: num
   const stats = await runChunked(items, CONCURRENCY, (item) => {
     const expressionLemma = item.normalized_lemma ?? item.surface_form;
     return callWorkerJson('lexin-enrichment-worker', { expression_id: item.expression_id, lemma: expressionLemma, dry_run: false });
-  });
+  }, { jobId, chain: 'expression_translation', itemId: (item) => item.id });
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -644,43 +862,33 @@ async function enqueueExpressionTranslationEnrichment(jobId: string, offset: num
 // промпт-оверхеде.
 // ----------------------------------------------------------------------------
 async function enqueueExpressionAiFallbackEnrichment(jobId: string, offset: number, limit: number): Promise<ChainResult> {
-  const { data: promotedItems, error, count } = await supabase
-    .from('lexeme_processing_items')
-    .select('id, expression_id, normalized_lemma, surface_form, match_type', { count: 'exact' })
-    .eq('job_id', jobId)
-    .eq('current_stage', 'semantic_audit')
-    .not('expression_id', 'is', null)
-    .eq('match_type', 'expression')
-    .order('id', { ascending: true })
-    .range(offset, offset + limit - 1);
+  let promotedItems: Array<{ id: string; expression_id: string;
+    normalized_lemma: string | null; surface_form: string | null; match_type: string; current_stage: string }>;
+  let count: number;
+  try {
+    ({ items: promotedItems, count } = await loadExpressionEnrichmentPage(jobId, offset, limit));
+  } catch (error) {
+    return { ...EMPTY_RESULT, failed: 1, retryable: 1,
+      errors: [{ stage: 'load_family_expression_items', error: safeStringify(error) }] };
+  }
 
-  if (error) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_items', error: safeStringify(error) }] };
-
-  const items = (promotedItems ?? []).filter((item) => item.expression_id);
-  const expressionIds = items.map((item) => item.expression_id as string);
-
-  if (expressionIds.length === 0) {
+  // D10 plan C (rule R6, 13.10.2026): gray family members are enriched like
+  // admitted expressions, AI fallback included (expressions mostly have no
+  // Lexin translation). The page holds only admitted expressions and this
+  // job's gray family items (d10_family_enrichment_items_page_v1).
+  // Previously: AI fallback only for current_stage = 'semantic_audit'.
+  const items = (promotedItems ?? []).filter((item) =>
+    item.expression_id &&
+    (item.current_stage === 'semantic_audit' || item.current_stage === 'admission_gate'));
+  if (items.length === 0) {
     const hasMore = (count ?? 0) > offset + limit;
     return { ...EMPTY_RESULT, has_more: hasMore, next_offset: hasMore ? offset + limit : null, total: count ?? null };
   }
 
-  const result = await callWorkerJson('ai-enrichment-worker', { expression_ids: expressionIds, dry_run: false });
-
-  const stats = result.ok
-    ? {
-        successful: Number(result.data?.processed_count ?? 0) + Number(result.data?.skipped_count ?? 0),
-        failed: Number(result.data?.error_count ?? 0),
-        retryable: isRetryable(result.status, result.data) ? Number(result.data?.error_count ?? 0) : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : Number(result.data?.error_count ?? 0),
-        errors: Array.isArray(result.data?.errors) ? result.data.errors : [],
-      }
-    : {
-        successful: 0,
-        failed: expressionIds.length,
-        retryable: isRetryable(result.status, result.data) ? expressionIds.length : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : expressionIds.length,
-        errors: [{ stage: 'ai_batch_call', error: safeStringify(result.data) }],
-      };
+  const stats = await runAggregateResidue({jobId,chain:'expression_ai_fallback',items,
+    identity:(item)=>item.expression_id,
+    invoke:(selected)=>callWorkerJson('ai-enrichment-worker',{
+      expression_ids:selected.map((item)=>item.expression_id),dry_run:false})});
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -703,10 +911,38 @@ async function enqueueAuthoritativeEnrichment(jobId: string, offset: number, lim
 
   const items = (promotedItems ?? []).filter((item) => item.lexeme_id && (item.normalized_lemma ?? item.surface_form));
 
+  // D10 15.10.2026 (B3): pass the POS of the card and the exact Bokmål
+  // article of the item's lexical check, as the ordbokene chain does.
+  const lexemeIds = [...new Set(items.map((item) => item.lexeme_id).filter(Boolean))];
+  const { data: posRows, error: posError } = lexemeIds.length
+    ? await supabase.from('lexemes').select('id, pos').in('id', lexemeIds)
+    : { data: [], error: null };
+  if (posError) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_pos', error: safeStringify(posError) }] };
+  const posByLexeme = new Map((posRows ?? []).map((row: any) => [row.id, row.pos]));
+  const { data: articleChecks, error: checksError } = items.length
+    ? await supabase.from('lexeme_source_checks')
+      .select('item_id, evidence, registered_entry')
+      .in('item_id', items.map((item) => item.id))
+      .eq('source', 'Ordbokene')
+    : { data: [], error: null };
+  if (checksError) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_article_checks', error: safeStringify(checksError) }] };
+  const articleByItem = new Map<string, number>();
+  for (const check of articleChecks ?? []) {
+    const preview = (check.evidence as any)?.raw_preview;
+    const ids = preview?.article_ids;
+    if (check.registered_entry === true && preview?.dictionary_code === 'bm' &&
+      Array.isArray(ids) && ids.length === 1 && Number.isSafeInteger(Number(ids[0]))) {
+      articleByItem.set(check.item_id, Number(ids[0]));
+    }
+  }
+
   const stats = await runChunked(items, CONCURRENCY, (item) => {
     const lemma = item.normalized_lemma ?? item.surface_form;
-    return callWorkerJson('authoritative-enrichment-pipeline-worker', { item_type: 'lexeme', lemma, lexeme_id: item.lexeme_id, force_refresh: true });
-  });
+    return callWorkerJson('authoritative-enrichment-pipeline-worker', { item_type: 'lexeme', lemma, lexeme_id: item.lexeme_id,
+      pos: posByLexeme.get(item.lexeme_id) ?? undefined,
+      article_id: articleByItem.get(item.id) ?? undefined,
+      force_refresh: true });
+  }, { jobId, chain: 'authoritative', itemId: (item) => item.id });
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -725,32 +961,17 @@ async function enqueueAiFallbackEnrichment(jobId: string, offset: number, limit:
   if (error) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_items', error: safeStringify(error) }] };
 
   const items = (promotedItems ?? []).filter((item) => item.lexeme_id);
-  const lexemeIds = items.map((item) => item.lexeme_id as string);
-
-  if (lexemeIds.length === 0) {
+  if (items.length === 0) {
     const hasMore = (count ?? 0) > offset + limit;
     return { ...EMPTY_RESULT, has_more: hasMore, next_offset: hasMore ? offset + limit : null, total: count ?? null };
   }
 
   // ФИКС: было по одному через runChunked — теперь один вызов с массивом
   // lexeme_ids, ai-enrichment-worker сам батчит вызовы к Gemini внутри.
-  const result = await callWorkerJson('ai-enrichment-worker', { lexeme_ids: lexemeIds, dry_run: false });
-
-  const stats = result.ok
-    ? {
-        successful: Number(result.data?.processed_count ?? 0) + Number(result.data?.skipped_count ?? 0),
-        failed: Number(result.data?.error_count ?? 0),
-        retryable: isRetryable(result.status, result.data) ? Number(result.data?.error_count ?? 0) : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : Number(result.data?.error_count ?? 0),
-        errors: Array.isArray(result.data?.errors) ? result.data.errors : [],
-      }
-    : {
-        successful: 0,
-        failed: lexemeIds.length,
-        retryable: isRetryable(result.status, result.data) ? lexemeIds.length : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : lexemeIds.length,
-        errors: [{ stage: 'ai_batch_call', error: safeStringify(result.data) }],
-      };
+  const stats = await runAggregateResidue({jobId,chain:'authoritative_ai_fallback',items,
+    identity:(item)=>item.lexeme_id as string,
+    invoke:(selected)=>callWorkerJson('ai-enrichment-worker',{
+      lexeme_ids:selected.map((item)=>item.lexeme_id),dry_run:false})});
 
   return buildResult(items.length, stats, count, offset, limit);
 }
@@ -796,31 +1017,16 @@ async function enqueueTranslationReorderEnrichment(jobId: string, offset: number
   if (error) return { ...EMPTY_RESULT, failed: 1, retryable: 1, errors: [{ stage: 'load_items', error: safeStringify(error) }] };
 
   const rawItems = (promotedItems ?? []).filter((item) => item.lexeme_id);
-  const lexemeIds = [...new Set(rawItems.map((item) => item.lexeme_id as string))];
+  const items=[...new Map(rawItems.map((item:any)=>[item.lexeme_id,item])).values()] as any[];
 
-  if (lexemeIds.length === 0) {
+  if (items.length === 0) {
     return { ...EMPTY_RESULT, total: 0 };
   }
 
-  const result = await callWorkerJson('translation-aspect-reorder-worker', { lexemeIds, dryRun: false }, 60000);
-
-  const stats = result.ok
-    ? {
-        successful: Number(result.data?.reordered ?? 0) + Number(result.data?.left_as_is ?? 0) + Number(result.data?.single_variant_marked ?? 0),
-        failed: Number(result.data?.failed ?? 0),
-        retryable: isRetryable(result.status, result.data) ? Number(result.data?.failed ?? 0) : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : Number(result.data?.failed ?? 0),
-        errors: Array.isArray(result.data?.results)
-          ? result.data.results.filter((r: any) => r.action === 'failed')
-          : [],
-      }
-    : {
-        successful: 0,
-        failed: lexemeIds.length,
-        retryable: isRetryable(result.status, result.data) ? lexemeIds.length : 0,
-        permanent: isRetryable(result.status, result.data) ? 0 : lexemeIds.length,
-        errors: [{ stage: 'translation_reorder_batch_call', error: safeStringify(result.data) }],
-      };
+  const stats=await runAggregateResidue({jobId,chain:'translation_reorder',items,
+    identity:(item:any)=>item.lexeme_id,
+    invoke:(selected:any[])=>callWorkerJson('translation-aspect-reorder-worker',
+      {lexemeIds:selected.map((item)=>item.lexeme_id),dryRun:false},60000)});
 
   return {
     processed: rawItems.length,
@@ -832,6 +1038,8 @@ async function enqueueTranslationReorderEnrichment(jobId: string, offset: number
     next_offset: rawItems.length,
     total: rawItems.length,
     errors: stats.errors.length ? stats.errors : undefined,
+    residue_waiting: stats.residueWaiting,
+    residue_failed: stats.residueFailed,
   };
 }
 
@@ -871,14 +1079,12 @@ async function enqueueTranslationCanonicalization(
   }
 
   const rawItems = (promotedItems ?? []).filter((item) => item.lexeme_id);
-  const lexemeIds = [
-    ...new Set(rawItems.map((item) => item.lexeme_id as string)),
-  ];
+  const items=[...new Map(rawItems.map((item:any)=>[item.lexeme_id,item])).values()] as any[];
 
   const hasMore = (count ?? 0) > offset + limit;
   const nextOffset = hasMore ? offset + limit : null;
 
-  if (lexemeIds.length === 0) {
+  if (items.length === 0) {
     return {
       ...EMPTY_RESULT,
       processed: rawItems.length,
@@ -898,61 +1104,27 @@ async function enqueueTranslationCanonicalization(
   // canonicalize", и сам HTTP-вызов можно не делать. На большом refresh
   // это убирает тысячи пустых вызовов.
   //
-  const { data: candidateRows, error: candidateCheckError } = await supabase
-    .from('entity_translations')
-    .select('lexeme_id')
-    .in('lexeme_id', lexemeIds)
-    .in('source', ['lexin', 'ai_fallback'])
-    .in('translation_type', ['primary', 'expression_primary'])
-    .eq('translation_rank', 1)
-    .is('canonical_translation', null)
-    .limit(1);
-
-  const hasCanonicalizationWork =
-    !candidateCheckError && (candidateRows?.length ?? 0) > 0;
-
-  if (hasCanonicalizationWork) {
-    const canonicalization = await callWorkerJson(
-      'translation-canonicalization-worker',
-      {
-        lexeme_ids: lexemeIds,
-        force_recanonicalize: false,
-        dry_run: false,
-      },
-    );
-
-    if (!canonicalization.ok) {
-      const retry = isRetryable(canonicalization.status, canonicalization.data);
-
-      return {
-        processed: rawItems.length,
-        successful: 0,
-        failed: lexemeIds.length,
-        retryable: retry ? lexemeIds.length : 0,
-        permanent: retry ? 0 : lexemeIds.length,
-        has_more: hasMore,
-        next_offset: nextOffset,
-        total: count ?? null,
-        errors: [{
-          stage: 'translation_canonicalization_batch_call',
-          retryable: retry,
-          status: canonicalization.status,
-          data: canonicalization.data,
-        }],
-      };
-    }
-  }
-
-  return {
-    processed: rawItems.length,
-    successful: lexemeIds.length,
-    failed: 0,
-    retryable: 0,
-    permanent: 0,
-    has_more: hasMore,
-    next_offset: nextOffset,
-    total: count ?? null,
-  };
+  const stats=await runAggregateResidue({jobId,chain:'translation_canonicalization',items,
+    identity:(item:any)=>item.lexeme_id,
+    invoke:async(selected:any[])=>{
+      const lexemeIds=selected.map((item)=>item.lexeme_id);
+      // D10 15.10.2026 (agreed: audit rewrites everything): the canonical
+      // choice of the job's words is made again (force), so values left from
+      // earlier iterations are replaced. The Lexin text itself is not changed;
+      // AI is used only when two or more candidates remain after dedup.
+      // The precheck now only skips words with no Lexin/AI primary row at all.
+      const {data:candidates,error:checkError}=await supabase.from('entity_translations')
+        .select('lexeme_id').in('lexeme_id',lexemeIds).in('source',['lexin','ai_fallback'])
+        .in('translation_type',['primary','expression_primary']).eq('translation_rank',1)
+        .limit(1);
+      if(checkError)return {ok:false,status:0,data:{error:safeStringify(checkError),stage:'canonicalization_precheck'}};
+      if(!(candidates?.length??0))return {ok:true,status:200,data:{ok:true,nothing_missing:true}};
+      // up to 20 words per page now (supervisor): Gemini calls of 10 each
+      return callWorkerJson('translation-canonicalization-worker',{
+        lexeme_ids:lexemeIds,force_recanonicalize:true,dry_run:false},40000);
+    }});
+  return {...buildResult(items.length,stats,count,offset,limit),has_more:hasMore,
+    next_offset:nextOffset,total:count??null};
 }
 
 // ----------------------------------------------------------------------------
@@ -990,63 +1162,102 @@ async function enqueueFormsEnrichment(jobId: string, offset: number, limit: numb
   // The authoritative V2 producer is the only forms producer. Determiners are
   // source-backed too, so they remain eligible alongside verbs, nouns and
   // adjectives.
-  const { data: posRows } = await supabase.from('lexemes').select('id, pos').in('id', lexemeIds);
+  const { data: posRows, error: posError } = await supabase.from('lexemes').select('id, pos').in('id', lexemeIds);
+  if (posError) return { ...EMPTY_RESULT, failed: 1, retryable: 1,
+    errors: [{ stage: 'load_forms_pos', error: safeStringify(posError) }] };
   const eligibleIds = (posRows ?? [])
     .filter((r) => ['verb', 'noun', 'adjective', 'determiner'].includes(r.pos))
     .map((r) => r.id as string);
+  const eligibleSet=new Set(eligibleIds);
+  const items=[...new Map(rawItems.filter((item:any)=>eligibleSet.has(item.lexeme_id))
+    .map((item:any)=>[item.lexeme_id,item])).values()] as any[];
 
   if (eligibleIds.length === 0) {
     const hasMore = (count ?? 0) > offset + limit;
     return { ...EMPTY_RESULT, processed: rawItems.length, has_more: hasMore, next_offset: hasMore ? offset + limit : null, total: count ?? null };
   }
 
-  const result = await callWorkerJson('forms-enrichment-v2-worker', {
-    lexemeIds: eligibleIds,
-    persist: true,
-  });
-  const rows = Array.isArray(result.data?.results) ? result.data.results : [];
+  let lastResult:WorkerResult={ok:true,status:200,data:{results:[]}};
+  let compoundResult:Record<string,unknown>|undefined;
+  const stats=await runAggregateResidue({jobId,chain:'forms',items,
+    identity:(item:any)=>item.lexeme_id,
+    invoke:async(selected:any[])=>{
+      lastResult=await callWorkerJson('forms-enrichment-v2-worker',{
+        lexemeIds:selected.map((item)=>item.lexeme_id),persist:true});
+      compoundResult=await runCompoundStep(selected.map((item)=>item.lexeme_id),lastResult);
+      return lastResult;
+    }});
+  const rows = Array.isArray(lastResult.data?.results) ? lastResult.data.results : [];
   const failedRows = rows.filter((row: any) => row?.persisted !== true);
   const persistedCount = rows.length - failedRows.length;
   const failedLexemeIds = failedRows
     .map((row: any) => row?.lexemeId)
     .filter((value: unknown): value is string => typeof value === 'string');
-  const stats = result.ok && failedRows.length === 0
-    ? {
-        successful: persistedCount,
-        failed: 0,
-        retryable: 0,
-        permanent: 0,
-        errors: [],
-      }
-    : {
-        successful: persistedCount,
-        failed: Math.max(failedRows.length, eligibleIds.length - persistedCount),
-        retryable: isRetryable(result.status, result.data)
-          ? Math.max(failedRows.length, eligibleIds.length - persistedCount)
-          : 0,
-        permanent: isRetryable(result.status, result.data)
-          ? 0
-          : Math.max(failedRows.length, eligibleIds.length - persistedCount),
-        errors: failedRows.length
-          ? failedRows
-          : [{ stage: 'forms_v2_batch_call', error: safeStringify(result.data) }],
-      };
-
-  const chainResult = buildResult(rawItems.length, stats, count, offset, limit);
+  const chainResult = buildResult(items.length, stats, count, offset, limit);
+  // D10 15.10.2026: after the forms of a page, the "article -> card" aliases of
+  // new homograph cards exist; expressions of this job still without a family
+  // card are bound again by the same binding function. An addition: a failure
+  // is only reported and never changes the forms outcome.
+  let familyRebind: Record<string, unknown> | undefined;
+  try {
+    const { data: rebind, error: rebindError } = await supabase.rpc(
+      'd10_rebind_job_expression_roots_v1', { p_job_id: jobId });
+    familyRebind = rebindError ? { ok: false, error: safeStringify(rebindError).slice(0, 300) } : { ok: true, ...(rebind ?? {}) };
+  } catch (e) {
+    familyRebind = { ok: false, error: safeStringify(e).slice(0, 300) };
+  }
   return {
     ...chainResult,
+    ...(familyRebind ? { family_rebind_v1: familyRebind } : {}),
     forms_v2: {
       persisted: rows.length > 0 && persistedCount === rows.length,
       persisted_count: persistedCount,
       failed_lexeme_ids: failedLexemeIds,
-      status: result.status,
-      processed: Number(result.data?.processed ?? 0),
-      failed: Number(result.data?.failed ?? failedRows.length),
-      error: result.ok
+      status: lastResult.status,
+      processed: Number(lastResult.data?.processed ?? 0),
+      failed: Number(lastResult.data?.failed ?? failedRows.length),
+      error: lastResult.ok
         ? undefined
-        : safeStringify(result.data?.error ?? 'V2 forms failed').slice(0, 500),
+        : safeStringify(lastResult.data?.error ?? 'V2 forms failed').slice(0, 500),
     },
+    ...(compoundResult ? { compound_v1: compoundResult } : {}),
   };
+}
+
+// D10 15.10.2026 (agreed): compound words, an addition after the forms of a
+// page. Never changes the forms outcome of an item: a failure here is only
+// reported in compound_v1 and repeated by the next audit.
+//   1. NAOB candidates of these words -> compound-candidate-promoter
+//      (mode "only these words"): coloring of words with their own article.
+//   2. Words for which Ordbøkene answered "no article" ->
+//      compound-head-forms-worker: dictionary split + forms by the head.
+async function runCompoundStep(lexemeIds:string[],formsResult:WorkerResult):Promise<Record<string,unknown>>{
+  const out:Record<string,unknown>={};
+  const ids=[...new Set(lexemeIds.filter(Boolean))];
+  try{
+    // dry_run:true is a safety net only: a promoter deployed without the
+    // "only these words" mode would otherwise run its global queue for real.
+    // The new mode ignores dry_run.
+    const promoted=await callWorkerJson('compound-candidate-promoter',{lexeme_ids:ids,dry_run:true},20000);
+    if(promoted.data?.mode!=='lexemes')throw new Error('compound-candidate-promoter without lexeme mode (deploy it)');
+    out.promoter={ok:promoted.ok,status:promoted.status,promoted:promoted.data?.promoted??0,
+      needs_review:promoted.data?.needs_review??0,failed:promoted.data?.failed??0,
+      error:promoted.ok?undefined:safeStringify(promoted.data?.error??promoted.data).slice(0,300)};
+  }catch(e){out.promoter={ok:false,error:safeStringify(e).slice(0,300)};}
+  const rows=Array.isArray(formsResult.data?.results)?formsResult.data.results:[];
+  const noArticle=[...new Set(rows.filter((row:any)=>row?.persisted!==true&&
+      (row?.status==='not_found'||row?.articleProjection?.status==='no_source_article'))
+    .map((row:any)=>row?.lexemeId).filter((id:unknown):id is string=>typeof id==='string'&&ids.includes(id)))];
+  if(noArticle.length){
+    try{
+      const head=await callWorkerJson('compound-head-forms-worker',{lexemeIds:noArticle},30000);
+      out.head_forms={ok:head.ok,status:head.status,
+        results:(Array.isArray(head.data?.results)?head.data.results:[]).map((r:any)=>({
+          lexemeId:r?.lexemeId,lemma:r?.lemma,status:r?.status})),
+        error:head.ok?undefined:safeStringify(head.data?.error??'').slice(0,300)};
+    }catch(e){out.head_forms={ok:false,error:safeStringify(e).slice(0,300)};}
+  }
+  return out;
 }
 
 // ----------------------------------------------------------------------------

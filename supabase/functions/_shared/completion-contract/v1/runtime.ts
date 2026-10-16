@@ -48,6 +48,24 @@ export interface CompletionEvaluation {
   unresolved_items: unknown[];
   unresolved_items_block_completion: boolean;
   report: AggregateAssessment;
+  // D10 15.10.2026: words marked "for review" (AI translation rejected twice)
+  // that do not block the job; the words themselves stay not ready.
+  review_marked_entities?: string[];
+}
+
+// D10 15.10.2026 (agreed "a + b"): a lexeme whose AI translation was rejected
+// by the review model twice carries identity.ai_review_rejected. If its ONLY
+// blockers are missing translations, it does not stop the job.
+export function reviewMarkedEntityKeys(
+  assessments: AggregateAssessment["assessments"],
+  markedKeys: ReadonlySet<string>,
+): string[] {
+  return assessments.filter((assessment) =>
+    assessment.quality_stage !== "ready" &&
+    markedKeys.has(assessment.entity_key) &&
+    assessment.blockers.length > 0 &&
+    assessment.blockers.every((issue) => issue.code === "TRANSLATION_MISSING")
+  ).map((assessment) => assessment.entity_key).sort();
 }
 
 export interface EvaluateJobOptions {
@@ -94,6 +112,7 @@ export async function evaluateJobCompletion(
   let executionState: ExecutionState | null = null;
   let sourceCounts: SnapshotRpcResult["counts"] | null = null;
   let unresolvedItems: unknown[] = [];
+  const reviewMarkedKeys = new Set<string>();
 
   for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
     const snapshot = await fetchPage({
@@ -128,6 +147,11 @@ export async function evaluateJobCompletion(
       has_more: snapshot.page.has_more,
       assessments: snapshot.page.entities.map(evaluateCompletion),
     });
+    for (const entity of snapshot.page.entities) {
+      if ((entity.identity as unknown as { ai_review_rejected?: unknown })?.ai_review_rejected === true) {
+        reviewMarkedKeys.add(entity.entity_key);
+      }
+    }
 
     if (!snapshot.page.has_more) break;
     if (!snapshot.page.next_cursor || snapshot.page.next_cursor === cursor) {
@@ -142,11 +166,18 @@ export async function evaluateJobCompletion(
   }
 
   const report = aggregateAssessmentPages(pages);
-  const qualityState = deriveQualityState(report, unresolvedItems);
+  const reviewMarked = reviewMarkedEntityKeys(report.assessments, reviewMarkedKeys);
   const unresolvedItemsBlockCompletion = unresolvedItems.length > 0;
+  // Every not-ready entity is a review-marked word -> the job counts as ready.
+  const onlyReviewMarked = reviewMarked.length > 0 &&
+    report.learner_ready_entities + reviewMarked.length === report.total_entities;
+  const qualityState = onlyReviewMarked && !unresolvedItemsBlockCompletion
+    ? "ready" as QualityStage
+    : deriveQualityState(report, unresolvedItems);
   const learnerReady = executionState === "completed" &&
     !unresolvedItemsBlockCompletion && qualityState === "ready" &&
-    report.learner_ready_entities === report.total_entities;
+    report.learner_ready_entities + (onlyReviewMarked ? reviewMarked.length : 0) ===
+      report.total_entities;
 
   return {
     execution_state: executionState,
@@ -156,5 +187,6 @@ export async function evaluateJobCompletion(
     unresolved_items: unresolvedItems,
     unresolved_items_block_completion: unresolvedItemsBlockCompletion,
     report,
+    review_marked_entities: reviewMarked,
   };
 }

@@ -31,6 +31,14 @@ export type EnrichmentInput = {
    */
   pos?: string;
 
+  /**
+   * D10 15.10.2026 (B3): the exact Bokmål article established by the
+   * lexical check of this item, passed on to ordbokene-lexeme-pipeline-worker
+   * so it does not search the lemma again (homographs, Ordbøkene outages).
+   */
+  article_id?: number;
+  parent_article_id?: number;
+
   force_refresh?: boolean;
   update_catalog?: boolean;
 };

@@ -13,6 +13,59 @@ import {
   type EvidenceQuality,
   type SourceLookupResult,
 } from './shared.ts';
+import { basePos, NORWEGIAN_POS_PATTERN, posScope, type PosScope, type PosScopedLookup } from './pos-scope.ts';
+
+// D10 15.10.2026 (agreed, step B): parts of speech NAOB shows for the word.
+//   article page:  "<lemma> &#160; substantiv" (article heading);
+//   search page:   "N treff <lemma> verb ... <lemma> substantiv ..." (one
+//                  line per article: headword + part of speech).
+// A search page that only mentions the word (no headword line) gives no POS.
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&aring;/g, 'å').replace(/&oslash;/g, 'ø').replace(/&aelig;/g, 'æ')
+    .replace(/&eacute;/g, 'é').replace(/&#x27;|&#39;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (m, h) => (h.toLowerCase() === 'a0' ? '&#160;' : String.fromCodePoint(parseInt(h, 16))))
+    .replace(/&#(\d+);/g, (m, d) => (d === '160' ? '&#160;' : String.fromCodePoint(Number(d))))
+    .replace(/\u00a0/g, '&#160;');
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function naobPartsOfSpeech(
+  responses: Array<{ url: string; text: string }>,
+  query: string,
+): { article: string[]; listing: string[] } {
+  const lemma = escapeRegExp(normalizeForMatch(query));
+  const article = new Set<string>();
+  const listing = new Set<string>();
+  if (!lemma) return { article: [], listing: [] };
+  const heading = new RegExp(`(?:^|\\s)${lemma}\\s*(?:\\d+\\s*)?&#160;\\s*(${NORWEGIAN_POS_PATTERN})\\b`, 'g');
+  const line = new RegExp(`(?:\\d+\\s+treff|\\.\\.\\.|…)\\s+${lemma}\\s+(?:\\d+\\s+)?(${NORWEGIAN_POS_PATTERN})\\b`, 'g');
+  for (const { url, text } of responses) {
+    const t = decodeEntities(text);
+    if (url.includes('/ordbok/')) for (const m of t.matchAll(heading)) article.add(m[1]);
+    const zero = t.includes('0 treff i artikler') || t.includes('finnes ikke som oppslagsord');
+    if (!zero) for (const m of t.matchAll(line)) listing.add(m[1]);
+  }
+  return { article: [...article], listing: [...listing] };
+}
+
+export function naobPosScope(
+  responses: Array<{ url: string; text: string }>,
+  query: string,
+  pos: string | null | undefined,
+): PosScope {
+  const found = naobPartsOfSpeech(responses, query);
+  const scope = posScope(pos, [...found.article, ...found.listing], null);
+  const has = (list: string[]) => list.map(basePos).some((p) => p !== null && p === scope.requested_pos);
+  const pos_basis = has(found.article) ? 'naob_article_heading'
+    : has(found.listing) ? 'naob_search_listing'
+    : found.article.length ? 'naob_article_heading'
+    : found.listing.length ? 'naob_search_listing' : null;
+  return { ...scope, pos_basis };
+}
 
 function extractNAOBRelationCandidates(
   text: string,
@@ -45,6 +98,15 @@ function extractNAOBRelationCandidates(
       relation_type: 'compound_component_candidate',
       label: 'NAOB compound component reference',
     },
+    {
+      // D10 15.10.2026: "annet ledd hus" (sykehus) names the head only; the
+      // whole phrase is kept as target, compound-candidate-promoter takes the
+      // first part as lemma minus the head.
+      pattern:
+        /(annet ledd\s+[a-zæøåA-ZÆØÅ][a-zæøåA-ZÆØÅ-]{1,49})/gi,
+      relation_type: 'compound_component_candidate',
+      label: 'NAOB compound head reference (annet ledd)',
+    },
   ];
 
   for (const { pattern, relation_type, label } of patterns) {
@@ -57,6 +119,7 @@ function extractNAOBRelationCandidates(
         .trim();
 
       if (!target) continue;
+      if (target === 'annet ledd') continue;
       if (target === normalizedQuery) continue;
       if (target.length < 3) continue;
       if (target.length > 80) continue;
@@ -136,17 +199,21 @@ function mergeRelations(
 export async function checkNAOBLive(
   lemma: string,
   displayForm: string,
-): Promise<SourceLookupResult> {
+  // D10 15.10.2026 (step B): card part of speech; optional, additive.
+  pos?: string | null,
+): Promise<PosScopedLookup> {
   const query = (lemma || displayForm).trim();
   const queryNoAa = query.replace(/^å\s+/i, '').trim();
   const variants = Array.from(new Set([query, queryNoAa].filter(Boolean)));
 
   const [htmlResult, apiResult] = await Promise.allSettled([
-    checkNAOBHtml(query, variants),
+    checkNAOBHtml(query, variants, pos),
     checkNAOBApi(query, variants),
   ]);
 
-  const html = htmlResult.status === 'fulfilled' ? htmlResult.value : null;
+  const html: PosScopedLookup | null = htmlResult.status === 'fulfilled' ? htmlResult.value : null;
+  // D10 (step B): POS comes from the HTML pages (the API answers 404).
+  const pos_scope: PosScope = html?.pos_scope ?? posScope(pos, [], null);
   const api = apiResult.status === 'fulfilled' ? apiResult.value : null;
 
   const qualityRank: Record<EvidenceQuality, number> = {
@@ -194,6 +261,7 @@ export async function checkNAOBLive(
         html?.authoritative_relations,
         api?.authoritative_relations,
       ),
+      pos_scope,
     };
   }
 
@@ -207,13 +275,19 @@ export async function checkNAOBLive(
       winner.authoritative_relations,
       loser?.authoritative_relations,
     ),
+    pos_scope,
   };
+}
+
+function withPos(scope: PosScope, result: SourceLookupResult): PosScopedLookup {
+  return { ...result, pos_scope: scope };
 }
 
 async function checkNAOBHtml(
   query: string,
   variants: string[],
-): Promise<SourceLookupResult> {
+  pos?: string | null,
+): Promise<PosScopedLookup> {
   const urls: string[] = [];
   const errors: string[] = [];
   const responses: Array<{ url: string; text: string }> = [];
@@ -264,6 +338,7 @@ async function checkNAOBHtml(
     };
   }
 
+  const scope = naobPosScope(responses, query, pos);
   const tokens = getTokens(query);
   const isMultiword = tokens.length > 1;
 
@@ -282,7 +357,7 @@ async function checkNAOBHtml(
     const relations = extractNAOBRelationCandidates(text, query, url);
 
     if (url.includes('/ordbok/') && exact && entryMarkers) {
-      return makeLookup(
+      return withPos(scope, makeLookup(
         'NAOB',
         true,
         isMultiword ? 'exact_expression_match' : 'registered_entry',
@@ -296,7 +371,7 @@ async function checkNAOBHtml(
           : 'NAOB HTML: registered entry page exact match',
         text,
         relations,
-      );
+      ));
     }
   }
 
@@ -333,7 +408,7 @@ async function checkNAOBHtml(
     const relations = extractNAOBRelationCandidates(text, query, url);
 
     if (isEntryUrl && strongEntryIndicators) {
-      return makeLookup(
+      return withPos(scope, makeLookup(
         'NAOB',
         true,
         isMultiword ? 'exact_expression_match' : 'registered_entry',
@@ -347,10 +422,10 @@ async function checkNAOBHtml(
           : 'NAOB HTML: inferred registered entry from dictionary structure',
         text,
         relations,
-      );
+      ));
     }
 
-    return makeLookup(
+    return withPos(scope, makeLookup(
       'NAOB',
       true,
       'search_page_match',
@@ -362,7 +437,7 @@ async function checkNAOBHtml(
       'NAOB HTML: exact phrase on search page; not registered entry',
       text,
       relations,
-    );
+    ));
   }
 
   let bestComponent: { url: string; text: string; hits: number } | null = null;
@@ -382,7 +457,7 @@ async function checkNAOBHtml(
       bestComponent.url,
     );
 
-    return makeLookup(
+    return withPos(scope, makeLookup(
       'NAOB',
       true,
       'component_match',
@@ -394,10 +469,10 @@ async function checkNAOBHtml(
       `NAOB HTML: component evidence ${bestComponent.hits}/${tokens.length}`,
       bestComponent.text,
       relations,
-    );
+    ));
   }
 
-  return makeLookup(
+  return withPos(scope, makeLookup(
     'NAOB',
     false,
     'not_found',
@@ -409,7 +484,7 @@ async function checkNAOBHtml(
     'NAOB HTML: no match found',
     '',
     [],
-  );
+  ));
 }
 
 async function checkNAOBApi(

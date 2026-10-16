@@ -22,6 +22,16 @@ export type SourceCheck = {
   surface_form?: string | null;
   // Loaded from the processing item for the Ordbøkene check; absent for other sources.
   pos?: string | null;
+  expected_expression_article?: { articleId: string; parentArticleId: string; parentArticleIds?: string[] } | null;
+  // Bokmål article identity already bound to the resolved token lexeme
+  // (lexeme_form_display_v2.article_ids for that lexeme and POS). Used only to
+  // choose between several same-POS homonym articles; never for text lookup.
+  bound_token_article_ids?: string[] | null;
+  // D10 15.10.2026: article numbers of the last successful exact Ordbøkene
+  // search for this word and POS (our lookup cache). Used ONLY when the live
+  // search fails with a server error and no bound article is known.
+  cached_search_article_ids?: string[] | null;
+  cached_search_checked_at?: string | null;
 
   attempt_count: number;
   max_attempts: number;

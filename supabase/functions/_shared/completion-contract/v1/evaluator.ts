@@ -252,6 +252,13 @@ function evaluateTranslation(
     if (provider === "ai_fallback" && !owningExpressionId) {
       return boundAiReviewReason(snapshot, translation) === null;
     }
+    // D10 13.10.2026 (owner decision): an expression mostly has no Lexin
+    // translation; one AI translation is enough for it once its whole-unit
+    // identity is confirmed by a dictionary (own Ordbokene article / Lexin).
+    // Lexemes keep the bound AI review rule above.
+    if (provider === "ai_fallback" && owningExpressionId) {
+      return wholeUnitRefs.length > 0;
+    }
     if (provider !== "lexin" || translation.source_refs.length === 0) {
       return false;
     }

@@ -42,6 +42,21 @@ type Props = {
   density?: TrainingDensity;
 };
 
+// Example sentence of the word with its Ukrainian translation, shown after the
+// answer in the modes whose task does not already show it (flashcards show it
+// on the card, cloze uses it as the task).
+function AnswerExample({ current, answerVisible, isDark, s }: { current: any; answerVisible: boolean; isDark: boolean; s: any }) {
+  if (!answerVisible || !current?.example) return null;
+  return (
+    <TrainingInfoBlock isDark={isDark}>
+      <Text style={[s.example, { marginBottom: 0 }]}>{current.example}</Text>
+      {current.example_translation_uk ? (
+        <Text style={[s.example, { marginTop: 4, marginBottom: 0 }]}>{current.example_translation_uk}</Text>
+      ) : null}
+    </TrainingInfoBlock>
+  );
+}
+
 export function TrainingModeRenderer({
   currentTask,
   current,
@@ -116,6 +131,8 @@ export function TrainingModeRenderer({
           density={density}
         />
 
+        <AnswerExample current={current} answerVisible={answerVisible} isDark={isDark} s={s} />
+
         {feedback ? (
           <TrainingInfoBlock isDark={isDark}>
             <Text style={s.feedbackText}>{feedback}</Text>
@@ -145,6 +162,8 @@ export function TrainingModeRenderer({
           setTypedAnswer={setTypedAnswer}
           checkTyped={checkTyped}
         />
+
+        <AnswerExample current={current} answerVisible={answerVisible} isDark={isDark} s={s} />
 
         {feedback ? (
           <TrainingInfoBlock isDark={isDark}>
@@ -208,6 +227,8 @@ export function TrainingModeRenderer({
           setTypedAnswer={setTypedAnswer}
           checkTyped={checkTyped}
         />
+
+        <AnswerExample current={current} answerVisible={answerVisible} isDark={isDark} s={s} />
 
         {feedback ? (
           <TrainingInfoBlock isDark={isDark}>

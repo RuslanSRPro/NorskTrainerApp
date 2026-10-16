@@ -9,6 +9,7 @@ import {
   type CompletionEnforcementRollout,
   type CompletionEnforcementSummary,
 } from '../_shared/completion-contract/v1/enforcement.ts';
+import { enrichmentPageStep, evaluateEnrichmentPage } from '../_shared/d10-enrichment-page-contract.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -57,7 +58,10 @@ const BATCH_LIMIT = 3;
 // добавление в AI_FALLBACK_CHAINS оставлено для консистентности и на
 // случай, если это поведение когда-нибудь изменится обратно на постраничное.
 const AI_FALLBACK_BATCH_LIMIT = 20;
-const AI_FALLBACK_CHAINS = new Set(['expression_ai_fallback', 'authoritative_ai_fallback', 'translation_reorder']);
+// D10 15.10.2026: 'translation_canonicalization' added. Its worker batches
+// Gemini by 10 itself, but received only 3 words per page (BATCH_LIMIT), so
+// a job paid one AI round-trip per 3 words. Now up to 20 words per page.
+const AI_FALLBACK_CHAINS = new Set(['expression_ai_fallback', 'authoritative_ai_fallback', 'translation_reorder', 'translation_canonicalization']);
 
 // ФИКС (20.08.2026, найдено при разборе стоимости): добавлена
 // 'translation_reorder' — раньше эта цепочка была полностью реализована
@@ -91,13 +95,13 @@ const ENRICHMENT_CHAINS = [
 
 type Chain = (typeof ENRICHMENT_CHAINS)[number];
 
-// Store deferred pages in the existing JSONB offsets so a single failed item
-// cannot keep the entire job at the same offset indefinitely.
-const RETRY_PAGE_PREFIX = '__d10_retry_page__';
+// Enrichment state keys. The previous deferred-page / single-item isolation
+// keys were removed (plan §2.5); the live snapshot showed no unfinished job
+// using them.
+const FAILED_PAGE_PREFIX = '__d10_failed_page__';
 const NETWORK_RETRY_PREFIX = '__d10_network_retry__';
 const AUDIT_RETRY_PREFIX = '__d10_audit_retry__';
 const ORCHESTRATOR_RETRY_KEY = '__d10_orchestrator_retry__';
-const MAX_DEFERRED_PAGE_ATTEMPTS = 3;
 const MAX_NETWORK_PAGE_ATTEMPTS = 3;
 const MAX_AUDIT_ATTEMPTS = 3;
 const ADMISSION_PAGE_KEY = '__d10_admission_page_v3__';
@@ -107,16 +111,75 @@ const ADMISSION_PAGE_LIMIT = 5;
 const MAX_ORCHESTRATOR_ATTEMPTS = 3;
 const MISSING_OFFICIAL_FORMS_PREFIX = '__d10_missing_official_forms__';
 
+// D10 job continuity v1: steps that used to stop the whole job after 3
+// failures now record the failure, skip only the affected part and let the
+// job continue. The final needs_manual_review report lists every skipped part.
+const PROMOTION_STALL_KEY = '__d10_promotion_stall_v1__';
+const PROMOTION_FAILED_KEY = '__d10_promotion_failed_items_v1__';
+const MAX_PROMOTION_STALLS = 3;
+const PROMOTION_PAGE_LIMIT = 3; // = PROMOTION_BATCH_LIMIT in job-orchestrator
+const FAMILY_INJECTION_FAILURE_KEY = '__d10_family_injection_failures_v1__';
+const FAMILY_INJECTION_SKIPPED_KEY = '__d10_family_injection_skipped_v1__';
+const MAX_FAMILY_INJECTION_FAILURES = 3;
+const PRE_ADMISSION_SKIPPED_PREFIX = '__d10_pre_admission_skipped_page__';
+const SKIPPED_PAGE_PREFIX = '__d10_skipped_page__';
+
+function keysWithPrefix(offsets: Record<string, number>, prefix: string): string[] {
+  return Object.keys(offsets).filter((key) => key.startsWith(prefix))
+    .map((key) => key.slice(prefix.length));
+}
+
+// Everything the job could not finish, for the final report. Read failures of
+// the two lists are reported as such instead of hiding the skipped parts.
+async function jobFailureReport(jobId: string, offsets: Record<string, number>) {
+  const [enrichment, promotion] = await Promise.all([
+    supabase.rpc('d10_job_enrichment_failures_v1', { p_job_id: jobId }),
+    supabase.rpc('d10_job_promotion_failures_v1', { p_job_id: jobId }),
+  ]);
+  const enrichmentItems = Array.isArray(enrichment.data) ? enrichment.data : [];
+  const promotionItems = Array.isArray(promotion.data) ? promotion.data : [];
+  const failedPageKeys = failedPages(offsets);
+  const skippedPages = keysWithPrefix(offsets, SKIPPED_PAGE_PREFIX);
+  const skippedAdmissionPages = keysWithPrefix(offsets, PRE_ADMISSION_SKIPPED_PREFIX);
+  const familySkipped = offsets[FAMILY_INJECTION_SKIPPED_KEY] === 1;
+  const summary: Record<string, unknown> = {
+    enrichment_failed_items: enrichment.error ? failedPageKeys : enrichmentItems,
+    promotion_failed_items: promotionItems,
+    enrichment_skipped_pages: skippedPages,
+    pre_admission_skipped_pages: skippedAdmissionPages,
+    family_injection_skipped: familySkipped,
+  };
+  if (enrichment.error) summary.enrichment_failures_read_error = safeStringify(enrichment.error);
+  if (promotion.error) summary.promotion_failures_read_error = safeStringify(promotion.error);
+  const hasFailures = failedPageKeys.length > 0 || enrichmentItems.length > 0 ||
+    promotionItems.length > 0 || skippedPages.length > 0 ||
+    skippedAdmissionPages.length > 0 || familySkipped ||
+    Boolean(enrichment.error) || Boolean(promotion.error);
+  const counts = [
+    enrichmentItems.length ? `${enrichmentItems.length} enrichment items failed` : '',
+    !enrichmentItems.length && failedPageKeys.length ? `${failedPageKeys.length} enrichment pages failed` : '',
+    promotionItems.length ? `${promotionItems.length} items could not be promoted` : '',
+    skippedPages.length ? `${skippedPages.length} enrichment pages skipped` : '',
+    skippedAdmissionPages.length ? `${skippedAdmissionPages.length} admission pages skipped` : '',
+    familySkipped ? 'family injection skipped' : '',
+  ].filter(Boolean).join('; ');
+  return { hasFailures, summary, message: counts || 'job failure lists could not be read' };
+}
+
+async function countJobItems(jobId: string): Promise<number | null> {
+  const { count, error } = await supabase
+    .from('lexeme_processing_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('job_id', jobId);
+  return error ? null : count ?? 0;
+}
+
 function missingOfficialForms(offsets: Record<string, number>): string[] {
   return Object.keys(offsets)
     .filter((key) => key.startsWith(MISSING_OFFICIAL_FORMS_PREFIX))
     .map((key) => key.slice(MISSING_OFFICIAL_FORMS_PREFIX.length));
 }
 
-
-function retryPageKey(chain: Chain, offset: number): string {
-  return `${RETRY_PAGE_PREFIX}${chain}__${offset}`;
-}
 
 function networkRetryKey(chain: Chain, offset: number): string {
   return `${NETWORK_RETRY_PREFIX}${chain}__${offset}`;
@@ -126,22 +189,8 @@ function auditRetryKey(step: 'admission' | 'completion', offset: number): string
   return `${AUDIT_RETRY_PREFIX}${step}__${offset}`;
 }
 
-function pendingRetryPages(offsets: Record<string, number>): Array<{
-  chain: Chain;
-  offset: number;
-  key: string;
-  attempts: number;
-}> {
-  return Object.entries(offsets).flatMap(([key, attempts]) => {
-    if (!key.startsWith(RETRY_PAGE_PREFIX)) return [];
-    const suffix = key.slice(RETRY_PAGE_PREFIX.length);
-    const separator = suffix.lastIndexOf('__');
-    if (separator < 0) return [];
-    const chain = suffix.slice(0, separator) as Chain;
-    const offset = Number(suffix.slice(separator + 2));
-    if (!ENRICHMENT_CHAINS.includes(chain) || !Number.isSafeInteger(offset) || offset < 0) return [];
-    return [{ chain, offset, key, attempts }];
-  }).sort((a, b) => ENRICHMENT_CHAINS.indexOf(a.chain) - ENRICHMENT_CHAINS.indexOf(b.chain) || a.offset - b.offset);
+function failedPages(offsets: Record<string, number>): string[] {
+  return Object.keys(offsets).filter((key) => key.startsWith(FAILED_PAGE_PREFIX));
 }
 
 
@@ -635,7 +684,11 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
   }
 
   if (state.stage === 'orchestrator') {
-    const result = await callWorker('job-orchestrator', { job_id: jobId });
+    const result = await callWorker('job-orchestrator', {
+      job_id: jobId,
+      ...(state.enrichment_offsets[FAMILY_INJECTION_SKIPPED_KEY] === 1
+        ? { skip_family_injection: true } : {}),
+    });
     const classification = classifyWorkerResult(result);
 
     if (classification === 'permanent_error' || classification === 'blocked_manual_review') {
@@ -730,9 +783,73 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     const orchestratorIncomplete = Boolean(firstJobResult?.orchestrator_incomplete);
 
     if (orchestratorIncomplete) {
+      if (firstJobResult?.family_injection_error) {
+        // Family injection failed: retry it; after 3 failures continue the
+        // job without new family members (listed in the final report).
+        const failures = (state.enrichment_offsets[FAMILY_INJECTION_FAILURE_KEY] ?? 0) + 1;
+        state.enrichment_offsets[FAMILY_INJECTION_FAILURE_KEY] = failures;
+        state.last_error = `family injection failed (${failures}/${MAX_FAMILY_INJECTION_FAILURES}): ${firstJobResult.family_injection_error}`;
+        const skip = failures >= MAX_FAMILY_INJECTION_FAILURES;
+        if (skip) {
+          delete state.enrichment_offsets[FAMILY_INJECTION_FAILURE_KEY];
+          state.enrichment_offsets[FAMILY_INJECTION_SKIPPED_KEY] = 1;
+        }
+        await saveState(state);
+        return {
+          job_id: jobId,
+          stage: state.stage,
+          step: 'job-orchestrator/family-injection',
+          classification: skip ? 'success' : 'retryable_error',
+          family_injection_skipped: skip,
+          detail: firstJobResult.family_injection_error,
+        };
+      }
+      if (firstJobResult?.promotion_stalled !== true) {
+        delete state.enrichment_offsets[PROMOTION_STALL_KEY];
+      }
       if (firstJobResult?.promotion_stalled === true) {
+        // Promotion made no progress. Retry on the next ticks; after 3
+        // consecutive stalls close only the page promotion keeps selecting
+        // (all its source checks are finished) and continue with the rest.
+        const stalls = (state.enrichment_offsets[PROMOTION_STALL_KEY] ?? 0) + 1;
+        state.enrichment_offsets[PROMOTION_STALL_KEY] = stalls;
+        if (stalls < MAX_PROMOTION_STALLS) {
+          state.last_error = `promotion made no progress (${stalls}/${MAX_PROMOTION_STALLS}) with ${Number(firstJobResult?.promotion_remaining ?? 0)} items remaining`;
+          await saveState(state);
+          return {
+            job_id: jobId,
+            stage: state.stage,
+            step: 'job-orchestrator',
+            classification: 'retryable_error',
+            promotion_stalls: stalls,
+            promotion_remaining: firstJobResult?.promotion_remaining,
+          };
+        }
+        const { data: closed, error: closeError } = await supabase.rpc(
+          'd10_fail_stalled_promotion_items_v1',
+          { p_job_id: jobId, p_limit: PROMOTION_PAGE_LIMIT },
+        );
+        if (!closeError && closed?.ok === true && Number.isInteger(closed?.marked)) {
+          delete state.enrichment_offsets[PROMOTION_STALL_KEY];
+          if (closed.marked > 0) {
+            state.enrichment_offsets[PROMOTION_FAILED_KEY] =
+              (state.enrichment_offsets[PROMOTION_FAILED_KEY] ?? 0) + closed.marked;
+          }
+          state.last_error = closed.marked > 0
+            ? `${closed.marked} items could not be promoted; job continues with the rest`
+            : `promotion stalled: ${safeStringify(closed.reason ?? 'nothing to close')}`;
+          await saveState(state);
+          return {
+            job_id: jobId,
+            stage: state.stage,
+            step: 'job-orchestrator/promotion-failed-items',
+            classification: 'success',
+            promotion_failed_items: closed.items,
+          };
+        }
+        // The stalled page could not be closed: keep the previous behaviour.
         state.stage = 'needs_manual_review';
-        state.last_error = `promotion page made no progress with ${Number(firstJobResult?.promotion_remaining ?? 0)} items remaining`;
+        state.last_error = `promotion page made no progress with ${Number(firstJobResult?.promotion_remaining ?? 0)} items remaining; closing it failed: ${safeStringify(closeError ?? closed)}`;
         await saveState(state);
         await updateJobStatus(jobId, 'needs_manual_review', {
           supervisor_last_error: state.last_error,
@@ -775,10 +892,63 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
   }
 
   if (state.stage === 'enrichment') {
-    const retryPage = state.enrichment_chain_index >= ENRICHMENT_CHAINS.length
-      ? pendingRetryPages(state.enrichment_offsets)[0]
-      : undefined;
-    if (state.enrichment_chain_index >= ENRICHMENT_CHAINS.length && !retryPage) {
+    // Color admission uses exact own-article evidence before any unrelated
+    // enrichment/forms failure can stop the job. The existing audit pass is
+    // retained as a final idempotent check.
+    const preAdmissionKey = '__d10_pre_enrichment_admission_page_v1';
+    const preAdmissionDone = '__d10_pre_enrichment_admission_done_v1';
+    const preAdmissionRetry = '__d10_pre_enrichment_admission_retry_v1';
+    async function failPreAdmission(step: string, detail: unknown, pageOffset: number) {
+      const attempts = (state.enrichment_offsets[preAdmissionRetry] ?? 0) + 1;
+      state.enrichment_offsets[preAdmissionRetry] = attempts;
+      state.last_error = `${step}: ${safeStringify(detail)}`;
+      if (attempts >= MAX_AUDIT_ATTEMPTS) {
+        // Skip only this admission page and continue with the next one; the
+        // skipped page is listed in the final report. The audit stage runs
+        // the same admission again as its final idempotent check.
+        delete state.enrichment_offsets[preAdmissionRetry];
+        state.enrichment_offsets[`${PRE_ADMISSION_SKIPPED_PREFIX}${pageOffset}`] = 1;
+        state.enrichment_offsets[preAdmissionKey] = pageOffset + ADMISSION_PAGE_LIMIT;
+        const total = await countJobItems(jobId);
+        if (total !== null && pageOffset + ADMISSION_PAGE_LIMIT >= total) {
+          state.enrichment_offsets[preAdmissionDone] = 1;
+        }
+      }
+      await saveState(state);
+      return {job_id:jobId,stage:state.stage,step,
+        classification: attempts >= MAX_AUDIT_ATTEMPTS
+          ? 'success' : 'retryable_error',
+        skipped_page: attempts >= MAX_AUDIT_ATTEMPTS ? pageOffset : undefined,
+        detail:state.last_error};
+    }
+
+    if (state.enrichment_offsets[preAdmissionDone] !== 1) {
+      const pageOffset = state.enrichment_offsets[preAdmissionKey] ?? 0;
+      const {data: projection,error: projectionError} = await supabase.rpc(
+        'd10_project_expression_own_article_page_v1', {
+          p_job_id: jobId, p_offset: pageOffset, p_limit: ADMISSION_PAGE_LIMIT,
+        });
+      if (projectionError || projection?.ok !== true) {
+        return await failPreAdmission('pre-enrichment-projection', projectionError ?? projection, pageOffset);
+      }
+      const {data: page,error: pageError} = await supabase.rpc(
+        'd10_admit_own_article_job_expressions_page_v2', {
+          p_job_id: jobId, p_offset: pageOffset, p_limit: ADMISSION_PAGE_LIMIT,
+        });
+      if (pageError || page?.ok !== true ||
+          !Number.isInteger(page?.next_offset) || page.next_offset < pageOffset ||
+          (page.has_more && page.next_offset === pageOffset)) {
+        return await failPreAdmission('pre-enrichment-admission', pageError ?? page, pageOffset);
+      }
+      delete state.enrichment_offsets[preAdmissionRetry];
+      state.enrichment_offsets[preAdmissionKey] = page.next_offset;
+      if (!page.has_more) state.enrichment_offsets[preAdmissionDone] = 1;
+      state.last_error = null;
+      await saveState(state);
+      return {job_id:jobId,stage:state.stage,step:'pre-enrichment-admission',
+        classification:'success',admitted:page.admitted,next_offset:page.next_offset};
+    }
+    if (state.enrichment_chain_index >= ENRICHMENT_CHAINS.length) {
       const missing = missingOfficialForms(state.enrichment_offsets);
       state.stage = missing.length ? 'needs_manual_review' : 'audit';
       state.last_error = missing.length
@@ -786,18 +956,39 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         : null;
       await saveState(state);
       if (missing.length) await updateJobStatus(jobId, 'needs_manual_review', {
+        ...(await jobFailureReport(jobId, state.enrichment_offsets)).summary,
         supervisor_last_error: state.last_error,
         supervisor_failed_step: 'enrichment[forms]',
         forms_missing_official_article_ids: missing,
       });
       return { job_id: jobId, stage: state.stage, classification: missing.length ? 'blocked_manual_review' : 'success' };
     }
-    const chain: Chain = retryPage?.chain ?? ENRICHMENT_CHAINS[state.enrichment_chain_index];
-    const offset = retryPage?.offset ?? state.enrichment_offsets[chain] ?? 0;
+    const chain: Chain = ENRICHMENT_CHAINS[state.enrichment_chain_index];
+    const offset = state.enrichment_offsets[chain] ?? 0;
 
     // ДОБАВЛЕНО (05.08.2026): точечно больший limit для двух AI-цепочек —
     // см. комментарий у AI_FALLBACK_BATCH_LIMIT/AI_FALLBACK_CHAINS выше.
     const effectiveLimit = AI_FALLBACK_CHAINS.has(chain) ? AI_FALLBACK_BATCH_LIMIT : BATCH_LIMIT;
+    const pageRetryKey = networkRetryKey(chain, offset);
+
+    // A page that cannot be processed at all (worker crash, page load error,
+    // repeated timeout, a response without the residue contract) is skipped
+    // after its attempts; the next page and the next chains continue. The
+    // skipped page is listed in the final report.
+    async function skipEnrichmentPage(reason: string) {
+      state.enrichment_offsets[`${SKIPPED_PAGE_PREFIX}${chain}__${offset}`] = effectiveLimit;
+      delete state.enrichment_offsets[pageRetryKey];
+      const nextOffset = offset + effectiveLimit;
+      state.enrichment_offsets[chain] = nextOffset;
+      const total = await countJobItems(jobId);
+      if (total !== null && nextOffset >= total) state.enrichment_chain_index++;
+      // The stage stays 'enrichment': the next tick runs the end-of-chains
+      // checks (missing official forms, audit).
+      state.last_error = `enrichment[${chain}] page ${offset} skipped: ${reason}`;
+      await saveState(state);
+      return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`,
+        classification: 'success', skipped_page: offset, detail: state.last_error };
+    }
 
     const result = await callWorker('job-enrichment-batch-worker', {
       job_id: jobId,
@@ -806,14 +997,35 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       limit: effectiveLimit,
     });
 
-    const classification = classifyWorkerResult(result);
+    // Strict page contract (_shared/d10-enrichment-page-contract.ts): the
+    // worker keeps this chain on the same stable page until every item is
+    // terminal (done / no_data / failed in the per-item ledger). Each call
+    // sends only the unresolved remainder of the page to the source workers;
+    // successful items are never sent again. A failed item stays failed in
+    // this chain only and still enters the next chains (decision 12.10.2026).
+    // Residue counts must be non-negative integers for this chain and offset;
+    // null / missing / foreign answers are invalid and never advance the page.
+    const verdict = evaluateEnrichmentPage(result.data, {
+      chain, offset, networkError: result.network_error ?? null,
+    });
+    if (verdict.kind === 'residue_waiting') {
+      delete state.enrichment_offsets[pageRetryKey];
+      state.last_error = null;
+      await saveState(state);
+      return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`,
+        classification: 'retryable_error', residue_waiting: verdict.waiting,
+        retry_after_cooldown: true };
+    }
+    if (verdict.kind === 'page_done' && verdict.failed > 0) {
+      state.enrichment_offsets[`${FAILED_PAGE_PREFIX}${chain}__${offset}`] = verdict.failed;
+    }
 
     // A missing official article is an honest no-forms outcome, not a
     // transport failure. Visit the other pages before reporting the job as
     // incomplete; never fabricate forms or mark the job completed.
     const formErrors = Array.isArray(result.data?.errors) ? result.data.errors : [];
     const processedForms = Number(result.data?.processed);
-    const missingOnly = chain === 'forms' && !result.network_error &&
+    const missingOnly = verdict.kind === 'page_done' && chain === 'forms' && !result.network_error &&
       processedForms > 0 && Number(result.data?.failed) === formErrors.length &&
       formErrors.length > 0 && Number(result.data?.retryable) === 0 &&
       result.data?.permanent === formErrors.length &&
@@ -827,139 +1039,52 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         typeof item?.lexemeId === 'string');
 
     if (missingOnly) {
-      for (const item of formErrors) {
-        state.enrichment_offsets[`${MISSING_OFFICIAL_FORMS_PREFIX}${item.lexemeId}`] = 1;
-      }
-      if (retryPage) delete state.enrichment_offsets[retryPage.key];
-      else {
-        state.enrichment_offsets[chain] = result.data.has_more
-          ? result.data.next_offset : offset + processedForms;
-        if (!result.data.has_more) state.enrichment_chain_index++;
-      }
-      const atEnd = state.enrichment_chain_index >= ENRICHMENT_CHAINS.length &&
-        pendingRetryPages(state.enrichment_offsets).length === 0;
-      const missing = missingOfficialForms(state.enrichment_offsets);
-      state.stage = atEnd ? 'needs_manual_review' : 'enrichment';
-      state.last_error = atEnd
-        ? `No official Bokmål article/forms for ${missing.length} lexemes: ${missing.slice(0, 12).join(', ')}`
-        : null;
+      delete state.enrichment_offsets[pageRetryKey];
+      state.enrichment_offsets[chain] = result.data.has_more
+        ? result.data.next_offset : offset + processedForms;
+      if (!result.data.has_more) state.enrichment_chain_index++;
+      state.stage = state.enrichment_chain_index >= ENRICHMENT_CHAINS.length ? 'audit' : 'enrichment';
+      state.last_error = null;
       await saveState(state);
-      if (atEnd) await updateJobStatus(jobId, 'needs_manual_review', {
-        supervisor_last_error: state.last_error,
-        supervisor_failed_step: 'enrichment[forms]',
-        forms_missing_official_article_ids: missing,
-      });
       return { job_id: jobId, stage: state.stage, step: 'enrichment[forms]',
-        classification: atEnd ? 'blocked_manual_review' : 'success',
+        classification: 'success',
         no_official_article: formErrors.length, next_offset: state.enrichment_offsets[chain] };
     }
 
-    if (classification === 'permanent_error' || classification === 'blocked_manual_review') {
-      state.stage = 'needs_manual_review';
-      state.last_error = safeStringify(result.data ?? result.network_error);
-      await saveState(state);
-      await updateJobStatus(jobId, 'needs_manual_review', {
-        supervisor_last_error: state.last_error,
-        supervisor_failed_step: `enrichment[${chain}]`,
-      });
-
-      return {
-        job_id: jobId,
-        stage: state.stage,
-        step: `enrichment[${chain}]`,
-        classification,
-        detail: result.data,
-      };
-    }
-
-    if (classification === 'retryable_error') {
-      // Only move past a page when the batch worker returned a complete,
-      // structured page result. Network errors and failed page loads stay put.
-      const processed = Number(result.data?.processed);
-      const failed = Number(result.data?.failed);
-      const next = result.data?.next_offset;
-      const hasMore = result.data?.has_more;
-      const completePage = !result.network_error && processed > 0 &&
-        failed > 0 && Number(result.data?.retryable) === failed &&
-        (hasMore === true || hasMore === false) &&
-        (hasMore === false || (Number.isSafeInteger(next) && next > offset));
-
-      if (completePage) {
-        delete state.enrichment_offsets[networkRetryKey(chain, offset)];
-        const key = retryPage?.key ?? retryPageKey(chain, offset);
-        const attempts = retryPage ? (state.enrichment_offsets[key] ?? 0) + 1 : 0;
-        if (attempts >= MAX_DEFERRED_PAGE_ATTEMPTS) {
-          state.stage = 'needs_manual_review';
-          state.last_error = `enrichment[${chain}] page ${offset}: ${MAX_DEFERRED_PAGE_ATTEMPTS} deferred retries failed: ${safeStringify(result.data)}`;
-          await saveState(state);
-          await updateJobStatus(jobId, 'needs_manual_review', {
-            supervisor_last_error: state.last_error,
-            supervisor_failed_step: `enrichment[${chain}]`,
-          });
-          return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`, classification: 'blocked_manual_review' };
-        }
-        state.enrichment_offsets[key] = attempts;
-        if (!retryPage) {
-          state.enrichment_offsets[chain] = hasMore ? Number(next) : offset + processed;
-          if (!hasMore) state.enrichment_chain_index++;
-        }
-        // Failed pages are retried after all chains, so downstream forms for
-        // the successful items do not wait for one timed-out item.
-        state.last_error = null;
-        await saveState(state);
-        return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`,
-          classification: 'retryable_error', deferred_page: offset, failed,
-          detail: result.data };
+    if (verdict.kind === 'invalid') {
+      // Not a valid page result: worker crash, page load error, timeout, or an
+      // answer that breaks the page contract. Retry the same page; after
+      // MAX_NETWORK_PAGE_ATTEMPTS skip only this page. Explicit exception to
+      // the per-item guarantee: when the whole page cannot be loaded or
+      // processed, no item of it can be attributed, so the page is reported
+      // as skipped. Item-level errors never reach this branch: the worker
+      // records them in the ledger (single source calls per item, aggregate
+      // calls shrink their batch on retry down to single items).
+      const prior = state.enrichment_offsets[pageRetryKey] ?? 0;
+      const attempts = prior + 1;
+      state.enrichment_offsets[pageRetryKey] = attempts;
+      const reason = `${verdict.reason}; ${safeStringify(result.data ?? result.network_error).slice(0, 1500)}`;
+      if (enrichmentPageStep(verdict, prior, MAX_NETWORK_PAGE_ATTEMPTS) === 'skip_page') {
+        return await skipEnrichmentPage(`${attempts} page attempts failed: ${reason}`);
       }
-      const networkKey = networkRetryKey(chain, offset);
-      const networkAttempts = (state.enrichment_offsets[networkKey] ?? 0) + 1;
-      state.enrichment_offsets[networkKey] = networkAttempts;
-      if (networkAttempts >= MAX_NETWORK_PAGE_ATTEMPTS) {
-        state.stage = 'needs_manual_review';
-        state.last_error = `enrichment[${chain}] page ${offset}: ${MAX_NETWORK_PAGE_ATTEMPTS} unstructured/network retries failed: ${safeStringify(result.data ?? result.network_error)}`;
-        await saveState(state);
-        await updateJobStatus(jobId, 'needs_manual_review', {
-          supervisor_last_error: state.last_error,
-          supervisor_failed_step: `enrichment[${chain}]`,
-        });
-        return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`, classification: 'blocked_manual_review' };
-      }
-      state.last_error = safeStringify(result.data ?? result.network_error);
+      state.last_error = `enrichment[${chain}] page ${offset} attempt ${attempts}/${MAX_NETWORK_PAGE_ATTEMPTS}: ${reason}`;
       await saveState(state);
       return { job_id: jobId, stage: state.stage, step: `enrichment[${chain}]`,
-        classification, detail: result.network_error ?? result.data };
+        classification: 'retryable_error', page_attempts: attempts, detail: reason };
     }
 
-    delete state.enrichment_offsets[networkRetryKey(chain, offset)];
+    delete state.enrichment_offsets[pageRetryKey];
 
-    if (retryPage) {
-      delete state.enrichment_offsets[retryPage.key];
-      // Replay downstream chains for the lexeme whose upstream page just
-      // recovered. Their calls must run again before auditing completion.
-      for (let i = ENRICHMENT_CHAINS.indexOf(chain) + 1; i < ENRICHMENT_CHAINS.length; i++) {
-        state.enrichment_offsets[ENRICHMENT_CHAINS[i]] = 0;
-      }
-      state.enrichment_chain_index = ENRICHMENT_CHAINS.indexOf(chain) + 1;
-      state.last_error = null;
-      await saveState(state);
-      return { job_id: jobId, stage: state.stage,
-        step: `enrichment[${chain}]`, classification: 'success', recovered_page: offset };
-    }
-
-    const hasMore = Boolean(result.data?.has_more);
-    const nextOffset = Number(result.data?.next_offset ?? offset);
+    const hasMore = verdict.hasMore;
+    const nextOffset = verdict.nextOffset ?? offset;
 
     state.enrichment_offsets[chain] = hasMore ? nextOffset : nextOffset || offset;
     state.last_error = null;
 
     if (!hasMore) {
       const nextIndex = state.enrichment_chain_index + 1;
-
-      // Defer audit until every failed page has been retried. Keeping the
-      // index at length lets the next tick process the pending retry pages.
       state.enrichment_chain_index = nextIndex;
-      if (nextIndex >= ENRICHMENT_CHAINS.length &&
-        pendingRetryPages(state.enrichment_offsets).length === 0) {
+      if (nextIndex >= ENRICHMENT_CHAINS.length) {
         const missing = missingOfficialForms(state.enrichment_offsets);
         state.stage = missing.length ? 'needs_manual_review' : 'audit';
         if (missing.length) state.last_error =
@@ -969,6 +1094,7 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
 
     await saveState(state);
     if (state.stage === 'needs_manual_review') await updateJobStatus(jobId, 'needs_manual_review', {
+      ...(await jobFailureReport(jobId, state.enrichment_offsets)).summary,
       supervisor_last_error: state.last_error,
       supervisor_failed_step: 'enrichment[forms]',
       forms_missing_official_article_ids: missingOfficialForms(state.enrichment_offsets),
@@ -998,8 +1124,34 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       const pageOffset = state.enrichment_offsets[ADMISSION_PAGE_KEY] ?? 0;
       const rootOffset = state.enrichment_offsets[ADMISSION_ROOT_KEY];
       if (rootOffset === undefined) {
+        // Only this job's exact expression source checks may establish the
+        // article identity of an expression lexeme. Projection is idempotent
+        // and runs before the existing guarded admission page.
+        const { data: projection, error: projectionError } = await supabase.rpc(
+          'd10_project_expression_own_article_page_v1', {
+            p_job_id: jobId, p_offset: pageOffset,
+            p_limit: ADMISSION_PAGE_LIMIT,
+          },
+        );
+        if (projectionError || projection?.ok !== true) {
+          const attempts = (state.enrichment_offsets[admissionKey] ?? 0) + 1;
+          state.enrichment_offsets[admissionKey] = attempts;
+          state.last_error = `expression identity projection ${pageOffset} failed: ${safeStringify(projectionError ?? projection)}`;
+          if (attempts >= MAX_AUDIT_ATTEMPTS) {
+            state.stage = 'needs_manual_review';
+            await updateJobStatus(jobId, 'needs_manual_review', {
+              supervisor_last_error: state.last_error,
+              supervisor_failed_step: 'expression-own-article-projection',
+            });
+          }
+          await saveState(state);
+          return { job_id: jobId, stage: state.stage,
+            step: 'expression-own-article-projection',
+            classification: attempts >= MAX_AUDIT_ATTEMPTS
+              ? 'blocked_manual_review' : 'retryable_error' };
+        }
         const { data: page, error: pageError } = await supabase.rpc(
-          'admit_verified_job_expressions_page_v1', {
+          'd10_admit_own_article_job_expressions_page_v2', {
             p_job_id: jobId, p_offset: pageOffset,
             p_limit: ADMISSION_PAGE_LIMIT,
           },
@@ -1180,10 +1332,12 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
 
       const admissionBlocked = Number(result.data?.admission_blocked_items ?? 0);
       if (admissionBlocked > 0) {
+        const report = await jobFailureReport(jobId, state.enrichment_offsets);
         state.stage = 'needs_manual_review';
         state.last_error = `${admissionBlocked} items ended at admission_gate without promotion`;
         await saveState(state);
         await updateJobStatus(jobId, 'needs_manual_review', {
+          ...report.summary,
           supervisor_last_error: state.last_error,
           admission_blocked_items: admissionBlocked,
         });
@@ -1200,10 +1354,12 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
 
       if (stillIncomplete > 0) {
         if (previousLastError === '__second_pass_incomplete__') {
+          const report = await jobFailureReport(jobId, state.enrichment_offsets);
           state.stage = 'needs_manual_review';
           state.last_error = `still incomplete after 2 full heal passes: ${stillIncomplete} items`;
           await saveState(state);
           await updateJobStatus(jobId, 'needs_manual_review', {
+            ...report.summary,
             supervisor_last_error: state.last_error,
           });
 
@@ -1219,6 +1375,21 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         state.audit_offset = 0;
         state.last_error = '__second_pass_incomplete__';
       } else {
+        // Everything available has been processed. Any failed item, skipped
+        // page or skipped step ends the job as needs_manual_review with the
+        // complete list (enrichment, promotion, skipped pages and steps).
+        const report = await jobFailureReport(jobId, state.enrichment_offsets);
+        if (report.hasFailures) {
+          state.stage = 'needs_manual_review';
+          state.last_error = report.message;
+          await saveState(state);
+          await updateJobStatus(jobId, 'needs_manual_review', {
+            ...report.summary,
+            supervisor_last_error: state.last_error,
+          });
+          return { job_id: jobId, stage: state.stage, step: 'job-completion-auditor',
+            classification: 'blocked_manual_review', ...report.summary };
+        }
         const enforcementRollout = resolveCompletionEnforcementRollout(
           jobId,
           COMPLETION_ENFORCEMENT_MODE,

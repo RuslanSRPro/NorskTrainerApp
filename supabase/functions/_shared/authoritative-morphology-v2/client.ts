@@ -93,6 +93,58 @@ export class OrdbokeneClient {
     };
   }
 
+  // D10 15.10.2026: fallback while the Ordbøkene search (/api/articles) is
+  // down (HTTP 5xx, timeout) but article pages still work. Fetches articles
+  // whose numbers are ALREADY known for this lexeme (binding / forms
+  // snapshot) and returns them in the same shape as an exact-lemma lookup.
+  // Used only after lookup() failed with a server error; never on its own.
+  async lookupKnownArticles(
+    query: string,
+    articleIds: readonly (string | number)[],
+    dictionaries: readonly DictionaryCode[] = ["bm"],
+  ): Promise<OrdbokeneLookup> {
+    const normalizedQuery = normalizeNorwegian(query);
+    if (!normalizedQuery) throw new Error("Ordbokene lookup query is empty");
+    const requestedDictionaries = uniqueDictionaries(dictionaries);
+    if (requestedDictionaries.length !== 1 || requestedDictionaries[0] !== "bm") {
+      throw new Error("Known-article lookup is Bokmål only");
+    }
+    const ids = [...new Set(articleIds.map((id) => String(id)))]
+      .filter((id) => /^[1-9][0-9]*$/.test(id));
+    if (ids.length === 0) throw new Error("Known-article lookup needs article ids");
+    const articleReferences: ArticleReference[] = ids.map((articleId) => ({
+      dictionaryCode: "bm" as DictionaryCode,
+      articleId,
+    }));
+    const settled = await Promise.allSettled(
+      articleReferences.map((reference) => this.#fetchArticle(reference)),
+    );
+    const articles: OrdbokeneArticle[] = [];
+    const errors: SourceError[] = [];
+    for (let index = 0; index < settled.length; index += 1) {
+      const result = settled[index];
+      const reference = articleReferences[index];
+      if (result.status === "fulfilled") articles.push(result.value);
+      else {
+        errors.push({
+          ...reference,
+          url: this.#articleUrl(reference),
+          message: errorMessage(result.reason),
+        });
+      }
+    }
+    return {
+      query,
+      normalizedQuery,
+      requestedDictionaries,
+      scopeUsed: "e",
+      articleReferences,
+      articles,
+      errors,
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
   async #lookupArticleReferences(
     query: string,
     dictionaries: readonly DictionaryCode[],
@@ -184,4 +236,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+// D10 15.10.2026: a temporary Ordbøkene failure (server 5xx, timeout, network)
+// as opposed to an answer. Only such failures may use lookupKnownArticles()
+// and the longer retries; a 4xx or a real "not found" never does.
+export function isOrdbokeneServerError(error: unknown): boolean {
+  const name = error instanceof Error ? error.name : "";
+  const message = errorMessage(error);
+  return name === "AbortError" || name === "TimeoutError" ||
+    /Ordbokene returned HTTP 5\d\d/i.test(message) ||
+    /\b(aborted|timed out|timeout|error sending request|connection (reset|refused|closed)|network)\b/i
+      .test(message);
 }

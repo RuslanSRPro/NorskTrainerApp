@@ -14,6 +14,9 @@ export type FormsBundle = {
   compound_parts: string[];
   headword: string | null;
   morphology_source_lemma: string | null;
+  // D10 15.10.2026: forms of a compound built from its head card (word
+  // without its own Ordbøkene article). Shown with "≈".
+  forms_by_head?: boolean;
 };
 
 export type V2FormRow = {

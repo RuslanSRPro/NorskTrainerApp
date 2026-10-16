@@ -137,6 +137,11 @@ function buildOrdbokenePayload(
     expression_id: input.expression_id,
     lexeme_id: input.lexeme_id,
     pos: input.pos,
+    // D10 15.10.2026 (B3): exact article and card identity of a lexeme item.
+    article_id: input.item_type === 'lexeme' ? input.article_id : undefined,
+    parent_article_id: input.item_type === 'lexeme' ? input.parent_article_id : undefined,
+    parent_lexeme_id: input.item_type === 'lexeme' ? input.lexeme_id : undefined,
+    dictionary_code: input.item_type === 'lexeme' && input.article_id ? 'bm' : undefined,
     force_refresh: input.force_refresh ?? false,
     update_catalog: input.update_catalog ?? true,
   });

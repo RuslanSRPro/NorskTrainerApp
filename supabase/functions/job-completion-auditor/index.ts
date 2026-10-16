@@ -134,7 +134,7 @@ async function runCompletionContractShadow(jobId: string) {
       expected_snapshot_token,
     }) => {
       const { data, error } = await supabase.rpc(
-        'get_completion_evidence_snapshot_v1',
+        'get_completion_evidence_snapshot_v2',
         {
           p_job_id: job_id,
           p_cursor: cursor,
@@ -173,7 +173,7 @@ async function runCompletionContractEnforcement(jobId: string) {
       expected_snapshot_token,
     }) => {
       const { data, error } = await supabase.rpc(
-        'get_completion_evidence_snapshot_v1',
+        'get_completion_evidence_snapshot_v2',
         {
           p_job_id: job_id,
           p_cursor: cursor,
@@ -326,17 +326,6 @@ async function countUnpromotedItems(jobId: string): Promise<number> {
 
 // Terminal admission decisions are not pending lexical work. Keep them
 // separate from source_checks so the supervisor does not retry them forever.
-async function countAdmissionBlockedItems(jobId: string): Promise<number> {
-  const { count, error } = await supabase
-    .from('lexeme_processing_items')
-    .select('id', { count: 'exact', head: true })
-    .eq('job_id', jobId)
-    .eq('current_stage', 'admission_gate')
-    .eq('result_summary->>promotion_status', 'not_promoted');
-  if (error) throw new Error(`admission blocked count failed: ${safeStringify(error)}`);
-  return count ?? 0;
-}
-
 type AuditItem = {
   kind: 'lexeme' | 'expression';
   id: string;
@@ -384,7 +373,7 @@ serve(async (req) => {
         return jsonResponse({ ok: false, error: 'INTERNAL_SERVICE_AUTH_REQUIRED' }, 403);
       }
       const {completion, content} = await evaluateAuditCompletion(async (page) => {
-        const { data, error } = await supabase.rpc('get_completion_evidence_snapshot_v1', {
+        const { data, error } = await supabase.rpc('get_completion_evidence_snapshot_v2', {
           p_job_id: page.job_id, p_cursor: page.cursor, p_limit: page.limit,
           p_expected_snapshot_token: page.expected_snapshot_token,
         });
@@ -505,6 +494,15 @@ serve(async (req) => {
 
     const hasMore = (totalCount ?? 0) > offset + limit;
     const nextOffset = hasMore ? offset + limit : null;
+    const { data: familyAudit, error: familyAuditError } = await supabase.rpc(
+      'd10_job_gray_family_audit_v1', {
+        p_job_id: jobId, p_item_ids: (items ?? []).map((item: PageItem) => item.id),
+      });
+    if (familyAuditError || familyAudit?.ok !== true ||
+        !Array.isArray(familyAudit?.gray_ids)) {
+      throw new Error(`FAMILY_AUDIT_FAILED:${safeStringify(familyAuditError ?? familyAudit)}`);
+    }
+    const grayFamilyIds = new Set<string>(familyAudit.gray_ids);
 
     const auditErrors: Record<string, unknown>[] = [];
 
@@ -512,6 +510,7 @@ serve(async (req) => {
     // expression_catalog — им ещё рано проверять полноту перевода, это
     // отдельная (более ранняя) стадия пайплайна.
     const eligibleItems: PageItem[] = (items ?? []).filter((item: PageItem) => {
+      if (grayFamilyIds.has(item.id)) return false;
       const isExpression = item.match_type === 'expression' && item.expression_id;
       const isLexeme = item.match_type === 'token' && item.lexeme_id;
       return isExpression || isLexeme;
@@ -732,7 +731,12 @@ serve(async (req) => {
     // на каждой промежуточной странице, только когда решается финальный
     // вопрос "весь job готов или нет".
     const unpromotedItemsRemaining = hasMore ? 0 : await countUnpromotedItems(jobId);
-    const admissionBlockedItems = hasMore ? 0 : await countAdmissionBlockedItems(jobId);
+    const admissionBlockedItems = hasMore ? 0 : Number(familyAudit.blocked_count);
+    const grayFamilyItems = hasMore ? 0 : Number(familyAudit.gray_count);
+    if (!Number.isSafeInteger(admissionBlockedItems) ||
+        !Number.isSafeInteger(grayFamilyItems)) {
+      throw new Error('FAMILY_AUDIT_INVALID_COUNTS');
+    }
 
     await supabase
       .rpc('append_job_summary_field', {
@@ -748,6 +752,7 @@ serve(async (req) => {
           batch_still_incomplete_after_heal: stillIncompleteAfterHeal.length,
           unpromoted_items_remaining: unpromotedItemsRemaining,
           admission_blocked_items: admissionBlockedItems,
+          gray_family_items: grayFamilyItems,
           has_more: hasMore,
           next_offset: nextOffset,
           total_items_in_job: totalCount ?? null,
@@ -782,6 +787,7 @@ serve(async (req) => {
       items_still_incomplete_after_heal: stillIncompleteAfterHeal.length,
       unpromoted_items_remaining: unpromotedItemsRemaining,
       admission_blocked_items: admissionBlockedItems,
+      gray_family_items: grayFamilyItems,
       audit_errors: auditErrors.length,
       audited,
       errors: auditErrors,

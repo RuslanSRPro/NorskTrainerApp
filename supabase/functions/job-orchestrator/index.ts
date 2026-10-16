@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { runHomographStep } from '../_shared/d10-homograph-cards.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   loadJobEntities,
@@ -307,6 +308,13 @@ serve(async (req) => {
         ? body.job_id.trim()
         : null;
 
+    // pipeline-supervisor sets this after family injection failed 3 times for
+    // the job: the job continues without new family members, and the skipped
+    // step is listed in the final needs_manual_review report.
+    const skipFamilyInjection = body.skip_family_injection === true;
+    // D10 stage D2: lets pipeline-supervisor or a manual call skip second cards.
+    const skipHomographCards = body.skip_homograph_cards === true;
+
     const requestedRunId =
       typeof body.run_id === 'string' &&
       body.run_id.trim().length > 0
@@ -535,6 +543,94 @@ serve(async (req) => {
           continue;
         }
 
+        // Add family members only after a token has been promoted with an
+        // exact Bokmål article and lexeme identity. The RPC inserts the item,
+        // its own source checks and an idempotency ledger in one transaction.
+        // A failure is reported to pipeline-supervisor instead of failing the
+        // whole orchestrator call, so the supervisor can count it and, after
+        // repeated failures, continue the job without family injection.
+        if (!skipFamilyInjection) {
+          let familyPage!: { ok: boolean; added: number; has_more: boolean };
+          try {
+            familyPage = await rpcOrThrow<{
+              ok: boolean;
+              added: number;
+              has_more: boolean;
+            }>('d10_inject_verified_job_family_page_v1', {
+              p_job_id: jobId,
+              p_limit: 10,
+            });
+            if (familyPage?.ok !== true ||
+                !Number.isInteger(familyPage.added) || familyPage.added < 0 ||
+                typeof familyPage.has_more !== 'boolean') {
+              throw new Error(`FAMILY_INJECTION_INVALID_RESPONSE:${safeStringify(familyPage)}`);
+            }
+          } catch (familyError) {
+            processedJobs.push({
+              job_id: jobId,
+              promoted_count: promotedCount,
+              orchestrator_incomplete: true,
+              family_injection_error: safeStringify(familyError),
+              enrichment_pending: false,
+            });
+            continue;
+          }
+          if (familyPage.added > 0 || familyPage.has_more) {
+            processedJobs.push({
+              job_id: jobId,
+              promoted_count: promotedCount,
+              family_candidates_added: familyPage.added,
+              family_has_more: familyPage.has_more,
+              orchestrator_incomplete: true,
+              enrichment_pending: false,
+            });
+            continue;
+          }
+        }
+
+        // D10 stage D2 (R9-auto, plan D10_stage_d_plan_v3): second cards.
+        // For every promoted main card, homonym articles of the same POS with a
+        // different paradigm get their own card (Roman homograph number), which
+        // is added to this job as its own item and then follows the normal
+        // path (checks, promotion by article, all enrichment chains). Same
+        // forms -> one card (R8). A failure here never fails the job: it is
+        // logged and the job continues without new second cards.
+        if (!skipHomographCards) {
+          let homograph: Awaited<ReturnType<typeof runHomographStep>> | null = null;
+          try {
+            homograph = await runHomographStep(
+              (name, args) => supabase.rpc(name, args),
+              async (url) => {
+                const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+                if (!response.ok) throw new Error(`HTTP_${response.status}`);
+                return response.json();
+              },
+              jobId,
+            );
+          } catch (homographError) {
+            console.error(
+              'job-orchestrator: homograph step failed for job',
+              jobId,
+              safeStringify(homographError),
+            );
+          }
+          if (homograph?.errors.length) {
+            console.warn('job-orchestrator: homograph step warnings', jobId, homograph.errors);
+          }
+          if (homograph && (homograph.added > 0 || (homograph.hasMore && homograph.decided > 0))) {
+            processedJobs.push({
+              job_id: jobId,
+              promoted_count: promotedCount,
+              homograph_cards_added: homograph.added,
+              homograph_decisions: homograph.decided,
+              homograph_has_more: homograph.hasMore,
+              orchestrator_incomplete: true,
+              enrichment_pending: false,
+            });
+            continue;
+          }
+        }
+
         const { count: pendingEnrichmentCount } = await supabase
           .from('lexeme_processing_items')
           .select('id', { count: 'exact', head: true })
@@ -542,7 +638,17 @@ serve(async (req) => {
           .eq('current_stage', 'semantic_audit')
           .or('lexeme_id.not.is.null,expression_id.not.is.null');
 
-        const enrichmentNeeded = (pendingEnrichmentCount ?? 0) > 0;
+        // Family expressions with weak evidence remain gray at admission_gate,
+        // but still need the expression enrichment chains.
+        const { data: familyEnrichmentPage, error: familyEnrichmentError } =
+          await supabase.rpc('d10_family_enrichment_items_page_v1', {
+            p_job_id: jobId, p_offset: 0, p_limit: 1,
+          });
+        if (familyEnrichmentError || familyEnrichmentPage?.ok !== true) {
+          throw new Error(`FAMILY_ENRICHMENT_PREFLIGHT_FAILED:${safeStringify(familyEnrichmentError ?? familyEnrichmentPage)}`);
+        }
+        const enrichmentNeeded = (pendingEnrichmentCount ?? 0) > 0 ||
+          Number(familyEnrichmentPage.total ?? 0) > 0;
 
         if (enrichmentNeeded) {
           await supabase.rpc('append_job_summary_field', {

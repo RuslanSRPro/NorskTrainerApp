@@ -7,7 +7,7 @@ import {
 import type {
   ExecutionState,
 } from "../_shared/completion-contract/v1/contract.ts";
-import { ownsJob } from "../_shared/job-status-policy.ts";
+import { ownsJob, supervisorStillRunning } from "../_shared/job-status-policy.ts";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -115,6 +115,27 @@ function inferExecutionState(
   return "running";
 }
 
+// pipeline_supervisor_state.stage of the job, or null when there is no row or
+// it cannot be read (then the previous status logic applies unchanged).
+async function loadSupervisorStage(admin: any, jobId: string): Promise<string | null> {
+  try {
+    const { data, error } = await admin
+      .from("pipeline_supervisor_state")
+      .select("stage")
+      .eq("job_id", jobId)
+      .maybeSingle();
+    if (error) {
+      console.error("get-job-status: supervisor stage read failed", jobId, error.message);
+      return null;
+    }
+    const stage = typeof data?.stage === "string" ? data.stage.trim() : "";
+    return stage || null;
+  } catch (error) {
+    console.error("get-job-status: supervisor stage read failed", jobId, String(error));
+    return null;
+  }
+}
+
 function publicJob(job: JobRow): Omit<JobRow, "user_id"> {
   const { user_id: _owner, ...safeJob } = job;
   return safeJob;
@@ -135,9 +156,18 @@ async function loadLearnerItems(
     .order("created_at", { ascending: true });
   if (itemsError) throw new Error(`ITEMS_READ_FAILED:${itemsError.message}`);
 
+  const expressionIds = [...new Set((items ?? []).map((item: any) => item.expression_id).filter(Boolean))];
+  const mirrors = new Map<string, string>();
+  if (expressionIds.length) {
+    const {data, error} = await admin.from("expression_catalog").select("id,lexeme_id").in("id", expressionIds);
+    if (error) throw new Error(`EXPRESSION_IDENTITIES_READ_FAILED:${error.message}`);
+    for (const row of data ?? []) if (row.lexeme_id) mirrors.set(row.id, row.lexeme_id);
+  }
+  const displayLexemeId = (item: any): string | null =>
+    item.lexeme_id ?? mirrors.get(item.expression_id) ?? null;
   const lexemeIds = [
     ...new Set(
-      (items ?? []).map((item: any) => item.lexeme_id).filter(Boolean),
+      (items ?? []).map(displayLexemeId).filter(Boolean),
     ),
   ] as string[];
   const lexemeMap = new Map<string, any>();
@@ -153,20 +183,15 @@ async function loadLearnerItems(
     }
     for (const lexeme of lexemes ?? []) lexemeMap.set(lexeme.id, lexeme);
 
-    const { data: translations, error: translationError } = await admin
-      .from("entity_translations")
-      .select("lexeme_id, language_code, translation")
-      .in("lexeme_id", lexemeIds)
-      .eq("source", "lexin")
-      .eq("translation_type", "primary")
-      .eq("sense_rank", 1)
-      .eq("translation_rank", 1);
-    if (translationError) {
-      throw new Error(
-        `TRANSLATIONS_READ_FAILED:${translationError.message}`,
+    for (let offset = 0; offset < lexemeIds.length; offset += 150) {
+      const { data: translations, error: translationError } = await admin.rpc(
+        "get_canonical_lexeme_translations_v1",
+        {p_lexeme_ids: lexemeIds.slice(offset, offset + 150)},
       );
-    }
-    for (const translation of translations ?? []) {
+      if (translationError) {
+        throw new Error(`TRANSLATIONS_READ_FAILED:${translationError.message}`);
+      }
+      for (const translation of translations ?? []) {
       if (!translationMap.has(translation.lexeme_id)) {
         translationMap.set(translation.lexeme_id, { uk: "", en: "" });
       }
@@ -177,16 +202,19 @@ async function loadLearnerItems(
       if (translation.language_code === "en") {
         entry.en = translation.translation;
       }
+      }
     }
   }
 
   return (items ?? []).map((item: any) => {
-    const lexeme = item.lexeme_id ? lexemeMap.get(item.lexeme_id) : null;
-    const translation = item.lexeme_id
-      ? translationMap.get(item.lexeme_id)
+    const effectiveId = displayLexemeId(item);
+    const lexeme = effectiveId ? lexemeMap.get(effectiveId) : null;
+    const translation = effectiveId
+      ? translationMap.get(effectiveId)
       : null;
     return {
       ...item,
+      display_lexeme_id: effectiveId,
       cefr_level: lexeme?.cefr_level ?? null,
       frequency_rank: lexeme?.frequency_rank ?? null,
       frequency_ipm: lexeme?.frequency_ipm ?? null,
@@ -252,6 +280,30 @@ Deno.serve(
           chainProgress = Array.isArray(data) ? data : [];
         }
 
+        // D10 plan A2: while pipeline-supervisor has not finished (see
+        // supervisorStillRunning), report processing and do not run the
+        // completion check yet. No supervisor row or a read error keeps the
+        // previous behaviour.
+        const supervisorStage = inferredExecutionState === "completed" &&
+            String(job.status ?? "").toLowerCase() === "done"
+          ? await loadSupervisorStage(admin, jobId)
+          : null;
+        if (supervisorStillRunning(job.status, inferredExecutionState, supervisorStage)) {
+          return json({
+            ok: true,
+            status: "processing",
+            ready: false,
+            execution_state: "running",
+            quality_state: null,
+            learner_ready: false,
+            supervisor_stage: supervisorStage,
+            job: publicJob(job),
+            summary: job.summary,
+            progress,
+            chain_progress: chainProgress,
+          });
+        }
+
         if (
           inferredExecutionState !== "completed" &&
           inferredExecutionState !== "needs_manual_review"
@@ -285,7 +337,7 @@ Deno.serve(
               expected_snapshot_token,
             }) => {
               const { data, error } = await admin.rpc(
-                "get_completion_evidence_snapshot_v1",
+                "get_completion_evidence_snapshot_v2",
                 {
                   p_job_id: job_id,
                   p_cursor: cursor,

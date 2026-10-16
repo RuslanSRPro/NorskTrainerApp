@@ -18,6 +18,7 @@ import {
   comparePersistedProjection,
   type PersistedFormDisplayRow,
 } from "../_shared/authoritative-morphology-v2/persisted-parity.ts";
+import { isOrdbokeneServerError } from "../_shared/authoritative-morphology-v2/client.ts";
 
 const FUNCTION_NAME = "forms-enrichment-v2-worker";
 const MAX_LEXEMES = 25;
@@ -171,6 +172,29 @@ if (import.meta.main) {
             bindingRows.filter((row) => row.lexeme_id === lexeme.id).map(
               toArticleBinding,
             ),
+            undefined,
+            // D10 15.10.2026: articles already known for this lexeme
+            // (binding + active forms snapshot), used only if the
+            // Ordbøkene search fails with a server error.
+            async () => {
+              const { data, error } = await supabase.rpc(
+                "d10_lexeme_article_ids_v1",
+                { p_lexeme_id: lexeme.id },
+              );
+              if (error) throw new Error(`KNOWN_ARTICLES_LOAD_FAILED:${error.message}`);
+              const known = ((data ?? []) as unknown[]).map(String);
+              if (known.length) return known;
+              // Cache level: last successful exact search of this word + POS.
+              const { data: cached, error: cachedError } = await supabase.rpc(
+                "d10_last_ordbokene_search_v1",
+                { p_query: lexemeDictionaryLookupQuery(lexeme), p_pos: lexeme.pos },
+              );
+              if (cachedError) throw new Error(`CACHED_SEARCH_LOAD_FAILED:${cachedError.message}`);
+              const row = Array.isArray(cached) ? cached[0] : null;
+              const ids = Array.isArray(row?.article_ids) ? row.article_ids.map(String) : [];
+              // Several cached articles without a binding: ambiguous, not used.
+              return ids.length === 1 ? ids : [];
+            },
           );
           if (body.verifyPersisted) {
             return {
@@ -265,12 +289,38 @@ async function resolveOne(
   lexeme: LexemeRow,
   articleBindings: AuthoritativeArticleBinding[] = [],
   lookupQuery = lexemeDictionaryLookupQuery(lexeme),
+  loadKnownArticleIds?: () => Promise<string[]>,
 ) {
   const query = lookupQuery;
-  const resolution = await resolveAuthoritativeMorphology({
-    request: { query, pos: lexeme.pos, dictionaries: ["bm"] },
-    client: new OrdbokeneClient(),
-  });
+  const request = { query, pos: lexeme.pos, dictionaries: ["bm" as const] };
+  let resolution: Awaited<ReturnType<typeof resolveAuthoritativeMorphology>>;
+  try {
+    resolution = await resolveAuthoritativeMorphology({
+      request,
+      client: new OrdbokeneClient(),
+    });
+  } catch (searchError) {
+    // D10 15.10.2026: Ordbøkene search down (5xx, timeout) -> the articles
+    // already known for this lexeme are fetched directly; same parsing,
+    // binding and publish checks. Never turns into "not found": without a
+    // complete result of the exact lemma the original error is raised.
+    if (!isOrdbokeneServerError(searchError) || !loadKnownArticleIds) throw searchError;
+    const knownIds = await loadKnownArticleIds();
+    if (knownIds.length === 0) throw searchError;
+    const directClient = new OrdbokeneClient();
+    resolution = await resolveAuthoritativeMorphology({
+      request,
+      client: {
+        lookup: (q: string, d?: readonly ("bm" | "nn")[]) =>
+          directClient.lookupKnownArticles(q, knownIds, d ?? ["bm"]),
+      } as unknown as OrdbokeneClient,
+    });
+    const exactLemma = normalizeNorwegian(query);
+    if (resolution.status !== "resolved" ||
+        !resolution.paradigms.some((p) => normalizeNorwegian(p.lemma) === exactLemma)) {
+      throw searchError;
+    }
+  }
   let displayGroups = buildAuthoritativeDisplayGroups(
     resolution.paradigms,
     resolution.lookup.normalizedQuery,

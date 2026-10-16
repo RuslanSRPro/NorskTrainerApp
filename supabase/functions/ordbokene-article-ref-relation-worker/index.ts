@@ -174,9 +174,14 @@ function ordbokeneArticleUrl(
   return `https://ord.uib.no/${dictionaryCode}/article/${articleId}.json`;
 }
 
+// D10 15.10.2026: the card of THIS article (headword aliases), otherwise the
+// only main card of the lemma. Several cards / parts of speech -> no choice
+// (was: the first row by lemma, i.e. a random card or part of speech).
 async function resolveParentLexeme(
   supabase: ReturnType<typeof createClient>,
   lemma: string | null,
+  articleId: number,
+  dictionaryCode: string,
 ) {
   if (!lemma) {
     return {
@@ -185,33 +190,47 @@ async function resolveParentLexeme(
     };
   }
 
-  return await supabase
-    .from('lexemes')
-    .select('id, lemma, pos')
-    .eq('lemma', normalizeKey(lemma))
-    .limit(1)
-    .maybeSingle();
+  const byArticle = await supabase.rpc('d10_lexeme_for_article_v1', {
+    p_article_id: articleId, p_dictionary_code: dictionaryCode, p_lemma: normalizeKey(lemma),
+  });
+  if (byArticle.error) return { data: null, error: byArticle.error };
+  let lexemeId = (byArticle.data as string | null) ?? null;
+  if (!lexemeId) {
+    const byLemma = await supabase.rpc('d10_lexeme_for_lemma_v1', { p_lemma: normalizeKey(lemma) });
+    if (byLemma.error) return { data: null, error: byLemma.error };
+    lexemeId = (byLemma.data as string | null) ?? null;
+  }
+  return { data: lexemeId ? { id: lexemeId } : null, error: null };
 }
 
 async function resolveTarget(
   supabase: ReturnType<typeof createClient>,
   targetLemma: string,
+  targetArticleId: number | null = null,
+  dictionaryCode = 'bm',
 ): Promise<ResolvedTarget> {
   const normalized = normalizeKey(targetLemma);
 
-  const lexemeResult = await supabase
-    .from('lexemes')
-    .select('id')
-    .eq('lemma', normalized)
-    .limit(1)
-    .maybeSingle();
+  // D10 15.10.2026: the card of the referenced article first, otherwise the
+  // only main card of the lemma; ambiguous -> unresolved (was: limit 1).
+  let lexemeId: string | null = null;
+  if (targetArticleId) {
+    const byArticle = await supabase.rpc('d10_lexeme_for_article_v1', {
+      p_article_id: targetArticleId, p_dictionary_code: dictionaryCode, p_lemma: normalized,
+    });
+    if (byArticle.error) throw byArticle.error;
+    lexemeId = (byArticle.data as string | null) ?? null;
+  }
+  if (!lexemeId) {
+    const byLemma = await supabase.rpc('d10_lexeme_for_lemma_v1', { p_lemma: normalized });
+    if (byLemma.error) throw byLemma.error;
+    lexemeId = (byLemma.data as string | null) ?? null;
+  }
 
-  if (lexemeResult.error) throw lexemeResult.error;
-
-  if (lexemeResult.data?.id) {
+  if (lexemeId) {
     return {
       target_entity_type: 'lexeme',
-      target_entity_id: lexemeResult.data.id,
+      target_entity_id: lexemeId,
     };
   }
 
@@ -331,7 +350,7 @@ Deno.serve(async (req: Request) => {
     const sourceLemma =
       typeof article.lemma === 'string' ? normalizeKey(article.lemma) : null;
 
-    const parentResult = await resolveParentLexeme(supabase, sourceLemma);
+    const parentResult = await resolveParentLexeme(supabase, sourceLemma, articleId, dictionaryCode);
 
     if (parentResult.error) {
       return jsonResponse(
@@ -384,7 +403,8 @@ Deno.serve(async (req: Request) => {
 
     for (const candidate of candidates) {
       try {
-        const resolved = await resolveTarget(supabase, candidate.target_lemma);
+        const resolved = await resolveTarget(supabase, candidate.target_lemma,
+          candidate.target_article_id, dictionaryCode);
 
         const sourceUrl = ordbokeneArticleUrl(dictionaryCode, articleId);
         const targetUrl = ordbokeneArticleUrl(

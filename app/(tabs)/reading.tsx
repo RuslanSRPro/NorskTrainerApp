@@ -12,9 +12,11 @@ import {
 import {
   addLexemeToLearningFromSupabase, addPreviewWordViaAppsScript,
   addExpressionCandidateToSupabase, analyzeTextViaAppsScript,
-  boostReadingLexemeHitsInSupabase, getReadingLexemesFromSupabase,
+  boostReadingLexemeHitsInSupabase, getReadingLexemesFromSupabase, getFunctionWordKeysFromSupabase,
+  getLexemesByIdsFromSupabase,
   inspectWordViaAppsScript, searchLexemeInSupabase, translateSentenceWithAI,
   getJobProgress, getJobChainProgress, getJobStatus,
+  saveSelectedWordsToDatabase, type TextAnalysisMode,
 } from "@/services/api";
 import { speakNorwegian, stopSpeech } from "@/services/speech";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -32,16 +34,18 @@ import {
 } from "@/services/formPresentation";
 import { t } from "@/services/i18n";
 import { resolveVerification } from "@/services/verification";
+import { useServerRating } from "@/services/serverStars";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlassOverlay } from "@/components/ui/glass/GlassOverlay";
 import { CompoundWordText } from "@/components/CompoundWordText";
 
-type WordStatus = "learned" | "in_base" | "unknown";
+// "function": a function word (jeg, det, i ...) - recognised, never offered for learning (D10 F4).
+type WordStatus = "learned" | "in_base" | "unknown" | "function";
 type AnalysisSource = "pwa" | "ai";
 type AnalysisItem = { text: string; normalized: string; status: WordStatus; translation?: string; lexeme?: any };
 type SentenceAIResult = { translation?: string; grammarNotes?: string[]; expressions?: string[]; literalMeaning?: string; difficulty?: string };
 type AnalyzerCandidate = {
-  id: string; selected: boolean; source: AnalysisSource; kind: "missing" | "expression";
+  id: string; selected: boolean; source: AnalysisSource; kind: "missing" | "expression" | "known";
   status: WordStatus; text?: string; lemma?: string; type?: string;
   meaning_ua?: string; meaning_en?: string; meaning_no?: string;
   example?: string; confidence?: string; cefr?: string; frequency_level?: string;
@@ -77,7 +81,7 @@ const READING_TEXT = {
     word_preview_title:"🆕 Preview слова",add_preview_database:"➕ Додати preview у базу",adding:"Додавання...",text_analysis_title:"🧾 Аналіз тексту",
     pwa_analyzing:"PWA аналіз...",pwa_analysis:"🧾 Аналіз як у PWA",ai_analyzing:"AI аналіз...",ai_analysis:"✨ AI аналіз",
     total:"Усього",learned:"Вивчені",in_base:"Є в базі",not_in_base:"Немає в базі",learned_legend:"Вивчено",in_database:"Є в базі",
-    not_in_database_candidate:"Немає в базі / кандидат",ai_candidates:"✨ AI кандидати",pwa_candidates:"🧾 PWA кандидати",
+    not_in_database_candidate:"Немає в базі / кандидат",function_word_legend:"Службове слово (не для вивчення)",homonym_legend:"Омонім / друге значення",homonyms_section:"🟣 Омоніми та інші значення",ai_candidates:"✨ AI кандидати",pwa_candidates:"🧾 PWA кандидати",
     select_new:"Вибрати нові",clear_all:"Зняти всі",already_in_learning:"вже в навчанні",in_database_short:"є в базі",not_in_database_short:"немає в базі",
     expression:"вираз",open_card:"📖 Відкрити картку",already_in_base_by_analyzer:"✅ Уже є в базі за аналізом",nothing_found:"Нічого не знайдено.",
     text_methodology:"📊 Методологія тексту",sentences:"🧾 Речення",word_map:"🧩 Розмітка слів",not_in_base_section:"🔴 Не в базі",no_new_words_found:"Нових слів не знайдено.",
@@ -97,6 +101,12 @@ const READING_TEXT = {
     unique_words_not_in_base:"Унікальних слів не в базі: {count}",words_in_base_not_learned:"Слів є в базі, але не вивчено: {count}",database_coverage:"Покриття базою: {coverage}%",
     job_progress_title:"⚙️ Фонова обробка",job_processing:"Обробка триває...",job_completed:"Готово! Усі дані оброблено.",
     job_needs_review:"Потрібна ручна перевірка.",job_close:"Закрити",
+    mode_read:"📖 Читання",mode_audit:"🧪 Аудит",
+    mode_read_hint:"Читання: у словникову базу нічого не записується. Вибери слова й натисни «Зберегти в базу».",
+    mode_audit_hint:"Аудит: усі слова тексту автоматично записуються в базу й обробляються.",
+    save_selected_count:"💾 Зберегти вибрані в базу ({count})",saving_selected:"Зберігаю...",
+    saved_selected_queued:"Відправлено в базу: {count}. Після обробки статуси оновляться автоматично.",
+    added_selected_learning:"Додано до навчання: {count}.",saved_words_added_learning:"Збережені слова додано до навчання: {count}.",
   },
   en: {
     reading_title:"📖 Reading Mode",reading_subtitle:"PWA analysis and AI analysis work independently, but both use the local base for highlighting.",
@@ -104,7 +114,7 @@ const READING_TEXT = {
     word_preview_title:"🆕 Word Preview",add_preview_database:"➕ Add preview to database",adding:"Adding...",text_analysis_title:"🧾 Text Analysis",
     pwa_analyzing:"PWA analyzing...",pwa_analysis:"🧾 PWA-style analysis",ai_analyzing:"AI analyzing...",ai_analysis:"✨ AI analysis",
     total:"Total",learned:"Learned",in_base:"In base",not_in_base:"Not in base",learned_legend:"Learned",in_database:"In database",
-    not_in_database_candidate:"Not in database / candidate",ai_candidates:"✨ AI candidates",pwa_candidates:"🧾 PWA candidates",
+    not_in_database_candidate:"Not in database / candidate",function_word_legend:"Function word (not for learning)",homonym_legend:"Homonym / other meaning",homonyms_section:"🟣 Homonyms and other meanings",ai_candidates:"✨ AI candidates",pwa_candidates:"🧾 PWA candidates",
     select_new:"Select new",clear_all:"Clear all",already_in_learning:"already in learning",in_database_short:"in database",not_in_database_short:"not in database",
     expression:"expression",open_card:"📖 Open card",already_in_base_by_analyzer:"✅ Already in base by analyzer",nothing_found:"Nothing found.",
     text_methodology:"📊 Text Methodology",sentences:"🧾 Sentences",word_map:"🧩 Word map",not_in_base_section:"🔴 Not in database",no_new_words_found:"No new words found.",
@@ -124,6 +134,12 @@ const READING_TEXT = {
     unique_words_not_in_base:"Unique words not in base: {count}",words_in_base_not_learned:"Words in base, not learned: {count}",database_coverage:"Database coverage: {coverage}%",
     job_progress_title:"⚙️ Background processing",job_processing:"Still processing...",job_completed:"Done! All data processed.",
     job_needs_review:"Needs manual review.",job_close:"Close",
+    mode_read:"📖 Reading",mode_audit:"🧪 Audit",
+    mode_read_hint:"Reading: nothing is written to the dictionary database. Select words and press “Save to database”.",
+    mode_audit_hint:"Audit: every word of the text is written to the database and processed automatically.",
+    save_selected_count:"💾 Save selected to database ({count})",saving_selected:"Saving...",
+    saved_selected_queued:"Sent to the database: {count}. Statuses update automatically after processing.",
+    added_selected_learning:"Added to learning: {count}.",saved_words_added_learning:"Saved words added to learning: {count}.",
   },
   no: {
     reading_title:"📖 Lesemodus",reading_subtitle:"PWA-analyse og AI-analyse fungerer separat, men begge bruker den lokale databasen til markering.",
@@ -131,7 +147,7 @@ const READING_TEXT = {
     word_preview_title:"🆕 Forhåndsvisning av ord",add_preview_database:"➕ Legg forhåndsvisning til i databasen",adding:"Legger til...",text_analysis_title:"🧾 Tekstanalyse",
     pwa_analyzing:"PWA analyserer...",pwa_analysis:"🧾 PWA-lignende analyse",ai_analyzing:"AI analyserer...",ai_analysis:"✨ AI-analyse",
     total:"Totalt",learned:"Lært",in_base:"I basen",not_in_base:"Ikke i basen",learned_legend:"Lært",in_database:"I databasen",
-    not_in_database_candidate:"Ikke i databasen / kandidat",ai_candidates:"✨ AI-kandidater",pwa_candidates:"🧾 PWA-kandidater",
+    not_in_database_candidate:"Ikke i databasen / kandidat",function_word_legend:"Funksjonsord (ikke for læring)",homonym_legend:"Homonym / annen betydning",homonyms_section:"🟣 Homonymer og andre betydninger",ai_candidates:"✨ AI-kandidater",pwa_candidates:"🧾 PWA-kandidater",
     select_new:"Velg nye",clear_all:"Fjern alle",already_in_learning:"allerede i læring",in_database_short:"i databasen",not_in_database_short:"ikke i databasen",
     expression:"uttrykk",open_card:"📖 Åpne kort",already_in_base_by_analyzer:"✅ Allerede i basen ifølge analysen",nothing_found:"Ingenting funnet.",
     text_methodology:"📊 Tekstmetodikk",sentences:"🧾 Setninger",word_map:"🧩 Ordkart",not_in_base_section:"🔴 Ikke i databasen",no_new_words_found:"Ingen nye ord funnet.",
@@ -151,6 +167,12 @@ const READING_TEXT = {
     unique_words_not_in_base:"Unike ord ikke i basen: {count}",words_in_base_not_learned:"Ord i basen, men ikke lært: {count}",database_coverage:"Database-dekning: {coverage}%",
     job_progress_title:"⚙️ Bakgrunnsbehandling",job_processing:"Behandling pågår...",job_completed:"Ferdig! All data er behandlet.",
     job_needs_review:"Trenger manuell gjennomgang.",job_close:"Lukk",
+    mode_read:"📖 Lesing",mode_audit:"🧪 Revisjon",
+    mode_read_hint:"Lesing: ingenting lagres i ordbokdatabasen. Velg ord og trykk «Lagre i databasen».",
+    mode_audit_hint:"Revisjon: alle ord i teksten lagres og behandles automatisk.",
+    save_selected_count:"💾 Lagre valgte i databasen ({count})",saving_selected:"Lagrer...",
+    saved_selected_queued:"Sendt til databasen: {count}. Statusene oppdateres etter behandlingen.",
+    added_selected_learning:"Lagt til i læring: {count}.",saved_words_added_learning:"Lagrede ord lagt til i læring: {count}.",
   },
 } as const;
 
@@ -166,19 +188,59 @@ function makeReadingTranslator(lang: AppLanguage) {
     return formatTemplate(g&&g!==key?g:fb,vals);
   };
 }
+// D10 15.10.2026: "≈ " before an AI translation of a word without its own
+// Ordbøkene article (low reliability). Display only.
+// D10 15.10.2026: source line of a Read-mode preview (word not in the
+// database, looked up in Ordbøkene + Lexin; nothing saved yet).
+function previewSourceLabel(word: any, lang: AppLanguage): string {
+  const src = word?.previewSource;
+  if (!src) return "";
+  const notFound = src.ordbokene === "not_found";
+  const failed = src.ordbokene === "error";
+  const more = Number(src.moreArticles || 0);
+  if (lang === "ua") {
+    if (failed) return "Ordbøkene зараз недоступний. Слово ще не в базі.";
+    if (notFound) return "Немає в Ordbøkene" + (src.lexin === "found" ? " (переклад з Lexin)" : "") + ". Слово ще не в базі; його можна зберегти.";
+    return "З Ordbøkene" + (src.lexin === "found" ? " і Lexin" : "") + ", ще не в базі." + (more ? ` Ще статей: ${more}.` : "");
+  }
+  if (lang === "no") {
+    if (failed) return "Ordbøkene er utilgjengelig nå. Ordet er ikke i databasen ennå.";
+    if (notFound) return "Ikke i Ordbøkene" + (src.lexin === "found" ? " (oversettelse fra Lexin)" : "") + ". Ordet er ikke i databasen; det kan lagres.";
+    return "Fra Ordbøkene" + (src.lexin === "found" ? " og Lexin" : "") + ", ikke i databasen ennå." + (more ? ` Flere artikler: ${more}.` : "");
+  }
+  if (failed) return "Ordbøkene is unavailable now. The word is not in the database yet.";
+  if (notFound) return "Not in Ordbøkene" + (src.lexin === "found" ? " (translation from Lexin)" : "") + ". Not in the database yet; it can be saved.";
+  return "From Ordbøkene" + (src.lexin === "found" ? " and Lexin" : "") + ", not in the database yet." + (more ? ` More articles: ${more}.` : "");
+}
+function approxMark(item: any, code: "ua"|"en") {
+  return item?.[`${code}_approx`]===true?"≈ ":"";
+}
 function pickTranslation(item: any, lang: AppLanguage) {
   if (!item) return "";
   const ua=item.ua||item.meaning_ua||"";
   const en=item.en||item.meaning_en||"";
   const no=item.no||item.translation_no||item.meaning_no||"";
-  if(lang==="ua")return ua||en||no||"";
-  if(lang==="no")return no||en||ua||"";
-  return en||ua||no||"";
+  const uaM=ua?approxMark(item,"ua")+ua:"";
+  const enM=en?approxMark(item,"en")+en:"";
+  if(lang==="ua")return uaM||enM||no||"";
+  if(lang==="no")return no||enM||uaM||"";
+  return enM||uaM||no||"";
+}
+// Ukrainian and English together (one per line), as on the 360 cards; falls
+// back to the single translation for the app language.
+function bothTranslations(item: any, lang: AppLanguage) {
+  if (!item) return "";
+  const ua=String(item.ua||item.meaning_ua||"").trim();
+  const en=String(item.en||item.meaning_en||"").trim();
+  const uaM=ua?approxMark(item,"ua")+ua:"";
+  const enM=en?approxMark(item,"en")+en:"";
+  return [...new Set([uaM,enM].filter(Boolean))].join("\n")||pickTranslation(item,lang);
 }
 function pickCandidateMeaning(c: AnalyzerCandidate,lang: AppLanguage){return pickTranslation({meaning_ua:c.meaning_ua,meaning_en:c.meaning_en,meaning_no:c.meaning_no},lang);}
 function hasVerificationData(item: any){return Boolean(item?.verification_tier||item?.tier||item?.verification_evidence||item?.evidence||item?.source_verified||item?.sourceVerified);}
-function getVerificationDotColor(item: any){if(!hasVerificationData(item))return "";return resolveVerification(item).dot;}
-function VerificationMiniDot({item}:{item:any}){const c=getVerificationDotColor(item);if(!c)return null;return <View style={[s.miniDot,{backgroundColor:c}]}/>;}
+// D10 16.10.2026: the dot uses the server stars when the word has them.
+function getVerificationDotColor(item: any,serverStars?: number|null){if(!hasVerificationData(item))return "";return resolveVerification({...item,server_stars:serverStars??null}).dot;}
+function VerificationMiniDot({item}:{item:any}){const server=useServerRating(item?.id);const c=getVerificationDotColor(item,server?.stars);if(!c)return null;return <View style={[s.miniDot,{backgroundColor:c}]}/>;}
 
 function getFormLabels(word: any):TrainingFormItem[]{
   const pos=(word?.pos||word?.type||word?.category||"").toLowerCase();
@@ -201,7 +263,9 @@ function getFormLabels(word: any):TrainingFormItem[]{
     const primaryValues=tiers.primaryValues.map(decorate);
     const alternativeValues=tiers.alternativeValues.map(decorate);
     return primaryValues.length?[{
-      label,
+      // D10 15.10.2026: "≈ " = forms built from the head of a compound word
+      // without its own Ordbøkene article (vinterjakke <- jakke).
+      label:(word?.formsByHead?"≈ ":"")+label,
       formKey,
       value:primaryValues.join(", "),
       primaryValues,
@@ -212,20 +276,25 @@ function getFormLabels(word: any):TrainingFormItem[]{
 
 function normalizeToken(v:string){return String(v||"").toLowerCase().replace(/[.,!?;:()"«»]/g,"").replace(/^å\s+/i,"").replace(/^(en|ei|et)\s+/i,"").trim();}
 
-function adaptV7ResponseToLegacyFormat(v7:any,dict:Map<string,any>):{ok:boolean;known:any[];missing:any[];expressions:any[]}{
+function adaptV7ResponseToLegacyFormat(v7:any,dict:Map<string,any>,resolvedLexemes:Map<string,any>):{ok:boolean;known:any[];missing:any[];expressions:any[]}{
   const items:any[]=v7?.ingestion?.planned_items??[];
   const isOk=v7?.ok===true&&items.length>0;
   const known:any[]=[],missing:any[]=[],expressions:any[]=[];
   for(const item of items){
     const sk=normalizeToken(item.surface_form??""),lk=normalizeToken(item.normalized_lemma??"");
     const lm=(sk&&dict.get(sk))||(lk&&dict.get(lk))||null;
+    const resolvedId=item.resolved?.lexeme_id?String(item.resolved.lexeme_id):null;
+    const exact=resolvedId?resolvedLexemes.get(resolvedId)||null:null;
     if(item.match_type==="expression"){
-      expressions.push({text:item.surface_form||item.normalized_lemma,lemma:item.normalized_lemma,type:"expression",expression_subtype:item.expression_subtype??null,in_base:true,
-        found:lm??(item.expression_id?{id:item.expression_id,lemma:item.normalized_lemma}:null),
-        meaning_ua:lm?.ua||"",meaning_en:lm?.en||"",cefr:lm?.cefr||item.cefr||"",frequency_level:lm?.frequency_level||item.frequency_level||"",chunk_index:item.chunk_index??0});
+      expressions.push({text:item.surface_form||item.normalized_lemma,lemma:item.normalized_lemma,type:"expression",expression_subtype:item.expression_subtype??null,in_base:!!exact,
+        found:exact,
+        meaning_ua:exact?.ua||"",meaning_en:exact?.en||"",cefr:exact?.cefr||item.cefr||"",frequency_level:exact?.frequency_level||item.frequency_level||"",chunk_index:item.chunk_index??0});
     } else {
-      const r=item.resolved,ld=lm||(r?.lexeme_id?{id:r.lexeme_id,lemma:r.lemma??item.normalized_lemma,pos:r.pos}:null);
-      if(ld)known.push({text:item.surface_form,lemma:item.normalized_lemma,match_type:"single",in_base:true,found:ld});
+      const r=item.resolved;
+      const ld=resolvedId
+        ? exact
+        : lm;
+      if(ld)known.push({text:item.surface_form,lemma:ld.lemma||item.normalized_lemma,match_type:"single",in_base:true,found:ld,meaning_ua:ld.ua||"",meaning_en:ld.en||""});
       else missing.push({text:item.surface_form,lemma:item.normalized_lemma,type:item.pos??null,in_base:false,found:null,meaning_ua:"",meaning_en:""});
     }
   }
@@ -256,6 +325,8 @@ export default function ReadingScreen() {
   const [aiTextLoading,setAiTextLoading]=useState(false);
   const [batchAdding,setBatchAdding]=useState(false);
   const [analysis,setAnalysis]=useState<AnalysisItem[]>([]);
+  // D10 stage D: other cards of the same lemma (other POS, second card II/III) - separate purple markup.
+  const [homonyms,setHomonyms]=useState<any[]>([]);
   const [sentences,setSentences]=useState<string[]>([]);
   const [error,setError]=useState("");
   const [activeSource,setActiveSource]=useState<AnalysisSource|null>(null);
@@ -283,14 +354,83 @@ export default function ReadingScreen() {
   const [showJobModal,setShowJobModal]=useState(false);
   const overallPollRef=useRef<ReturnType<typeof setInterval>|null>(null);
   const chainPollRef=useRef<ReturnType<typeof setInterval>|null>(null);
+  const resolvedLexemesRef=useRef<Map<string,any>>(new Map());
+  const functionWordsRef=useRef<Set<string>>(new Set());
+  const analysisRef=useRef<AnalysisItem[]>([]);
+  const trackedJobRef=useRef<string|null>(null);
+  // Reading mode writes nothing until the user saves selected words; audit
+  // mode writes the whole text. The mode used for the shown result is kept
+  // so that saving and the refresh after saving follow that same mode.
+  const [analysisMode,setAnalysisMode]=useState<TextAnalysisMode>("read");
+  const resultModeRef=useRef<TextAnalysisMode>("read");
+  const lastSourceRef=useRef<AnalysisSource>("ai");
+  const readSaveJobRef=useRef<string|null>(null);
+  // D10: audit job started by "Check" for single words; on completion the
+  // word list is searched again so new cards (e.g. bok II) appear.
+  const wordCheckJobRef=useRef<string|null>(null);
+  const wordCheckQueriesRef=useRef<string[]>([]);
+  const wordCheckTextRef=useRef<string>("");
+  const readSaveTextRef=useRef<string>("");
+  // Words sent to the database from reading mode: once processed they are
+  // added to the user's learning (the user chose them).
+  const readSaveWordsRef=useRef<Set<string>>(new Set());
+  const textRef=useRef<string>("");
+  useEffect(()=>{textRef.current=text;},[text]);
+  useEffect(()=>{analysisRef.current=analysis;},[analysis]);
+
+  async function refreshAnalyzedCards(completedJobId:string){
+    const ids=[...new Set(analysisRef.current.map(item=>item.lexeme?.id).filter(Boolean))] as string[];
+    const fresh:any[]=[];
+    for(let offset=0;offset<ids.length;offset+=150){
+      fresh.push(...await getLexemesByIdsFromSupabase(ids.slice(offset,offset+150)));
+    }
+    if(trackedJobRef.current!==completedJobId)return;
+    const byId=new Map(fresh.filter(Boolean).map(word=>[word.id,word]));
+    for(const word of fresh.filter(Boolean))resolvedLexemesRef.current.set(word.id,word);
+    setAnalysis(previous=>previous.map(item=>{
+      const current=item.lexeme;
+      const update=current?.id?byId.get(current.id):null;
+      return update?{...item,lexeme:{...current,...update}}:item;
+    }));
+    setSelectedWord((current:any)=>current?.id&&byId.has(current.id)
+      ?{...current,...byId.get(current.id)}:current);
+  }
+
+  // A card is refreshed by exact ID when opened. No analysis/job polling is
+  // restarted and the chosen POS, text and sentence selection are preserved.
+  useEffect(()=>{
+    const id=String(selectedWord?.id||'');
+    if(!id)return;
+    let active=true;
+    getLexemesByIdsFromSupabase([id]).then(([fresh])=>{
+      if(!active||!fresh)return;
+      resolvedLexemesRef.current.set(id,fresh);
+      setSelectedWord((current:any)=>current?.id===id?{...current,...fresh}:current);
+    }).catch((e:any)=>{if(active)setError(String(e?.message||e));});
+    return()=>{active=false;};
+  },[selectedWord?.id]);
+
+  async function openRelatedLexeme(id:string){
+    const cached=resolvedLexemesRef.current.get(id);
+    if(cached){setSelectedWord(cached);return;}
+    try{
+      const [word]=await getLexemesByIdsFromSupabase([id]);
+      if(word){resolvedLexemesRef.current.set(id,word);setSelectedWord(word);}
+      else setError(`Lexeme ${id} was not found`);
+    }catch(e:any){setError(String(e?.message||e));}
+  }
 
   const stats=useMemo(()=>{
     const total=analysis.length,learned=analysis.filter(i=>i.status==="learned").length;
     const inBase=analysis.filter(i=>i.status==="in_base").length,unknown=analysis.filter(i=>i.status==="unknown").length;
-    return{total,learned,inBase,unknown,coverage:total>0?Math.round(((learned+inBase)/total)*100):0};
+    const functionWords=analysis.filter(i=>i.status==="function").length;
+    return{total,learned,inBase,unknown,functionWords,coverage:total>0?Math.round(((learned+inBase+functionWords)/total)*100):0};
   },[analysis]);
 
-  const selectedCandidates=analyzerCandidates.filter(i=>i.selected&&!i.added&&i.status==="unknown");
+  // Reading mode: a word in the database (yellow) can be chosen for learning;
+  // a word not in the database (red) is saved to the database first.
+  const isSelectable=(i:AnalyzerCandidate)=>!i.added&&(i.status==="unknown"||(resultModeRef.current==="read"&&i.status==="in_base"&&Boolean(i.lexeme?.id)));
+  const selectedCandidates=analyzerCandidates.filter(i=>i.selected&&isSelectable(i));
   const unknownCandidatesCount=analyzerCandidates.filter(i=>i.status==="unknown").length;
   const inBaseCandidatesCount=analyzerCandidates.filter(i=>i.status==="in_base"||i.status==="learned").length;
   const uniqueUnknownWords=Array.from(new Set(analysis.filter(i=>i.status==="unknown"&&i.normalized).map(i=>i.normalized)));
@@ -313,6 +453,25 @@ export default function ReadingScreen() {
         setJobPercent(100);
         stopOverallPolling();
         stopChainPolling();
+        void refreshAnalyzedCards(id).catch(error=>console.error('Reading card refresh failed:',error));
+        if(wordCheckJobRef.current===id){
+          wordCheckJobRef.current=null;
+          const queries=wordCheckQueriesRef.current;wordCheckQueriesRef.current=[];
+          if(textRef.current.trim()===wordCheckTextRef.current){
+            void refreshWordMatches(queries).catch(error=>console.error('Word check refresh failed:',error));
+          }
+        }
+        if(readSaveJobRef.current===id){
+          // Words saved from reading mode are now in the database: re-read the
+          // same text (still without writing) so statuses and cards update.
+          // Skipped when the user has changed the text in the meantime.
+          readSaveJobRef.current=null;
+          const savedWords=readSaveWordsRef.current;readSaveWordsRef.current=new Set();
+          if(textRef.current.trim()===readSaveTextRef.current){
+            void runAnalysis(lastSourceRef.current,{mode:"read",keepJobTracking:true})
+              .then(candidates=>addSavedWordsToLearning(candidates,savedWords));
+          }
+        }
         return;
       }
       if(status==="needs_manual_review"){
@@ -342,6 +501,7 @@ export default function ReadingScreen() {
   }
 
   function startJobTracking(id:string){
+    trackedJobRef.current=id;
     setJobId(id);
     setJobPhase("processing");
     setJobPercent(0);
@@ -352,6 +512,7 @@ export default function ReadingScreen() {
   }
 
   function clearJobTracking(){
+    trackedJobRef.current=null;
     stopOverallPolling();
     stopChainPolling();
     setJobId(null);
@@ -381,51 +542,71 @@ export default function ReadingScreen() {
   },[]);
   // ─────────────────────────────────────────────────────────────────────
 
-  function clearText(){setText("");setAnalysis([]);setSentences([]);setError("");setSelectedWord(null);setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");setAddingWord(false);setActiveSource(null);setAnalyzerResult(null);setAnalyzerCandidates([]);setAnalyzerMessage("");setWordSearchMessage("");setWordMatches([]);setPreviewWord(null);clearJobTracking();}
+  function clearText(){setText("");setAnalysis([]);setHomonyms([]);setSentences([]);setError("");setSelectedWord(null);setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");setAddingWord(false);setActiveSource(null);setAnalyzerResult(null);setAnalyzerCandidates([]);setAnalyzerMessage("");setWordSearchMessage("");setWordMatches([]);setPreviewWord(null);clearJobTracking();}
   function clearWordSearch(){setWordQuery("");setWordSearchMessage("");setPreviewWord(null);setWordMatches([]);setSelectedWord(null);}
   function openSentence(sentence:string){setSelectedSentence(sentence);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");}
 
   async function buildLocalDictionary(){
     const lexemes=await getReadingLexemesFromSupabase(preferred_user);
+    // Function words are not learning lexemes: kept apart, never in dict.
+    try{
+      const keys=await getFunctionWordKeysFromSupabase();
+      functionWordsRef.current=new Set([...keys].map(k=>normalizeToken(k)).filter(Boolean));
+    }catch(e){console.warn("Function word list not loaded:",e);}
     const dict=new Map<string,any>();
-    function addKey(raw:any,word:any){const k=normalizeToken(String(raw||""));if(!k)return;const ex=dict.get(k);if(!ex||word.learned)dict.set(k,word);}
+    function addKey(raw:any,word:any){const k=normalizeToken(String(raw||""));if(!k)return;const ex=dict.get(k);if(!ex||(word.learned&&!ex.learned)||(!word.homograph_key&&ex.homograph_key&&!(ex.learned&&!word.learned)))dict.set(k,word);}
     function addVariants(raw:any,word:any){const v=String(raw||"").trim();if(!v)return;[v,v.replace(/^å\s+/i,""),v.replace(/^(en|ei|et)\s+/i,"")].forEach(x=>addKey(x,word));}
     lexemes.forEach((w:any)=>[w.lemma,w.word,w.display_form,w.canonical,w.f1,w.f2,w.f3,w.f4,w.f5].forEach(k=>addVariants(k,w)));
-    return dict;
+    return {dict,byId:new Map(lexemes.filter((w:any)=>w.id).map((w:any)=>[String(w.id),w])),learnedIds:new Set<string>(lexemes.filter((w:any)=>w.learned&&w.id).map((w:any)=>String(w.id)))};
   }
 
-  async function analyzeTextLocal(){
-    const dict=await buildLocalDictionary();
+  // D10 stage D: cards of the same lemma as a word of the text, other than the
+  // card shown in the text (other POS, homograph card II/III). Shown purple in a
+  // separate list, never in the sentence markup.
+  function collectHomonyms(items:AnalysisItem[],byId:Map<string,any>){
+    const byLemma=new Map<string,any[]>();
+    for(const w of byId.values()){const k=normalizeToken(String(w?.lemma||""));if(!k)continue;const list=byLemma.get(k)||[];list.push(w);byLemma.set(k,list);}
+    const shown=new Set(items.map(i=>String(i.lexeme?.id||"")).filter(Boolean));
+    const out=new Map<string,any>();
+    for(const i of items){if(!i.lexeme)continue;for(const w of byLemma.get(normalizeToken(String(i.lexeme.lemma||"")))||[]){const id=String(w?.id||"");if(id&&!shown.has(id)&&!out.has(id))out.set(id,w);}}
+    return [...out.values()];
+  }
+
+  async function analyzeTextLocal(options?:{countReadingHits?:boolean}){
+    const {dict,byId,learnedIds}=await buildLocalDictionary();
+    resolvedLexemesRef.current=byId;
     const result=splitWords(text).map(raw=>{
       const normalized=normalizeToken(raw),found=dict.get(normalized);
       let status:WordStatus="unknown";
-      if(found?.learned)status="learned";else if(found)status="in_base";
+      if(found?.learned)status="learned";else if(found)status="in_base";else if(functionWordsRef.current.has(normalized))status="function";
       return{text:raw,normalized,status,lexeme:found||null,translation:found?pickTranslation(found,lang):""};
     });
-    setAnalysis(result);setSentences(splitSentences(text));boostReadingHits(result,preferred_user);
-    return{dictionary:dict,localAnalysis:result};
+    setAnalysis(result);setHomonyms(collectHomonyms(result,byId));setSentences(splitSentences(text));if(options?.countReadingHits!==false)boostReadingHits(result,preferred_user);
+    return{dictionary:dict,resolvedLexemes:byId,learnedIds,localAnalysis:result};
   }
 
-  function rebuildAnalysisFromEdgeResult(result:any,learnedIds:Set<string>){
+  function rebuildAnalysisFromEdgeResult(result:any,learnedIds:Set<string>,countReadingHits=true){
     const map=new Map<string,any>();
     for(const item of result.known||[]){if(!item.found)continue;for(const tok of (item.text||"").split(/\s+/).filter(Boolean)){const k=normalizeToken(tok);if(!k)continue;const lx={...item.found,learned:learnedIds.has(item.found.id)};if(!map.has(k)||lx.learned)map.set(k,lx);}}
     for(const item of result.expressions||[]){if(!item.in_base||!item.found)continue;for(const tok of (item.text||"").split(/\s+/).filter(Boolean)){const k=normalizeToken(tok);if(!k)continue;const lx={...item.found,ua:item.found.ua||item.meaning_ua||"",en:item.found.en||item.meaning_en||"",learned:learnedIds.has(item.found.id)};if(!map.has(k)||lx.learned)map.set(k,lx);}}
-    const na=splitWords(text).map(raw=>{const k=normalizeToken(raw),found=map.get(k);let status:WordStatus="unknown";if(found?.learned)status="learned";else if(found)status="in_base";return{text:raw,normalized:k,status,lexeme:found||null,translation:found?pickTranslation(found,lang):""};});
-    setAnalysis(na);setSentences(splitSentences(text));boostReadingHits(na,preferred_user);
+    const na=splitWords(text).map(raw=>{const k=normalizeToken(raw),found=map.get(k);let status:WordStatus="unknown";if(found?.learned)status="learned";else if(found)status="in_base";else if(functionWordsRef.current.has(k))status="function";return{text:raw,normalized:k,status,lexeme:found||null,translation:found?pickTranslation(found,lang):""};});
+    setAnalysis(na);setHomonyms(collectHomonyms(na,resolvedLexemesRef.current||new Map()));setSentences(splitSentences(text));if(countReadingHits)boostReadingHits(na,preferred_user);
   }
 
   function getCandidateLocalStatus(item:any,dict:Map<string,any>){
     if(item?.in_base===true){const lx=item?.found||null;if(lx?.learned)return{status:"learned" as WordStatus,lexeme:lx};return{status:"in_base" as WordStatus,lexeme:lx};}
-    if(item?.in_base===false)return{status:"unknown" as WordStatus,lexeme:null};
+    const isFunctionWord=()=>[item?.lemma,item?.text,item?.word].some(raw=>functionWordsRef.current.has(normalizeToken(String(raw||""))));
+    if(item?.in_base===false)return{status:(isFunctionWord()?"function":"unknown") as WordStatus,lexeme:null};
     const keys=new Set<string>();
     [item?.lemma,item?.text,item?.word,item?.canonical,item?.display_form,item?.found?.lemma,item?.found?.word,item?.found?.display_form,item?.found?.canonical].forEach(raw=>{const v=String(raw||"").trim();if(!v)return;[v,v.replace(/^å\s+/i,""),v.replace(/^(en|ei|et)\s+/i,"")].map(normalizeToken).filter(Boolean).forEach(k=>keys.add(k));});
     for(const k of keys){const f=dict.get(k);if(f?.learned)return{status:"learned" as WordStatus,lexeme:f};if(f)return{status:"in_base" as WordStatus,lexeme:f};}
     if(item?.found)return{status:"in_base" as WordStatus,lexeme:item.found};
+    if(isFunctionWord())return{status:"function" as WordStatus,lexeme:null};
     return{status:"unknown" as WordStatus,lexeme:null};
   }
 
-  function buildAnalyzerCandidates(result:any,source:AnalysisSource,dict:Map<string,any>){
-    const map=(item:any,index:number,kind:"missing"|"expression"):AnalyzerCandidate=>{
+  function buildAnalyzerCandidates(result:any,source:AnalysisSource,dict:Map<string,any>,mode:TextAnalysisMode="audit",learnedIds:Set<string>=new Set()){
+    const map=(item:any,index:number,kind:AnalyzerCandidate["kind"]):AnalyzerCandidate=>{
       const local=getCandidateLocalStatus(item,dict);
       return{id:makeCandidateId(source,kind,item,index),selected:false,source,kind,status:local.status,lexeme:local.lexeme,
         text:item.text||item.lemma||"",lemma:item.lemma||item.text||"",type:item.type||(kind==="expression"?"expression":""),
@@ -433,12 +614,41 @@ export default function ReadingScreen() {
         meaning_no:item.meaning_no||item.translation_no||item.no||"",example:item.example||"",confidence:item.confidence||"",
         cefr:item.cefr||"",frequency_level:item.frequency_level||"",expression_subtype:item.expression_subtype||"",raw:item};
     };
-    return[...(result?.missing||[]).map((i:any,idx:number)=>map(i,idx,"missing")),...(result?.expressions||[]).map((i:any,idx:number)=>map(i,idx,"expression"))];
+    // Function words are recognised but never offered as candidates (D10 F4).
+    const base=[...(result?.missing||[]).map((i:any,idx:number)=>map(i,idx,"missing")),...(result?.expressions||[]).map((i:any,idx:number)=>map(i,idx,"expression"))]
+      .filter(c=>c.status!=="function");
+    if(mode!=="read")return base;
+    // Reading mode: words of the text that are in the database but not yet in
+    // the user's learning are offered too, so the user decides what to learn.
+    const seen=new Set(base.map(c=>c.lexeme?.id).filter(Boolean));
+    const known:AnalyzerCandidate[]=[];
+    (result?.known||[]).forEach((item:any,idx:number)=>{
+      const id=item?.found?.id;
+      if(!id||seen.has(id)||learnedIds.has(String(id))||item?.found?.learned)return;
+      seen.add(id);
+      const c=map(item,idx,"known");
+      known.push({...c,status:"in_base",lexeme:item.found,type:item.found?.pos||item.found?.type||c.type});
+    });
+    return[...base,...known];
   }
 
-  function toggleCandidate(id:string){setAnalyzerCandidates(prev=>prev.map(item=>{if(item.id!==id)return item;if(item.status!=="unknown"||item.added)return item;return{...item,selected:!item.selected};}));}
+  function toggleCandidate(id:string){setAnalyzerCandidates(prev=>prev.map(item=>{if(item.id!==id)return item;if(!isSelectable(item))return item;return{...item,selected:!item.selected};}));}
   function selectAllUnknownCandidates(){setAnalyzerCandidates(prev=>prev.map(item=>({...item,selected:item.status==="unknown"&&!item.added})));}
   function unselectAllCandidates(){setAnalyzerCandidates(prev=>prev.map(item=>({...item,selected:false})));}
+
+  // D10: re-reads the checked words after their audit job (same mapping as checkWord).
+  async function refreshWordMatches(queries:string[]){
+    const found:any[]=[];
+    for(const query of queries){
+      const r=await searchLexemeInSupabase(query);
+      if(r?.found&&Array.isArray(r.items)&&r.items.length){
+        found.push(...r.items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:query})));
+      }
+    }
+    if(textRef.current.trim()!==wordCheckTextRef.current)return;
+    setWordMatches(found);
+    setWordSearchMessage(found.length?tr("word_found"):tr("could_not_process_word"));
+  }
 
   async function checkWord(){
     try{
@@ -456,6 +666,19 @@ export default function ReadingScreen() {
         }else if(!firstUnknown){firstUnknown=query;}
       }
       setWordMatches(found);
+      // D10 (14.10.2026): in Audit mode "Check" also writes the words through
+      // the audit job, known words included, so the job chain (verification,
+      // second homograph cards, enrichment) runs for them. Read mode is unchanged.
+      if(analysisMode==="audit"){
+        const result=await saveSelectedWordsToDatabase(queries);
+        if(result?.job?.id){
+          wordCheckJobRef.current=String(result.job.id);wordCheckQueriesRef.current=queries;wordCheckTextRef.current=wordQuery.trim();
+          startJobTracking(String(result.job.id));
+        }
+        const queued=tr("saved_selected_queued",{count:queries.length});
+        setWordSearchMessage(found.length ? `${tr("word_found")} · ${queued}` : queued);
+        return;
+      }
       if(found.length){setWordSearchMessage(firstUnknown ? `${tr("word_found")} · ${tr("not_in_base")}: ${firstUnknown}` : tr("word_found"));return;}
       if(firstUnknown){
         const r=await inspectWordViaAppsScript(firstUnknown);
@@ -481,8 +704,22 @@ export default function ReadingScreen() {
     }catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setWordLoading(false);}
   }
 
+  // D10 15.10.2026: the preview of a word from the dictionaries is saved the
+  // same way as words selected in Read mode (job through the audit pipeline,
+  // then added to the user's learning). addPreviewWordViaAppsScript was a stub
+  // that always failed after enrich-word was removed.
   async function addWordToGlobalBase(){
-    try{if(!previewWord)return;setAddingGlobalWord(true);const r=await addPreviewWordViaAppsScript(previewWord);if(!r?.ok)throw new Error((r as any)?.message||"Add preview failed");setWordSearchMessage(tr("word_added_global"));setPreviewWord(null);await checkWord();}
+    try{if(!previewWord)return;setAddingGlobalWord(true);
+      const word=String(previewWord.lemma||previewWord.word||"").trim();if(!word)return;
+      const result=await saveSelectedWordsToDatabase([word]);
+      if(result?.job?.id){
+        readSaveJobRef.current=String(result.job.id);readSaveTextRef.current=text.trim();
+        readSaveWordsRef.current=new Set([normalizeToken(word)].filter(Boolean));
+        // after processing the word list is searched again: its card opens
+        wordCheckJobRef.current=String(result.job.id);wordCheckQueriesRef.current=[normalizeToken(word)];wordCheckTextRef.current=text.trim();
+        startJobTracking(String(result.job.id));
+      }
+      setWordSearchMessage(tr("saved_selected_queued",{count:1}));setPreviewWord(null);}
     catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setAddingGlobalWord(false);}
   }
 
@@ -500,23 +737,37 @@ export default function ReadingScreen() {
     }catch(err:any){setError(String(err?.message||err));}finally{setAddingWord(false);}
   }
 
-  async function runAnalysis(source: AnalysisSource){
+  async function runAnalysis(source: AnalysisSource,options?:{mode?:TextAnalysisMode;keepJobTracking?:boolean}):Promise<AnalyzerCandidate[]>{
     const isPwa=source==="pwa";
+    const mode=options?.mode??analysisMode;
     try{
-      if(!text.trim())return;
+      if(!text.trim())return[];
       if(isPwa)setPwaLoading(true);else setAiTextLoading(true);
       setLoading(true);setError("");setAnalyzerMessage("");setAnalyzerResult(null);setAnalyzerCandidates([]);setActiveSource(source);
-      clearJobTracking();
-      const{dictionary}=await analyzeTextLocal();
-      const learnedIds=new Set<string>(Array.from(dictionary.values()).filter((w:any)=>w.learned&&w.id).map((w:any)=>w.id));
-      const result=await analyzeTextViaAppsScript(text.trim());
+      // A job that is still being processed keeps its ⏳ indicator when another
+      // analysis is started; only a finished or failed job is cleared.
+      const jobStillRunning=Boolean(jobId)&&jobPhase==="processing";
+      if(!options?.keepJobTracking&&!jobStillRunning){clearJobTracking();readSaveJobRef.current=null;}
+      lastSourceRef.current=source;resultModeRef.current=mode;
+      // The refresh after saving is not a new reading: reading hits are not counted again.
+      const countReadingHits=!options?.keepJobTracking;
+      const{dictionary,resolvedLexemes,learnedIds}=await analyzeTextLocal({countReadingHits});
+
+      const result=await analyzeTextViaAppsScript(text.trim(),{analysisMode:mode});
       console.log('JOB DEBUG result.ok:', result?.ok);
       console.log('JOB DEBUG result.job:', JSON.stringify(result?.job));
       console.log('JOB DEBUG result keys:', result?Object.keys(result):'no result');
       if(!result?.ok)throw new Error(result?.message||(isPwa?"PWA text analyzer failed":"AI text analyzer failed"));
-      const adapted=adaptV7ResponseToLegacyFormat(result,dictionary);
-      rebuildAnalysisFromEdgeResult(adapted,learnedIds);
-      const candidates=buildAnalyzerCandidates(adapted,source,dictionary);
+      const exactIds:string[]=[...new Set<string>((result?.ingestion?.planned_items||[]).map((item:any)=>item?.resolved?.lexeme_id).filter(Boolean).map((id:any):string=>String(id)))]
+        .filter(id=>!resolvedLexemes.has(id));
+      if(exactIds.length){
+        const hydrated=await getLexemesByIdsFromSupabase(exactIds);
+        hydrated.forEach((word:any)=>resolvedLexemes.set(String(word.id),word));
+      }
+      resolvedLexemesRef.current=resolvedLexemes;
+      const adapted=adaptV7ResponseToLegacyFormat(result,dictionary,resolvedLexemes);
+      rebuildAnalysisFromEdgeResult(adapted,learnedIds,countReadingHits);
+      const candidates=buildAnalyzerCandidates(adapted,source,dictionary,mode,learnedIds);
       setAnalyzerResult(adapted);setAnalyzerCandidates(candidates);
       const unk=candidates.filter(i=>i.status==="unknown").length,inB=candidates.filter(i=>i.status==="in_base"||i.status==="learned").length;
       setAnalyzerMessage(tr(isPwa?"pwa_ready":"ai_ready",{inBase:inB,unknown:unk}));
@@ -526,11 +777,74 @@ export default function ReadingScreen() {
       if(result?.job?.id){
         startJobTracking(String(result.job.id));
       }
-    }catch(err:any){setAnalyzerMessage(String(err?.message||err));}
+      return candidates;
+    }catch(err:any){setAnalyzerMessage(String(err?.message||err));return[];}
     finally{if(isPwa)setPwaLoading(false);else setAiTextLoading(false);setLoading(false);}
   }
 
+  // Reading mode: write only what the user selected.
+  //   red (not in the database)  -> sent as a word list through the audit
+  //     pipeline (verification, enrichment, learning admission); added to the
+  //     user's learning after processing (addSavedWordsToLearning);
+  //   yellow (in the database)   -> added to the user's learning now.
+  async function saveSelectedToDatabase(){
+    if(!selectedCandidates.length){setAnalyzerMessage(tr("select_words_to_add"));return;}
+    setBatchAdding(true);setAnalyzerMessage(tr("saving_selected"));
+    const messages:string[]=[];
+    try{
+      const toLearn=selectedCandidates.filter(c=>c.status==="in_base"&&c.lexeme?.id);
+      const toDatabase=selectedCandidates.filter(c=>c.status==="unknown");
+      const learnedNow=new Set<string>();
+      for(const c of toLearn){
+        try{await addLexemeToLearningFromSupabase({preferred_user,lexemeId:String(c.lexeme.id)});learnedNow.add(String(c.lexeme.id));}
+        catch(err:any){setAnalyzerCandidates(prev=>prev.map(x=>x.id===c.id?{...x,selected:false,error:String(err?.message||err)}:x));}
+      }
+      if(learnedNow.size){
+        markLearned(learnedNow);
+        messages.push(tr("added_selected_learning",{count:learnedNow.size}));
+      }
+      if(toDatabase.length){
+        const words=toDatabase.map(c=>String(c.lemma||c.text||"").trim()).filter(Boolean);
+        const result=await saveSelectedWordsToDatabase(words);
+        const ids=new Set(toDatabase.map(c=>c.id));
+        setAnalyzerCandidates(prev=>prev.map(c=>ids.has(c.id)?{...c,selected:false,added:true,error:""}:c));
+        if(result?.job?.id){
+          readSaveJobRef.current=String(result.job.id);readSaveTextRef.current=text.trim();
+          readSaveWordsRef.current=new Set(words.map(w=>normalizeToken(w)).filter(Boolean));
+          startJobTracking(String(result.job.id));
+        }
+        messages.push(tr("saved_selected_queued",{count:new Set(words).size}));
+      }
+      setAnalyzerMessage(messages.join(" "));
+    }catch(err:any){setAnalyzerMessage([...messages,String(err?.message||err)].join(" "));}
+    finally{setBatchAdding(false);}
+  }
+
+  // Marks lexemes as being in the user's learning on the current screen.
+  function markLearned(ids:Set<string>){
+    setAnalyzerCandidates(prev=>prev.map(c=>c.lexeme?.id&&ids.has(String(c.lexeme.id))?{...c,selected:false,added:true,status:"learned",lexeme:{...c.lexeme,learned:true},error:""}:c));
+    setAnalysis(prev=>prev.map(item=>item.lexeme?.id&&ids.has(String(item.lexeme.id))?{...item,status:"learned",lexeme:{...item.lexeme,learned:true}}:item));
+  }
+
+  // After the save job: the saved words are now in the database (re-read
+  // without writing). Those the user chose are added to their learning.
+  async function addSavedWordsToLearning(candidates:AnalyzerCandidate[],savedWords:Set<string>){
+    if(!savedWords.size||!candidates.length)return;
+    const ids=new Set<string>();
+    for(const c of candidates){
+      const id=c.lexeme?.id;if(!id||c.status==="learned")continue;
+      const keys=[c.lemma,c.text,c.lexeme?.lemma].map(v=>normalizeToken(String(v||""))).filter(Boolean);
+      if(keys.some(k=>savedWords.has(k)))ids.add(String(id));
+    }
+    const added=new Set<string>();
+    for(const id of ids){
+      try{await addLexemeToLearningFromSupabase({preferred_user,lexemeId:id});added.add(id);}catch{}
+    }
+    if(added.size){markLearned(added);setAnalyzerMessage(tr("saved_words_added_learning",{count:added.size}));}
+  }
+
   async function addSelectedAnalyzerItems(){
+    if(resultModeRef.current==="read"){await saveSelectedToDatabase();return;}
     if(!selectedCandidates.length){setAnalyzerMessage(tr("select_words_to_add"));return;}
     setBatchAdding(true);setAnalyzerMessage(tr("adding_selected",{count:selectedCandidates.length}));
     let ok=0,dup=0,fail=0;const proc:Record<string,any>={};
@@ -600,8 +914,9 @@ export default function ReadingScreen() {
           {previewWord?(<View style={[s.previewBox,{backgroundColor:T.cardAlt}]}>
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+3}]}>{tr("word_preview_title")}</Text>
             <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord.word}</Text>
-            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
+            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{bothTranslations(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord.type||previewWord.category||""}{previewWord.gender?` · ${previewWord.gender}`:""}</Text>
+            {previewWord.previewSource?<Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewSourceLabel(previewWord,lang)}</Text>:null}
             <View style={s.formsBox}>{getFormLabels(previewWord).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
             {previewWord.example?(<View style={[s.exBox,{backgroundColor:T.cardInner}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text>{previewWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example_translation_uk}</Text>:null}</View>):null}
             <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}>
@@ -613,10 +928,18 @@ export default function ReadingScreen() {
             <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>Velg ordklasse:</Text>
             {wordMatches.map((item:any,index:number)=>(
               <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:selectedWord?.id===item.id?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>setSelectedWord(item)}>
-                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {item.pos||item.category||item.type||""}</Text>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {item.pos||item.category||item.type||""}{pickTranslation(item,lang)?` · ${pickTranslation(item,lang)}`:""}</Text>
               </Pressable>
             ))}
           </View>):null}
+          <View style={s.actionsRow}>
+            {(["read","audit"] as TextAnalysisMode[]).map(mode=>(
+              <Pressable key={mode} style={[s.smallCtrl,{backgroundColor:analysisMode===mode?T.accentBg:T.cardAlt,marginBottom:0}]} disabled={pwaLoading||aiTextLoading||batchAdding} onPress={()=>setAnalysisMode(mode)}>
+                <Text style={[s.smallCtrlText,{color:analysisMode===mode?T.accent:T.textPrimary}]}>{tr(mode==="read"?"mode_read":"mode_audit")}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={[s.candidateMeta,{color:T.textMuted,fontSize:F.meta,marginTop:6}]}>{tr(analysisMode==="read"?"mode_read_hint":"mode_audit_hint")}</Text>
           <View style={s.actionsCol}>
             <Pressable style={[s.aiBtn,aiTextLoading&&s.disabled]} disabled={pwaLoading||aiTextLoading||!text.trim()} onPress={()=>runAnalysis("ai")}>
               <Text style={s.aiBtnText}>{aiTextLoading?tr("ai_analyzing"):tr("ai_analysis")}</Text>
@@ -645,6 +968,8 @@ export default function ReadingScreen() {
             <Text style={[s.legendText,{color:T.textSecondary,fontSize:F.base}]}>🟢 {tr("learned_legend")}</Text>
             <Text style={[s.legendText,{color:T.textSecondary,fontSize:F.base}]}>🟡 {tr("in_database")}</Text>
             <Text style={[s.legendText,{color:T.textSecondary,fontSize:F.base}]}>🔴 {tr("not_in_database_candidate")}</Text>
+            <Text style={[s.legendText,{color:T.textSecondary,fontSize:F.base}]}>⚪ {tr("function_word_legend")}</Text>
+            <Text style={[s.legendText,{color:T.textSecondary,fontSize:F.base}]}>🟣 {tr("homonym_legend")}</Text>
           </View>
         </>):null}
 
@@ -661,7 +986,7 @@ export default function ReadingScreen() {
             const vs=candidate.lexeme||candidate.raw;
             return(<View key={candidate.id} style={[s.candidateCard,candidate.status==="learned"&&s.cLearned,candidate.status==="in_base"&&s.cInBase,candidate.status==="unknown"&&s.cUnknown]}>
               <Pressable style={s.candidateHeader} onPress={()=>toggleCandidate(candidate.id)}>
-                <Text style={s.checkbox}>{candidate.added?"✅":candidate.status!=="unknown"?"🟡":candidate.selected?"☑️":"⬜️"}</Text>
+                <Text style={s.checkbox}>{candidate.added?"✅":!isSelectable(candidate)?"🟡":candidate.selected?"☑️":"⬜️"}</Text>
                 <View style={{flex:1}}>
                   <View style={s.candidateTitleRow}>
                     <Text style={[s.candidateTitle,{color:T.textPrimary,fontSize:F.base+2}]}>{displayCandidateText(candidate)}</Text>
@@ -676,7 +1001,7 @@ export default function ReadingScreen() {
                   </Text>
                 </View>
               </Pressable>
-              {hasVerificationData(vs)?(<View style={s.verRow}><VerificationBadge tier={vs.verification_tier||vs.tier} sourceVerified={vs.source_verified||vs.sourceVerified} evidence={vs.verification_evidence||vs.evidence} lemma={vs.lemma||vs.word||displayCandidateText(candidate)} size="sm" lang={lang}/></View>):null}
+              {hasVerificationData(vs)?(<View style={s.verRow}><VerificationBadge tier={vs.verification_tier||vs.tier} sourceVerified={vs.source_verified||vs.sourceVerified} evidence={vs.verification_evidence||vs.evidence} lemma={vs.lemma||vs.word||displayCandidateText(candidate)} size="sm" lang={lang} entityId={candidate.lexeme?.id??null}/></View>):null}
               {pickCandidateMeaning(candidate,lang)?<Text style={[s.candidateMeaning,{color:T.accent,fontSize:F.base}]}>{pickCandidateMeaning(candidate,lang)}</Text>:null}
               {candidate.example?<Text style={[s.candidateExample,{color:T.textSecondary,fontSize:F.base-1}]}>{candidate.example}</Text>:null}
               {candidate.error?<Text style={[s.candidateError,{color:T.danger}]}>❌ {candidate.error}</Text>:null}
@@ -686,7 +1011,9 @@ export default function ReadingScreen() {
             </View>);
           })}
           <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},(batchAdding||selectedCandidates.length===0)&&s.disabled]} disabled={batchAdding||selectedCandidates.length===0} onPress={addSelectedAnalyzerItems}>
-            <Text style={[s.addBtnText,{color:T.accent,fontSize:F.base}]}>{batchAdding?tr("adding_short"):tr("add_selected_count",{count:selectedCandidates.length})}</Text>
+            <Text style={[s.addBtnText,{color:T.accent,fontSize:F.base}]}>{resultModeRef.current==="read"
+              ?(batchAdding?tr("saving_selected"):tr("save_selected_count",{count:selectedCandidates.length}))
+              :(batchAdding?tr("adding_short"):tr("add_selected_count",{count:selectedCandidates.length}))}</Text>
           </Pressable>
         </View>):null}
 
@@ -721,13 +1048,22 @@ export default function ReadingScreen() {
           <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("word_map")}</Text>
             <View style={s.wordWrap}>
-              {analysis.map((item,i)=>(<TouchableOpacity key={`${item.text}-${i}`} activeOpacity={0.7} onPress={()=>{if(item.lexeme){setSelectedWord(item.lexeme);return;}inspectUnknownWord(item.normalized);}}
-                style={[s.chip,item.status==="learned"&&s.chipLearned,item.status==="in_base"&&s.chipInBase,item.status==="unknown"&&s.chipUnknown]}>
-                <Text style={[s.chipText,item.status==="learned"&&s.txLearned,item.status==="in_base"&&s.txInBase,item.status==="unknown"&&s.txUnknown,{fontSize:F.base-1}]}>{item.text}</Text>
+              {analysis.map((item,i)=>(<TouchableOpacity key={`${item.text}-${i}`} activeOpacity={0.7} onPress={()=>{if(item.lexeme){setSelectedWord(item.lexeme);return;}if(item.status==="function")return;inspectUnknownWord(item.normalized);}}
+                style={[s.chip,item.status==="learned"&&s.chipLearned,item.status==="in_base"&&s.chipInBase,item.status==="unknown"&&s.chipUnknown,item.status==="function"&&s.chipFunction]}>
+                <Text style={[s.chipText,item.status==="learned"&&s.txLearned,item.status==="in_base"&&s.txInBase,item.status==="unknown"&&s.txUnknown,item.status==="function"&&s.txFunction,{fontSize:F.base-1}]}>{item.text}</Text>
                 {item.lexeme?<VerificationMiniDot item={item.lexeme}/>:null}
               </TouchableOpacity>))}
             </View>
           </View>
+          {homonyms.length>0?(<View style={s.card}>
+          <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
+            <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("homonyms_section")}</Text>
+            <View style={s.wordWrap}>
+              {homonyms.map((w:any)=>(<TouchableOpacity key={`hom-${w.id}`} activeOpacity={0.7} onPress={()=>setSelectedWord(w)} style={[s.chip,s.chipHomonym]}>
+                <Text style={[s.chipText,s.txHomonym,{fontSize:F.base-1}]}>{w.lemma||w.word} — {w.pos||w.category||""}{pickTranslation(w,lang)?` · ${pickTranslation(w,lang)}`:""}</Text>
+              </TouchableOpacity>))}
+            </View>
+          </View>):null}
           <View style={s.card}>
           <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("not_in_base_section")}</Text>
@@ -743,8 +1079,9 @@ export default function ReadingScreen() {
           <>
             <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("word_preview_modal")}</Text>
             <CompoundWordText value={formatDisplayLemma(previewWord?.word||previewWord?.lemma||wordQuery,previewWord)} word={previewWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={previewWord?.isCompound||previewWord?.is_compound||isIrregularMorphology(previewWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
-            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(previewWord,lang)}</Text>
+            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{bothTranslations(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
+            {previewWord?.previewSource?<Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewSourceLabel(previewWord,lang)}</Text>:null}
             <TrainingFormsList
               forms={getFormLabels(previewWord||{})}
               title={tr("forms")}
@@ -764,7 +1101,7 @@ export default function ReadingScreen() {
         {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},content:(
           <>
             <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={selectedWord?.isCompound||selectedWord?.is_compound||isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
-            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{pickTranslation(selectedWord,lang)}</Text>
+            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{bothTranslations(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
 
@@ -789,7 +1126,7 @@ export default function ReadingScreen() {
                     lemma={selectedWord.lemma||selectedWord.word}
                     pos={selectedWord.pos||selectedWord.category||selectedWord.type}
                     lang={lang}
-                    onSelectWord={(id:string,lemma:string)=>setSelectedWord({id,word:lemma,lemma})}
+                    onSelectWord={(id:string)=>{void openRelatedLexeme(id);}}
                   />
                 ) : null}
 
@@ -801,6 +1138,7 @@ export default function ReadingScreen() {
                     lemma={selectedWord.lemma||selectedWord.word}
                     size="sm"
                     lang={lang}
+                    entityId={selectedWord.id}
                   />
                 ) : null}
               </View>
@@ -906,7 +1244,7 @@ export default function ReadingScreen() {
         <Pressable style={s.overlay360} onPress={()=>setShow360(false)}>
           <Pressable onPress={e=>e.stopPropagation()} style={s.sheet360}>
             <GlassOverlay dark={themeName === "dark"} material="overlay" shape="sheet" radius={24} />
-            {word360&&<Lexeme360Sheet lexemeId={word360.id} lemma={word360.lemma} pos={word360.pos} lang={lang} onClose={()=>setShow360(false)} onSelectWord={(id,lemma)=>{setShow360(false);setSelectedWord({id,word:lemma,lemma});}}/>}
+            {word360&&<Lexeme360Sheet lexemeId={word360.id} lemma={word360.lemma} pos={word360.pos} lang={lang} onClose={()=>setShow360(false)} onSelectWord={(id)=>{setShow360(false);void openRelatedLexeme(id);}}/>}
           </Pressable>
         </Pressable>
       </Modal>
@@ -961,8 +1299,8 @@ const s=StyleSheet.create({
   sentenceCard:{borderRadius:16,padding:14,marginBottom:10},sentenceText:{lineHeight:24,fontWeight:"700"},
   wordWrap:{flexDirection:"row",flexWrap:"wrap",gap:8},
   chip:{borderRadius:999,paddingVertical:7,paddingHorizontal:10,flexDirection:"row",alignItems:"center",gap:5},
-  chipLearned:{backgroundColor:"#DCFCE7"},chipInBase:{backgroundColor:"#FEF3C7"},chipUnknown:{backgroundColor:"#FEE2E2"},
-  chipText:{fontWeight:"800"},txLearned:{color:"#166534"},txInBase:{color:"#92400E"},txUnknown:{color:"#991B1B"},
+  chipLearned:{backgroundColor:"#DCFCE7"},chipInBase:{backgroundColor:"#FEF3C7"},chipUnknown:{backgroundColor:"#FEE2E2"},chipFunction:{backgroundColor:"#F1F5F9"},chipHomonym:{backgroundColor:"#EDE9FE"},
+  chipText:{fontWeight:"800"},txLearned:{color:"#166534"},txInBase:{color:"#92400E"},txUnknown:{color:"#991B1B"},txFunction:{color:"#64748B"},txHomonym:{color:"#5B21B6"},
   unknownItem:{fontWeight:"800",paddingVertical:8,borderBottomWidth:0.5},
   emptyText:{lineHeight:24},error:{padding:14,borderRadius:12,marginBottom:20},
   miniDot:{width:8,height:8,borderRadius:99,borderWidth:0.5,borderColor:"rgba(0,0,0,0.15)"},

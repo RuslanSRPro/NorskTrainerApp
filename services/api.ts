@@ -2,6 +2,7 @@ import { selectNorwegianExample } from '../supabase/functions/_shared/example-ev
 import { supabase } from './supabase';
 import { getCurrentUserId } from '@/store/authStore';
 import { fetchFormsMap, type FormsBundle } from './formReadModel';
+import { buildV2Bundles, type V2FormRow } from './formReadModelCore';
 
 // ============================================================
 // LEXEME SELECT
@@ -18,7 +19,7 @@ import { fetchFormsMap, type FormsBundle } from './formReadModel';
 // V2 reads only canonical lexeme_form_display_v2; legacy remains an explicit
 // temporary mode and is never mixed into a V2 request.
 const LEXEME_SELECT = `
-  id, lemma, pos, display_form,
+  id, lemma, pos, display_form, homograph_key,
   dictionary_status, dictionary_exclusion_reason, is_learning_lexeme,
   notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
@@ -101,6 +102,8 @@ function mapLexemeRow(
     word:     item.display_form || item.lemma,
     display_form: item.display_form || '',
     lemma:    item.lemma,
+    // D10 stage D (R9): '' = main card, 'II'/'III' = second card of the same lemma and POS.
+    homograph_key: item.homograph_key || '',
     pos,
     type:     category,
     category,
@@ -174,6 +177,8 @@ function mapLexemeRow(
     compoundParts: forms?.compound_parts ?? [],
     headword: forms?.headword ?? null,
     morphologySourceLemma: forms?.morphology_source_lemma ?? null,
+    // D10 15.10.2026: forms built from the head of a compound (shown with "≈").
+    formsByHead: forms?.forms_by_head ?? false,
   };
 }
 
@@ -187,7 +192,7 @@ async function fetchExampleMap(ids: string[]): Promise<Map<string,any>> {
     for(const row of data??[]){
       const id=String(row.lexeme_id??'');
       if(!chunk.includes(id)) throw new Error('Example RPC returned an unrelated lexeme');
-      if(selected.has(id)) throw new Error('Example RPC returned duplicate lexemes');
+      if(selected.has(id)) continue;
       const valid=selectNorwegianExample([row]);
       if(valid) selected.set(id,valid);
     }
@@ -200,7 +205,7 @@ async function mapLexemeRows(rows: any[]) {
   const validRows = (rows || []).filter(Boolean);
   const lexemeIds = validRows.map((r) => r.id).filter(Boolean);
 
-  const [formsMap, translationResult, exampleMap] = await Promise.all([
+  const [formsState, translationState, exampleState, approxState] = await Promise.allSettled([
     fetchFormsMap(lexemeIds),
     lexemeIds.length > 0
       ? supabase.rpc('get_canonical_lexeme_translations_v1', {
@@ -208,13 +213,22 @@ async function mapLexemeRows(rows: any[]) {
         })
       : Promise.resolve({ data: [], error: null } as any),
     fetchExampleMap(lexemeIds),
+    // D10 15.10.2026: languages whose translation is only an AI translation
+    // without an Ordbøkene article (shown with "≈"). A failure only hides the mark.
+    lexemeIds.length > 0
+      ? supabase.rpc('get_lexeme_translation_approx_v1', { p_lexeme_ids: lexemeIds })
+      : Promise.resolve({ data: [], error: null } as any),
   ]);
 
-  if (translationResult.error) {
-    throw new Error(
-      `Could not load canonical translations: ${translationResult.error.message}`,
-    );
-  }
+  const formsMap = formsState.status === 'fulfilled'
+    ? formsState.value : new Map<string, FormsBundle>();
+  const translationResult = translationState.status === 'fulfilled'
+    ? translationState.value : { data: [], error: translationState.reason } as any;
+  const exampleMap = exampleState.status === 'fulfilled'
+    ? exampleState.value : new Map<string, any>();
+  if (formsState.status === 'rejected') console.error('Canonical forms load failed:', formsState.reason);
+  if (translationResult.error) console.error('Canonical translations load failed:', translationResult.error);
+  if (exampleState.status === 'rejected') console.error('Canonical examples load failed:', exampleState.reason);
 
   const translationMap = new Map<string, CanonicalTranslations>();
   for (const row of translationResult.data || []) {
@@ -227,10 +241,23 @@ async function mapLexemeRows(rows: any[]) {
     translationMap.set(lexemeId, current);
   }
 
+  const approxResult = approxState.status === 'fulfilled'
+    ? approxState.value : { data: [], error: approxState.reason } as any;
+  if (approxResult.error) console.error('Translation approx marks load failed:', approxResult.error);
+  const approx = new Set<string>();
+  for (const row of approxResult.data || []) {
+    if (row?.lexeme_id && row?.language_code) approx.add(`${row.lexeme_id}:${row.language_code}`);
+  }
+
   return validRows
-    .map((row) =>
-      mapLexemeRow(row, formsMap.get(row.id), translationMap.get(row.id), exampleMap.get(row.id))
-    )
+    .map((row) => {
+      const mapped: any = mapLexemeRow(row, formsMap.get(row.id), translationMap.get(row.id), exampleMap.get(row.id));
+      if (mapped) {
+        mapped.ua_approx = approx.has(`${row.id}:uk`);
+        mapped.en_approx = approx.has(`${row.id}:en`);
+      }
+      return mapped;
+    })
     .filter(Boolean);
 }
 
@@ -905,6 +932,50 @@ export async function getDashboardStatsFromSupabase(preferredUser?: string) {
 }
 
 // ============================================================
+// Public: getFunctionWordKeysFromSupabase
+// ============================================================
+
+// D10 plan F4 (rule R11): function words (jeg, det, i, og ...) are recognised
+// by text analysis but never offered for learning. They are excluded from
+// getReadingLexemesFromSupabase (is_learning_lexeme = true), so without this
+// list the word map showed them as "not in database" candidates.
+// Returns normalized keys: lemmas / display forms of lexemes marked as function
+// words, plus the function_word admission rule values when the app may read
+// them (best effort; an error there is ignored).
+export async function getFunctionWordKeysFromSupabase(): Promise<Set<string>> {
+  const keys = new Set<string>();
+  const add = (value: unknown) => {
+    const v = String(value ?? '').trim().toLowerCase();
+    if (v) keys.add(v);
+  };
+  const { data, error } = await supabase
+    .from('lexemes')
+    .select('lemma, display_form, dictionary_exclusion_reason')
+    .eq('dictionary_status', 'excluded')
+    .eq('is_learning_lexeme', false)
+    .like('dictionary_exclusion_reason', 'function_word_%')
+    .limit(1000);
+  if (error) throw new Error(error.message);
+  for (const row of data || []) {
+    add((row as any).lemma);
+    add((row as any).display_form);
+  }
+  try {
+    const { data: rules } = await supabase
+      .from('dictionary_admission_rules')
+      .select('normalized_value')
+      .eq('rule_type', 'function_word')
+      .eq('is_active', true)
+      .is('pos', null)
+      .limit(1000);
+    for (const row of rules || []) add((row as any).normalized_value);
+  } catch {
+    // rules table not readable for the app: lexemes above are enough
+  }
+  return keys;
+}
+
+// ============================================================
 // Public: getReadingLexemesFromSupabase
 // ============================================================
 
@@ -946,6 +1017,21 @@ export async function getReadingLexemesFromSupabase(preferredUser?: string) {
     ...word,
     learned: learnedIds.has(word.id),
   }));
+}
+
+// Hydrate exact resolver/360 IDs through the same forms, translations and
+// examples read model used by the reading list. Never resolve by lemma here.
+export async function getLexemesByIdsFromSupabase(ids: string[]): Promise<any[]> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return [];
+  const rows: any[] = [];
+  for (let start = 0; start < unique.length; start += 100) {
+    const { data, error } = await supabase.from('lexemes')
+      .select(LEXEME_SELECT).in('id', unique.slice(start, start + 100));
+    if (error) throw new Error(error.message);
+    rows.push(...(data || []));
+  }
+  return mapLexemeRows(rows);
 }
 
 // ============================================================
@@ -1023,7 +1109,7 @@ export async function boostReadingLexemeHitsInSupabase(params: {
 
   const { data: existingRows } = await supabase
     .from('learning_progress')
-    .select('lexeme_id, personal_hits, priority_score, memory_status')
+    .select('lexeme_id, personal_hits, priority_score')
     .eq('user_id', userId)
     .in('lexeme_id', uniqueIds);
 
@@ -1031,24 +1117,20 @@ export async function boostReadingLexemeHitsInSupabase(params: {
     (existingRows || []).map((item: any) => [item.lexeme_id, item])
   );
 
-  const rowsToUpsert = uniqueIds.map((lexemeId) => {
+  // Reading a text never puts a word into the user's learning: only words
+  // already in learning get their reading hits counted. Words enter learning
+  // by the user's choice (card "add to learning", reading-mode save).
+  const rowsToUpsert = uniqueIds.filter((lexemeId) => existingMap.has(lexemeId)).map((lexemeId) => {
     const existing         = existingMap.get(lexemeId);
     const nextPersonalHits = (existing?.personal_hits || 0) + 1;
     const currentPriority  = existing?.priority_score || 0;
 
+    // Only the reading counters are written. Repetition progress (status,
+    // repetitions, interval, ease, ...) is left as training made it; it was
+    // previously reset to "New" every time the word was read.
     return {
       user_id:              userId,
       lexeme_id:            lexemeId,
-      status:               'New',
-      ease_factor:          2.5,
-      interval_days:        0,
-      repetitions:          0,
-      lapses:               0,
-      stability:            1,
-      difficulty_val:       5,
-      retention:            0.9,
-      queue_score:          existing ? undefined : 20,
-      memory_status:        existing?.memory_status || 'active',
       personal_hits:        nextPersonalHits,
       priority_score:       Math.min(150, currentPriority + 5),
       last_seen_in_reading: now,
@@ -1056,11 +1138,20 @@ export async function boostReadingLexemeHitsInSupabase(params: {
     };
   });
 
-  const { error } = await supabase
-    .from('learning_progress')
-    .upsert(rowsToUpsert, { onConflict: 'user_id,lexeme_id' });
+  if (!rowsToUpsert.length) return { ok: true, updated: 0 };
 
-  if (error) throw new Error(error.message);
+  // UPDATE of existing rows only (an upsert would try to insert a partial row).
+  for (let start = 0; start < rowsToUpsert.length; start += 10) {
+    const results = await Promise.all(rowsToUpsert.slice(start, start + 10).map(({ user_id, lexeme_id, ...fields }) =>
+      supabase
+        .from('learning_progress')
+        .update(fields)
+        .eq('user_id', user_id)
+        .eq('lexeme_id', lexeme_id)
+    ));
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw new Error(failed.error.message);
+  }
   return { ok: true, updated: rowsToUpsert.length };
 }
 
@@ -1159,7 +1250,8 @@ export async function addExpressionCandidateToSupabase(params: {
 
   const { data, error } = await supabase
     .from('lexemes')
-    .upsert(payload, { onConflict: 'lemma,pos' })
+    // D10 D1-1: conflict target includes homograph_key (empty for normal cards).
+    .upsert(payload, { onConflict: 'lemma,pos,homograph_key' })
     .select(LEXEME_SELECT)
     .single();
 
@@ -1239,22 +1331,42 @@ export async function translateSentenceWithAI(params: {
 // Public: analyzeTextViaGemini
 // ============================================================
 
-export async function analyzeTextViaGemini(textInput: string): Promise<any> {
-  const response = await supabase.functions.invoke('analyze-text', {
-    body: { text: textInput },
-  });
+export type TextAnalysisMode = 'audit' | 'read';
+
+// audit: analyze-text writes every word of the text to the database (job).
+// read:  analyze-text returns the same analysis without writing anything.
+export async function analyzeTextViaGemini(
+  textInput: string,
+  options?: { analysisMode?: TextAnalysisMode; wordList?: boolean },
+): Promise<any> {
+  const body: Record<string, unknown> = { text: textInput };
+  if (options?.analysisMode) body.analysis_mode = options.analysisMode;
+  if (options?.wordList) body.mode = 'word_list';
+  const response = await supabase.functions.invoke('analyze-text', { body });
 
   if (response.error) throw new Error(response.error.message || 'analyze-text failed');
   if (!response.data?.ok) throw new Error(response.data?.message || 'analyze-text returned not ok');
   return response.data;
 }
 
+// Read mode: write only the words the user selected. They go through the
+// normal audit pipeline as an isolated word list (no sentence context), so
+// verification, enrichment and learning admission are the same as in audit.
+export async function saveSelectedWordsToDatabase(words: string[]): Promise<any> {
+  const unique = [...new Set(words.map((word) => String(word || '').trim()).filter(Boolean))];
+  if (!unique.length) throw new Error('No words selected');
+  return analyzeTextViaGemini(unique.join('\n'), { analysisMode: 'audit', wordList: true });
+}
+
 // ============================================================
 // Apps Script — analyzeText через Gemini Edge Function
 // ============================================================
 
-export async function analyzeTextViaAppsScript(textInput: string) {
-  return analyzeTextViaGemini(textInput);
+export async function analyzeTextViaAppsScript(
+  textInput: string,
+  options?: { analysisMode?: TextAnalysisMode },
+) {
+  return analyzeTextViaGemini(textInput, options);
 }
 
 // ============================================================
@@ -1265,7 +1377,68 @@ export async function inspectWordViaAppsScript(query: string) {
   // enrich-word was deleted — fall back to database search only.
   // Unknown words will no longer get an auto-generated preview;
   // the backend pipeline enriches them asynchronously.
-  return searchLexemeInSupabase(query);
+  const found = await searchLexemeInSupabase(query);
+  if (found?.found) return found;
+  // D10 15.10.2026 (agreed): Read mode, word not in the database -> preview
+  // from Ordbøkene + Lexin (read-word-preview), on tap only. Nothing is
+  // written; saving goes through the usual job.
+  try {
+    const preview = await previewWordFromSources(query);
+    return { ...found, found: false, preview };
+  } catch (error) {
+    console.warn('[read preview] unavailable', error);
+    return found;
+  }
+}
+
+const PREVIEW_POS_LABEL: Record<string, string> = {
+  noun: 'noun', verb: 'verb', adjective: 'adjective', adverb: 'adverb', determiner: 'determiner',
+};
+
+// Preview card of a word that is not in the database (shape of a word card:
+// forms through the same read model as the database forms).
+export async function previewWordFromSources(query: string): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('read-word-preview', { body: { word: query } });
+  if (error) throw new Error(error.message);
+  if (!data?.ok) throw new Error(String(data?.error ?? 'read-word-preview failed'));
+  const article = data.ordbokene?.articles?.[0] ?? null;
+  const pos = article?.pos ?? data.lexin?.entries?.[0]?.pos ?? '';
+  const lexinEntry = (data.lexin?.entries ?? []).find((e: any) => e.pos && e.pos === pos)
+    ?? data.lexin?.entries?.[0] ?? null;
+  const rows: V2FormRow[] = (article?.forms ?? []).map((form: any) => ({
+    lexeme_id: 'preview',
+    form_key: form.form_key,
+    primary_values: form.primary_values,
+    alternative_values: form.alternative_values,
+    accepted_articles: article.accepted_articles ?? [],
+    regularity_marker: 'unknown',
+    display_order: form.display_order,
+  }));
+  const forms = buildV2Bundles(rows).get('preview');
+  return {
+    word: article?.lemma ?? data.word,
+    lemma: article?.lemma ?? data.word,
+    pos,
+    type: PREVIEW_POS_LABEL[pos] ?? pos,
+    category: pos,
+    ua: (lexinEntry?.uk ?? []).slice(0, 3).join(', '),
+    en: (lexinEntry?.en ?? []).slice(0, 3).join(', '),
+    verb_forms: forms?.verb_forms ?? null,
+    noun_forms: forms?.noun_forms ?? null,
+    adjective_forms: forms?.adjective_forms ?? null,
+    form_primary: forms?.form_primary ?? {},
+    form_alternatives: forms?.form_alternatives ?? {},
+    accepted_articles: forms?.accepted_articles ?? article?.accepted_articles ?? [],
+    has_form_alternatives: forms?.has_form_alternatives ?? false,
+    regularity_marker: forms?.regularity_marker ?? 'unknown',
+    notes: (article?.definitions ?? []).join('\n'),
+    previewSource: {
+      ordbokene: data.ordbokene?.status ?? 'error',
+      lexin: data.lexin?.status ?? 'error',
+      articleId: article?.article_id ?? null,
+      moreArticles: Math.max(0, (data.ordbokene?.articles?.length ?? 0) - 1) + (data.ordbokene?.more_articles ?? 0),
+    },
+  };
 }
 
 export async function addPreviewWordViaAppsScript(_preview: any) {

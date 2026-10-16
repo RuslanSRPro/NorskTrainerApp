@@ -9,12 +9,13 @@ import {
   shouldCheckOrdbokeneComponent,
   type SourceLookupResult,
 } from './shared.ts';
-import { OrdbokeneClient } from '../../_shared/authoritative-morphology-v2/client.ts';
+import { OrdbokeneClient, isOrdbokeneServerError } from '../../_shared/authoritative-morphology-v2/client.ts';
 import {
   normalizeNorwegian,
   parseOrdbokeneArticles,
 } from '../../_shared/authoritative-morphology-v2/parser.ts';
 import { isAuthoritativeLookupForm } from '../../_shared/authoritative-morphology-v2/lookup-identity.ts';
+import { isExactExpressionArticle, type ExpressionArticleIdentity } from './expression-article.ts';
 
 const MORPHOLOGY_POS = new Set(['verb', 'noun', 'adjective', 'determiner']);
 
@@ -59,25 +60,114 @@ function norwegianLemmaVariants(word: string): string[] {
   return [...variants].filter((v) => v.length >= 2);
 }
 
+export type OrdbokeneArticleSelection =
+  | 'single_article' | 'bound_lexeme_article' | 'bound_lexeme_article_set';
+
+// Pure selection rule for several Bokmål articles with the same POS. Only
+// candidates bound to the resolved lexeme are kept; with no bound candidate
+// the candidate list is returned unchanged (still ambiguous if > 1).
+export function selectBoundHomonymArticles(
+  candidateArticleIds: readonly string[],
+  boundTokenArticleIds?: readonly (string | number)[] | null,
+): { articleIds: string[]; articleSelection: OrdbokeneArticleSelection } {
+  const candidates = [...candidateArticleIds].map(String);
+  if (candidates.length > 1 && boundTokenArticleIds?.length) {
+    const bound = new Set(boundTokenArticleIds.map(String));
+    const chosen = candidates.filter((id) => bound.has(id));
+    if (chosen.length === 1) return { articleIds: chosen, articleSelection: 'bound_lexeme_article' };
+    if (chosen.length > 1) return { articleIds: chosen, articleSelection: 'bound_lexeme_article_set' };
+  }
+  return { articleIds: candidates, articleSelection: 'single_article' };
+}
+
+export type OrdbokeneLookupPath = 'token' | 'expression' | 'legacy';
+
+// D10 14.10.2026: the path is chosen by the real number of words. getTokens()
+// drops words shorter than two letters, so "i tide" (and "sette i", "ta i")
+// looked like one word and was checked as a part-of-speech article instead of
+// its own expression article. getTokens() itself is unchanged (NAOB, Lexin and
+// Wiktionary use it). normalizeForMatch() still drops a leading infinitive
+// marker "å", exactly as before.
+export function ordbokeneLookupPath(query: string, pos?: string | null): OrdbokeneLookupPath {
+  const words = normalizeForMatch(query).split(/\s+/).filter(Boolean).length;
+  const tokens = getTokens(query);
+  if (words === 1 && tokens.length === 1 && (!pos || MORPHOLOGY_POS.has(pos))) return 'token';
+  if (words > 1) return 'expression';
+  return 'legacy';
+}
+
 export async function checkOrdbokeneLive(
   lemma: string,
   displayForm: string,
   pos?: string | null,
+expectedExpressionArticle?: ExpressionArticleIdentity | null,
+  boundTokenArticleIds?: string[] | null,
+  cachedSearch?: { articleIds: string[]; checkedAt: string | null } | null,
 ): Promise<SourceLookupResult> {
   const query = lemma || displayForm;
   const tokens = getTokens(query);
+  const lookupPath = ordbokeneLookupPath(query, pos);
 
   // Token verification must use the same Bokmål article search as D10:
   // exact lookup, inflected-form fallback, article fetch, POS and form check.
   // Do not treat a suggestion or a truncated spelling variant as this POS.
-  if (tokens.length === 1 && (!pos || MORPHOLOGY_POS.has(pos))) {
-    const lookup = await new OrdbokeneClient().lookup(query, ['bm']);
+  if (lookupPath === 'token') {
+    // D10 15.10.2026: when the Ordbøkene SEARCH fails (HTTP 5xx, timeout) and
+    // the resolved lexeme already has its article(s), those articles are
+    // fetched directly. Same POS and form checks, exact lemma only. The
+    // fallback never answers "not found" or "ambiguous": in that case the
+    // original search error is raised and the check is retried later.
+    const client = new OrdbokeneClient();
+    let lookup: Awaited<ReturnType<OrdbokeneClient['lookup']>>;
+    let searchError: unknown = null;
+    let fallbackKind: 'known_article_ids' | 'cached_search_article_ids' | null = null;
+    try {
+      lookup = await client.lookup(query, ['bm']);
+    } catch (error) {
+      // D10 15.10.2026: known articles of the lexeme first; otherwise the
+      // article numbers of our last successful exact search (cache level).
+      const knownIds = boundTokenArticleIds?.length ? boundTokenArticleIds
+        : cachedSearch?.articleIds?.length ? cachedSearch.articleIds : null;
+      if (!isOrdbokeneServerError(error) || !knownIds) throw error;
+      // A cached search with several articles was ambiguous for this word;
+      // the cache never resolves it (a binding would be needed).
+      if (!boundTokenArticleIds?.length && new Set(knownIds.map(String)).size > 1) throw error;
+      searchError = error;
+      fallbackKind = boundTokenArticleIds?.length ? 'known_article_ids' : 'cached_search_article_ids';
+      lookup = await client.lookupKnownArticles(query, knownIds, ['bm']);
+    }
+    const lookupFallback = searchError !== null;
     const paradigms = parseOrdbokeneArticles(lookup.articles).filter(
       (paradigm) =>
         (!pos || paradigm.pos === pos) &&
-        isAuthoritativeLookupForm(query, [paradigm], normalizeNorwegian),
+        isAuthoritativeLookupForm(query, [paradigm], normalizeNorwegian) &&
+        (!lookupFallback || normalizeNorwegian(paradigm.lemma) === normalizeNorwegian(query)),
     );
-    const articleIds = [...new Set(paradigms.map((paradigm) => paradigm.articleId))];
+    const candidateArticleIds = [...new Set(paradigms.map((paradigm) => paradigm.articleId))];
+    // Several Bokmål articles with this POS (homonyms): keep only the
+    // candidates already bound to the resolved lexeme by its authoritative
+    // forms projection (lexeme_form_display_v2.article_ids).
+    //   - one bound candidate (være 'be' vs være 'sniff'): that article;
+    //   - several bound candidates (huske 24686 + 24687: identical forms,
+    //     one card, plan D10_homonym_pos_plan_v1 R8): the whole bound set
+    //     confirms this lexeme and POS; the sense inside it stays open.
+    // No bound candidate -> unchanged "ambiguous" result.
+    // The set rule is limited to an exact lemma lookup (scope 'e'): an
+    // inflected-form lookup (scope 'i') needs a single article to derive the
+    // promotion lemma (d10_verified_ordbokene_promotion_lemma).
+    const selection =
+      selectBoundHomonymArticles(candidateArticleIds, boundTokenArticleIds);
+    const { articleIds, articleSelection } =
+      selection.articleSelection === 'bound_lexeme_article_set' && lookup.scopeUsed !== 'e'
+        ? { articleIds: candidateArticleIds.map(String), articleSelection: 'single_article' as const }
+        : selection;
+    const homonymSelection = articleSelection !== 'single_article';
+    const selectedParadigms = paradigms.filter((paradigm) =>
+      articleIds.some((id) => String(id) === String(paradigm.articleId)));
+    if (lookupFallback && (lookup.errors.length > 0 ||
+        !(articleIds.length === 1 || articleSelection === 'bound_lexeme_article_set'))) {
+      throw searchError;
+    }
     if (lookup.errors.length) {
       return {
         source: 'Ordbokene', checked: true, found: false,
@@ -88,8 +178,8 @@ export async function checkOrdbokeneLive(
         error: lookup.errors.map((error) => error.message).join('; '),
       };
     }
-    if (articleIds.length === 1) {
-      const matchedForm = matchedAuthoritativeForm(query, paradigms);
+    if (articleIds.length === 1 || articleSelection === 'bound_lexeme_article_set') {
+      const matchedForm = matchedAuthoritativeForm(query, selectedParadigms);
       return {
         source: 'Ordbokene',
         checked: true,
@@ -99,17 +189,30 @@ export async function checkOrdbokeneLive(
         whole_unit_match: true,
         component_match: false,
         usage_match: false,
-        urls: [...new Set(paradigms.map((paradigm) => paradigm.articleUrl))],
-        evidence_label: `Ordbokene Bokmål ${pos ?? paradigms[0].pos}: ${articleIds[0]}`,
+        urls: [...new Set(selectedParadigms.map((paradigm) => paradigm.articleUrl))],
+        evidence_label: (articleSelection === 'bound_lexeme_article_set'
+          ? `Ordbokene Bokmål ${pos ?? selectedParadigms[0].pos}: ${articleIds.join(', ')} (homonym articles bound to the resolved lexeme)`
+          : articleSelection === 'bound_lexeme_article'
+          ? `Ordbokene Bokmål ${pos ?? selectedParadigms[0].pos}: ${articleIds[0]} (homonym article bound to the resolved lexeme)`
+          : `Ordbokene Bokmål ${pos ?? selectedParadigms[0].pos}: ${articleIds[0]}`)
+          + (fallbackKind === 'known_article_ids' ? ' (search unavailable; known article fetched directly)'
+            : fallbackKind === 'cached_search_article_ids'
+            ? ` (search unavailable; article numbers from the last search${cachedSearch?.checkedAt ? ' of ' + String(cachedSearch.checkedAt).slice(0, 10) : ''}, articles fetched now)`
+            : ''),
         raw_preview: {
           dictionary_code: 'bm',
-          pos: pos ?? paradigms[0].pos,
+          pos: pos ?? selectedParadigms[0].pos,
           article_ids: articleIds,
+          article_selection: articleSelection,
+          ...(homonymSelection
+            ? { candidate_article_ids: candidateArticleIds } : {}),
           lookup_scope: lookup.scopeUsed,
           canonical_lemma: matchedForm.canonicalLemma,
           matched_form: matchedForm.matchedForm,
           matched_form_key: matchedForm.matchedFormKey,
           candidate_article_count: lookup.articleReferences.length,
+          ...(fallbackKind ? { lookup_fallback: fallbackKind } : {}),
+          ...(fallbackKind === 'cached_search_article_ids' ? { cached_search_checked_at: cachedSearch?.checkedAt ?? null } : {}),
         },
       };
     }
@@ -124,8 +227,44 @@ export async function checkOrdbokeneLive(
         ? 'Ambiguous Bokmål articles; no article selected'
         : `No matching Bokmål ${pos ?? 'part of speech'} article or official form`,
       raw_preview: { dictionary_code: 'bm', pos, lookup_scope: lookup.scopeUsed,
-        candidate_article_ids: articleIds },
+        candidate_article_ids: articleIds,
+        // Diagnostics: which articles were bound to the resolved lexeme.
+        bound_article_ids: boundTokenArticleIds?.length ? boundTokenArticleIds.map(String) : [] },
     };
+  }
+
+  // Expression identity must come from its own exact Bokmål article. The
+  // legacy recursive ID extractor below also sees unrelated nested IDs and
+  // Nynorsk articles, so it cannot establish whole-expression identity.
+  if (lookupPath === 'expression') {
+    if (expectedExpressionArticle) {
+      const { articleId, parentArticleId } = expectedExpressionArticle;
+      const url = `https://ord.uib.no/bm/article/${encodeURIComponent(articleId)}.json`;
+      const payload = await fetchJson(url);
+      const matches = isExactExpressionArticle(payload, articleId, query);
+      return {
+        source: 'Ordbokene', checked: true, found: matches,
+        quality: matches ? 'registered_entry' : 'not_found',
+        registered_entry: matches, whole_unit_match: matches,
+        component_match: false, usage_match: false, urls: [url],
+        evidence_label: matches ? 'Own exact Bokmål expression article' : 'Expression article identity mismatch',
+        raw_preview: matches ? {
+          dictionary_code: 'bm', lookup_scope: 'candidate_article',
+          article_ids: [articleId], parent_article_id: parentArticleId,
+          parent_article_ids: expectedExpressionArticle.parentArticleIds ?? [parentArticleId],
+          canonical_lemma: query, matched_form: query, matched_form_key: 'lemma',
+        } : { dictionary_code: 'bm', candidate_article_id: articleId },
+      };
+    }
+    // No uniquely bound candidate: remain on review. Never infer identity
+    // from nested IDs in a broad search result.
+    return {
+      source: 'Ordbokene', checked: true, found: false,
+      quality: 'not_found', registered_entry: false, whole_unit_match: false,
+      component_match: false, usage_match: false, urls: [],
+      evidence_label: 'No unique bound Bokmål expression article',
+    };
+
   }
 
   const exactArticlesUrl = `https://ord.uib.no/api/articles?w=${encodeURIComponent(

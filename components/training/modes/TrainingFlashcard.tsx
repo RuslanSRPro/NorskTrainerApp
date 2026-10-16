@@ -65,6 +65,9 @@ export function TrainingFlashcard({
               <Text style={[s.answerText, { fontSize: translationSize, lineHeight: translationSize * (dense ? 1.22 : 1.32) }]}>
                 {translation}
               </Text>
+              {current.example && current.example_translation_uk ? (
+                <Text style={[s.example, { marginTop: 8, marginBottom: 0 }]}>{current.example_translation_uk}</Text>
+              ) : null}
             </TrainingInfoBlock>
 
             <TrainingFormsList

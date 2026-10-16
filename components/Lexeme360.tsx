@@ -1,4 +1,4 @@
-import { norwegianExample } from '../supabase/functions/_shared/example-evidence';
+import { linguisticText } from '../supabase/functions/_shared/example-evidence';
 // components/Lexeme360.tsx
 // Norsk Trainer App — Lexeme 360° v2
 //
@@ -332,12 +332,12 @@ function isDeletedOrObsoleteStatus(status: unknown): boolean {
 // по нормализованной лемме, первое вхождение побеждает — а поскольку
 // relations (ready) всегда идут в массиве раньше candidateRelations,
 // ready естественным образом получает приоритет над candidate.
-function dedupeRelationsByLemma(items: RelatedItem[]): RelatedItem[] {
+function dedupeRelationsByIdentity(items: RelatedItem[]): RelatedItem[] {
   const seen = new Set<string>();
   const result: RelatedItem[] = [];
 
   for (const item of items) {
-    const key = normalizeText(item.lemma).toLowerCase();
+    const key = normalizeText((item as RelatedItem & { expressionId?: string }).expressionId || item.id);
     if (!key || seen.has(key)) continue;
     seen.add(key);
     result.push(item);
@@ -366,11 +366,10 @@ function getMeaningExtensionSubtitle(lang: AppLanguage) {
 
 // ── Data fetch ───────────────────────────────────────────────────────────────
 
-async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
+async function fetchLexeme360(effectiveId: string, requestedId: string): Promise<Lexeme360Data | null> {
   // Family resolution is UUID-based. The database resolves either an exact
   // root lexeme or every root bound to an expression lexeme. No text lookup,
   // client polling or homonym guessing occurs here.
-  const effectiveId = lexemeId;
 
   // 1. Core lexeme. Morphology is loaded through the single configured
   // read model below; nested legacy tables are intentionally not embedded.
@@ -399,11 +398,15 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
   const [
     formsMap,
     { data: allTranslations },
-    { data: examplesData },
+    { data: examplesData, error: examplesError },
+    { data: canonicalRootTranslations, error: canonicalRootTranslationsError },
     { data: readyExpressions, error: readyExpressionsError },
     { data: candidateExpressions, error: candidateExpressionsError },
   ] = await Promise.all([
-    fetchFormsMap([effectiveId]),
+    fetchFormsMap([effectiveId]).catch((error) => {
+      console.error('Lexeme360 forms load failed:', error);
+      return new Map();
+    }),
     supabase
       .from('entity_translations')
       .select(
@@ -414,21 +417,18 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       .order('source')
       .order('sense_rank', { ascending: true, nullsFirst: false })
       .order('translation_rank', { ascending: true }),
-    supabase
-      .from('entity_examples')
-      .select('id, language_code, example_text, translation_uk, cefr_level, source')
-      .eq('lexeme_id', effectiveId)
-      .eq('language_code', 'nb')
-      .order('id')
-      .range(0,999),
+    supabase.rpc('get_lexeme360_examples_v1', {p_lexeme_ids:[effectiveId],p_expression_ids:[]}),
+    supabase.rpc('get_canonical_lexeme_translations_v1', {p_lexeme_ids:[effectiveId]}),
     supabase.rpc('get_lexeme360_ready_expressions_v2', {
-      p_lexeme_id: lexemeId,
+      p_lexeme_id: effectiveId,
     }),
-    supabase.rpc('get_lexeme360_candidate_expressions_v2', {
-      p_lexeme_id: lexemeId,
+    supabase.rpc('get_lexeme360_candidate_display_v1', {
+      p_lexeme_id: effectiveId,
     }),
   ]);
 
+  if (canonicalRootTranslationsError) console.error('Lexeme360 translations load failed:', canonicalRootTranslationsError);
+  if (examplesError) console.error('Lexeme360 examples load failed:', examplesError);
   const forms = formsMap.get(effectiveId);
 
   if (readyExpressionsError) {
@@ -465,11 +465,8 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     );
   };
 
-  const ukTranslation =
-    pickBest('uk', 'primary') || pickBest('uk', 'expression_primary');
-
-  const enTranslation =
-    pickBest('en', 'primary') || pickBest('en', 'expression_primary');
+  const ukTranslation = normalizeText((canonicalRootTranslations ?? []).find((row:any)=>row.language_code==='uk')?.translation);
+  const enTranslation = normalizeText((canonicalRootTranslations ?? []).find((row:any)=>row.language_code==='en')?.translation);
 
   const senseMap = new Map<number, { uk: string; en: string }>();
 
@@ -507,9 +504,12 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     }));
 
   // 3. Examples from entity_examples. (query issued above, in parallel.)
+  // get_lexeme360_examples_v1 returns only Norwegian (nb) rows, already
+  // ranked (rows with a Ukrainian translation first), and has no
+  // language_code column. The root shows its own examples only: rows of an
+  // expression belong to that expression's card in the carousel.
   const examples: ExampleRow[] = (examplesData ?? [])
-    .filter(norwegianExample)
-    .sort((a:any,b:any)=>String(a.id).localeCompare(String(b.id)))
+    .filter((row: any) => row.expression_id == null && linguisticText(row.example_text))
     .slice(0,3)
     .map((row: any) => ({
       text: normalizeText(row.example_text),
@@ -517,7 +517,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       cefr_level: row.cefr_level ?? null,
       source: row.source ?? null,
     }))
-    .filter((row) => row.text);
+    .filter((row: ExampleRow) => Boolean(row.text));
 
   // 4. Meaning extensions — Lexeme360 core.
   //
@@ -533,66 +533,46 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
 
   const expressionRows = (readyExpressions ?? []) as any[];
 
-  // ФИКС: раньше здесь собирался только lexeme_id, и переводы/примеры
-  // искались по нему в entity_translations/entity_examples. Но per
-  // constraint entity_translations_single_entity (строка может иметь
-  // ТОЛЬКО lexeme_id ИЛИ ТОЛЬКО expression_id, не оба) — записи с
-  // переводами expression'ов ВСЕГДА имеют lexeme_id: null. Поиск по
-  // lexeme_id никогда не находил эти переводы, независимо от того,
-  // насколько правильно они были записаны воркерами (Lexin/AI-fallback).
-  //
-  // lexeme_id остаётся нужен отдельно — как `id` самого RelatedItem (для
-  // "Добавити до навчання" / addLexemeToLearningFromSupabase, который
-  // требует именно lexeme_id, не expression_id), а вот искать перевод и
-  // пример нужно по expression_id (см. миграцию
-  // 20260705120000_add_expression_id_to_lexeme360_ready_expressions.sql,
-  // которая добавила ec.id as expression_id в RPC — раньше RPC его не
-  // возвращала вообще).
+  // The canonical translation RPC covers both lexeme-owned and
+  // expression-owned rows, ranking them consistently with reading cards.
+  // Examples remain expression-owned; opening a card uses its lexeme_id.
   const targetLexemeIds = expressionRows
     .map((row) => normalizeText(row.lexeme_id))
-    .filter(Boolean);
-
-  const targetExpressionIds = expressionRows
-    .map((row) => normalizeText(row.expression_id))
     .filter(Boolean);
 
   let relations: RelatedItem[] = [];
 
   if (targetLexemeIds.length > 0) {
-    // ФИКС: эти два запроса тоже независимы друг от друга — параллелим
-    // по той же причине, что и основной блок выше.
-    const [{ data: targetTranslations }, { data: targetExamples }] =
-      await Promise.all([
-        supabase
-          .from('entity_translations')
-          .select('expression_id, language_code, translation, sense_rank, translation_rank')
-          .in('expression_id', targetExpressionIds)
-          .in('translation_type', ['primary', 'expression_primary'])
-          .eq('translation_rank', 1)
-          .order('sense_rank', { ascending: true, nullsFirst: false }),
-        supabase
-          .from('entity_examples')
-          .select('expression_id, example_text')
-          .in('expression_id', targetExpressionIds)
-          .eq('language_code', 'nb')
-          .order('created_at', { ascending: false }),
+    const targetTranslations: any[] = [];
+    const targetExamples: any[] = [];
+    // Both canonical RPCs reject more than 200 IDs. Keep each family page
+    // below the limit while preserving the response for every expression.
+    for (let offset = 0; offset < targetLexemeIds.length; offset += 150) {
+      const ids = targetLexemeIds.slice(offset, offset + 150);
+      const [translations, examples] = await Promise.all([
+        supabase.rpc('get_canonical_lexeme_translations_v1', {p_lexeme_ids: ids}),
+        supabase.rpc('get_lexeme360_examples_v1', {p_lexeme_ids: ids,p_expression_ids:[]}),
       ]);
+      if (translations.error) console.error('Lexeme360 relation translations failed:', translations.error);
+      if (examples.error) console.error('Lexeme360 relation examples failed:', examples.error);
+      targetTranslations.push(...(translations.data ?? []));
+      targetExamples.push(...(examples.data ?? []));
+    }
 
-    // Обе карты теперь ключуются по expression_id — именно так реально
-    // хранятся эти данные в БД.
+    // Canonical translations are keyed by lexeme ID; examples by expression ID.
     const translationMap = new Map<string, { uk: string; en: string }>();
-    const exampleMap = new Map<string, string>();
+    const exampleMap = new Map<string, {text:string;translationUk:string}>();
 
     for (const ex of targetExamples ?? []) {
-      const key = normalizeText((ex as any).expression_id);
+      const key = normalizeText((ex as any).lexeme_id);
       const text = normalizeText((ex as any).example_text);
       if (key && text && !exampleMap.has(key)) {
-        exampleMap.set(key, text);
+        exampleMap.set(key, {text,translationUk:normalizeText((ex as any).translation_uk)});
       }
     }
 
     for (const tr of targetTranslations ?? []) {
-      const key = normalizeText((tr as any).expression_id);
+      const key = normalizeText((tr as any).lexeme_id);
       if (!key) continue;
 
       if (!translationMap.has(key)) {
@@ -611,8 +591,8 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     relations = expressionRows
       .map((row, index) => {
         // id самого RelatedItem — это lexeme_id (используется для открытия
-        // карточки слова и для "добавити до навчання"). Ключ для перевода/
-        // примера — expression_id (см. комментарий выше).
+        // карточки слова и для "добавити до навчання"). Примеры связаны
+        // с expression_id, канонические переводы — с lexeme_id.
         const id = normalizeText(row.lexeme_id);
         const expressionKey = normalizeText(row.expression_id);
         const expressionLemma = normalizeText(row.lemma);
@@ -631,7 +611,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
         // поле появится в будущем без необходимости искать это место снова.
         if (isDeletedOrObsoleteStatus((row as any).status)) return null;
 
-        const translation = translationMap.get(expressionKey) ?? { uk: '', en: '' };
+        const translation = translationMap.get(id) ?? { uk: '', en: '' };
 
         return {
           id,
@@ -639,7 +619,9 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
           translation_ua: translation.uk,
           translation_en: translation.en,
           pos: normalizeText(row.pos) || 'expression',
-          example: exampleMap.get(expressionKey) || '',
+          expressionId: expressionKey,
+          example: exampleMap.get(id)?.text || '',
+          example_translation_uk: exampleMap.get(id)?.translationUk || '',
           expression_subtype: subtype || 'has_expression',
           relation_type: subtype || 'has_expression',
           confidence: 1,
@@ -679,10 +661,12 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
       return {
         id: `candidate-${id}`,
         lemma: expressionLemma,
-        translation_ua: '',
-        translation_en: '',
+        expressionId: id,
+        translation_ua: normalizeText(row.translation_uk),
+        translation_en: normalizeText(row.translation_en),
         pos: 'expression',
-        example: '',
+        example: normalizeText(row.example_text),
+        example_translation_uk: normalizeText(row.example_translation_uk),
         expression_subtype: subtype,
         relation_type: subtype,
         confidence: 0.35,
@@ -695,12 +679,16 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
         status: 'candidate',
         canOpen: false,
         canAdd: false,
-        sourceLabel: 'Ordbokene · venter på behandling',
+        sourceLabel: normalizeText(row.verification_reason) === 'linked_to_verified_lexeme'
+          ? 'Knyttet til verifisert oppslagsord'
+          : normalizeText(row.verification_reason) === 'verified'
+            ? 'Verifisert'
+            : 'Ordbokene · venter på kildeverifisering',
       } as RelatedItem;
     })
     .filter((item): item is RelatedItem => Boolean(item));
 
-  relations = dedupeRelationsByLemma([...relations, ...candidateRelations]);
+  relations = dedupeRelationsByIdentity([...relations, ...candidateRelations]);
 
   const vf = forms?.verb_forms ?? {};
   const nf = forms?.noun_forms ?? {};
@@ -708,6 +696,7 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
 
   return {
     id: (data as any).id,
+    requestedId,
     lemma: (data as any).lemma,
     pos: (data as any).pos,
     translation_ua: ukTranslation,
@@ -724,7 +713,6 @@ async function fetchLexeme360(lexemeId: string): Promise<Lexeme360Data | null> {
     hasFormAlternatives: forms?.has_form_alternatives ?? false,
     regularityMarker: forms?.regularity_marker ?? 'unknown',
     relations,
-    requestedId: lexemeId,
   };
 }
 
@@ -991,8 +979,13 @@ function Lexeme360Content({
   // data?.lemma — саму загруженную лексему ("ta"), с тем же fallback на
   // проп, что и у posLabel выше.
   const displayLemma = displayLemmaWithInfinitiveMarker(data?.lemma || lemma, posLabel);
-  const coreTranslation = data ? pickLexemeTranslation(data, lang) : '';
+  // Root translations: Ukrainian and English, as on the carousel cards.
+  const coreTranslation = data
+    ? [...new Set([normalizeText(data.translation_ua), normalizeText(data.translation_en)].filter(Boolean))].join('\n')
+      || pickLexemeTranslation(data, lang)
+    : '';
   const headerExample = data?.examples?.[0]?.text || '';
+  const headerExampleTranslation = normalizeText(data?.examples?.[0]?.translation_uk);
 
   return (
     <View style={styles.sheet}>
@@ -1016,7 +1009,7 @@ function Lexeme360Content({
           </View>
 
           {coreTranslation ? (
-            <Text style={styles.headerTranslation} numberOfLines={2}>
+            <Text style={styles.headerTranslation} numberOfLines={4}>
               {coreTranslation}
             </Text>
           ) : (
@@ -1036,6 +1029,11 @@ function Lexeme360Content({
           <Text style={styles.headerExampleText} numberOfLines={2}>
             {headerExample}
           </Text>
+          {headerExampleTranslation ? (
+            <Text style={styles.headerExampleTranslation} numberOfLines={2}>
+              {headerExampleTranslation}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -1115,6 +1113,18 @@ function Lexeme360Content({
 
 // ── Public components ────────────────────────────────────────────────────────
 
+// D10 15.10.2026 (agreed): the 360 family is shown only for verbs (and
+// expression cards), as originally intended: a verb whose meaning shifts in
+// its expressions (ta -> ta opp, ta seg av). Expressions of nouns and
+// adjectives stay in the database as ordinary expressions. Display only:
+// bindings and data are not changed. A card without a part of speech keeps
+// the previous behaviour.
+export function isLexeme360RootPos(pos?: string | null): boolean {
+  const value = String(pos ?? '').trim().toLowerCase();
+  if (!value) return true;
+  return value === 'verb' || value === 'expression' || /^verb([_\s-]|$)/.test(value);
+}
+
 type Props = {
   lexemeId: string;
   lemma: string;
@@ -1127,7 +1137,12 @@ type Props = {
   onCloseRequest?: () => void;
 };
 
-export function Lexeme360({
+export function Lexeme360(props: Props) {
+  if (!isLexeme360RootPos(props.pos)) return null;
+  return <Lexeme360Main {...props} />;
+}
+
+function Lexeme360Main({
   lexemeId,
   lemma,
   pos,
@@ -1143,6 +1158,7 @@ export function Lexeme360({
 
   const [internalVisible, setInternalVisible] = useState(false);
   const [data, setData] = useState<Lexeme360Data | null>(null);
+  const [rootOptions, setRootOptions] = useState<RootOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [learnedRelationIds, setLearnedRelationIds] = useState<Set<string>>(
@@ -1163,6 +1179,7 @@ export function Lexeme360({
   // свежий (лёгкий, по индексу) запрос вместо показа чужого кэша.
   useEffect(() => {
     setData(null);
+    setRootOptions([]);
     setLearnedRelationIds(new Set());
   }, [lexemeId]);
 
@@ -1176,17 +1193,26 @@ export function Lexeme360({
     }
   };
 
+  async function loadRoot(rootId:string) {
+    setLoading(true);
+    try {setData(await fetchLexeme360(rootId,lexemeId));setRootOptions([]);}
+    catch (error) {console.error('Lexeme360 root load failed:',error);}
+    finally {setLoading(false);}
+  }
+
   async function open() {
     setVisible(true);
-    if (data || loading) return;
-
+    if (loading) return;
+    setData(null);
+    setRootOptions([]);
     setLoading(true);
     try {
-      const result = await fetchLexeme360(lexemeId);
-      setData(result);
-    } finally {
-      setLoading(false);
-    }
+      const options=await getRootOptions(lexemeId);
+      if (options.length>1) {setRootOptions(options);return;}
+      setData(await fetchLexeme360(options[0]?.root_lexeme_id ?? lexemeId,lexemeId));
+    } catch (error) {
+      console.error('Lexeme360 open failed:',error);
+    } finally {setLoading(false);}
   }
 
   async function addRelationToLearning(id: string) {
@@ -1230,7 +1256,7 @@ export function Lexeme360({
             style={styles.modalSheetWrapper}
             onPress={(event) => event.stopPropagation()}
           >
-            <Lexeme360Content
+            {rootOptions.length>1 ? <RootOptions items={rootOptions} onChoose={(id)=>{void loadRoot(id);}} onClose={()=>setVisible(false)}/> : <Lexeme360Content
               data={data}
               lemma={lemma}
               pos={pos}
@@ -1241,7 +1267,7 @@ export function Lexeme360({
               onClose={() => setVisible(false)}
               onSelectWord={onSelectWord}
               onAddToLearning={addRelationToLearning}
-            />
+            />}
           </Pressable>
         </Pressable>
       </Modal>
@@ -1249,15 +1275,28 @@ export function Lexeme360({
   );
 }
 
-export function Lexeme360Sheet({
-  lexemeId,
-  lemma,
-  pos,
-  lang = 'en',
-  isUa: isUaLegacy,
-  onSelectWord,
-  onClose,
-}: {
+type RootOption = {root_lexeme_id:string;lemma:string;pos:string;article_id?:string|null};
+
+async function getRootOptions(entryId:string):Promise<RootOption[]> {
+  const {data,error}=await supabase.rpc('get_lexeme360_root_options_v1', {p_lexeme_id:entryId});
+  if (error) throw error;
+  return (data ?? []) as RootOption[];
+}
+
+function RootOptions({items,onChoose,onClose}:{items:RootOption[];onChoose:(id:string)=>void;onClose?:()=>void}) {
+  return <View style={styles.sheet}>
+    <Text style={styles.headerLemma}>Velg ordbokartikkel</Text>
+    {onClose ? <Pressable onPress={onClose}><Text style={styles.closeBtnText}>✕</Text></Pressable> : null}
+    {items.map(item=><Pressable key={item.root_lexeme_id} style={styles.section}
+      onPress={()=>onChoose(item.root_lexeme_id)}>
+      <Text style={styles.headerTranslation}>
+        {item.lemma} · {item.pos}{item.article_id ? ` · ${item.article_id}` : ''}
+      </Text>
+    </Pressable>)}
+  </View>;
+}
+
+type SheetProps = {
   lexemeId: string;
   lemma: string;
   pos?: string;
@@ -1265,11 +1304,27 @@ export function Lexeme360Sheet({
   isUa?: boolean;
   onSelectWord?: (id: string, lemma: string) => void;
   onClose?: () => void;
-}) {
+};
+
+export function Lexeme360Sheet(props: SheetProps) {
+  if (!isLexeme360RootPos(props.pos)) return null;
+  return <Lexeme360SheetContent {...props} />;
+}
+
+function Lexeme360SheetContent({
+  lexemeId,
+  lemma,
+  pos,
+  lang = 'en',
+  isUa: isUaLegacy,
+  onSelectWord,
+  onClose,
+}: SheetProps) {
   const { preferred_user } = useSettingsStore();
   const uiLang = resolveLang(lang, isUaLegacy);
 
   const [data, setData] = useState<Lexeme360Data | null>(null);
+  const [rootOptions, setRootOptions] = useState<RootOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [learnedRelationIds, setLearnedRelationIds] = useState<Set<string>>(
@@ -1283,10 +1338,13 @@ export function Lexeme360Sheet({
 
     setLoading(true);
 
-    fetchLexeme360(lexemeId)
-      .then((result) => {
-        if (mounted) setData(result);
-      })
+    setData(null);setRootOptions([]);
+    getRootOptions(lexemeId).then(async (options)=>{
+      if (!mounted) return;
+      if (options.length>1) {setRootOptions(options);return;}
+      setData(await fetchLexeme360(options[0]?.root_lexeme_id ?? lexemeId,lexemeId));
+    })
+      .catch((error)=>{if(mounted)console.error('Lexeme360 sheet load failed:',error);})
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -1295,6 +1353,13 @@ export function Lexeme360Sheet({
       mounted = false;
     };
   }, [lexemeId]);
+
+  async function chooseRoot(rootId:string) {
+    setLoading(true);
+    try {setData(await fetchLexeme360(rootId,lexemeId));setRootOptions([]);}
+    catch (error) {console.error('Lexeme360 sheet root failed:',error);}
+    finally {setLoading(false);}
+  }
 
   async function addRelationToLearning(id: string) {
     try {
@@ -1319,7 +1384,9 @@ export function Lexeme360Sheet({
     }
   }
 
-  return (
+  return rootOptions.length>1 ? (
+    <RootOptions items={rootOptions} onChoose={(id)=>{void chooseRoot(id);}} onClose={onClose}/>
+  ) : (
     <Lexeme360Content
       data={data}
       lemma={lemma}
@@ -1454,6 +1521,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#374151',
     fontStyle: 'italic',
+  },
+  headerExampleTranslation: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#6B7280',
+    marginTop: 4,
   },
   closeBtn: {
     width: 34,

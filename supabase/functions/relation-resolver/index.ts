@@ -30,18 +30,17 @@ function safeStringify(value: unknown): string {
   }
 }
 
+// D10 15.10.2026: only an unambiguous main card (agreed): several cards or
+// parts of speech -> null (was: maybeSingle, an error on several rows).
 async function resolveSourceLexemeId(sourceLemma: string) {
   const { data, error } = await supabase
-    .from('lexemes')
-    .select('id, lemma')
-    .eq('lemma', normalize(sourceLemma))
-    .maybeSingle();
+    .rpc('d10_lexeme_for_lemma_v1', { p_lemma: normalize(sourceLemma) });
 
   if (error) {
     throw new Error(`resolveSourceLexemeId failed: ${safeStringify(error)}`);
   }
 
-  return data?.id ?? null;
+  return (data as string | null) ?? null;
 }
 
 async function resolveExpression(target: string) {
@@ -58,18 +57,25 @@ async function resolveExpression(target: string) {
   return data;
 }
 
-async function resolveLexeme(target: string) {
+// D10 15.10.2026 (agreed): the card of the referenced article when the
+// relation evidence carries it, otherwise the only main card of the lemma.
+// Ambiguous -> null: the relation stays a candidate instead of an error.
+async function resolveLexeme(target: string, targetArticleId: number | null = null) {
+  if (targetArticleId) {
+    const { data, error } = await supabase.rpc('d10_lexeme_for_article_v1', {
+      p_article_id: targetArticleId, p_dictionary_code: 'bm', p_lemma: target,
+    });
+    if (error) throw new Error(`resolveLexeme failed: ${safeStringify(error)}`);
+    if (data) return { id: data as string };
+  }
   const { data, error } = await supabase
-    .from('lexemes')
-    .select('id, lemma')
-    .eq('lemma', target)
-    .maybeSingle();
+    .rpc('d10_lexeme_for_lemma_v1', { p_lemma: target });
 
   if (error) {
     throw new Error(`resolveLexeme failed: ${safeStringify(error)}`);
   }
 
-  return data;
+  return data ? { id: data as string } : null;
 }
 
 serve(async (req) => {
@@ -109,6 +115,7 @@ serve(async (req) => {
           'source',
           'status',
           'updated_at',
+          'evidence',
         ].join(', '),
       )
       .is('target_entity_id', null)
@@ -147,7 +154,9 @@ serve(async (req) => {
         }
 
         if (!resolvedId) {
-          const lexeme = await resolveLexeme(target);
+          const articleRef = Number((row as any).evidence?.target_article_id);
+          const lexeme = await resolveLexeme(target,
+            Number.isSafeInteger(articleRef) && articleRef > 0 ? articleRef : null);
 
           if (lexeme?.id) {
             resolvedType = 'lexeme';
