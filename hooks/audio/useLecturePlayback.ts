@@ -164,8 +164,6 @@ export function useLecturePlayback({
       generation: number;
     } | null>(null);
 
-  const playbackGenerationRef =
-    useRef(0);
 
 
   const getDerivedAudioUri =
