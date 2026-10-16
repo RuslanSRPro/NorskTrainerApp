@@ -4,6 +4,7 @@
 // they encode learning state, not UI theme.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
@@ -409,6 +410,14 @@ export default function ReadingScreen() {
     }).catch((e:any)=>{if(active)setError(String(e?.message||e));});
     return()=>{active=false;};
   },[selectedWord?.id]);
+
+  // D10 16.10.2026: open a card from another screen (training homonym list):
+  // /reading?openLexemeId=<id>&t=<nonce>. Same card view as the search.
+  const routeParams=useLocalSearchParams<{openLexemeId?:string;t?:string}>();
+  useEffect(()=>{
+    const id=typeof routeParams.openLexemeId==="string"?routeParams.openLexemeId:"";
+    if(/^[0-9a-f-]{36}$/i.test(id))void openRelatedLexeme(id);
+  },[routeParams.openLexemeId,routeParams.t]);
 
   async function openRelatedLexeme(id:string){
     const cached=resolvedLexemesRef.current.get(id);

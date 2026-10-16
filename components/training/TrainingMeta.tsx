@@ -55,18 +55,7 @@ export function TrainingMeta({
       </View>
 
       <View style={s.tools}>
-        {hasVerification(current) ? (
-          <VerificationBadge
-            tier={current.verification_tier}
-            sourceVerified={current.source_verified}
-            evidence={current.verification_evidence}
-            lemma={current.lemma || current.word}
-            size="sm"
-            lang={appLanguage as any}
-            entityId={current.id}
-          />
-        ) : null}
-
+        {/* D10 16.10.2026 (agreed): right to left: help (always), 360, homonyms, (synonyms) */}
         {/* D10 stage E (R5): other cards with the same lemma; hidden when none */}
         <HomonymsButton
           lexemeId={current.id}
@@ -80,6 +69,18 @@ export function TrainingMeta({
             lemma={getMainWord(current)}
             pos={current.pos || current.category || current.type}
             lang={appLanguage as any}
+          />
+        ) : null}
+
+        {hasVerification(current) ? (
+          <VerificationBadge
+            tier={current.verification_tier}
+            sourceVerified={current.source_verified}
+            evidence={current.verification_evidence}
+            lemma={current.lemma || current.word}
+            size="sm"
+            lang={appLanguage as any}
+            entityId={current.id}
           />
         ) : null}
       </View>

@@ -543,6 +543,28 @@ serve(async (req) => {
           continue;
         }
 
+        // D10 16.10.2026 (step B point 4): a part-of-speech clone without an
+        // article of its own (brenne noun) becomes a grey card and goes to the
+        // enrichment chains, instead of stopping the job at admission_gate.
+        // Idempotent. A failure never fails the job: the clone then stays a
+        // grey candidate at the gate (not counted as blocked).
+        // Runs BEFORE the family and homograph steps (fix 16.10, passe adj.):
+        // the homograph step then sees the grey card, gives it its main
+        // article (lowest homograph number) and creates the second card (R9).
+        try {
+          const gray = await rpcOrThrow<{ ok: boolean; created: number; linked: number; skipped: number }>(
+            'd10_promote_gray_pos_clones_v1', { p_job_id: jobId });
+          if (gray && (gray.created > 0 || gray.linked > 0)) {
+            console.log('job-orchestrator: grey POS clone cards', jobId, safeStringify(gray));
+          }
+        } catch (grayError) {
+          console.error(
+            'job-orchestrator: grey POS clone step failed for job',
+            jobId,
+            safeStringify(grayError),
+          );
+        }
+
         // Add family members only after a token has been promoted with an
         // exact Bokmål article and lexeme identity. The RPC inserts the item,
         // its own source checks and an idempotency ledger in one transaction.
@@ -629,25 +651,6 @@ serve(async (req) => {
             });
             continue;
           }
-        }
-
-        // D10 16.10.2026 (step B point 4): a part-of-speech clone without an
-        // article of its own (brenne noun) becomes a grey card and goes to the
-        // enrichment chains, instead of stopping the job at admission_gate.
-        // Idempotent. A failure never fails the job: the clone then stays a
-        // grey candidate at the gate (not counted as blocked).
-        try {
-          const gray = await rpcOrThrow<{ ok: boolean; created: number; linked: number; skipped: number }>(
-            'd10_promote_gray_pos_clones_v1', { p_job_id: jobId });
-          if (gray && (gray.created > 0 || gray.linked > 0)) {
-            console.log('job-orchestrator: grey POS clone cards', jobId, safeStringify(gray));
-          }
-        } catch (grayError) {
-          console.error(
-            'job-orchestrator: grey POS clone step failed for job',
-            jobId,
-            safeStringify(grayError),
-          );
         }
 
         const { count: pendingEnrichmentCount } = await supabase

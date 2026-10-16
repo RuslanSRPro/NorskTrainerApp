@@ -2,15 +2,17 @@
 // D10 16.10.2026 (plan v2, stage E, rule R5): homonym icon on a training card.
 // Shows the other cards with the same lemma: other parts of speech (R1) and
 // other cards of the same part of speech (R9, second homograph cards).
-// The icon appears only when such cards exist. Tap -> list; tap a row -> its
-// translation, example and verification (server stars). Article numbers are
-// not shown. Read only.
+// The icon appears only when such cards exist. Icon (agreed 16.10): "A¹²" in
+// a purple circle, the number = all cards of this word. Tap -> list (part of
+// speech, word, translation in the interface language); tap a row -> the full
+// card opens in Read, as from the search. Article numbers are not shown.
 
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { router } from 'expo-router';
+
 import { supabase } from '@/services/supabase';
-import { VerificationBadge } from '@/components/VerificationBadge';
 
 type Lang = 'ua' | 'en' | 'no';
 
@@ -20,10 +22,6 @@ type Neighbour = {
   pos: string | null;
   translation_ua: string | null;
   translation_en: string | null;
-  example: string | null;
-  verification_tier: string | null;
-  verification_evidence: any;
-  source_verified: string | null;
   dictionary_status?: string | null;
 };
 
@@ -34,9 +32,9 @@ type Props = {
 };
 
 const UI = {
-  ua: { title: 'Омоніми та інші значення', a11y: 'Омоніми та інші значення слова', close: 'Закрити', noTranslation: 'перекладу ще немає' },
-  en: { title: 'Homonyms and other meanings', a11y: 'Homonyms and other meanings of the word', close: 'Close', noTranslation: 'no translation yet' },
-  no: { title: 'Homonymer og andre betydninger', a11y: 'Homonymer og andre betydninger av ordet', close: 'Lukk', noTranslation: 'ingen oversettelse ennå' },
+  ua: { title: 'Омоніми та інші значення', a11y: 'Омоніми та інші значення слова', close: 'Закрити', open: 'Відкрити картку' },
+  en: { title: 'Homonyms and other meanings', a11y: 'Homonyms and other meanings of the word', close: 'Close', open: 'Open card' },
+  no: { title: 'Homonymer og andre betydninger', a11y: 'Homonymer og andre betydninger av ordet', close: 'Lukk', open: 'Åpne kortet' },
 } as const;
 
 const POS_NAMES: Record<string, Record<Lang, string>> = {
@@ -80,7 +78,7 @@ async function loadNeighbours(lemma: string): Promise<Neighbour[]> {
   if (cache.has(lemma)) return cache.get(lemma)!;
   const { data, error } = await supabase
     .from('lexemes')
-    .select('id, lemma, pos, translation_ua, translation_en, example, verification_tier, verification_evidence, source_verified, dictionary_status')
+    .select('id, lemma, pos, translation_ua, translation_en, dictionary_status')
     .eq('lemma', lemma)
     .limit(12);
   if (error) throw error;
@@ -99,7 +97,6 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
   const key = cleanLemma(lemma);
   const [rows, setRows] = useState<Neighbour[]>(() => (key && cache.get(key)) || []);
   const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -119,12 +116,15 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
       <TouchableOpacity
         onPress={() => setOpen(true)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        accessibilityLabel={t.a11y}
+        accessibilityLabel={`${t.a11y}: ${others.length + 1}`}
         activeOpacity={0.7}
         style={styles.icon}
       >
-        <Text style={styles.iconText}>🟣</Text>
-        <Text style={styles.count}>{others.length}</Text>
+        <View style={styles.circle}>
+          <Text style={styles.letter}>A</Text>
+          <Text style={styles.sup}>{'¹²'}</Text>
+        </View>
+        <Text style={styles.count}>{others.length + 1}</Text>
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -137,32 +137,23 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
             <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
               {others.map((n) => {
                 const tr = translationOf(n, safeLang);
-                const isOpen = expanded === n.id;
                 return (
-                  <View key={n.id} style={styles.row}>
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => setExpanded(isOpen ? null : n.id)}>
-                      <Text style={styles.rowTitle}>
-                        {`${n.lemma} — ${posLabel(n.pos, safeLang)}`}{tr ? ` · ${tr}` : ''}
-                      </Text>
-                    </TouchableOpacity>
-                    {isOpen ? (
-                      <View style={styles.details}>
-                        <View style={styles.detailsTop}>
-                          <Text style={styles.detailText}>{tr || t.noTranslation}</Text>
-                          <VerificationBadge
-                            tier={n.verification_tier}
-                            sourceVerified={n.source_verified}
-                            evidence={n.verification_evidence}
-                            lemma={n.lemma}
-                            size="sm"
-                            lang={safeLang}
-                            entityId={n.id}
-                          />
-                        </View>
-                        {n.example ? <Text style={styles.example}>{n.example}</Text> : null}
-                      </View>
-                    ) : null}
-                  </View>
+                  <TouchableOpacity
+                    key={n.id}
+                    style={styles.row}
+                    activeOpacity={0.7}
+                    accessibilityLabel={`${t.open}: ${n.lemma} ${posLabel(n.pos, safeLang)}`}
+                    onPress={() => {
+                      setOpen(false);
+                      // Same card view as the search in Read (reading.tsx: openLexemeId).
+                      router.push({ pathname: '/reading', params: { openLexemeId: n.id, t: String(Date.now()) } });
+                    }}
+                  >
+                    <Text style={styles.rowTitle}>
+                      {`${n.lemma} — ${posLabel(n.pos, safeLang)}`}{tr ? ` · ${tr}` : ''}
+                    </Text>
+                    <Text style={styles.rowOpen}>›</Text>
+                  </TouchableOpacity>
                 );
               })}
             </ScrollView>
@@ -178,7 +169,10 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
 
 const styles = StyleSheet.create({
   icon: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 4, paddingHorizontal: 2 },
-  iconText: { fontSize: 18 },
+  circle: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#7C3AED26', borderWidth: 1, borderColor: '#7C3AED55',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  letter: { fontSize: 13, fontWeight: '800', color: '#6D28D9' },
+  sup: { fontSize: 8, fontWeight: '800', color: '#6D28D9', marginTop: -7, marginLeft: 1 },
   count: { fontSize: 11, fontWeight: '700', color: '#5B21B6' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 32 },
   popup: { width: '100%', maxWidth: 430, backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', maxHeight: '80%', flexShrink: 1 },
@@ -187,12 +181,9 @@ const styles = StyleSheet.create({
   lemma: { fontSize: 13, color: '#6D28D9', fontStyle: 'italic', marginTop: 2 },
   body: { flexGrow: 0, flexShrink: 1 },
   bodyContent: { padding: 14, paddingBottom: 20 },
-  row: { paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: '#DDD6FE' },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#4C1D95' },
-  details: { marginTop: 6 },
-  detailsTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  detailText: { flex: 1, fontSize: 14, color: '#2C2C2A' },
-  example: { fontSize: 13, color: '#6B7280', marginTop: 4, fontStyle: 'italic' },
+  row: { paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#DDD6FE', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: '#4C1D95' },
+  rowOpen: { fontSize: 20, color: '#7C3AED' },
   closeBtn: { margin: 12, marginTop: 4, padding: 14, backgroundColor: '#F1EFE8', borderRadius: 10, alignItems: 'center' },
   closeText: { fontSize: 15, fontWeight: '600', color: '#444441' },
 });
