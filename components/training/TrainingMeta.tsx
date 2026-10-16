@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 
 import { Lexeme360 } from '@/components/Lexeme360';
 import { VerificationBadge } from '@/components/VerificationBadge';
+import { HomonymsButton } from '@/components/HomonymsButton';
 import { GlassSurface } from '@/components/ui/glass/GlassSurface';
 import { AppLanguage } from '@/services/i18n';
 
@@ -65,6 +66,13 @@ export function TrainingMeta({
             entityId={current.id}
           />
         ) : null}
+
+        {/* D10 stage E (R5): other cards with the same lemma; hidden when none */}
+        <HomonymsButton
+          lexemeId={current.id}
+          lemma={current.lemma || current.word}
+          lang={appLanguage as any}
+        />
 
         {hasRelations(current) ? (
           <Lexeme360
