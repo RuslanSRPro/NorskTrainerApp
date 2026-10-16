@@ -3,6 +3,44 @@ import ExpoModulesCore
 import Foundation
 import WhisperKit
 
+private final class WhisperWindowExportGate: @unchecked Sendable {
+  private let lock = NSLock()
+  private var done = false
+  private var timeout = false
+  func claim(timedOut: Bool) -> Bool {
+    lock.lock(); defer { lock.unlock() }
+    guard !done else { return false }; done = true; timeout = timedOut; return true
+  }
+  var didTimeout: Bool { lock.lock(); defer { lock.unlock() }; return timeout }
+}
+
+private func exportWhisperWindow(_ exporter: AVAssetExportSession, to url: URL) async throws {
+  try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+    let gate = WhisperWindowExportGate()
+    let deadline = DispatchWorkItem {
+      guard gate.claim(timedOut: true) else { return }
+      exporter.cancelExport()
+      try? FileManager.default.removeItem(at: url)
+      continuation.resume(throwing: NSError(domain: "WhisperKitLocal", code: 65,
+        userInfo: [NSLocalizedDescriptionKey: "Bounded audio window export timed out. Source audio was preserved."]))
+    }
+    exporter.exportAsynchronously {
+      guard gate.claim(timedOut: false) else {
+        if gate.didTimeout { try? FileManager.default.removeItem(at: url) }
+        return
+      }
+      deadline.cancel()
+      if exporter.status == .completed { continuation.resume(returning: ()) }
+      else {
+        try? FileManager.default.removeItem(at: url)
+        continuation.resume(throwing: exporter.error ?? NSError(domain: "WhisperKitLocal", code: 66,
+          userInfo: [NSLocalizedDescriptionKey: "Bounded audio window export failed. Source audio was preserved."]))
+      }
+    }
+    DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 30, execute: deadline)
+  }
+}
+
 private let defaultWhisperModel = "large-v3-v20240930_626MB"
 
 private final class WhisperEventSink: @unchecked Sendable {
@@ -471,6 +509,12 @@ public class WhisperKitLocalModule: Module {
         )
       }
 
+      let inputDuration = AVURLAsset(url: URL(fileURLWithPath: audioPath)).duration.seconds
+      guard inputDuration.isFinite, inputDuration > 0, inputDuration <= 60 else {
+        throw NSError(domain: "WhisperKitLocal", code: 60,
+          userInfo: [NSLocalizedDescriptionKey: "Full-file transcription is limited to 60 seconds. Use bounded windows."])
+      }
+
       let kit = try await self.getOrCreateWhisperKit(
         model: selectedModel
       )
@@ -490,7 +534,7 @@ public class WhisperKitLocalModule: Module {
       /*
        * Accuracy-first mode for lecture testing.
        *
-       * Do not use incremental loading here: WhisperKit can
+       * This entry is restricted to verified short files. WhisperKit can
        * split incremental input with VAD before decoding.
        * Full-file loading lets the decoder inspect the complete
        * recording, including speech near the beginning.
@@ -886,6 +930,152 @@ public class WhisperKitLocalModule: Module {
       ]
     }
 
+    AsyncFunction("transcribeRange") {
+      (
+        audioUri: String,
+        language: String,
+        model: String,
+        startSeconds: Double,
+        endSeconds: Double,
+        overlapSeconds: Double
+      ) async throws -> [String: Any] in
+
+
+      let selectedModel = model.isEmpty
+        ? defaultWhisperModel
+        : model
+
+      let selectedLanguage = language.isEmpty
+        ? "no"
+        : language
+
+      let audioPath = try self.filePath(
+        from: audioUri
+      )
+
+      guard FileManager.default.fileExists(
+        atPath: audioPath
+      ) else {
+        throw NSError(
+          domain: "WhisperKitLocal",
+          code: 51,
+          userInfo: [
+            NSLocalizedDescriptionKey:
+              "Tail transcription audio file does not exist: \(audioPath)"
+          ]
+        )
+      }
+
+      let window = try await self.makeTailTranscriptionWindow(
+        audioPath: audioPath,
+        requestedStartSeconds: startSeconds,
+        requestedOverlapSeconds: overlapSeconds,
+        requestedEndSeconds: endSeconds
+      )
+
+      defer {
+        try? FileManager.default.removeItem(
+          at: window.url
+        )
+      }
+
+      let kit = try await self.getOrCreateWhisperKit(
+        model: selectedModel
+      )
+      let inferenceLease = try self.inferenceAdmission.acquire()
+      defer { inferenceLease.release() }
+
+
+      let sink = WhisperEventSink(
+        module: self
+      )
+
+      sink.emit(
+        stage: "transcribing",
+        message: "Transcribing final Live tail"
+      )
+
+      let decodingOptions = DecodingOptions(
+        task: .transcribe,
+        language: selectedLanguage,
+        skipSpecialTokens: true,
+        wordTimestamps: false,
+        maxInitialTimestamp: 1.0,
+        chunkingStrategy: .none
+      )
+
+      let results = try await kit.transcribe(
+        audioPath: window.url.path,
+        decodeOptions: decodingOptions,
+        callback: { progress in
+          sink.emit(
+            stage: "transcribing",
+            text: progress.text,
+            window: progress.windowId,
+            message: "Processing final Live tail"
+          )
+
+          return true
+        }
+      )
+
+      let text = results
+        .map(\.text)
+        .joined(separator: " ")
+        .replacingOccurrences(
+          of: #"\s+"#,
+          with: " ",
+          options: .regularExpression
+        )
+        .trimmingCharacters(
+          in: .whitespacesAndNewlines
+        )
+
+      let orderedSegments = results
+        .flatMap(\.segments)
+        .sorted {
+          $0.start < $1.start
+        }
+
+      let segments: [[String: Any]] =
+        orderedSegments.map { segment in
+          [
+            "start":
+              Double(segment.start) + window.globalOffsetSeconds,
+            "end":
+              Double(segment.end) + window.globalOffsetSeconds,
+            "text": segment.text,
+            "noSpeechProb":
+              Double(segment.noSpeechProb),
+            "avgLogProb":
+              Double(segment.avgLogprob)
+          ]
+        }
+
+      sink.emit(
+        stage: "done",
+        text: text,
+        message: "Final Live tail transcript ready"
+      )
+
+      return [
+        "ok": true,
+        "model": selectedModel,
+        "language":
+          results.first?.language
+          ?? selectedLanguage,
+        "text": text,
+        "segments": segments,
+        "characters": text.count,
+        "audioLoadingMode": "full-file",
+        "chunkingStrategy": "none",
+        "source": "file-window",
+        "globalOffsetSeconds": window.globalOffsetSeconds,
+        "overlapSeconds": window.actualOverlapSeconds,
+        "requestedStartSeconds": max(0, startSeconds)
+      ]
+    }
+
     AsyncFunction("startLive") {
       (audioUri: String, language: String, model: String, timingLogUri: String) async throws -> [String: Any] in
 
@@ -1085,6 +1275,9 @@ public class WhisperKitLocalModule: Module {
       )
     }
 
+    guard currentDuration.seconds <= 60, requestedOverlapSeconds.isFinite, requestedOverlapSeconds >= 0, requestedOverlapSeconds <= 3 else {
+      throw NSError(domain: "WhisperKitLocal", code: 64, userInfo: [NSLocalizedDescriptionKey: "Durable segment exceeds the bounded transcription window."])
+    }
     let composition = AVMutableComposition()
 
     guard
@@ -1212,41 +1405,7 @@ public class WhisperKitLocalModule: Module {
     exporter.outputFileType = .m4a
     exporter.shouldOptimizeForNetworkUse = false
 
-    try await withCheckedThrowingContinuation {
-      (continuation: CheckedContinuation<Void, Error>) in
-      exporter.exportAsynchronously {
-        switch exporter.status {
-        case .completed:
-          continuation.resume(returning: ())
-
-        case .failed,
-             .cancelled:
-          continuation.resume(
-            throwing:
-              exporter.error ?? NSError(
-                domain: "WhisperKitLocal",
-                code: 49,
-                userInfo: [
-                  NSLocalizedDescriptionKey:
-                    "Segment transcription window export failed."
-                ]
-              )
-          )
-
-        default:
-          continuation.resume(
-            throwing: NSError(
-              domain: "WhisperKitLocal",
-              code: 50,
-              userInfo: [
-                NSLocalizedDescriptionKey:
-                  "Segment transcription window export ended in an unexpected state."
-              ]
-            )
-          )
-        }
-      }
-    }
+    try await exportWhisperWindow(exporter, to: temporaryURL)
 
     return SegmentTranscriptionWindow(
       url: temporaryURL,
@@ -1263,7 +1422,8 @@ public class WhisperKitLocalModule: Module {
   private func makeTailTranscriptionWindow(
     audioPath: String,
     requestedStartSeconds: Double,
-    requestedOverlapSeconds: Double
+    requestedOverlapSeconds: Double,
+    requestedEndSeconds: Double? = nil
   ) async throws -> TailTranscriptionWindow {
     let audioURL = URL(fileURLWithPath: audioPath)
     let asset = AVURLAsset(url: audioURL)
@@ -1300,6 +1460,18 @@ public class WhisperKitLocalModule: Module {
       )
     }
 
+    guard requestedStartSeconds.isFinite, requestedOverlapSeconds.isFinite,
+      requestedStartSeconds >= 0, requestedOverlapSeconds >= 0, requestedOverlapSeconds <= 3 else {
+      throw NSError(domain: "WhisperKitLocal", code: 61, userInfo: [NSLocalizedDescriptionKey: "Invalid bounded audio range."])
+    }
+    let requestedEnd = requestedEndSeconds ?? duration.seconds
+    guard requestedEnd.isFinite, requestedEnd > requestedStartSeconds,
+      requestedEnd - requestedStartSeconds <= 60 else {
+      throw NSError(domain: "WhisperKitLocal", code: 62, userInfo: [NSLocalizedDescriptionKey: "Audio tail/range exceeds 60 seconds. Saved audio requires windowed transcription."])
+    }
+    guard requestedEnd <= duration.seconds + 0.1 else {
+      throw NSError(domain: "WhisperKitLocal", code: 63, userInfo: [NSLocalizedDescriptionKey: "Requested audio range exceeds the actual file; retry with verified duration."])
+    }
     let safeStart = min(
       max(0, requestedStartSeconds),
       duration.seconds
@@ -1316,7 +1488,7 @@ public class WhisperKitLocalModule: Module {
     )
 
     let windowDurationSeconds =
-      duration.seconds - windowStart
+      min(duration.seconds, requestedEnd) - windowStart
 
     guard windowDurationSeconds > 0 else {
       throw NSError(
@@ -1388,41 +1560,7 @@ public class WhisperKitLocalModule: Module {
     exporter.outputFileType = .m4a
     exporter.shouldOptimizeForNetworkUse = false
 
-    try await withCheckedThrowingContinuation {
-      (continuation: CheckedContinuation<Void, Error>) in
-      exporter.exportAsynchronously {
-        switch exporter.status {
-        case .completed:
-          continuation.resume(returning: ())
-
-        case .failed,
-             .cancelled:
-          continuation.resume(
-            throwing:
-              exporter.error ?? NSError(
-                domain: "WhisperKitLocal",
-                code: 57,
-                userInfo: [
-                  NSLocalizedDescriptionKey:
-                    "Live tail transcription window export failed."
-                ]
-              )
-          )
-
-        default:
-          continuation.resume(
-            throwing: NSError(
-              domain: "WhisperKitLocal",
-              code: 58,
-              userInfo: [
-                NSLocalizedDescriptionKey:
-                  "Live tail transcription window export ended in an unexpected state."
-              ]
-            )
-          )
-        }
-      }
-    }
+    try await exportWhisperWindow(exporter, to: temporaryURL)
 
     return TailTranscriptionWindow(
       url: temporaryURL,

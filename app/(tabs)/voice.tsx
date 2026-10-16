@@ -51,6 +51,8 @@ import type {
 
 import {
   createChunkPlan,
+  invalidateLectureWork,
+  inspectDurableTranscriptInventory,
   LectureAudioValidationQueue,
   type LectureAudioCandidate,
   findAudioFile,
@@ -480,6 +482,8 @@ export default function VoiceScreen() {
               metadata
             );
 
+          const durableInventory = inspectDurableTranscriptInventory(entry);
+          if (metadata.recordingState === 'interrupted' && durableInventory.present) assemblyStates[metadata.id || entry.name] = 'recovery_failed';
           let recordingState = metadata.recordingState ?? 'ready';
           let validatedAudio = true;
           if (audio) {
@@ -506,7 +510,7 @@ export default function VoiceScreen() {
 
           if (
             !audio &&
-            !isSegmentBackedSavedLecture
+            !isSegmentBackedSavedLecture && !(metadata.recordingState === 'interrupted' && durableInventory.present)
           ) {
             continue;
           }
@@ -678,7 +682,10 @@ export default function VoiceScreen() {
     try {
       await enqueueAudioDiagnostic(report);
       const destination = new File(getLectureDirectory(lecture.id), 'audio.m4a');
-      const result = await assembleSavedRecording(destination.uri);
+      const result = lecture.recordingState === 'interrupted'
+        ? await (async () => { await recoverInterruptedRecordings(lecture.id); const current = readMetadata(getLectureDirectory(lecture.id));
+            return {valid:current.recordingState === 'ready',playable:current.recordingState === 'ready',code:current.recordingState === 'ready' ? null:'RECOVERY_RETRY_REQUIRED'}; })()
+        : await assembleSavedRecording(destination.uri);
       const ready = result.valid && result.playable;
       await enqueueAudioDiagnostic({
         ...report, finished_at: new Date().toISOString(),
@@ -2056,6 +2063,7 @@ export default function VoiceScreen() {
                     directory.exists
                   ) {
 
+                    invalidateLectureWork(lecture.id);
                     directory.delete();
                   }
 
@@ -2207,6 +2215,137 @@ export default function VoiceScreen() {
           )}
         </View>
 
+
+        <View
+          style={
+            styles.recordingActionRow
+          }
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              status === 'recording'
+                ? audioUi.stopRecording
+                : audioUi.startRecording
+            }
+            disabled={
+              recordingActionPhase !== 'idle' ||
+              (
+                isLectureProcessing ||
+                liveBusy
+              ) &&
+              status !== 'recording'
+            }
+            onPress={
+              status === 'recording'
+                ? handleStop
+                : handleStart
+            }
+            style={({ pressed }) => [
+              styles.mainButton,
+              styles.recordingMainButton,
+              {
+                backgroundColor:
+                  status ===
+                  'recording'
+                    ? '#C94B4B'
+                    : T.accent,
+                opacity:
+                  recordingActionPhase !== 'idle' ||
+                  (
+                    isLectureProcessing ||
+                    liveBusy
+                  ) &&
+                  status !== 'recording'
+                    ? 0.55
+                    : pressed
+                      ? 0.72
+                      : 1,
+                },
+            ]}
+          >
+            <Text
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={
+                styles.mainButtonText
+              }
+            >
+              {recordingActionPhase === 'starting'
+                ? audioUi.startingRecording
+                : recordingActionPhase === 'saving'
+                  ? audioUi.savingRecording
+                  : status === 'recording'
+                    ? audioUi.stopRecording
+                    : transcribingLectureId ||
+                        translatingLectureId
+                      ? audioUi.processing
+                      : audioUi.startRecording}
+            </Text>
+          </Pressable>
+
+          <LiveLectureButton
+            sourceLanguage={
+              selectedSourceLanguage
+            }
+            translationTarget={
+              translationTarget
+            }
+            disabled={
+              status === 'recording' ||
+              recordingActionPhase !== 'idle' ||
+              isLectureProcessing
+            }
+            beforeStart={
+              async () => {
+                if (recordingActionPendingRef.current || status === 'recording') {
+                  throw new Error('Another recording operation is in progress.');
+                }
+                await beginRecordingTransition();
+                finishRecordingTransition();
+              }
+            }
+            loadLectures={
+              loadLectures
+            }
+            onBusyChange={
+              setLiveBusy
+            }
+            onSaved={
+              lectureId => {
+                setLastSavedLectureId(
+                  lectureId
+                );
+              }
+            }
+          />
+        </View>
+
+
+        <View style={styles.recordingMarkersBox} accessibilityLabel={audioUi.markThisMoment}>
+          {([
+            ['important', '★', audioUi.markerImportant],
+            ['unclear', '?', audioUi.markerUnclear],
+            ['repeat', '↻', audioUi.markerRepeat],
+            ['term', 'T', audioUi.markerTerm],
+          ] as const).map(([type, icon, label]) => (
+            <Pressable key={type} accessibilityRole="button"
+              accessibilityLabel={`${audioUi.markMoment}: ${label}`}
+              disabled={status !== 'recording' || recordingActionPhase !== 'idle'}
+              onPress={() => { setSelectedMarkerType(type); handleMarkMoment(type); }}
+              style={[styles.markerTypeButton, {borderColor:T.accent,
+                backgroundColor:status === 'recording' && selectedMarkerType === type ? T.accent:'transparent',
+                opacity:status === 'recording' ? 1:0.4}]}>
+              <Text allowFontScaling={false} style={[styles.markerTypeText,
+                {color:status === 'recording' && selectedMarkerType === type ? '#FFFFFF':T.accent}]}>{icon}</Text>
+            </Pressable>
+          ))}
+          <Text numberOfLines={1} accessibilityLabel={`${audioUi.markersSaved}: ${activeRecordingMarkers.length}`}
+            style={[styles.markerSavedInfo,{color:T.textSecondary}]}>
+            {activeRecordingMarkers.length > 999 ? '999+' : activeRecordingMarkers.length}
+          </Text>
+        </View>
 
         {status ===
           'idle' && (
@@ -2509,252 +2648,6 @@ export default function VoiceScreen() {
         )}
 
 
-        {status ===
-          'recording' && (
-
-          <View
-            style={
-              styles.recordingMarkersBox
-            }
-          >
-
-            <Text
-              style={[
-                styles.recordingMarkersTitle,
-                {
-                  color:
-                    T.textSecondary,
-                  fontSize:
-                    F.base - 1,
-                },
-              ]}
-            >
-              {audioUi.markThisMoment}
-            </Text>
-
-
-            <View
-              style={
-                styles.markerTypeRow
-              }
-            >
-
-              {(
-                [
-                  ['important', audioUi.markerImportant],
-                  ['unclear', audioUi.markerUnclear],
-                  ['repeat', audioUi.markerRepeat],
-                  ['term', audioUi.markerTerm],
-                ] as const
-              ).map(
-                (
-                  [type, label]
-                ) => (
-
-                  <Pressable
-                    key={
-                      type
-                    }
-                    onPress={() =>
-                      setSelectedMarkerType(
-                        type
-                      )
-                    }
-                    style={[
-                      styles.markerTypeButton,
-                      {
-                        borderColor:
-                          T.accent,
-                        backgroundColor:
-                          selectedMarkerType ===
-                            type
-                            ? T.accent
-                            : 'transparent',
-                      },
-                    ]}
-                  >
-
-                    <Text
-                      style={[
-                        styles.markerTypeText,
-                        {
-                          color:
-                            selectedMarkerType ===
-                              type
-                              ? '#FFFFFF'
-                              : T.accent,
-                          fontSize:
-                            F.base - 3,
-                        },
-                      ]}
-                    >
-                      {label}
-                    </Text>
-
-                  </Pressable>
-                )
-              )}
-
-            </View>
-
-
-            <Pressable
-              onPress={() =>
-                handleMarkMoment()
-              }
-              style={[
-                styles.markMomentButton,
-                {
-                  borderColor:
-                    T.accent,
-                },
-              ]}
-            >
-
-              <Text
-                style={[
-                  styles.markMomentText,
-                  {
-                    color:
-                      T.accent,
-                    fontSize:
-                      F.base,
-                  },
-                ]}
-              >
-                {audioUi.markMoment} · {formatTime(
-                  recorderState.durationMillis
-                )}
-              </Text>
-
-            </Pressable>
-
-
-            {activeRecordingMarkers.length >
-              0 && (
-
-              <Text
-                style={[
-                  styles.markerSavedInfo,
-                  {
-                    color:
-                      T.textSecondary,
-                    fontSize:
-                      F.base - 3,
-                  },
-                ]}
-              >
-                {audioUi.markersSaved} {activeRecordingMarkers.length}
-              </Text>
-            )}
-
-          </View>
-        )}
-
-
-        <View
-          style={
-            styles.recordingActionRow
-          }
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              status === 'recording'
-                ? audioUi.stopRecording
-                : audioUi.startRecording
-            }
-            disabled={
-              recordingActionPhase !== 'idle' ||
-              (
-                isLectureProcessing ||
-                liveBusy
-              ) &&
-              status !== 'recording'
-            }
-            onPress={
-              status === 'recording'
-                ? handleStop
-                : handleStart
-            }
-            style={({ pressed }) => [
-              styles.mainButton,
-              styles.recordingMainButton,
-              {
-                backgroundColor:
-                  status ===
-                  'recording'
-                    ? '#C94B4B'
-                    : T.accent,
-                opacity:
-                  recordingActionPhase !== 'idle' ||
-                  (
-                    isLectureProcessing ||
-                    liveBusy
-                  ) &&
-                  status !== 'recording'
-                    ? 0.55
-                    : pressed
-                      ? 0.72
-                      : 1,
-                },
-            ]}
-          >
-            <Text
-              style={
-                styles.mainButtonText
-              }
-            >
-              {recordingActionPhase === 'starting'
-                ? audioUi.startingRecording
-                : recordingActionPhase === 'saving'
-                  ? audioUi.savingRecording
-                  : status === 'recording'
-                    ? audioUi.stopRecording
-                    : transcribingLectureId ||
-                        translatingLectureId
-                      ? audioUi.processing
-                      : audioUi.startRecording}
-            </Text>
-          </Pressable>
-
-          <LiveLectureButton
-            sourceLanguage={
-              selectedSourceLanguage
-            }
-            translationTarget={
-              translationTarget
-            }
-            disabled={
-              status === 'recording' ||
-              recordingActionPhase !== 'idle' ||
-              isLectureProcessing
-            }
-            beforeStart={
-              async () => {
-                if (recordingActionPendingRef.current || status === 'recording') {
-                  throw new Error('Another recording operation is in progress.');
-                }
-                await beginRecordingTransition();
-                finishRecordingTransition();
-              }
-            }
-            loadLectures={
-              loadLectures
-            }
-            onBusyChange={
-              setLiveBusy
-            }
-            onSaved={
-              lectureId => {
-                setLastSavedLectureId(
-                  lectureId
-                );
-              }
-            }
-          />
-        </View>
-
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={audioUi.importAudio}
@@ -2913,7 +2806,7 @@ export default function VoiceScreen() {
                 lecture.recordingState ===
                   'saved';
               const audioPreparationFailed = isAudioPending &&
-                audioAssemblyStates[lecture.id] === 'assembly_failed';
+                audioAssemblyStates[lecture.id] === 'assembly_failed' || isInterrupted && audioAssemblyStates[lecture.id] === 'recovery_failed';
 
               const canPlayAudio =
                 hasPlayableAudio ||
@@ -4112,6 +4005,7 @@ const styles =
     },
 
     timer: {
+      fontVariant: ['tabular-nums'],
       textAlign: 'center',
       fontSize: 42,
       fontWeight: '900',
@@ -4179,59 +4073,22 @@ const styles =
     },
 
     recordingMarkersBox: {
-      marginBottom: 14,
-      padding: 12,
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(128,128,128,0.35)',
+      height: 52, flexShrink: 0, marginBottom: 12,
+      flexDirection: 'row', alignItems: 'center', gap: 6,
     },
-
-    recordingMarkersTitle: {
-      fontWeight: '900',
-      marginBottom: 10,
-    },
-
-    markerTypeRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 7,
-      marginBottom: 10,
-    },
-
     markerTypeButton: {
-      borderWidth: 1,
-      borderRadius: 999,
-      minHeight: 32,
-      paddingHorizontal: 9,
-      alignItems: 'center',
-      justifyContent: 'center',
+      flex: 1, minWidth: 0, height: 44, borderWidth: 1,
+      borderRadius: 12, alignItems: 'center', justifyContent: 'center',
     },
-
-    markerTypeText: {
-      fontWeight: '800',
-    },
-
-    markMomentButton: {
-      minHeight: 44,
-      borderWidth: 1.5,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 12,
-    },
-
-    markMomentText: {
-      fontWeight: '900',
-      textAlign: 'center',
-    },
-
+    markerTypeText: { fontSize: 22, fontWeight: '900', textAlign: 'center' },
     markerSavedInfo: {
-      marginTop: 7,
-      fontWeight: '700',
-      textAlign: 'center',
+      width: 36, flexShrink: 0, textAlign: 'center', fontSize: 12,
+      fontWeight: '700', fontVariant: ['tabular-nums'],
     },
 
     recordingActionRow: {
+      marginBottom: 16,
+      flexShrink: 0,
       flexDirection: 'row',
       alignItems: 'stretch',
       gap: 10,
@@ -4239,7 +4096,7 @@ const styles =
 
     recordingMainButton: {
       flex: 1,
-    minWidth: 0, height: 64, },
+    minWidth: 0, height: 64, flexShrink: 0, },
 
     mainButton: {
       paddingVertical: 17,

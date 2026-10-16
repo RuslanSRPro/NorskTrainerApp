@@ -1,3 +1,4 @@
+import { validateLectureAudio } from '@/features/audio/lectureStorage';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -649,9 +650,7 @@ export function useLecturePlayback({
 
         if (lecture.audioUri.length > 0) {
           const validation =
-            await LectureRecorder.validateRecording(
-              lecture.audioUri
-            );
+            await validateLectureAudio(lecture.audioUri);
           if (!requestIsCurrent()) return;
 
           finalAudioUsable =

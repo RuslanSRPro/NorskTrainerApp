@@ -26,6 +26,11 @@ import LectureRecorder, {
 
 import {
   findAudioFile,
+  inspectDurableTranscriptInventory,
+  claimLectureRecovery,
+  releaseLectureRecovery,
+  lectureWorkGeneration,
+  validateLectureAudio,
   withAudioOperationDeadline,
   getDefaultTranscription,
   readMetadata,
@@ -438,592 +443,90 @@ export function useLectureRecorder(
     };
 
 
-  const recoverInterruptedRecordings =
-    async (onlyLectureId?: string) => {
+  const recoverInterruptedRecordings = async (onlyLectureId?: string) => {
+    const root = new Directory(Paths.document, 'lectures');
+    if (!root.exists) return;
+    for (const entry of root.list()) {
+      if (!(entry instanceof Directory) || (onlyLectureId && entry.name !== onlyLectureId)) continue;
+      if (!claimLectureRecovery(entry.uri)) continue;
+      const generation = lectureWorkGeneration(entry.name);
       try {
-        const root =
-          new Directory(
-            Paths.document,
-            'lectures'
-          );
-
-        if (!root.exists) {
-          return;
-        }
-
-        for (
-          const entry
-          of root.list()
-        ) {
-          if (
-            !(entry instanceof Directory)
-          ) {
-            continue;
-          }
-
-          // Stop-error recovery should touch only the lecture that just failed.
-          // Startup recovery omits onlyLectureId and can still repair the archive.
-          if (onlyLectureId && entry.name !== onlyLectureId) {
-            continue;
-          }
-
-          const metadata =
-            readMetadata(
-              entry
-            );
-
-          const segmentsDirectory =
-            new Directory(
-              entry,
-              '.audio-segments'
-            );
-
-          let hasRecoverableSegments = false;
-          let hasUnresolvedPartialSegments = false;
-
-          const refreshSegmentInventory =
-            () => {
-              hasRecoverableSegments = false;
-              hasUnresolvedPartialSegments = false;
-
-              if (!segmentsDirectory.exists) {
-                return;
-              }
-
-              try {
-                const segmentEntries =
-                  segmentsDirectory.list();
-
-                hasRecoverableSegments =
-                  segmentEntries.some(item =>
-                    item instanceof File &&
-                    item.name.startsWith('segment-') &&
-                    item.name.endsWith('.m4a') &&
-                    !item.name.endsWith('.part.m4a')
-                  );
-
-                hasUnresolvedPartialSegments =
-                  segmentEntries.some(item =>
-                    item instanceof File &&
-                    item.name.startsWith('segment-') &&
-                    item.name.endsWith('.part.m4a')
-                  );
-              } catch {
-                hasRecoverableSegments = false;
-                hasUnresolvedPartialSegments = false;
-              }
-            };
-
-          refreshSegmentInventory();
-
-          let rollbackCandidate: File | null = null;
-
+        const initial = readMetadata(entry);
+        const nativeOwnsEntry = () => { const status = LectureRecorder.getStatus(); return !!status.uri && status.uri.startsWith(entry.uri.replace(/\/$/, "") + "/"); };
+        if (nativeOwnsEntry()) continue;
+        const initialIdentity = initial.createdAt ?? null;
+        let inventory = inspectDurableTranscriptInventory(entry);
+        const interrupted = initial.recordingState === 'recording' || initial.recordingState === 'interrupted';
+        const existing = findAudioFile(entry, initial);
+        const rollback = entry.list().find(item => item instanceof File && /^audio-rollback-.*\.m4a$/.test(item.name)) as File | undefined;
+        const needsAssembly = initial.recordingState === 'saved' && !existing && inventory.present;
+        if (!interrupted && !needsAssembly && !rollback && initial.id) continue;
+        const current = () => entry.exists && lectureWorkGeneration(entry.name) === generation && !nativeOwnsEntry();
+        let reason: string | null = null;
+        let nativeVerified = false;
+        if (interrupted || needsAssembly || inventory.unresolved) {
+          const destination = new File(entry, initial.audioFile || 'audio.m4a');
+          const diagnosticId = newAudioDiagnosticId(), startedAt = new Date().toISOString(), t0 = Date.now();
+          const begin = interrupted ? 'RECOVERY_BEGIN' : 'RECOVERY_ASSEMBLY_BEGIN';
+          void enqueueAudioDiagnostic({session_id:diagnosticId,mode:'normal',status:'failed',started_at:startedAt,finished_at:startedAt,error_code:'RECOVERY_PENDING',events:[{name:begin,at_ms:0}]}).catch(() => {});
           try {
-            rollbackCandidate =
-              entry
-                .list()
-                .find(item =>
-                  item instanceof File &&
-                  item.name.startsWith(
-                    'audio-rollback-'
-                  ) &&
-                  item.name.endsWith('.m4a')
-                ) as File | undefined || null;
-          } catch {
-            rollbackCandidate = null;
-          }
-
-          /*
-           * Finalized checkpoint segments are intentionally retained
-           * after a successful recording. Their presence alone is not
-           * evidence of an interrupted recording.
-           *
-           * A saved lecture with finalized segments but without its
-           * derived audio.m4a needs assembly, not crash recovery.
-           */
-          const existingAudioBeforeRecovery =
-            findAudioFile(
-              entry,
-              metadata
-            );
-
-          const isInterruptedRecording =
-            metadata.recordingState ===
-              'recording' ||
-            metadata.recordingState ===
-              'interrupted';
-
-          const savedNeedsAssembly =
-            metadata.recordingState ===
-              'saved' &&
-            hasRecoverableSegments &&
-            !existingAudioBeforeRecovery;
-
-          const needsRepair =
-            isInterruptedRecording ||
-            savedNeedsAssembly ||
-            !!rollbackCandidate ||
-            !metadata.id;
-
-          if (!needsRepair) {
-            continue;
-          }
-
-          /*
-           * Segmented recorder V2 stores finalized checkpoint segments
-           * beside audio.m4a while recording. After force-quit there may
-           * be no final audio.m4a yet, so ask native recovery to assemble
-           * every valid checkpoint before looking for the lecture audio.
-           *
-           * For pre-segmentation 1.0.8 recordings this call simply finds
-           * no checkpoint directory and the old validation path below
-           * still handles any existing M4A exactly as before.
-           */
-          let recoveredCheckpointDurationMillis =
-            0;
-
-          let recoveredCheckpointBytes =
-            0;
-
-          let segmentRecoveryValidated = false;
-          let segmentRecoveryMessage:
-            string | null =
-              null;
-
-          if (
-            isInterruptedRecording ||
-            savedNeedsAssembly
-          ) {
-            const expectedAudioName =
-              metadata.audioFile ||
-              'audio.m4a';
-
-            const expectedAudio =
-              new File(
-                entry,
-                expectedAudioName
-              );
-
-            const recoveryDiagnosticId =
-              newAudioDiagnosticId();
-            const recoveryStartedAt =
-              new Date().toISOString();
-            const recoveryT0 = Date.now();
-            const recoveryBeginEvent =
-              isInterruptedRecording
-                ? 'RECOVERY_BEGIN'
-                : 'RECOVERY_ASSEMBLY_BEGIN';
-
-            // Commit the begin event to local storage before native work.
-            // Existing server status values are preserved; the explicit pending
-            // code distinguishes this snapshot from a terminal recovery failure.
-            await enqueueAudioDiagnostic({
-              session_id: recoveryDiagnosticId,
-              mode: 'normal', status: 'failed',
-              started_at: recoveryStartedAt, finished_at: recoveryStartedAt,
-              error_code: isInterruptedRecording ? 'RECOVERY_PENDING' : 'RECOVERY_ASSEMBLY_PENDING',
-              events: [{ name: recoveryBeginEvent, at_ms: 0 }],
-            });
-
-            try {
-              const recovery =
-                isInterruptedRecording
-                  ? await withAudioOperationDeadline(LectureRecorder
-                      .recoverRecording(
-                        expectedAudio.uri
-                      ), 135000, 'Audio preparation/recovery')
-                  : await withAudioOperationDeadline(LectureRecorder
-                      .assembleRecording(
-                        expectedAudio.uri
-                      ), 135000, 'Audio preparation/recovery');
-
-              enqueueAudioDiagnostic({
-                session_id: recoveryDiagnosticId,
-                mode: 'normal',
-                status:
-                  recovery.valid && recovery.playable
-                    ? 'saved'
-                    : 'failed',
-                started_at: recoveryStartedAt,
-                finished_at: new Date().toISOString(),
-                error_code:
-                  recovery.valid && recovery.playable
-                    ? null
-                    : (recovery.code ?? 'RECOVERY_NOT_READY'),
-                events: [
-                  { name: recoveryBeginEvent, at_ms: 0 },
-                  {
-                    name:
-                      recovery.valid && recovery.playable
-                        ? (
-                          isInterruptedRecording
-                            ? 'RECOVERY_AUDIO_READY'
-                            : 'RECOVERY_ASSEMBLY_AUDIO_READY'
-                        )
-                        : (
-                          isInterruptedRecording
-                            ? 'RECOVERY_FAILED'
-                            : 'RECOVERY_ASSEMBLY_FAILED'
-                        ),
-                    at_ms: Math.max(0, Date.now() - recoveryT0),
-                  },
-                ],
-              });
-
-              recoveredCheckpointDurationMillis =
-                Math.max(
-                  0,
-                  recovery.durationMillis
-                );
-
-              recoveredCheckpointBytes =
-                Math.max(
-                  0,
-                  recovery.bytes
-                );
-
-              segmentRecoveryMessage =
-                recovery.message;
-              segmentRecoveryValidated = recovery.valid || recovery.durableSegmentsVerified === true;
-
-              if (__DEV__) {
-                devConsole.log(
-                  isInterruptedRecording
-                    ? 'LECTURE SEGMENT RECOVERY'
-                    : 'LECTURE SEGMENT ASSEMBLY',
-                  {
-                    id:
-                      metadata.id ||
-                      entry.name,
-                    ...recovery,
-                  }
-                );
-              }
-            } catch (error) {
-              enqueueAudioDiagnostic({
-                session_id: recoveryDiagnosticId,
-                mode: 'normal',
-                status: 'failed',
-                started_at: recoveryStartedAt,
-                finished_at: new Date().toISOString(),
-                error_code:
-                  isInterruptedRecording
-                    ? 'RECOVERY_EXCEPTION'
-                    : 'RECOVERY_ASSEMBLY_EXCEPTION',
-                events: [
-                  { name: recoveryBeginEvent, at_ms: 0 },
-                  {
-                    name:
-                      isInterruptedRecording
-                        ? 'RECOVERY_EXCEPTION'
-                        : 'RECOVERY_ASSEMBLY_EXCEPTION',
-                    at_ms: Math.max(0, Date.now() - recoveryT0),
-                  },
-                ],
-              });
-
-              devConsole.warn(
-                isInterruptedRecording
-                  ? 'Could not recover lecture checkpoint segments:'
-                  : 'Could not assemble saved lecture checkpoint segments:',
-                error
-              );
-            }
-          }
-
-          let audio =
-            findAudioFile(
-              entry,
-              metadata
-            );
-
-          if (!audio && rollbackCandidate) {
-            try {
-              const rollbackValidation =
-                await LectureRecorder
-                  .validateRecording(
-                    rollbackCandidate.uri
-                  );
-
-              if (
-                rollbackValidation.valid &&
-                rollbackValidation.playable
-              ) {
-                const recoveredAudio =
-                  new File(
-                    entry,
-                    'audio.m4a'
-                  );
-
-                await rollbackCandidate
-                  .copy(recoveredAudio);
-
-                const recoveredValidation =
-                  await LectureRecorder
-                    .validateRecording(
-                      recoveredAudio.uri
-                    );
-
-                if (
-                  recoveredValidation.valid &&
-                  recoveredValidation.playable
-                ) {
-                  audio = {
-                    file: recoveredAudio,
-                    name: 'audio.m4a',
-                  };
-
-                  if (__DEV__) {
-                    devConsole.log(
-                      'LECTURE ROLLBACK RECOVERY',
-                      {
-                        id:
-                          metadata.id ||
-                          entry.name,
-                        rollbackFile:
-                          rollbackCandidate.name,
-                      }
-                    );
-                  }
-                }
-                else if (recoveredAudio.exists) {
-                  recoveredAudio.delete();
-                }
-              }
-            } catch (error) {
-              const failedRecoveredAudio =
-                new File(
-                  entry,
-                  'audio.m4a'
-                );
-
-              if (
-                !audio &&
-                failedRecoveredAudio.exists
-              ) {
-                try {
-                  failedRecoveredAudio.delete();
-                } catch {}
-              }
-
-              devConsole.warn(
-                'Could not recover lecture rollback audio:',
-                error
-              );
-            }
-          }
-
-          if (!audio) {
-            const id =
-              metadata.id ||
-              entry.name;
-
-            const createdAt =
-              inferRecoveredCreatedAt(
-                id,
-                metadata.createdAt
-              );
-
-            const durableDurationMillis =
-              Math.max(
-                metadata.durationMillis ??
-                  0,
-                recoveredCheckpointDurationMillis
-              );
-
-            const durableAudioBytes =
-              Math.max(
-                metadata.audioBytes ??
-                  0,
-                recoveredCheckpointBytes
-              );
-
-            /*
-             * Native recovery may promote a valid .part.m4a to a durable
-             * finalized checkpoint. Refresh the filesystem inventory after
-             * recovery so JS never marks a lecture SAVED while an unresolved
-             * partial tail still exists.
-             */
-            refreshSegmentInventory();
-
-            const segmentBackedSaved =
-              hasRecoverableSegments &&
-              !hasUnresolvedPartialSegments &&
-              (!isInterruptedRecording || segmentRecoveryValidated);
-
-            writeMetadata(
-              entry,
-              {
-                ...metadata,
-                id,
-                createdAt,
-                durationMillis:
-                  durableDurationMillis,
-                language:
-                  metadata.language ||
-                  'nb-NO',
-                audioFile:
-                  metadata.audioFile ||
-                  'audio.m4a',
-                transcriptFile:
-                  metadata.transcriptFile ??
-                  null,
-                transcriptReady:
-                  metadata.transcriptReady ??
-                  false,
-                characters:
-                  metadata.characters ??
-                  0,
-                audioBytes:
-                  durableAudioBytes,
-                source:
-                  metadata.source ??
-                  'recorded',
-                originalFileName:
-                  metadata.originalFileName ??
-                  null,
-                recordingState:
-                  segmentBackedSaved
-                    ? 'saved'
-                    : 'interrupted',
-                interruptionReason:
-                  segmentBackedSaved
-                    ? (
-                      segmentRecoveryMessage ||
-                      'The lecture checkpoints are saved, but the playable audio file is not assembled yet.'
-                    )
-                    : (segmentRecoveryMessage || 'Audio recovery is incomplete. Source checkpoints were preserved; retry recovery.'),
-                transcription:
-                  metadata.transcription ??
-                  getDefaultTranscription(
-                    durableDurationMillis
-                  ),
-              }
-            );
-
-            continue;
-          }
-
-          const validation =
-            await LectureRecorder
-              .validateRecording(
-                audio.file.uri
-              );
-
-          const id =
-            metadata.id ||
-            entry.name;
-
-          const createdAt =
-            inferRecoveredCreatedAt(
-              id,
-              metadata.createdAt
-            );
-
-          const transcriptFile =
-            new File(
-              entry,
-              'transcript.txt'
-            );
-
-          let characters =
-            metadata.characters ??
-            0;
-
-          if (
-            characters === 0 &&
-            transcriptFile.exists
-          ) {
-            try {
-              characters =
-                transcriptFile
-                  .textSync()
-                  .length;
-            } catch {
-              characters = 0;
-            }
-          }
-
-          const durationMillis =
-            validation.valid &&
-            validation.playable
-              ? validation.durationMillis
-              : 0;
-
-          const recordingState =
-            validation.valid &&
-            validation.playable
-              ? 'ready'
-              : 'interrupted';
-
-          const transcription =
-            metadata.transcription ??
-            getDefaultTranscription(
-              durationMillis
-            );
-
-          writeMetadata(
-            entry,
-            {
-              ...metadata,
-              id,
-              createdAt,
-              durationMillis,
-              language:
-                metadata.language ||
-                'nb-NO',
-              audioFile:
-                audio.name,
-              transcriptFile:
-                transcriptFile.exists
-                  ? 'transcript.txt'
-                  : null,
-              transcriptReady:
-                transcriptFile.exists,
-              characters,
-              audioBytes:
-                validation.bytes ??
-                audio.file.size ??
-                0,
-              source:
-                metadata.source ??
-                'recorded',
-              originalFileName:
-                metadata.originalFileName ??
-                null,
-              recordingState,
-              interruptionReason:
-                recordingState ===
-                  'interrupted'
-                  ? (
-                    validation.message ||
-                    'The recording was interrupted before iOS could finalize the audio file.'
-                  )
-                  : null,
-              transcription,
-            }
-          );
-
-          if (__DEV__) {
-            devConsole.log(
-              recordingState ===
-                'ready'
-                ? 'LECTURE INTERRUPTED RECORDING RECOVERED'
-                : 'LECTURE INTERRUPTED RECORDING INVALID',
-              {
-                id,
-                ...validation,
-              }
-            );
-          }
+            const result = await withAudioOperationDeadline(
+              interrupted || inventory.unresolved ? LectureRecorder.recoverRecording(destination.uri) : LectureRecorder.assembleRecording(destination.uri),
+              135000, 'Audio preparation/recovery');
+            nativeVerified = result.valid || result.durableSegmentsVerified === true;
+            reason = result.valid && result.playable ? null : (result.message || 'Audio preparation requires retry.');
+            void enqueueAudioDiagnostic({session_id:diagnosticId,mode:'normal',status:result.valid && result.playable ? 'saved':'failed',started_at:startedAt,finished_at:new Date().toISOString(),error_code:result.valid && result.playable ? null:(result.code || 'RECOVERY_NOT_READY'),events:[{name:begin,at_ms:0},{name:result.valid && result.playable ? 'RECOVERY_AUDIO_READY':'RECOVERY_FAILED',at_ms:Date.now()-t0}]}).catch(() => {});
+          } catch (error) { reason = `Audio recovery requires retry: ${String(error)}`; }
         }
-      } catch (error) {
-        devConsole.error(
-          'Could not recover interrupted recordings:',
-          error
-        );
-      }
-    };
+        if (!current()) continue;
+        inventory = inspectDurableTranscriptInventory(entry);
+        let latest = readMetadata(entry);
+        if ((latest.createdAt ?? null) !== initialIdentity || latest.recordingState === 'recording' && !interrupted) continue;
+        let audio = findAudioFile(entry, latest);
+        // Keep the rollback original. Never overwrite an existing derived file here.
+        if (!audio && rollback) {
+          try {
+            const validation = await validateLectureAudio(rollback.uri);
+            if (!current()) continue;
+            if (validation.valid && validation.playable) audio = {file:rollback,name:rollback.name};
+          } catch (error) { reason = String(error); }
+        }
+        let valid: Awaited<ReturnType<typeof validateLectureAudio>> | null = null;
+        if (audio) {
+          try { valid = await validateLectureAudio(audio.file.uri); }
+          catch (error) { reason = `Audio validation requires retry: ${String(error)}`; }
+        }
+        if (!current()) continue;
+        inventory = inspectDurableTranscriptInventory(entry, initial.durationMillis ?? 0);
+        latest = readMetadata(entry); // Preserve rename and derived-text writers that completed during await.
+        if ((latest.createdAt ?? null) !== initialIdentity) continue;
+        const playable = valid?.valid === true && valid.playable === true;
+        // A playable old output is not proof that all captured material was recovered.
+        const incomplete = inventory.unresolved || (inventory.present && !inventory.complete);
+        const finalCoversInventory = !inventory.present || !inventory.complete ||
+          Math.abs((valid?.durationMillis ?? 0) - inventory.durationMillis) <= Math.max(1000, inventory.sources.length);
+        const verifiedInventory = inventory.complete && (!interrupted || nativeVerified);
+        const ready = playable && !incomplete && finalCoversInventory && (!inventory.present || !interrupted || nativeVerified);
+        const state = ready ? 'ready' : verifiedInventory && !inventory.unresolved ? 'saved' : 'interrupted';
+        const duration = ready ? valid!.durationMillis : Math.max(latest.durationMillis ?? 0, inventory.durationMillis);
+        const transcript = new File(entry, 'transcript.txt');
+        writeMetadata(entry, {...latest,
+          id: latest.id || entry.name, createdAt: inferRecoveredCreatedAt(latest.id || entry.name, latest.createdAt),
+          language: latest.language || 'nb-NO', durationMillis:duration,
+          audioFile:audio?.name || latest.audioFile || 'audio.m4a',
+          audioBytes:ready ? valid!.bytes : Math.max(latest.audioBytes ?? 0, inventory.bytes),
+          transcriptFile:transcript.exists ? 'transcript.txt':null,
+          transcriptReady:transcript.exists && latest.transcriptReady !== false &&
+            (latest.transcription?.status === undefined || latest.transcription.status === 'done'),
+          characters:transcript.exists ? (latest.characters || transcript.textSync().length):0,
+          recordingState:state,
+          interruptionReason:ready ? null : inventory.error || reason || 'Audio preparation is incomplete. Source audio was preserved; retry recovery.',
+          transcription:latest.transcription || getDefaultTranscription(duration),source:latest.source || 'recorded',
+        });
+      } catch (error) { devConsole.warn('Lecture recovery failed; original files were preserved:', error); }
+      finally { releaseLectureRecovery(entry.uri); }
+    }
+  };
 
 
   /*
@@ -1318,9 +821,7 @@ export function useLectureRecorder(
       uri: string
     ):
       Promise<LectureAudioInfo> =>
-      LectureRecorder.getAudioInfo(
-        uri
-      );
+      withAudioOperationDeadline(LectureRecorder.getAudioInfo(uri), 10000, 'Audio info');
 
 
   const resetRecorderState =

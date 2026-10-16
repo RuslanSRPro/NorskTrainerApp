@@ -97,6 +97,66 @@ export function trimLiveWindowOverlap(previous: SavedTranscriptSegment[], incomi
   return text ? { ...incoming, text, start: Math.max(incoming.start, last.end) } : null;
 }
 
+const lectureRecoveries = new Set<string>();
+export function claimLectureRecovery(uri: string) { if (lectureRecoveries.has(uri)) return false; lectureRecoveries.add(uri); return true; }
+export function releaseLectureRecovery(uri: string) { lectureRecoveries.delete(uri); }
+
+// A deleted/replaced lecture invalidates outstanding JS publishers in this run.
+const lectureWorkGenerations = new Map<string, number>();
+export function invalidateLectureWork(id: string) {
+  lectureWorkGenerations.set(id, (lectureWorkGenerations.get(id) ?? 0) + 1);
+}
+export function lectureWorkGeneration(id: string) { return lectureWorkGenerations.get(id) ?? 0; }
+
+export const MAX_TRANSCRIPTION_WINDOW_SECONDS = 60;
+export type DurableTranscriptSource = { uri: string; durationSeconds: number; globalStartSeconds: number };
+export type DurableTranscriptInventory = {
+  sources: DurableTranscriptSource[]; durationMillis: number; bytes: number;
+  present: boolean; complete: boolean; unresolved: boolean; error: string | null;
+};
+export function inspectDurableTranscriptInventory(directory: Directory, expectedMillis = 0): DurableTranscriptInventory {
+  const result: DurableTranscriptInventory = { sources: [], durationMillis: 0, bytes: 0, present: false, complete: false, unresolved: false, error: null };
+  try {
+    const folder = new Directory(directory, '.audio-segments');
+    const entries = folder.exists ? folder.list().filter((item): item is File => item instanceof File) : [];
+    result.present = entries.some(file => /^segment-/.test(file.name));
+    result.unresolved = entries.some(file => /^segment-.*\.part\.m4a$/.test(file.name));
+    if (result.unresolved) throw new Error('An unresolved partial audio tail requires recovery.');
+    const manifestFile = new File(directory, 'recording-manifest.json');
+    if (!manifestFile.exists) { if (result.present) throw new Error('Durable manifest is missing.'); return result; }
+    result.present = true;
+    const manifest = JSON.parse(manifestFile.textSync());
+    if (!Array.isArray(manifest.segments) || !manifest.segments.length) throw new Error('No committed audio segments.');
+    const names = new Set<string>();
+    for (let index = 0; index < manifest.segments.length; index++) {
+      const segment = manifest.segments[index];
+      if (segment?.status !== 'committed' || segment.index !== index + 1 ||
+          typeof segment.file !== 'string' || !/^segment-\d{6}\.m4a$/.test(segment.file) ||
+          Number(segment.file.slice(8,14)) !== segment.index || names.has(segment.file) ||
+          !Number.isSafeInteger(segment.durationMillis) || segment.durationMillis <= 0 ||
+          !Number.isSafeInteger(segment.bytes) || segment.bytes <= 0) throw new Error('Invalid or discontinuous durable segment inventory.');
+      const file = new File(folder, segment.file);
+      if (!file.exists || file.size !== segment.bytes) throw new Error('A committed audio segment is missing or changed.');
+      names.add(segment.file);
+      result.sources.push({uri:file.uri, durationSeconds:segment.durationMillis / 1000, globalStartSeconds:result.durationMillis / 1000});
+      result.durationMillis += segment.durationMillis; result.bytes += segment.bytes;
+    }
+    result.present = true;
+    const actual = entries.filter(file => /^segment-.*\.m4a$/.test(file.name));
+    if (actual.length !== names.size || actual.some(file => !names.has(file.name))) throw new Error('Unlisted durable audio requires reconciliation.');
+    if (!Number.isSafeInteger(manifest.committedDurationMillis) || manifest.committedDurationMillis !== result.durationMillis) throw new Error('Manifest duration does not match its committed inventory.');
+    // Millisecond rounding per segment and container timebase differences only.
+    const toleranceMillis = Math.max(1000, manifest.segments.length);
+    if (expectedMillis > 0 && Math.abs(expectedMillis - result.durationMillis) > toleranceMillis) throw new Error('Durable segments do not cover the expected recording duration.');
+    result.complete = true;
+  } catch (error) { result.error = String(error); result.sources = []; }
+  return result;
+}
+
+export async function validateLectureAudio(uri: string) {
+  return withAudioOperationDeadline(LectureRecorder.validateRecording(uri), 10000, 'Audio validation');
+}
+
 const TEXT_JOURNAL = '.derived-text-transaction.json';
 type TextUpdates = Record<string, string | null>;
 type TextJournal = { version: 1; state: 'prepared' | 'committed'; before: TextUpdates };
@@ -765,6 +825,7 @@ export function readMetadata(
 }
 
 export function writeMetadata(directory: Directory, metadata: LectureMetadata) {
+  if (!directory.exists) throw new Error("The lecture was deleted; metadata publication was discarded.");
   recoverPendingTextTransaction(directory);
   writeTextFile(new File(directory, 'session.json'), JSON.stringify(metadata, null, 2));
 }

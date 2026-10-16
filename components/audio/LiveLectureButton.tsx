@@ -165,6 +165,9 @@ export function LiveLectureButton({
         ]}
       >
         <Text
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
           style={[
             styles.liveButtonText,
             {
@@ -273,6 +276,15 @@ export function LiveLectureButton({
               {statusText}
             </Text>
 
+            <ScrollView
+              style={
+                styles.textArea
+              }
+              contentContainerStyle={
+                styles.textAreaContent
+              }
+              showsVerticalScrollIndicator
+            >
             {live.error && (
               <Text
                 style={
@@ -283,15 +295,6 @@ export function LiveLectureButton({
               </Text>
             )}
 
-            <ScrollView
-              style={
-                styles.textArea
-              }
-              contentContainerStyle={
-                styles.textAreaContent
-              }
-              showsVerticalScrollIndicator
-            >
               <Text
                 style={[
                   styles.sectionLabel,
@@ -363,6 +366,9 @@ export function LiveLectureButton({
                 ]}
               >
                 <Text
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
                   style={
                     styles.stopText
                   }
@@ -394,6 +400,9 @@ export function LiveLectureButton({
                 ]}
               >
                 <Text
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
                   style={
                     styles.stopText
                   }
@@ -415,7 +424,7 @@ export function LiveLectureButton({
 const styles =
   StyleSheet.create({
     liveButton: {
-      height: 64, minWidth: 112, maxWidth: "45%",
+      height: 64, width: 112, flexShrink: 0,
       paddingHorizontal: 12,
       borderRadius: 18,
       borderWidth: 1.5,
@@ -434,6 +443,7 @@ const styles =
         'rgba(0,0,0,0.55)',
     },
     modalCard: {
+      height: '82%',
       maxHeight: '82%',
       borderRadius: 24,
       borderWidth: 1,
@@ -471,6 +481,8 @@ const styles =
       lineHeight: 20,
     },
     textArea: {
+      flex: 1,
+      minHeight: 0,
       marginTop: 16,
     },
     textAreaContent: {
@@ -490,7 +502,8 @@ const styles =
     },
     stopButton: {
       marginTop: 18,
-      minHeight: 52,
+      height: 56,
+      flexShrink: 0,
       borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',

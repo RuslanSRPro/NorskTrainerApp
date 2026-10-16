@@ -118,6 +118,9 @@ declare class WhisperKitLocalNativeModule
     overlapSeconds: number
   ): Promise<WhisperSegmentTranscriptResult>;
 
+  transcribeRange(audioUri: string, language: string, model: string, startSeconds: number,
+    endSeconds: number, overlapSeconds: number): Promise<Omit<WhisperTailTranscriptResult, 'source'> & {source: 'file-window'}>;
+
   transcribeTail(
     audioUri: string,
     language: string,

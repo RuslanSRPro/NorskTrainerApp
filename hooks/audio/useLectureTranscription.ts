@@ -24,7 +24,6 @@ import WhisperKitLocal, {
   type WhisperSegment,
 } from '@/modules/whisperkitlocal';
 
-import LectureRecorder from '@/modules/lecturerecorder';
 
 import type {
   LectureItem,
@@ -43,6 +42,11 @@ import {
   commitLectureTextSnapshot,
   writeTextFile,
   writeMetadata,
+  validateLectureAudio,
+  inspectDurableTranscriptInventory,
+  MAX_TRANSCRIPTION_WINDOW_SECONDS,
+  withAudioOperationDeadline,
+  lectureWorkGeneration,
 } from '@/features/audio/lectureStorage';
 
 import {
@@ -88,95 +92,7 @@ type Params = {
     () => void;
 };
 
-type DurableRecordingManifestSegment = {
-  index: number;
-  file: string;
-  durationMillis: number;
-  bytes: number;
-  status: string;
-};
-
-type DurableRecordingManifest = {
-  segments?: DurableRecordingManifestSegment[];
-};
-
-type SegmentTranscriptionSource = {
-  uri: string;
-  durationSeconds: number;
-  globalStartSeconds: number;
-};
-
 const SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS = 3;
-
-function getCommittedSegmentSources(
-  directory: ReturnType<typeof getLectureDirectory>
-): SegmentTranscriptionSource[] {
-  const manifestFile = new File(
-    directory,
-    'recording-manifest.json'
-  );
-
-  if (!manifestFile.exists) {
-    return [];
-  }
-
-  let manifest: DurableRecordingManifest;
-
-  try {
-    manifest = JSON.parse(
-      manifestFile.textSync()
-    ) as DurableRecordingManifest;
-  } catch {
-    return [];
-  }
-
-  const manifestSegments = Array.isArray(
-    manifest.segments
-  )
-    ? manifest.segments
-    : [];
-
-  let globalStartSeconds = 0;
-  const sources: SegmentTranscriptionSource[] = [];
-
-  for (const segment of manifestSegments) {
-    if (
-      segment.status !== 'committed' ||
-      !segment.file ||
-      !Number.isFinite(segment.durationMillis) ||
-      segment.durationMillis <= 0 ||
-      !Number.isFinite(segment.bytes) ||
-      segment.bytes <= 0
-    ) {
-      return [];
-    }
-
-    const file = new File(
-      directory,
-      '.audio-segments',
-      segment.file
-    );
-
-    if (
-      !file.exists ||
-      (file.size ?? 0) <= 0
-    ) {
-      return [];
-    }
-
-    sources.push({
-      uri: file.uri,
-      durationSeconds:
-        segment.durationMillis / 1000,
-      globalStartSeconds,
-    });
-
-    globalStartSeconds +=
-      segment.durationMillis / 1000;
-  }
-
-  return sources;
-}
 
 function normalizeTranscriptKey(
   value: string
@@ -358,6 +274,7 @@ export function useLectureTranscription({
       null
     );
 
+  const progressActiveRef = useRef(false);
   const isRetranscribingRef =
     useRef(false);
 
@@ -383,6 +300,7 @@ export function useLectureTranscription({
           event:
             WhisperProgressEvent
         ) => {
+          if (!progressActiveRef.current) return;
           setWhisperStage(
             event.stage
           );
@@ -435,6 +353,8 @@ export function useLectureTranscription({
         options?.isRetranscription ===
           true;
 
+      progressActiveRef.current = true;
+      const generationAtStart = lectureWorkGeneration(lecture.id);
       processingLockRef.current =
         'transcription';
 
@@ -473,6 +393,10 @@ export function useLectureTranscription({
             lecture.id
           );
 
+        const generation = generationAtStart;
+        const assertCurrent = () => {
+          if (!directory.exists || lectureWorkGeneration(lecture.id) !== generation) throw new Error("Lecture was deleted or replaced. Late transcription was discarded.");
+        };
         const metadata =
           readMetadata(
             directory
@@ -503,6 +427,7 @@ export function useLectureTranscription({
                 ),
           };
 
+        assertCurrent();
         writeMetadata(
           directory,
           {
@@ -524,39 +449,39 @@ export function useLectureTranscription({
         loadLectures();
 
         let finalAudioUsable = false;
+        let finalAudioDurationMillis = 0;
 
         if (lecture.audioUri.length > 0) {
-          const validation =
-            await LectureRecorder.validateRecording(
-              lecture.audioUri
-            );
+          try {
+          const validation = await validateLectureAudio(lecture.audioUri);
 
+          finalAudioDurationMillis = validation.durationMillis;
           finalAudioUsable =
             validation.valid &&
-            validation.playable &&
+            validation.playable && Number.isFinite(validation.durationMillis) &&
             validation.bytes >= 4096 &&
             validation.durationMillis >= 500;
+          } catch { finalAudioUsable = false; }
         }
 
-        const segmentSources = finalAudioUsable
-          ? []
-          : getCommittedSegmentSources(
-              directory
-            );
-
-        if (
-          !finalAudioUsable &&
-          segmentSources.length === 0
-        ) {
-          throw new Error(
-            audioUi.audioRecordingInvalid
-          );
+        const inventory = inspectDurableTranscriptInventory(directory,
+          Math.max(lecture.durationMillis, metadata.durationMillis ?? 0));
+        if (inventory.unresolved || inventory.present && !inventory.complete) {
+          throw new Error(inventory.error || 'Durable audio inventory requires recovery before transcription.');
         }
+        const segmentSources = inventory.complete && inventory.sources.every(source => source.durationSeconds <= MAX_TRANSCRIPTION_WINDOW_SECONDS)
+          ? inventory.sources : [];
+        if (!finalAudioUsable && segmentSources.length === 0) throw new Error(inventory.error || audioUi.audioRecordingInvalid);
+        const fileDurationSeconds = finalAudioDurationMillis / 1000;
+        if (finalAudioUsable && segmentSources.length === 0 &&
+            Math.max(lecture.durationMillis, metadata.durationMillis ?? 0) > finalAudioDurationMillis + 1000) {
+          throw new Error('The derived file is shorter than the captured recording. Recovery is required.');
+        }
+        const verifiedDurationMillis = segmentSources.length ? inventory.durationMillis : finalAudioDurationMillis;
+        transcription.chunks = createChunkPlan(verifiedDurationMillis).chunks;
+        const useFileWindows = finalAudioUsable && segmentSources.length === 0 && fileDurationSeconds > MAX_TRANSCRIPTION_WINDOW_SECONDS;
 
-        await WhisperKitLocal
-          .prepareModel(
-            WHISPERKIT_DEFAULT_MODEL
-          );
+        await withAudioOperationDeadline(WhisperKitLocal.prepareModel(WHISPERKIT_DEFAULT_MODEL), 45000, 'Whisper model preparation');
 
         setWhisperStage(
           'transcribing'
@@ -570,14 +495,9 @@ export function useLectureTranscription({
         let result;
         let finalText = '';
 
-        if (finalAudioUsable) {
+        if (finalAudioUsable && segmentSources.length === 0 && !useFileWindows) {
           result =
-            await WhisperKitLocal
-              .transcribe(
-                lecture.audioUri,
-                whisperLanguage,
-                WHISPERKIT_DEFAULT_MODEL
-              );
+            await withAudioOperationDeadline(WhisperKitLocal.transcribe(lecture.audioUri, whisperLanguage, WHISPERKIT_DEFAULT_MODEL), 180000, 'Whisper short file');
 
           finalText = String(
             result.text || ''
@@ -597,12 +517,7 @@ export function useLectureTranscription({
             );
 
             result =
-              await WhisperKitLocal
-                .transcribe(
-                  lecture.audioUri,
-                  whisperLanguage,
-                  WHISPERKIT_DEFAULT_MODEL
-                );
+              await withAudioOperationDeadline(WhisperKitLocal.transcribe(lecture.audioUri, whisperLanguage, WHISPERKIT_DEFAULT_MODEL), 180000, 'Whisper short file');
 
             finalText = String(
               result.text || ''
@@ -614,28 +529,26 @@ export function useLectureTranscription({
             segments: SavedTranscriptSegment[];
           }> = [];
 
+          // Compute each range lazily; never allocate an array proportional to untrusted duration metadata.
+          const count = useFileWindows ? Math.ceil(fileDurationSeconds / MAX_TRANSCRIPTION_WINDOW_SECONDS) : segmentSources.length;
           for (
             let index = 0;
-            index < segmentSources.length;
+            index < count;
             index += 1
           ) {
-            const current = segmentSources[index];
-            const previous = index > 0
-              ? segmentSources[index - 1]
-              : null;
-
-            const segmentResult =
-              await WhisperKitLocal
-                .transcribeSegment(
-                  previous?.uri ?? '',
-                  current.uri,
-                  whisperLanguage,
-                  WHISPERKIT_DEFAULT_MODEL,
-                  current.globalStartSeconds,
-                  index > 0
-                    ? SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS
-                    : 0
-                );
+            assertCurrent();
+            const rangeStart = index * MAX_TRANSCRIPTION_WINDOW_SECONDS;
+            const rangeEnd = Math.min(fileDurationSeconds, rangeStart + MAX_TRANSCRIPTION_WINDOW_SECONDS);
+            const current = useFileWindows ? {globalStartSeconds:rangeStart} : segmentSources[index];
+            const previous = index > 0 ? segmentSources[index - 1] : null;
+            const operation = useFileWindows
+              ? WhisperKitLocal.transcribeRange(lecture.audioUri, whisperLanguage, WHISPERKIT_DEFAULT_MODEL,
+                  rangeStart, rangeEnd, index > 0 ? SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS : 0)
+              : WhisperKitLocal.transcribeSegment(previous?.uri ?? '', segmentSources[index].uri, whisperLanguage,
+                  WHISPERKIT_DEFAULT_MODEL, current.globalStartSeconds, index > 0 ? SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS : 0);
+            const segmentResult = await withAudioOperationDeadline(operation, 180000, 'Whisper bounded window');
+            assertCurrent();
+            if (!segmentResult.ok) throw new Error('Whisper window did not complete. Previous transcript is preserved.');
 
             const segmentWindow =
               (segmentResult.segments ?? [])
@@ -689,7 +602,7 @@ export function useLectureTranscription({
             characters:
               finalText.length,
             audioLoadingMode:
-              'segment-windows' as const,
+              useFileWindows ? 'file-windows' as const : 'segment-windows' as const,
             chunkingStrategy:
               'overlap-dedup' as const,
           };
@@ -771,7 +684,7 @@ export function useLectureTranscription({
               'done',
             processedUntilSeconds:
               Math.ceil(
-                lecture.durationMillis /
+                verifiedDurationMillis /
                 1000
               ),
             error:
@@ -790,6 +703,7 @@ export function useLectureTranscription({
                 ),
           };
 
+        assertCurrent();
         commitLectureTextSnapshot(directory, {
           'transcript.txt': finalText,
           'transcript-segments.json': JSON.stringify(transcriptSegments),
@@ -804,7 +718,7 @@ export function useLectureTranscription({
             createdAt:
               lecture.createdAt,
             durationMillis:
-              lecture.durationMillis,
+              verifiedDurationMillis,
             language:
               lecture.language,
             audioFile:
@@ -919,6 +833,7 @@ export function useLectureTranscription({
               lecture.id
             );
 
+          if (!directory.exists || lectureWorkGeneration(lecture.id) !== generationAtStart) throw new Error("Stale transcription status was discarded.");
           const metadata =
             readMetadata(
               directory
@@ -964,6 +879,7 @@ export function useLectureTranscription({
         }
 
       } finally {
+        progressActiveRef.current = false;
         processingLockRef.current =
           null;
 

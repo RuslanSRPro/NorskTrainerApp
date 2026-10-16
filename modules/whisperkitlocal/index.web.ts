@@ -61,6 +61,9 @@ const WhisperKitLocal = {
     unsupported();
   },
 
+  async transcribeRange(_audioUri: string, _language: string, _model: string,
+    _startSeconds: number, _endSeconds: number, _overlapSeconds: number): Promise<any> { unsupported(); },
+
   async transcribeTail(
     _audioUri: string,
     _language: string,
