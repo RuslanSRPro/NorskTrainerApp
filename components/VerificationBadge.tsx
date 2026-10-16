@@ -124,6 +124,60 @@ const RATING_SOURCES: Array<[keyof ServerRatingDetail, string]> = [
   ['sprakradet', 'Språkrådet'],
 ];
 
+// D10 16.10.2026 (agreed): level names and descriptions by server stars.
+const STAR_LEVELS: Record<'ua' | 'en' | 'no', Record<number, { title: string; desc: string }>> = {
+  ua: {
+    5: { title: 'Навчальний словник', desc: 'Є стаття в Ordbøkene для цієї частини мови.' },
+    4: { title: 'Два словники', desc: 'Стаття NAOB і запис у Lexin або Wiktionary для цієї частини мови.' },
+    3: { title: 'Один словник', desc: 'Підтверджує один словник (NAOB, Lexin або Wiktionary) для цієї частини мови.' },
+    2: { title: 'Згадка', desc: 'Лише згадки у словниках, окремого запису для цієї частини мови немає.' },
+    1: { title: 'Не підтверджено', desc: 'Словники не підтвердили слово (переклад від ШІ) або перевірки ще не було.' },
+  },
+  en: {
+    5: { title: 'Learner dictionary', desc: 'Ordbøkene has an article for this part of speech.' },
+    4: { title: 'Two dictionaries', desc: 'A NAOB article and a Lexin or Wiktionary entry for this part of speech.' },
+    3: { title: 'One dictionary', desc: 'One dictionary (NAOB, Lexin or Wiktionary) confirms this part of speech.' },
+    2: { title: 'Mention', desc: 'Only mentions in dictionaries, no entry for this part of speech.' },
+    1: { title: 'Not confirmed', desc: 'Not confirmed by dictionaries (AI translation) or not checked yet.' },
+  },
+  no: {
+    5: { title: 'Læringsordbok', desc: 'Ordbøkene har en artikkel for denne ordklassen.' },
+    4: { title: 'To ordbøker', desc: 'En NAOB-artikkel og et oppslag i Lexin eller Wiktionary for denne ordklassen.' },
+    3: { title: 'Én ordbok', desc: 'Én ordbok (NAOB, Lexin eller Wiktionary) bekrefter denne ordklassen.' },
+    2: { title: 'Omtale', desc: 'Bare omtaler i ordbøker, ikke noe oppslag for denne ordklassen.' },
+    1: { title: 'Ikke bekreftet', desc: 'Ikke bekreftet av ordbøker (AI-oversettelse) eller ikke sjekket ennå.' },
+  },
+};
+
+const DETAIL_UI = {
+  ua: { article_no: 'стаття', only_as: 'лише як', details: 'Подробиці', hide: 'Сховати подробиці' },
+  en: { article_no: 'article', only_as: 'only as', details: 'Details', hide: 'Hide details' },
+  no: { article_no: 'artikkel', only_as: 'bare som', details: 'Detaljer', hide: 'Skjul detaljer' },
+} as const;
+
+function posNames(list: unknown, lang: 'ua' | 'en' | 'no'): string {
+  return (Array.isArray(list) ? list : [])
+    .map((p) => POS_NAMES[String(p).toLowerCase().split('_')[0]]?.[lang] ?? String(p))
+    .filter(Boolean).join(', ');
+}
+
+// Extra detail of one source row, from the stored evidence: Ordbøkene article
+// numbers, the parts of speech a source shows when it is not the card's.
+function ratingDetail(source: string, value: string | undefined, evidence: any, lang: 'ua' | 'en' | 'no'): string {
+  const item = evidence && typeof evidence === 'object' && !Array.isArray(evidence) ? evidence[source] : null;
+  const ev = item?.evidence ?? {};
+  const d = DETAIL_UI[lang];
+  if (source === 'Ordbokene' && (value === 'article' || value === 'article_pos_unknown')) {
+    const ids = Array.isArray(ev?.raw_preview?.article_ids) ? ev.raw_preview.article_ids.map(String) : [];
+    return ids.length ? `${d.article_no} ${ids.join(', ')}` : '';
+  }
+  if (value === 'other_pos') {
+    const names = posNames(ev?.found_pos ?? (ev?.raw_preview?.pos ? [ev.raw_preview.pos] : []), lang);
+    return names ? `${d.only_as}: ${names}` : '';
+  }
+  return '';
+}
+
 function ratingStateLabel(key: string, value: string | undefined, isExpression: boolean, lang: 'ua' | 'en' | 'no'): string {
   const t = RATING_UI[lang];
   const v = value || 'none';
@@ -136,7 +190,7 @@ function ratingStateLabel(key: string, value: string | undefined, isExpression: 
   return t.none;
 }
 
-function ServerRatingBlock({ stars, rating, lang }: { stars: number; rating: ServerRatingDetail; lang: 'ua' | 'en' | 'no' }) {
+function ServerRatingBlock({ stars, rating, lang, evidence }: { stars: number; rating: ServerRatingDetail; lang: 'ua' | 'en' | 'no'; evidence?: unknown }) {
   const t = RATING_UI[lang];
   const isExpression = rating.kind === 'expression';
   const unchecked = rating.basis === 'no_evidence';
@@ -168,12 +222,16 @@ function ServerRatingBlock({ stars, rating, lang }: { stars: number; rating: Ser
           {RATING_SOURCES.map(([key, source]) => {
             const value = rating[key] as string | undefined;
             const counted = value === 'article' || value === 'entry';
+            const detail = ratingDetail(source, value, evidence, lang);
             return (
               <View key={source} style={styles.ratingRow}>
                 <Text style={styles.ratingSource}>{getSourceLabel(source, lang)}</Text>
-                <Text style={[styles.ratingState, counted && styles.ratingStateCounted]}>
-                  {ratingStateLabel(String(key), value, isExpression, lang)}
-                </Text>
+                <View style={styles.ratingStateBox}>
+                  <Text style={[styles.ratingState, counted && styles.ratingStateCounted]}>
+                    {ratingStateLabel(String(key), value, isExpression, lang)}
+                  </Text>
+                  {detail ? <Text style={styles.ratingDetail}>{detail}</Text> : null}
+                </View>
               </View>
             );
           })}
@@ -622,8 +680,10 @@ export function VerificationBadge({
   entityId = null,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const safeLang = normalizeLang(lang);
   const server = useServerRating(entityId);
+  const starLevel = server ? STAR_LEVELS[safeLang][server.stars] : undefined;
 
   const verification = resolveVerification(
     {
@@ -691,13 +751,15 @@ export function VerificationBadge({
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
-          <Pressable style={styles.popup} onPress={(event) => event.stopPropagation()}>
+        {/* D10 16.10.2026: scrolling fix - the popup is a View, not a Pressable; a tap outside closes */}
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} />
+          <View style={styles.popup}>
             <View style={[styles.popupHeader, { backgroundColor: verification.bg }]}>
               <Stars count={verification.stars} color={verification.color} />
 
               <Text style={[styles.popupTier, { color: verification.color }]}>
-                {verification.label}
+                {starLevel?.title ?? verification.label}
               </Text>
 
               {lemma ? <Text style={styles.popupLemma}>«{lemma}»</Text> : null}
@@ -711,12 +773,23 @@ export function VerificationBadge({
               keyboardShouldPersistTaps="handled"
             >
               <Text style={styles.popupDescription}>
-                {verification.description}
+                {starLevel?.desc ?? verification.description}
               </Text>
 
               {server ? (
-                <ServerRatingBlock stars={server.stars} rating={server.rating} lang={safeLang} />
+                <ServerRatingBlock stars={server.stars} rating={server.rating} lang={safeLang} evidence={evidence} />
               ) : null}
+
+              {/* D10 16.10.2026: with a server rating the previous evidence list stays, folded under "Details" */}
+              {server ? (
+                <TouchableOpacity onPress={() => setShowDetails((v) => !v)} style={styles.detailsToggle} activeOpacity={0.7}>
+                  <Text style={styles.detailsToggleText}>
+                    {showDetails ? DETAIL_UI[safeLang].hide : DETAIL_UI[safeLang].details} {showDetails ? '▴' : '▾'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {!server || showDetails ? (<>
 
               {verification.foundSources.length > 0 ? (
                 <>
@@ -754,6 +827,7 @@ export function VerificationBadge({
                   </Text>
                 </View>
               ) : null}
+              </>) : null}
             </ScrollView>
 
             <TouchableOpacity
@@ -762,8 +836,8 @@ export function VerificationBadge({
             >
               <Text style={styles.closeBtnText}>{tr('close', safeLang)}</Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </>
   );
@@ -1018,11 +1092,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2C2C2A',
   },
+  ratingStateBox: {
+    flexShrink: 1,
+    alignItems: 'flex-end',
+  },
   ratingState: {
     flexShrink: 1,
     fontSize: 12,
     color: '#888780',
     textAlign: 'right',
+  },
+  ratingDetail: {
+    fontSize: 11,
+    color: '#6B7280',
+    textAlign: 'right',
+    marginTop: 1,
+  },
+  detailsToggle: {
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  detailsToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#185FA5',
   },
   ratingStateCounted: {
     color: '#0F6E56',

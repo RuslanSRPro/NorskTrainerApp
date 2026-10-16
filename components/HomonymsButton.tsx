@@ -128,8 +128,10 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
-          <Pressable style={styles.popup} onPress={(e) => e.stopPropagation()}>
+        {/* D10 16.10.2026: scrolling fix - the popup is a View, not a Pressable; a tap outside closes */}
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
+          <View style={styles.popup}>
             <View style={styles.header}>
               <Text style={styles.title}>{t.title}</Text>
               <Text style={styles.lemma}>«{key}»</Text>
@@ -160,8 +162,8 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
             <TouchableOpacity style={styles.closeBtn} onPress={() => setOpen(false)}>
               <Text style={styles.closeText}>{t.close}</Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </>
   );

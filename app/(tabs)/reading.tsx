@@ -178,6 +178,10 @@ const READING_TEXT = {
 } as const;
 
 function normalizeAppLanguage(v: any): AppLanguage { return v==="ua"||v==="en"||v==="no"?v:"ua"; }
+// D10 16.10.2026: part of speech and "choose part of speech" in the app language.
+const POS_UI:Record<string,Record<AppLanguage,string>>={noun:{ua:"іменник",en:"noun",no:"substantiv"},verb:{ua:"дієслово",en:"verb",no:"verb"},adjective:{ua:"прикметник",en:"adjective",no:"adjektiv"},adverb:{ua:"прислівник",en:"adverb",no:"adverb"},preposition:{ua:"прийменник",en:"preposition",no:"preposisjon"},pronoun:{ua:"займенник",en:"pronoun",no:"pronomen"},conjunction:{ua:"сполучник",en:"conjunction",no:"konjunksjon"},determiner:{ua:"детермінатив",en:"determiner",no:"determinativ"},numeral:{ua:"числівник",en:"numeral",no:"tallord"},interjection:{ua:"вигук",en:"interjection",no:"interjeksjon"},expression:{ua:"вираз",en:"expression",no:"uttrykk"}};
+function posUi(pos:any,lang:AppLanguage){const raw=String(pos||"");return POS_UI[raw.toLowerCase().split("_")[0]]?.[lang]||raw;}
+const CHOOSE_POS_UI:Record<AppLanguage,string>={ua:"Оберіть частину мови:",en:"Choose part of speech:",no:"Velg ordklasse:"};
 function formatTemplate(tmpl: string, vals?: Record<string,string|number>) {
   if (!vals) return tmpl;
   return Object.entries(vals).reduce((a,[k,v])=>a.replace(new RegExp(`\\{${k}\\}`,"g"),String(v)),tmpl);
@@ -934,10 +938,10 @@ export default function ReadingScreen() {
           </View>):null}
           {wordSearchMessage?(<View style={[s.msgBox,{backgroundColor:T.accentBg}]}><Text style={[s.msgText,{color:T.textPrimary,fontSize:F.base}]}>{wordSearchMessage}</Text></View>):null}
           {wordMatches.length>0?(<View style={[s.msgBox,{backgroundColor:T.cardAlt}]}>
-            <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>Velg ordklasse:</Text>
+            <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>{CHOOSE_POS_UI[lang]}</Text>
             {wordMatches.map((item:any,index:number)=>(
               <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:selectedWord?.id===item.id?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>setSelectedWord(item)}>
-                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {item.pos||item.category||item.type||""}{pickTranslation(item,lang)?` · ${pickTranslation(item,lang)}`:""}</Text>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {posUi(item.pos||item.category||item.type||"",lang)}{pickTranslation(item,lang)?` · ${pickTranslation(item,lang)}`:""}</Text>
               </Pressable>
             ))}
           </View>):null}
@@ -1069,7 +1073,7 @@ export default function ReadingScreen() {
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4}]}>{tr("homonyms_section")}</Text>
             <View style={s.wordWrap}>
               {homonyms.map((w:any)=>(<TouchableOpacity key={`hom-${w.id}`} activeOpacity={0.7} onPress={()=>setSelectedWord(w)} style={[s.chip,s.chipHomonym]}>
-                <Text style={[s.chipText,s.txHomonym,{fontSize:F.base-1}]}>{w.lemma||w.word} — {w.pos||w.category||""}{pickTranslation(w,lang)?` · ${pickTranslation(w,lang)}`:""}</Text>
+                <Text style={[s.chipText,s.txHomonym,{fontSize:F.base-1}]}>{w.lemma||w.word} — {posUi(w.pos||w.category||"",lang)}{pickTranslation(w,lang)?` · ${pickTranslation(w,lang)}`:""}</Text>
               </TouchableOpacity>))}
             </View>
           </View>):null}
