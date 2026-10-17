@@ -1,0 +1,25 @@
+{
+    "schema_version":  "grammar-security-metadata-plan-v1",
+    "targets":  [
+                    "merge_surface_candidates",
+                    "d10_homograph_rank_v1"
+                ],
+    "purpose":  "Prove or refine transitive read-only safety without retrieving pg_get_functiondef/prosrc.",
+    "allowed_metadata":  [
+                             "pg_proc identity: oid, proname, provolatile, prosecdef, prokind, prolang, proconfig",
+                             "pg_language language name",
+                             "pg_depend dependency edges for target function OIDs",
+                             "pg_rewrite/pg_class references only if dependencies resolve to relations/views",
+                             "pg_proc metadata for function dependencies resolved from pg_depend"
+                         ],
+    "forbidden_actions":  [
+                              "function invocation",
+                              "RPC invocation",
+                              "INSERT/UPDATE/DELETE/UPSERT",
+                              "pg_get_functiondef/prosrc body retrieval",
+                              "credential output",
+                              "db dump",
+                              "dry-run output containing connection credentials"
+                          ],
+    "decision_rule":  "Metadata may narrow the gate but must not claim body-level read-only safety unless dependencies and volatility/security semantics are sufficient. Otherwise remain blocked."
+}
