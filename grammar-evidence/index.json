@@ -1,9 +1,9 @@
 {
   "schema_version": "grammar-evidence-index-v1",
-  "head": "5adf3ecc77c095d1c0b22e3baf172aa09507c1da",
+  "head": "e4fae0f1229230eb6caeed87f2454f4c07a88c34",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 300,
-  "history_event_count": 32,
+  "history_event_count": 46,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -36,7 +36,21 @@
     "A3.8F-R36",
     "A3.8F-R36B",
     "GRAMMAR_GATE_RESOLVER_001",
-    "GRAMMAR_GATE_RESOLVER_002"
+    "GRAMMAR_GATE_RESOLVER_002",
+    "R004",
+    "R005",
+    "R006",
+    "R007",
+    "R007B",
+    "DB_METADATA",
+    "R008",
+    "R009",
+    "R009B",
+    "R010",
+    "R010B",
+    "R011",
+    "R012",
+    "R013"
   ],
   "proof_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [],
@@ -65,7 +79,7 @@
     "PHRASE_PRODUCER_EXECUTION": "",
     "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "",
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": "",
-    "CLAUSE_SOURCE_BACKED_FIXTURE": "Determine whether an existing safe read-only execution/capture path can invoke run_canonical_legacy_compatibility_v140 and preserve real language_graph.clause_build_v1 output. Do not invoke the RPC until safety is proven.",
+    "CLAUSE_SOURCE_BACKED_FIXTURE": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
     "CLAUSE_PRODUCER_EXECUTION": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo."
   },
   "files": [

@@ -5,20 +5,11 @@
       "status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Determine whether an existing safe read-only execution/capture path can invoke run_canonical_legacy_compatibility_v140 and preserve real language_graph.clause_build_v1 output. Do not invoke the RPC until safety is proven.",
+      "next_action": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
       "search_gate": {
-        "search_terms": [
-          "run_canonical_legacy_compatibility_v140",
-          "supabase.rpc(",
-          "createClient(",
-          "SUPABASE_URL",
-          "SUPABASE_SECRET_KEY",
-          "service_role",
-          "canonical-graph-shadow-v1"
-        ],
-        "goal": "Find an existing safe read-only execution/capture path for the production RPC that yields source-backed language_graph.clause_build_v1.",
-        "success_condition": "An existing executable path and required configuration are identified, and source evidence shows the intended operation is read-only/no persistent mutation.",
-        "fail_closed_condition": "If read-only safety or executable configuration cannot be proven, do not call the RPC; record RPC_CAPTURE_PATH_UNPROVEN."
+        "goal": "Capture real production-compatible pre-RPC input at the existing request-to-canonical-surface boundary.",
+        "mode": "GOVERNED_CAPTURE_REQUIRED",
+        "prohibition": "Do not continue repository fixture search; do not synthesize canonical identities or clause structure."
       }
     },
     {
@@ -53,20 +44,11 @@
     "status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Determine whether an existing safe read-only execution/capture path can invoke run_canonical_legacy_compatibility_v140 and preserve real language_graph.clause_build_v1 output. Do not invoke the RPC until safety is proven.",
+    "next_action": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
     "search_gate": {
-      "search_terms": [
-        "run_canonical_legacy_compatibility_v140",
-        "supabase.rpc(",
-        "createClient(",
-        "SUPABASE_URL",
-        "SUPABASE_SECRET_KEY",
-        "service_role",
-        "canonical-graph-shadow-v1"
-      ],
-      "goal": "Find an existing safe read-only execution/capture path for the production RPC that yields source-backed language_graph.clause_build_v1.",
-      "success_condition": "An existing executable path and required configuration are identified, and source evidence shows the intended operation is read-only/no persistent mutation.",
-      "fail_closed_condition": "If read-only safety or executable configuration cannot be proven, do not call the RPC; record RPC_CAPTURE_PATH_UNPROVEN."
+      "goal": "Capture real production-compatible pre-RPC input at the existing request-to-canonical-surface boundary.",
+      "mode": "GOVERNED_CAPTURE_REQUIRED",
+      "prohibition": "Do not continue repository fixture search; do not synthesize canonical identities or clause structure."
     }
   }
 }
