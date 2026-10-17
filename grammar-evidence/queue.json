@@ -1,0 +1,66 @@
+{
+  "queue": [
+    {
+      "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
+      "status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Trace real SQL structural output -> clause_build_v1 -> public v1.43 boundary and capture a typed source-backed fixture without inventing linguistic authority.",
+      "search_gate": {
+        "search_terms": [
+          "clause_build_v1",
+          "projectLegacyNonPhraseStructureIntoCanonicalGraphV143",
+          "SqlStructuralCompatibilityMapV1",
+          "CanonicalSurfaceDocumentV1"
+        ],
+        "goal": "Find the narrowest real construction path simultaneously providing clause_build_v1, CanonicalSurfaceDocumentV1 and SqlStructuralCompatibilityMapV1 at the public v1.43 adapter boundary.",
+        "success_condition": "A source-backed typed fixture can be captured or deterministically replayed from an existing production/test construction path.",
+        "fail_closed_condition": "If no executable/replayable construction path exists, keep UNVERIFIED and record the exact missing fixture contract."
+      }
+    },
+    {
+      "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null
+    },
+    {
+      "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",
+      "status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null
+    },
+    {
+      "proof_id": "CLAUSE_PRODUCER_EXECUTION",
+      "status": "UNVERIFIED",
+      "blocked_by": [
+        "CLAUSE_SOURCE_BACKED_FIXTURE"
+      ],
+      "ready_for_next_action": false,
+      "next_action": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo.",
+      "search_gate": null
+    }
+  ],
+  "next": {
+    "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
+    "status": "UNVERIFIED",
+    "blocked_by": [],
+    "ready_for_next_action": true,
+    "next_action": "Trace real SQL structural output -> clause_build_v1 -> public v1.43 boundary and capture a typed source-backed fixture without inventing linguistic authority.",
+    "search_gate": {
+      "search_terms": [
+        "clause_build_v1",
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143",
+        "SqlStructuralCompatibilityMapV1",
+        "CanonicalSurfaceDocumentV1"
+      ],
+      "goal": "Find the narrowest real construction path simultaneously providing clause_build_v1, CanonicalSurfaceDocumentV1 and SqlStructuralCompatibilityMapV1 at the public v1.43 adapter boundary.",
+      "success_condition": "A source-backed typed fixture can be captured or deterministically replayed from an existing production/test construction path.",
+      "fail_closed_condition": "If no executable/replayable construction path exists, keep UNVERIFIED and record the exact missing fixture contract."
+    }
+  }
+}

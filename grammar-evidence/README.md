@@ -51,3 +51,13 @@ Purpose: persistent, Git-versioned evidence bookkeeping for NorskTrainer Grammar
 - History never promotes a registry claim automatically.
 - The builder validates that every non-empty `updates_proofs` identifier exists in `registry.json`.
 - Failed and superseded attempts remain in history so searches and mistakes are not repeated.
+## Proof queue and gate resolution
+
+V1.2 adds dependency-aware proof selection.
+
+- `blocked_by` identifies unresolved proof claims that must be closed first.
+- `next_action` records the next executable or discovery action.
+- `search_gate` defines a narrow search contract with goal, success condition and fail-closed condition.
+- `tools/build-proof-queue.py` writes `queue.json` and selects the next unblocked claim.
+- Search/discovery may refine blockers and history, but never promotes a claim to `PROVEN`.
+- A failed search records the exact missing contract and leaves the claim unresolved.

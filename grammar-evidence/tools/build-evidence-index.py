@@ -112,6 +112,8 @@ def main():
         "file_count": len(files),
         "history_event_count": len(history),
         "history_runs": [event.get("run") for event in history],
+        "proof_dependencies": {p["proof_id"]: p.get("blocked_by", []) for p in registry["proofs"]},
+        "proof_next_actions": {p["proof_id"]: p.get("next_action", "") for p in registry["proofs"]},
         "files": files,
         "proofs": proof_rows,
         "policy": {
