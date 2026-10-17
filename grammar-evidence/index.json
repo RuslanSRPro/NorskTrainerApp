@@ -1,9 +1,9 @@
 {
   "schema_version": "grammar-evidence-index-v1",
-  "head": "676dd84f95dbe5a01f1218f75567c3b866601527",
+  "head": "5adf3ecc77c095d1c0b22e3baf172aa09507c1da",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 300,
-  "history_event_count": 30,
+  "history_event_count": 32,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -34,7 +34,9 @@
     "GRAMMAR_EVIDENCE_SYSTEM_V1_VALIDATE",
     "GRAMMAR_EVIDENCE_SYSTEM_V1_COMMIT",
     "A3.8F-R36",
-    "A3.8F-R36B"
+    "A3.8F-R36B",
+    "GRAMMAR_GATE_RESOLVER_001",
+    "GRAMMAR_GATE_RESOLVER_002"
   ],
   "proof_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [],
@@ -63,7 +65,7 @@
     "PHRASE_PRODUCER_EXECUTION": "",
     "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "",
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": "",
-    "CLAUSE_SOURCE_BACKED_FIXTURE": "Trace real SQL structural output -> clause_build_v1 -> public v1.43 boundary and capture a typed source-backed fixture without inventing linguistic authority.",
+    "CLAUSE_SOURCE_BACKED_FIXTURE": "Determine whether an existing safe read-only execution/capture path can invoke run_canonical_legacy_compatibility_v140 and preserve real language_graph.clause_build_v1 output. Do not invoke the RPC until safety is proven.",
     "CLAUSE_PRODUCER_EXECUTION": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo."
   },
   "files": [

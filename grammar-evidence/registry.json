@@ -177,18 +177,22 @@
       "invalidation": "N/A until proven.",
       "notes": "R35B heuristic classification was intentionally not promoted to PROVEN.",
       "blocked_by": [],
-      "next_action": "Trace real SQL structural output -> clause_build_v1 -> public v1.43 boundary and capture a typed source-backed fixture without inventing linguistic authority.",
+      "next_action": "Determine whether an existing safe read-only execution/capture path can invoke run_canonical_legacy_compatibility_v140 and preserve real language_graph.clause_build_v1 output. Do not invoke the RPC until safety is proven.",
       "search_gate": {
         "search_terms": [
-          "clause_build_v1",
-          "projectLegacyNonPhraseStructureIntoCanonicalGraphV143",
-          "SqlStructuralCompatibilityMapV1",
-          "CanonicalSurfaceDocumentV1"
+          "run_canonical_legacy_compatibility_v140",
+          "supabase.rpc(",
+          "createClient(",
+          "SUPABASE_URL",
+          "SUPABASE_SECRET_KEY",
+          "service_role",
+          "canonical-graph-shadow-v1"
         ],
-        "goal": "Find the narrowest real construction path simultaneously providing clause_build_v1, CanonicalSurfaceDocumentV1 and SqlStructuralCompatibilityMapV1 at the public v1.43 adapter boundary.",
-        "success_condition": "A source-backed typed fixture can be captured or deterministically replayed from an existing production/test construction path.",
-        "fail_closed_condition": "If no executable/replayable construction path exists, keep UNVERIFIED and record the exact missing fixture contract."
-      }
+        "goal": "Find an existing safe read-only execution/capture path for the production RPC that yields source-backed language_graph.clause_build_v1.",
+        "success_condition": "An existing executable path and required configuration are identified, and source evidence shows the intended operation is read-only/no persistent mutation.",
+        "fail_closed_condition": "If read-only safety or executable configuration cannot be proven, do not call the RPC; record RPC_CAPTURE_PATH_UNPROVEN."
+      },
+      "narrow_blocker": "SQL_RPC_CLAUSE_BUILD_FIXTURE_MISSING"
     },
     {
       "proof_id": "CLAUSE_PRODUCER_EXECUTION",
