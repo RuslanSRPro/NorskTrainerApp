@@ -2,7 +2,8 @@
   "queue": [
     {
       "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
-      "status": "UNVERIFIED",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
@@ -14,7 +15,17 @@
     },
     {
       "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
-      "status": "UNVERIFIED",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null
+    },
+    {
+      "proof_id": "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "",
@@ -22,7 +33,8 @@
     },
     {
       "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",
-      "status": "UNVERIFIED",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "",
@@ -30,7 +42,8 @@
     },
     {
       "proof_id": "CLAUSE_PRODUCER_EXECUTION",
-      "status": "UNVERIFIED",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
       "blocked_by": [
         "CLAUSE_SOURCE_BACKED_FIXTURE"
       ],
@@ -41,7 +54,8 @@
   ],
   "next": {
     "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
-    "status": "UNVERIFIED",
+    "declared_status": "UNVERIFIED",
+    "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
     "next_action": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",

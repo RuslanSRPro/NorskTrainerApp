@@ -67,8 +67,9 @@
       ],
       "result": "canonical_dependency_action_activation_authority_v1 row count = 0.",
       "dependencies": [],
-      "invalidation": "STALE when a newer DB snapshot is taken.",
-      "notes": "No activation grant was created by R24F-R35B."
+      "invalidation": "Effective status becomes STALE when the DB snapshot lacks a strict freshness-bearing event or exceeds freshness_max_age_hours; a newer governed DB snapshot is required.",
+      "notes": "No activation grant was created by R24F-R35B.",
+      "freshness_max_age_hours": 24
     },
     {
       "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",

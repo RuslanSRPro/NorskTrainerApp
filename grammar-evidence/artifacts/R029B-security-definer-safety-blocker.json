@@ -1,0 +1,28 @@
+{
+    "schema_version":  "grammar-evidence-artifact-v1",
+    "resolver":  "R029B",
+    "proof_id":  "CLAUSE_SOURCE_BACKED_FIXTURE",
+    "result_type":  "BLOCKED",
+    "classification":  "LOCAL_SECURITY_DEFINER_DEFINITION_INCOMPLETE",
+    "blocker":  "SECURITY_DEFINER_PRODUCTION_BODY_UNAVAILABLE_LOCALLY_AND_CONNECTOR_BODY_RETRIEVAL_BLOCKED",
+    "project_failure":  false,
+    "tracked_sql_path_count":  278,
+    "scanned_sql_file_count":  278,
+    "skipped_sql_path_count":  0,
+    "targets":  [
+                    "merge_surface_candidates",
+                    "d10_homograph_rank_v1"
+                ],
+    "targets_found":  0,
+    "targets_missing":  2,
+    "security_safety_proven":  false,
+    "proof_status_before":  "UNVERIFIED",
+    "proof_status_after":  "UNVERIFIED",
+    "proof_promotion_performed":  false,
+    "production_metadata_body_query_result":  "BLOCKED_BY_CONNECTOR_SAFETY",
+    "db_action_performed":  false,
+    "endpoint_invocation_performed":  false,
+    "rpc_invocation_performed":  false,
+    "source_patch_performed":  false,
+    "note":  "Local tracked SQL does not contain either SECURITY DEFINER function definition. This artifact records the blocker only and does not assert function safety."
+}

@@ -1,9 +1,10 @@
 {
-  "schema_version": "grammar-evidence-index-v1",
-  "head": "e4fae0f1229230eb6caeed87f2454f4c07a88c34",
+  "schema_version": "grammar-evidence-index-v2",
+  "head": "c71bcc063aee8a6ad9bb5f005dc09358e0ca183a",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 300,
-  "history_event_count": 46,
+  "file_count": 304,
+  "history_event_count": 48,
+  "strict_history_event_count": 1,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -50,8 +51,29 @@
     "R010B",
     "R011",
     "R012",
-    "R013"
+    "R013",
+    null,
+    "R032B-FIRST-STRICT-EVENT"
   ],
+  "history_policy": {
+    "legacy_events_preserved": true,
+    "strict_event_schema": "grammar-evidence-event-v2",
+    "strict_required_fields": [
+      "run",
+      "timestamp_utc",
+      "commit",
+      "proof_id",
+      "result_type",
+      "artifact_hash",
+      "status_before",
+      "status_after"
+    ],
+    "duplicate_strict_run_ids_rejected": true,
+    "strict_event_chronology_validated": true,
+    "strict_transition_chain_validated": true,
+    "artifact_sha256_validated": true,
+    "db_snapshot_default_max_age_hours": 24
+  },
   "proof_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [],
     "S0_FOCUSED_REGRESSION_SUITE": [],
@@ -65,6 +87,31 @@
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": [],
     "CLAUSE_SOURCE_BACKED_FIXTURE": [],
     "CLAUSE_PRODUCER_EXECUTION": [
+      "CLAUSE_SOURCE_BACKED_FIXTURE"
+    ]
+  },
+  "proof_source_dependencies": {
+    "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
+      "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
+    ],
+    "S0_FOCUSED_REGRESSION_SUITE": [],
+    "D4_COMPLETE_PRECONDITION_FIXTURE": [],
+    "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": [],
+    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [],
+    "ONE_OR_MORE_CARDINALITY_RUNTIME": [
+      "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts"
+    ],
+    "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH": [],
+    "PHRASE_PRODUCER_EXECUTION": [],
+    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": [
+      "PHRASE_PRODUCER_EXECUTION",
+      "CLAUSE_PRODUCER_EXECUTION"
+    ],
+    "CLAUSE_PUBLIC_BOUNDARY_WIRING": [],
+    "CLAUSE_SOURCE_BACKED_FIXTURE": [],
+    "CLAUSE_PRODUCER_EXECUTION": [
+      "CLAUSE_PUBLIC_BOUNDARY_WIRING",
       "CLAUSE_SOURCE_BACKED_FIXTURE"
     ]
   },
@@ -1417,6 +1464,28 @@
     {
       "path": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
       "sha256": "331d3696233400de14326d15d42ae6cc586f11535ed0e022f29859a6b46754e6",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-control-v1.ts",
+      "sha256": "1206a81c29e09ac40eb45f30e84e1bf6a03769be539444fb9cedf37a566e1d1c",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-envelope-v1.ts",
+      "sha256": "07643bf91e37dcf35f8c70bc3c0f2f23b0ee5e3ad2285d1468194ba04cfc5b50",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3153,6 +3222,28 @@
       }
     },
     {
+      "path": "supabase/functions/_shared/nlp/test-canonical-structural-rpc-capture-control-v1.ts",
+      "sha256": "176cbebd50e9d9b9350ddcb9de9cab5538a011e0ea5655170841222737376f0b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-structural-rpc-capture-envelope-v1.ts",
+      "sha256": "67d225ae23ceebaeb28ef02249952df41d03240f4d7be720530c92ee5291d573",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
       "path": "supabase/functions/_shared/nlp/test-canonical-surface-graph-provenance-binding-authority-v1.ts",
       "sha256": "e90c5b8a83e34a250d34cafe8c41e02485e0f57456905d81afb29028f745594b",
       "symbols": {
@@ -3374,7 +3465,7 @@
     },
     {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
-      "sha256": "1e5c6c8f995dded008a8a6a99abd140696c8ed1a5a60aad2c1cf417dfbb2a081",
+      "sha256": "249f8d7ab7f47531faf490e0ccd0bfd91a63d2db00c34e7fa9ce03ffd0cdcd3c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3390,8 +3481,9 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "claim": "S0 preserves and reuses the exact canonical binding definition authority object identity through owner evidence and association.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "S0 preserves and reuses the exact canonical binding definition authority object identity through owner evidence and association.",
+      "result": "Recovered exact R15D proof passed 6/6 after the minimal identity-preservation patch; patch committed as current HEAD.",
       "evidence_runs": [
         "A3.8F-R24F",
         "A3.8F-R25C",
@@ -3401,8 +3493,8 @@
         "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
         "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
       ],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "Recovered exact R15D proof passed 6/6 after the minimal identity-preservation patch; patch committed as current HEAD.",
       "notes": "Authority IDs remain distinct; object identity contract was not weakened."
     },
     {
@@ -3410,14 +3502,15 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "claim": "Focused S0/runtime regression suite passes with required read permission.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Focused S0/runtime regression suite passes with required read permission.",
+      "result": "10/10 focused tests PASS.",
       "evidence_runs": [
         "A3.8F-R24J"
       ],
       "dependencies": [],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "10/10 focused tests PASS.",
       "notes": "Kept separate from the exact recovered R15D proof."
     },
     {
@@ -3425,29 +3518,33 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "claim": "Recovered runtime fixture reaches complete_action_execution_precondition_evidence with satisfied final disposition and no blocking reasons.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Recovered runtime fixture reaches complete_action_execution_precondition_evidence with satisfied final disposition and no blocking reasons.",
+      "result": "One create_dependency candidate, coherent readiness, two resolved endpoint evidences, complete precondition evidence, blockingReasons=[], finalDecisionDisposition=satisfied.",
       "evidence_runs": [
         "A3.8F-R25C-D4-LOGGING"
       ],
       "dependencies": [],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "One create_dependency candidate, coherent readiness, two resolved endpoint evidences, complete precondition evidence, blockingReasons=[], finalDecisionDisposition=satisfied.",
       "notes": "Fixture endpoints both resolve to subject; this proves D4 mechanics, not activation suitability."
     },
     {
       "proof_id": "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "DB_SNAPSHOT",
-      "claim": "Production activation authority table contained zero grants at the audited snapshot.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Production activation authority table contained zero grants at the audited snapshot.",
+      "result": "canonical_dependency_action_activation_authority_v1 row count = 0.",
       "evidence_runs": [
         "PRODUCTION_ACTIVATION_AUDIT_2026-10-16"
       ],
       "dependencies": [],
-      "stale_reasons": [],
-      "result": "canonical_dependency_action_activation_authority_v1 row count = 0.",
+      "blocked_by": [],
+      "stale_reasons": [
+        "DB snapshot lacks strict freshness-bearing event"
+      ],
       "notes": "No activation grant was created by R24F-R35B."
     },
     {
@@ -3455,15 +3552,16 @@
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
-      "claim": "ir.structural.dependency.subject_of_predicate is activation-ready through the full runtime chain.",
       "proved_at_head": null,
+      "claim": "ir.structural.dependency.subject_of_predicate is activation-ready through the full runtime chain.",
+      "result": "Not proven. Clause/phrase occurrence-domain execution remains an upstream compatibility boundary; add_trace execution is also not proven.",
       "evidence_runs": [
         "A3.8F-R27",
         "A3.8F-R28"
       ],
       "dependencies": [],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "Not proven. Clause/phrase occurrence-domain execution remains an upstream compatibility boundary; add_trace execution is also not proven.",
       "notes": "Do not activate."
     },
     {
@@ -3471,16 +3569,17 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "SOURCE_AND_TEST",
-      "claim": "Runtime cardinality semantics support one_or_more as minimum 1 with unbounded maximum.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Runtime cardinality semantics support one_or_more as minimum 1 with unbounded maximum.",
+      "result": "Existing runtime contract and tests support one_or_more.",
       "evidence_runs": [
         "A3.8F-R28"
       ],
       "dependencies": [
         "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts"
       ],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "Existing runtime contract and tests support one_or_more.",
       "notes": ""
     },
     {
@@ -3488,14 +3587,15 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "SOURCE_INSPECTION",
-      "claim": "Existing canonical graph/legacy adapter path can materialize canonical clause nodes with spans and provenance; no new clause authority contract is required.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Existing canonical graph/legacy adapter path can materialize canonical clause nodes with spans and provenance; no new clause authority contract is required.",
+      "result": "Existing clause node and legacy adapter authority path identified.",
       "evidence_runs": [
         "A3.8F-R30"
       ],
       "dependencies": [],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "Existing clause node and legacy adapter authority path identified.",
       "notes": "Source-level architectural proof only; not clause producer executable proof."
     },
     {
@@ -3503,14 +3603,15 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "claim": "buildCanonicalPhraseCandidateLatticePatchV1 passes its direct repository tests.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "buildCanonicalPhraseCandidateLatticePatchV1 passes its direct repository tests.",
+      "result": "2 direct phrase producer tests executed; 0 failures.",
       "evidence_runs": [
         "A3.8F-R32B"
       ],
       "dependencies": [],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "2 direct phrase producer tests executed; 0 failures.",
       "notes": "Phrase status remains candidate; this is not clause+phrase composition proof."
     },
     {
@@ -3518,8 +3619,9 @@
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "EXECUTABLE_COMPOSITION",
-      "claim": "Real clause and phrase producers execute over one source-backed compatible fixture and yield containment-compatible canonical occurrences.",
       "proved_at_head": null,
+      "claim": "Real clause and phrase producers execute over one source-backed compatible fixture and yield containment-compatible canonical occurrences.",
+      "result": "No existing composed fixture/test found.",
       "evidence_runs": [
         "A3.8F-R31",
         "A3.8F-R32B"
@@ -3528,8 +3630,8 @@
         "PHRASE_PRODUCER_EXECUTION",
         "CLAUSE_PRODUCER_EXECUTION"
       ],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "No existing composed fixture/test found.",
       "notes": "Neutral span predicate proof does not promote this claim."
     },
     {
@@ -3537,15 +3639,16 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "SOURCE_INSPECTION",
-      "claim": "projectLegacyNonPhraseStructureIntoCanonicalGraphV143 is a public production boundary that creates adapter context internally and invokes clausePatchFromLegacyV11.",
       "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "projectLegacyNonPhraseStructureIntoCanonicalGraphV143 is a public production boundary that creates adapter context internally and invokes clausePatchFromLegacyV11.",
+      "result": "Public boundary and production wiring found in source.",
       "evidence_runs": [
         "A3.8F-R34",
         "A3.8F-R35B"
       ],
       "dependencies": [],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "Public boundary and production wiring found in source.",
       "notes": "Does not prove executable source-backed clause fixture."
     },
     {
@@ -3553,15 +3656,16 @@
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "FIXTURE_AUTHORITY",
-      "claim": "A reusable source-backed executable clause fixture exists for the public boundary.",
       "proved_at_head": null,
+      "claim": "A reusable source-backed executable clause fixture exists for the public boundary.",
+      "result": "Construction/wiring sources found, but no executable reusable fixture proven.",
       "evidence_runs": [
         "A3.8F-R34",
         "A3.8F-R35B"
       ],
       "dependencies": [],
+      "blocked_by": [],
       "stale_reasons": [],
-      "result": "Construction/wiring sources found, but no executable reusable fixture proven.",
       "notes": "R35B heuristic classification was intentionally not promoted to PROVEN."
     },
     {
@@ -3569,8 +3673,9 @@
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "EXECUTABLE_TEST",
-      "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
       "proved_at_head": null,
+      "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
+      "result": "No executable call-site fixture/test proven yet.",
       "evidence_runs": [
         "A3.8F-R33",
         "A3.8F-R34",
@@ -3580,13 +3685,20 @@
         "CLAUSE_PUBLIC_BOUNDARY_WIRING",
         "CLAUSE_SOURCE_BACKED_FIXTURE"
       ],
+      "blocked_by": [
+        "CLAUSE_SOURCE_BACKED_FIXTURE"
+      ],
       "stale_reasons": [],
-      "result": "No executable call-site fixture/test proven yet.",
       "notes": "Next concrete proof target."
     }
   ],
   "policy": {
     "index_can_promote_proof": false,
-    "automatic_transition": "PROVEN->STALE only when tracked source dependency changed"
+    "automatic_transition": "effective PROVEN->STALE only; never auto-promote declared proof status",
+    "stale_inputs": [
+      "tracked source dependency change",
+      "non-PROVEN blocked_by dependency",
+      "expired/unverifiable DB snapshot freshness"
+    ]
   }
 }
