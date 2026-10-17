@@ -1,10 +1,10 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "931cc0e8312048357b894ca0f881982e2dc5485a",
+  "head": "c1b382d8f8b811709fdde8e291ef6ee121ac1563",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 304,
-  "history_event_count": 49,
-  "strict_history_event_count": 2,
+  "history_event_count": 50,
+  "strict_history_event_count": 3,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -54,7 +54,8 @@
     "R013",
     null,
     "R032B-FIRST-STRICT-EVENT",
-    "R034-R033-CLI-PATH-BLOCKER"
+    "R034-R033-CLI-PATH-BLOCKER",
+    "R035-SECURITY-DEFINER-METADATA"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
