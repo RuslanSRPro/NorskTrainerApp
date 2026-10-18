@@ -2,7 +2,7 @@ import { validateLinkedStructuralRpcPairV1, type LinkedPairV1 } from "./canonica
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): v is Obj => !!v && typeof v === "object" && !Array.isArray(v);
 const arr = (v: unknown): unknown[] => Array.isArray(v) ? v : [];
-const idx = (v: unknown): number | null => Number.isInteger(v) && (v as number) >= 0 ? v as number : null;
+const idx = (v: unknown): number | null => Number.isInteger(v) && (v as number) >= 1 ? v as number : null;
 const id = (v: unknown): string | null => typeof v === "string" && v.length > 0 ? v : null;
 function fail(code: string, issues: string[]) { if (!issues.includes(code)) issues.push(code); }
 export function validateClauseProducerJoinR047C(pair: LinkedPairV1) {
@@ -17,6 +17,7 @@ export function validateClauseProducerJoinR047C(pair: LinkedPairV1) {
   if (!predicates.length) fail("resolved_predicates_missing", issues);
   if (!clauses.length) fail("resolved_clauses_missing", issues);
   if (!tokens.length) fail("canonical_tokens_missing", issues);
+  if (tokens.some(t => !obj(t) || idx(t.token_index) === null)) fail("sql_token_index_invalid", issues);
   const matches: { finiteTokenIndex: number; subjectTokenIndex: number; predicateId: string; canonicalTokenId: string }[] = [];
   for (const clause of clauses) {
     if (!obj(clause) || clause.status !== "resolved") continue;
@@ -25,7 +26,8 @@ export function validateClauseProducerJoinR047C(pair: LinkedPairV1) {
     if (finite === null || subject === null || !predicateId) { fail("resolved_clause_fields_invalid", issues); continue; }
     const ps = predicates.filter(p => obj(p) && p.status === "resolved" && p.finite_token_index === finite && p.id === predicateId);
     const as = anchors.filter(a => obj(a) && a.finite_token_index === finite && a.subject_token_index === subject);
-    const ts = tokens.filter(t => obj(t) && t.legacy_index === subject && id(t.canonical_token_id));
+    const ts = tokens.filter(t => obj(t) && t.token_index === subject && id(t.canonical_token_id));
+    if (finite < 1 || subject < 1) { fail("resolved_clause_indices_invalid", issues); continue; }
     if (ps.length !== 1) { fail("predicate_join_not_unique", issues); continue; }
     if (as.length !== 1) { fail("anchor_join_not_unique", issues); continue; }
     if (ts.length !== 1) { fail("canonical_subject_mapping_not_unique", issues); continue; }
