@@ -704,6 +704,65 @@ export function dependencyPatchFromLegacyV11(legacy: J, ctx: AdapterContextV11):
     appendProvenance(prov, producer, x, ctx.sentenceIndex);
   }
 
+  // R048R: attach rule execution as evidence to an existing canonical edge.
+  // This is evidence-only: no rule-produced dependency edges are materialized.
+  const ruleProducer = 'grammar_rule_execution_evidence_v1';
+  const plane = legacy?.language_graph?.rule_execution_plane_v1;
+  if (plane?.status === 'ready') {
+    for (const execution of arr(plane.dependency_pattern_executions)) {
+      // Pilot scope is intentionally limited; bulk activation is not implied.
+      if (execution?.status !== 'executed' ||
+          execution?.rule_code !== 'nrg_rt_v1.structural.dependency.subject_of_predicate' ||
+          execution?.actions_fully_supported !== true ||
+          execution?.trace_action_materialized !== true) continue;
+
+      for (const dep of arr(execution.dependencies)) {
+        if (dep?.status !== 'resolved' || dep?.canonical_v2_parity !== true ||
+            dep?.relation !== 'subject_of' ||
+            dep?.rule_code !== execution.rule_code ||
+            dep?.rule_id !== execution.rule_id) continue;
+
+        const source = dependencyEndpoint(ctx, dep, 'source');
+        const target = dependencyEndpoint(ctx, dep, 'target');
+        const matching = edges.filter((edge) =>
+          edge.relation === 'subject_of' && edge.sourceId === source &&
+          edge.targetId === target && edge.status === 'resolved');
+        if (matching.length !== 1) {
+          pushDiagnostic(ctx, ruleProducer, 'rule_evidence_edge_match_not_unique', dep, {
+            matchCount: matching.length, source: source ?? null, target: target ?? null,
+          });
+          continue;
+        }
+
+        const edge = matching[0];
+        const evidenceId = `evidence:${ruleProducer}:s${ctx.sentenceIndex}:${execution.rule_id}:${dep.id}`;
+        const provenanceId = `prov:${ruleProducer}:s${ctx.sentenceIndex}:${execution.rule_id}:${dep.id}`;
+        if (!edge.evidenceIds.includes(evidenceId)) edge.evidenceIds.push(evidenceId);
+        if (!edge.provenanceIds.includes(provenanceId)) edge.provenanceIds.push(provenanceId);
+        ev.push({
+          id: evidenceId, kind: 'source_rule', status: 'supports',
+          targetIds: [edge.id, edge.sourceId, edge.targetId],
+          producer: ruleProducer, provenanceIds: [provenanceId],
+          payload: {
+            ruleId: execution.rule_id, ruleCode: execution.rule_code,
+            compileHash: execution.compile_hash, executionVersion: execution.version,
+            dependencyId: dep.id, reasonCode: dep.reason_code,
+            traceEvents: dep.trace_events,
+            canonicalV2Parity: true, actionsFullySupported: true,
+          },
+        });
+        prov.push({
+          id: provenanceId, sourceType: 'source_rule',
+          sourceId: execution.rule_id,
+          payload: {
+            ruleCode: execution.rule_code, compileHash: execution.compile_hash,
+            dependencyId: dep.id, releaseCode: plane.release_code,
+          },
+        });
+      }
+    }
+  }
+
   const hypothesisCount = arr(layer.dependency_hypotheses).length;
   const blockedCount = arr(layer.blocked_dependencies).length;
   if (hypothesisCount) {

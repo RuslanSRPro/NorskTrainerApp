@@ -1,0 +1,260 @@
+{
+  "language_graph": {
+    "dependency_build_v2": {
+      "status": "ready",
+      "summary": {
+        "blocked_count": 0,
+        "dependency_count": 4,
+        "hypothesis_count": 0,
+        "subject_of_count": 1,
+        "predicate_of_clause_count": 1
+      },
+      "version": "dependency-build-v2",
+      "dependencies": [
+        {
+          "id": "dep2:predicate_of_clause:pred1:simple:2:clb1:finite:pred1:simple:2",
+          "status": "resolved",
+          "relation": "predicate_of_clause",
+          "clause_id": "clb1:finite:pred1:simple:2",
+          "source_id": "pred1:simple:2",
+          "target_id": "clb1:finite:pred1:simple:2",
+          "provenance": [
+            {
+              "title": "Verbfrasen danner predikat",
+              "candidate_id": "03a6d4b5-01e0-43b2-adfe-8ab2162a4f1f",
+              "candidate_code": "verb.phrase.predicate",
+              "source_section": "7.1",
+              "verification_status": "source_verified"
+            },
+            {
+              "title": "Setningens grunnstruktur er subjekt og predikat",
+              "candidate_id": "4f2c7e2a-3cb3-4d17-90d8-735328a3903d",
+              "candidate_code": "grammar.foundations.sentence.subject_predicate_core",
+              "source_section": "1.5.1",
+              "verification_status": "source_verified"
+            }
+          ],
+          "reason_code": "resolved_predicate_materializes_clause_core",
+          "predicate_id": "pred1:simple:2",
+          "source_entity": "predicate",
+          "target_entity": "clause",
+          "source_surface": "sover",
+          "target_surface": "Katten sover"
+        },
+        {
+          "id": "dep2:subject_of:clb1:finite:pred1:simple:2:t1:pred1:simple:2",
+          "status": "resolved",
+          "relation": "subject_of",
+          "clause_id": "clb1:finite:pred1:simple:2",
+          "target_id": "pred1:simple:2",
+          "provenance": [
+            {
+              "title": "Setningens grunnstruktur er subjekt og predikat",
+              "candidate_id": "4f2c7e2a-3cb3-4d17-90d8-735328a3903d",
+              "candidate_code": "grammar.foundations.sentence.subject_predicate_core",
+              "source_section": "1.5.1",
+              "verification_status": "source_verified"
+            },
+            {
+              "title": "Subjektet er nominalet som kombineres med et finitt predikat",
+              "candidate_id": "21e73a5c-8a54-4d3a-98f7-52f2e9375512",
+              "candidate_code": "sentence.subject.definition.nominal_finite_predicate",
+              "source_section": "8.2.1",
+              "verification_status": "source_verified"
+            }
+          ],
+          "reason_code": "explicit_clause_subject_of_resolved_predicate",
+          "predicate_id": "pred1:simple:2",
+          "source_entity": "token",
+          "target_entity": "predicate",
+          "source_surface": "Katten",
+          "target_surface": "sover",
+          "source_token_index": 1
+        },
+        {
+          "id": "dep2:grammatical_head:pred1:simple:2:t2",
+          "status": "resolved",
+          "relation": "grammatical_head_of_predicate",
+          "target_id": "pred1:simple:2",
+          "provenance": [
+            {
+              "title": "Finitte verb står som kjerne i predikatet",
+              "candidate_id": "78f6235d-8278-4219-a5f6-2a0d25aae26b",
+              "candidate_code": "verb.form.finite.predicate_head",
+              "source_section": "7.1.2.1",
+              "verification_status": "source_verified"
+            }
+          ],
+          "reason_code": "predicate_build_grammatical_head",
+          "predicate_id": "pred1:simple:2",
+          "source_entity": "token",
+          "target_entity": "predicate",
+          "source_surface": "sover",
+          "target_surface": "sover",
+          "source_token_index": 2
+        },
+        {
+          "id": "dep2:finite_member:pred1:simple:2:t2",
+          "status": "resolved",
+          "relation": "finite_member_of_predicate",
+          "target_id": "pred1:simple:2",
+          "provenance": [
+            {
+              "title": "Finitte verb står som kjerne i predikatet",
+              "candidate_id": "78f6235d-8278-4219-a5f6-2a0d25aae26b",
+              "candidate_code": "verb.form.finite.predicate_head",
+              "source_section": "7.1.2.1",
+              "verification_status": "source_verified"
+            }
+          ],
+          "reason_code": "predicate_build_finite_member",
+          "predicate_id": "pred1:simple:2",
+          "source_entity": "token",
+          "target_entity": "predicate",
+          "source_surface": "sover",
+          "target_surface": "sover",
+          "source_token_index": 2
+        }
+      ],
+      "blocked_dependencies": [],
+      "dependency_hypotheses": []
+    },
+    "rule_execution_plane_v1": {
+      "status": "ready",
+      "summary": {
+        "bulk_activation_ready": false,
+        "pilot_families_closed": true,
+        "dependency_adapter_closed": true,
+        "candidate_constraint_closed": true,
+        "phrase_operator_contract_closed": true,
+        "representative_20_rule_suite_ready": true
+      },
+      "version": "rule-execution-plane-v1",
+      "release_code": "runtime-structural-v1.37",
+      "phrase_operator_validations": [
+        {
+          "valid": true,
+          "rule_id": "fca3bded-e47c-49a6-a94c-5fdbe3b4677c",
+          "version": "phrase-operator-validation-v1",
+          "rule_code": "nrg_rt_v1.structural.adjective_phrase.adjective_head",
+          "phrase_type": "AP",
+          "build_strategy": "head_only",
+          "declared_actions": [
+            "create_phrase",
+            "set_head"
+          ],
+          "registered_operator": true,
+          "unsupported_actions": [],
+          "required_fields_present": true
+        },
+        {
+          "valid": true,
+          "rule_id": "2ba2cf3a-5570-455f-a689-4e488da11c6f",
+          "version": "phrase-operator-validation-v1",
+          "rule_code": "nrg_rt_v1.structural.noun_phrase.noun_head",
+          "phrase_type": "NP",
+          "build_strategy": "head_plus_left_dependents",
+          "declared_actions": [
+            "create_phrase",
+            "set_head"
+          ],
+          "registered_operator": true,
+          "unsupported_actions": [],
+          "required_fields_present": true
+        },
+        {
+          "valid": true,
+          "rule_id": "dc6336fd-7c78-48c5-98ca-ecd7cdfcaa96",
+          "version": "phrase-operator-validation-v1",
+          "rule_code": "nrg_rt_v1.structural.verb_phrase.finite_head",
+          "phrase_type": "VP",
+          "build_strategy": "finite_head_plus_following_nonfinite",
+          "declared_actions": [
+            "create_phrase",
+            "set_head"
+          ],
+          "registered_operator": true,
+          "unsupported_actions": [],
+          "required_fields_present": true
+        }
+      ],
+      "dependency_pattern_executions": [
+        {
+          "status": "executed",
+          "rule_id": "1786f164-c711-4abf-8a29-6c4dcd389142",
+          "version": "dependency-pattern-executor-v2",
+          "relation": "subject_of",
+          "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+          "source_ref": "subject",
+          "target_ref": "predicate",
+          "compile_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e",
+          "dependencies": [
+            {
+              "id": "rexec:dep:subject_of:t1:pred1:simple:2",
+              "status": "resolved",
+              "rule_id": "1786f164-c711-4abf-8a29-6c4dcd389142",
+              "relation": "subject_of",
+              "clause_id": "clb1:finite:pred1:simple:2",
+              "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+              "target_id": "pred1:simple:2",
+              "reason_code": "nrg_subject_of_finite_predicate",
+              "trace_events": [
+                {
+                  "value": {
+                    "explanation_key": "subject_is_linked_to_finite_predicate"
+                  },
+                  "target": "clause",
+                  "reason_code": "nrg_subject_definition"
+                }
+              ],
+              "source_entity": "token",
+              "target_entity": "predicate",
+              "source_surface": "Katten",
+              "target_surface": "sover",
+              "source_token_index": 1,
+              "canonical_v2_parity": true
+            }
+          ],
+          "adapter_events": [
+            {
+              "status": "adapted",
+              "v2_ref": "clause.subject_token_index",
+              "binding": "subject",
+              "legacy_ref": "clause.subject_token_index"
+            },
+            {
+              "status": "adapted",
+              "v2_ref": "clause.predicate_id",
+              "binding": "predicate",
+              "legacy_ref": "clause.predicate_phrase_id",
+              "entity_upgrade": "phrase->predicate"
+            }
+          ],
+          "compiler_version": "grammar-runtime-compiler-structural-v1.1",
+          "dependency_count": 1,
+          "hardcoded_rule_code": false,
+          "actions_fully_supported": true,
+          "trace_action_materialized": true
+        }
+      ],
+      "candidate_constraint_executions": [
+        {
+          "status": "executed",
+          "matches": [],
+          "rule_id": "e01f69aa-2554-4212-8fb4-32ae83fb674c",
+          "version": "candidate-constraint-executor-v2",
+          "rule_code": "nrg_rt_v1.preposition.complementless_category.candidate_constraint",
+          "match_count": 0,
+          "compile_hash": "e72a64e2be346a161b4f40cca6b496cfa461f06cba9999d3d847499d2bf9c75b",
+          "pattern_type": "candidate_constraint",
+          "trigger_keys": [
+            "preposition_complementless_licensed"
+          ],
+          "compiler_version": "grammar-runtime-compiler-v0",
+          "actions_fully_supported": true,
+          "trace_action_materialized": true
+        }
+      ]
+    }
+  }
+}
