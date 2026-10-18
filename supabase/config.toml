@@ -58,3 +58,8 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/forms-enrichment-v2-worker/deno.json"
 entrypoint = "./functions/forms-enrichment-v2-worker/index.ts"
+
+[functions.canonical-graph-shadow-v1]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/canonical-graph-shadow-v1/index.ts"

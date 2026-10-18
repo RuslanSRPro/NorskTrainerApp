@@ -10,6 +10,7 @@ import {
 } from '../_shared/nlp/sql-structural-compatibility-map-v1.ts';
 import { buildCanonicalStructuralRpcCaptureEnvelopeV1 } from '../_shared/nlp/canonical-structural-rpc-capture-envelope-v1.ts';
 import { buildStructuralRpcPairedEvidenceV1 } from '../_shared/nlp/canonical-structural-rpc-paired-evidence-v1.ts';
+import { authorizeR048MCaptureV1 } from '../_shared/nlp/r048m-capture-auth-v1.ts';
 import { isCanonicalStructuralRpcInputCaptureEnabledV1 } from '../_shared/nlp/canonical-structural-rpc-capture-control-v1.ts';
 import {
   buildCanonicalCandidateLatticePatchV1,
@@ -75,7 +76,15 @@ function dependencyPatch(sentenceModel:J,map:LegacyCompatibilityMapV1):GraphPatc
 
 async function runSentence(url:string,key:string,surface:any,map:LegacyCompatibilityMapV1,lexical:AnalysisToken[],selectionMargin:number){const grammar=await callInternal<J>(url,key,'grammar-pattern-engine',{tokens:lexical.map(t=>({index:t.index,surface:t.surface,normalized_surface:t.normalized_surface,token_role:t.token_role,candidates:t.candidates})),dryRun:false});const finalTokens=Array.isArray(grammar.tokens)?grammar.tokens:lexical;const constructions=arr(grammar.constructions);const cr=await callInternal<J>(url,key,'construction-resolution-engine',{constructions,includeTrace:false,strictValidation:true});const resolved=arr(cr.resolved_constructions);const pb=await callInternal<J>(url,key,'predicate-builder',{text:surface.sentences[map.sentenceIndex].text,tokens:finalTokens,constructions:resolved,construction_model:obj(cr.construction_model),selectionMargin});let sm=obj(pb.sentence_model);const ce=await callInternal<J>(url,key,'clause-pattern-engine',{sentence_model:sm});const clauses=arr(ce.clauses);const de=await callInternal<J>(url,key,'dependency-engine',{sentence_model:sm,clauses,dryRun:false,includeTrace:false,strictValidation:false,allowStructuralFallback:true});sm=obj(de.sentence_model);return{lexicalTokens:finalTokens,sentenceModel:sm,engines:{grammar:grammar.engine_version??null,construction:cr.engine_version??null,predicate:pb.builder_version??pb.predicate_builder_version??null,clause:ce.engine_version??null,dependency:de.engine_version??null},raw:{grammarSummary:grammar.summary??{},constructionSummary:cr.summary??{},clauseSummary:ce.summary??{},dependencySummary:de.summary??{}}}}
 
-Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({ok:false,version:VERSION,error:'Method not allowed'},405);try{const body=await req.json();if(typeof body?.text!=='string'||!body.text.length)return json({ok:false,version:VERSION,error:'Body must contain text'},400);const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');if(!url||!key)throw new Error('Missing Supabase runtime env');const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});const [abbr,roles]=await Promise.all([abbreviationFacts(supabase),tokenRoles(supabase)]);const surface=buildCanonicalSurfaceDocumentV1(body.text,abbr);const captureStructuralRpcInput=isCanonicalStructuralRpcInputCaptureEnabledV1(body);let graph:CanonicalLanguageGraphV1=createCanonicalLanguageGraphV1(surface);const sentenceRuns:any[]=[];const bindingErrors:string[]=[];const candidateSurfaces = [
+Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({ok:false,version:VERSION,error:'Method not allowed'},405);try{const body=await req.json();if(typeof body?.text!=='string'||!body.text.length)return json({ok:false,version:VERSION,error:'Body must contain text'},400);const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');if(!url||!key)throw new Error('Missing Supabase runtime env');const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});const captureRequested=isCanonicalStructuralRpcInputCaptureEnabledV1(body);
+const captureAuthorization=await authorizeR048MCaptureV1(
+  captureRequested,
+  req.headers.get('x-r048m-capture-secret'),
+  Deno.env.get('R048M_CAPTURE_SECRET'),
+);
+if (captureRequested && !captureAuthorization) return json({ok:false,version:VERSION,error:'Capture not authorized'},403);
+const [abbr,roles]=await Promise.all([abbreviationFacts(supabase),tokenRoles(supabase)]);const surface=buildCanonicalSurfaceDocumentV1(body.text,abbr);
+const captureStructuralRpcInput=captureAuthorization;let graph:CanonicalLanguageGraphV1=createCanonicalLanguageGraphV1(surface);const sentenceRuns:any[]=[];const bindingErrors:string[]=[];const candidateSurfaces = [
   ...new Set(
     surface.tokens
       .filter((t) => t.kind === 'word')
@@ -321,7 +330,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
     );
   }
 
-  if (structuralRpcCapture) {
+  if (structuralRpcCapture && i === 0) {
     const pairedEvidence = buildStructuralRpcPairedEvidenceV1(
       crypto.randomUUID(),
       {
@@ -331,9 +340,17 @@ for (let i = 0; i < surface.sentences.length; i++) {
       },
       sqlAnalysis,
     );
-    // Local-only, ephemeral evidence. No logs, storage, or API response.
-    // A separate authorized extraction mechanism is required for real producer evidence.
-    void pairedEvidence;
+    // A service-role-only, one-shot database gate persists exactly one private pair.
+    // Never log or return the evidence to the HTTP caller.
+    const { data: stored, error: captureError } = await supabase.rpc(
+      'r048m_store_structural_rpc_evidence_v1',
+      { p_capture_id: pairedEvidence.captureId,
+        p_input: pairedEvidence.input,
+        p_output: pairedEvidence.output },
+    );
+    if (captureError || stored !== true) {
+      throw new Error('r048m_capture_persistence_failed');
+    }
   }
   const projection = projectLegacyNonPhraseStructureIntoCanonicalGraphV143(
     graph,
