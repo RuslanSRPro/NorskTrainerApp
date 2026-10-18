@@ -488,7 +488,9 @@ async function residueAttempts(jobId: string, chain: Chain, ids: string[]) {
 }
 
 // D10 15.10.2026: review rejections (after the one retry in ai-enrichment-worker).
-const AI_REVIEW_REJECTION=/AI_POS_SENSE_REVIEW_REJECTED|AI_SINGLE_TRANSLATION_REQUIRED|AI_REQUESTED_EXAMPLE_MISSING|AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON/;
+// D10 17.10.2026: + pos_mismatch_filtered (an answer of another part of speech,
+// nothing written; ai-enrichment-worker marks the word "for review").
+const AI_REVIEW_REJECTION=/AI_POS_SENSE_REVIEW_REJECTED|AI_SINGLE_TRANSLATION_REQUIRED|AI_REQUESTED_EXAMPLE_MISSING|AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON|pos_mismatch_filtered/;
 
 async function runAggregateResidue<T extends { id: string }>(params: {
   jobId: string; chain: Chain; items: T[];
@@ -1256,6 +1258,17 @@ async function runCompoundStep(lexemeIds:string[],formsResult:WorkerResult):Prom
           lexemeId:r?.lexemeId,lemma:r?.lemma,status:r?.status})),
         error:head.ok?undefined:safeStringify(head.data?.error??'').slice(0,300)};
     }catch(e){out.head_forms={ok:false,error:safeStringify(e).slice(0,300)};}
+    // D10 16.10.2026 (agreed): a noun still without forms (no Ordbøkene
+    // article, no compound head) -> the forms NAOB lists in its article
+    // (naob-forms-worker, separate table). Same rule: an addition, reported
+    // in compound_v1.naob_forms, never changes the forms outcome.
+    try{
+      const naob=await callWorkerJson('naob-forms-worker',{lexemeIds:noArticle},50000);
+      out.naob_forms={ok:naob.ok,status:naob.status,
+        results:(Array.isArray(naob.data?.results)?naob.data.results:[]).map((r:any)=>({
+          lexemeId:r?.lexemeId,lemma:r?.lemma,status:r?.status})),
+        error:naob.ok?undefined:safeStringify(naob.data?.error??'').slice(0,300)};
+    }catch(e){out.naob_forms={ok:false,error:safeStringify(e).slice(0,300)};}
   }
   return out;
 }

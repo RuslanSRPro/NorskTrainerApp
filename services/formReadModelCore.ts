@@ -17,6 +17,9 @@ export type FormsBundle = {
   // D10 15.10.2026: forms of a compound built from its head card (word
   // without its own Ordbøkene article). Shown with "≈".
   forms_by_head?: boolean;
+  // D10 16.10.2026: forms NAOB lists in the article of a noun without
+  // Ordbøkene forms (brenne, noun). Shown with "NAOB" next to the label.
+  forms_source?: 'naob';
 };
 
 export type V2FormRow = {

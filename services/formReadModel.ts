@@ -38,7 +38,44 @@ export async function fetchFormsMap(
       console.warn('[forms] compound head forms unavailable', error);
     }
   }
+  // D10 16.10.2026: a noun with neither of the above gets the forms NAOB
+  // lists in its article (brenne <- brennen, brenner). Same rule: read only
+  // for words with no forms yet, never mixed with another source.
+  const withoutAny = ids.filter((id) => !forms.has(id));
+  if (withoutAny.length > 0) {
+    try {
+      for (const [id, bundle] of await fetchNaobFormsMap(withoutAny)) {
+        forms.set(id, bundle);
+      }
+    } catch (error) {
+      // An addition only: without it the word simply has no forms, as before.
+      console.warn('[forms] NAOB forms unavailable', error);
+    }
+  }
   return forms;
+}
+
+async function fetchNaobFormsMap(
+  lexemeIds: string[],
+): Promise<Map<string, FormsBundle>> {
+  const rows: V2FormRow[] = [];
+  for (const idBatch of chunkValues(lexemeIds, FORM_QUERY_ID_BATCH_SIZE)) {
+    const { data, error } = await supabase
+      .from('lexeme_naob_forms_v1')
+      .select(
+        'lexeme_id, form_key, primary_values, alternative_values, accepted_articles, regularity_marker, display_order',
+      )
+      .in('lexeme_id', idBatch)
+      .order('lexeme_id', { ascending: true })
+      .order('display_order', { ascending: true });
+    if (error) throw new Error(`fetchNaobFormsMap failed: ${error.message}`);
+    for (const row of (data ?? []) as any[]) {
+      rows.push({ ...row, is_compound: false, morphology_source_lemma: null } as V2FormRow);
+    }
+  }
+  const bundles = buildV2Bundles(rows);
+  for (const bundle of bundles.values()) bundle.forms_source = 'naob';
+  return bundles;
 }
 
 async function fetchCompoundHeadFormsMap(

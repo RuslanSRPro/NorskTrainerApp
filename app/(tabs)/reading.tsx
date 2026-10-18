@@ -270,7 +270,9 @@ function getFormLabels(word: any):TrainingFormItem[]{
     return primaryValues.length?[{
       // D10 15.10.2026: "≈ " = forms built from the head of a compound word
       // without its own Ordbøkene article (vinterjakke <- jakke).
-      label:(word?.formsByHead?"≈ ":"")+label,
+      // D10 16.10.2026: " · NAOB" = forms listed in the NAOB article of a noun
+      // without Ordbøkene forms (brenne, noun).
+      label:(word?.formsByHead?"≈ ":"")+label+(word?.formsSource==="naob"?" · NAOB":""),
       formKey,
       value:primaryValues.join(", "),
       primaryValues,
@@ -411,6 +413,11 @@ export default function ReadingScreen() {
       if(!active||!fresh)return;
       resolvedLexemesRef.current.set(id,fresh);
       setSelectedWord((current:any)=>current?.id===id?{...current,...fresh}:current);
+      // D10 17.10.2026: the row of this card in the "choose part of speech"
+      // list shows the same fresh translation as the card.
+      setWordMatches((rows:any[])=>rows.some((row:any)=>row?.id===id)
+        ?rows.map((row:any)=>row?.id===id?{...row,...fresh,learned:row.learned,searchQuery:row.searchQuery,ua:fresh.ua||"",en:fresh.en||""}:row)
+        :rows);
     }).catch((e:any)=>{if(active)setError(String(e?.message||e));});
     return()=>{active=false;};
   },[selectedWord?.id]);
@@ -491,6 +498,17 @@ export default function ReadingScreen() {
         setJobPhase("needs_review");
         stopOverallPolling();
         stopChainPolling();
+        // D10 17.10.2026 (agreed): a job that ended "for review" has still
+        // written most cards; the shown cards and the "choose part of speech"
+        // list are re-read from the database too (read only, nothing saved).
+        void refreshAnalyzedCards(id).catch(error=>console.error('Reading card refresh failed:',error));
+        if(wordCheckJobRef.current===id){
+          wordCheckJobRef.current=null;
+          const queries=wordCheckQueriesRef.current;wordCheckQueriesRef.current=[];
+          if(textRef.current.trim()===wordCheckTextRef.current){
+            void refreshWordMatches(queries).catch(error=>console.error('Word check refresh failed:',error));
+          }
+        }
         return;
       }
 

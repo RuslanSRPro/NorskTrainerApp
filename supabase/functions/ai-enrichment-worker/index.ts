@@ -1372,6 +1372,17 @@ async function processCandidatesBatch(
         }
 
         if (entry.pos_mismatch_filtered) {
+          // D10 17.10.2026 (agreed): the answer was of another part of speech
+          // and nothing was written -> the word is marked "for review" like a
+          // translation rejected after the retry (same table, same effect:
+          // the job is not stopped, the word stays without a translation).
+          if (p.candidate.kind === 'lexeme' && Number(entry.translations_written ?? 0) === 0) {
+            const { error: markError } = await supabase.rpc('d10_record_ai_review_rejection_v1', {
+              p_lexeme_id: p.candidate.id, p_reason: 'AI_POS_MISMATCH_FILTERED',
+              p_detail: { fields: entry.pos_mismatch_filtered, attempts: attempt + 1 },
+            });
+            if (markError) errors.push({ id: p.candidate.id, error: `review_mark_failed: ${safeStringify(markError)}` });
+          }
           errors.push({
             kind: p.candidate.kind,
             id: p.candidate.id,

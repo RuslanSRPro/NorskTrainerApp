@@ -179,6 +179,8 @@ function mapLexemeRow(
     morphologySourceLemma: forms?.morphology_source_lemma ?? null,
     // D10 15.10.2026: forms built from the head of a compound (shown with "≈").
     formsByHead: forms?.forms_by_head ?? false,
+    // D10 16.10.2026: forms from the NAOB article (shown with "NAOB").
+    formsSource: forms?.forms_source ?? null,
   };
 }
 

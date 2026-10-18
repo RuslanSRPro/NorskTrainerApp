@@ -78,12 +78,32 @@ async function loadNeighbours(lemma: string): Promise<Neighbour[]> {
   if (cache.has(lemma)) return cache.get(lemma)!;
   const { data, error } = await supabase
     .from('lexemes')
-    .select('id, lemma, pos, translation_ua, translation_en, dictionary_status')
+    .select('id, lemma, pos, dictionary_status')
     .eq('lemma', lemma)
     .limit(12);
   if (error) throw error;
-  const rows = ((data ?? []) as Neighbour[])
-    .filter((n) => n.pos !== 'expression' && n.dictionary_status !== 'excluded')
+  const listed = ((data ?? []) as Neighbour[])
+    .filter((n) => n.pos !== 'expression' && n.dictionary_status !== 'excluded');
+  // D10 17.10.2026 (agreed: one source of translations): the same canonical
+  // translation as the card itself, never the old lexemes.translation_* columns.
+  // Unreadable -> the rows are shown without a translation.
+  const canonical = new Map<string, { ua: string; en: string }>();
+  if (listed.length) {
+    const { data: tr, error: trError } = await supabase.rpc('get_canonical_lexeme_translations_v1', {
+      p_lexeme_ids: listed.map((n) => n.id),
+    });
+    if (!trError) {
+      for (const row of (tr ?? []) as any[]) {
+        const id = String(row?.lexeme_id ?? '');
+        const cur = canonical.get(id) ?? { ua: '', en: '' };
+        if (row?.language_code === 'uk') cur.ua = String(row?.translation ?? '').trim();
+        if (row?.language_code === 'en') cur.en = String(row?.translation ?? '').trim();
+        canonical.set(id, cur);
+      }
+    }
+  }
+  const rows = listed
+    .map((n) => ({ ...n, translation_ua: canonical.get(n.id)?.ua || null, translation_en: canonical.get(n.id)?.en || null }))
     .sort((a, b) => {
       const ia = POS_ORDER.indexOf(String(a.pos)); const ib = POS_ORDER.indexOf(String(b.pos));
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);

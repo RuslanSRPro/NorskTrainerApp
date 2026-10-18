@@ -2,6 +2,7 @@ import { linguisticText, pairLexinExample, lexinExampleEvidence } from '../_shar
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { parseLexinMorphology, cardFormWords, lexinEntryFitsCard } from '../_shared/d10-lexin-homograph-forms.ts';
+import { selectR9Entries, type R9Entry } from '../_shared/d10-lexin-r9.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -642,6 +643,53 @@ serve(async (req) => {
       return fallbackOrderCounter++;
     };
 
+    // ── D10 17.10.2026 (agreed): addition to D3 ────────────────────────────
+    // Several Lexin entries fit this card (its article lists both brente and
+    // brant): only the entries that do NOT fit a sibling card are taken.
+    // All fitting entries shared with a sibling, or none fits -> D3 as is and
+    // the card is marked "for review". See _shared/d10-lexin-r9.ts.
+    let r9Allowed: Set<number> | null = null;
+    let r9Info: Record<string, unknown> | undefined;
+    let entriesSkippedR9 = 0;
+    if (homographCardForms && lexemeId && !expressionId) {
+      const { data: siblingRows, error: siblingRowsError } = await supabase
+        .from('lexemes').select('id').eq('lemma', lemma).eq('pos', explicitPos).neq('id', lexemeId).limit(5);
+      if (siblingRowsError) {
+        return jsonResponse({ ok: false, stage: 'load_r9_siblings', error: safeStringify(siblingRowsError) }, 500);
+      }
+      const siblingForms: Set<string>[] = [];
+      for (const sibling of (siblingRows ?? []) as any[]) {
+        const { data: values, error: valuesError } = await supabase
+          .rpc('d10_homograph_main_forms_v1', { p_lexeme_id: sibling.id });
+        if (valuesError) {
+          return jsonResponse({ ok: false, stage: 'load_r9_sibling_forms', error: safeStringify(valuesError) }, 500);
+        }
+        siblingForms.push(cardFormWords((values as string[] | null) ?? []));
+      }
+      const candidates: R9Entry[] = [];
+      for (const [entryId, bucket] of entryBuckets) {
+        const lemOk = entriesOfType(bucket, 'E-lem', 'N-lem').some((e) => {
+          const t = normalizeKey(e.text ?? '');
+          return t === normalizedLemma || t.replace(/^å\s+/, '') === normalizedLemma.replace(/^å\s+/, '');
+        });
+        const cat = entriesOfType(bucket, 'E-kat', 'N-kat', 'B-kat').find((e) => e.text?.trim())?.text ?? null;
+        if (!lemOk || normalizePos(cat) !== requestedPos) continue;
+        candidates.push({ id: entryId, forms: parseLexinMorphology(
+          entriesOfType(bucket, 'E-mor').map((e) => String(e.text ?? '')).join(' ')) });
+      }
+      const selection = selectR9Entries(candidates, homographCardForms, siblingForms);
+      r9Info = { status: selection.status, review: selection.review, entries: selection.detail };
+      if (selection.allowed) r9Allowed = new Set(selection.allowed);
+      if (!dryRun) {
+        const { error: markError } = selection.review
+          ? await supabase.rpc('d10_record_lexin_r9_review_v1', {
+              p_lexeme_id: lexemeId, p_reason: selection.review,
+              p_detail: { entries: selection.detail, card_forms: [...homographCardForms] } })
+          : await supabase.rpc('d10_clear_lexin_r9_review_v1', { p_lexeme_id: lexemeId });
+        if (markError) r9Info.mark_error = safeStringify(markError);
+      }
+    }
+
     const translations: any[] = [];
     const sourceEvidence: any[] = [];
     const definitions: any[] = [];
@@ -719,6 +767,11 @@ serve(async (req) => {
             entriesSkippedHomographForms++;
             posBlocked = true;
           }
+        }
+
+        if (!posBlocked && r9Allowed && !r9Allowed.has(entryId)) {
+          entriesSkippedR9++;   // D10 17.10.2026: fits the sibling card too
+          posBlocked = true;
         }
 
         if (!posBlocked) {
@@ -1032,6 +1085,8 @@ serve(async (req) => {
         entries_skipped_unknown_pos: entriesSkippedUnknownPos,
         entries_skipped_homograph_forms: entriesSkippedHomographForms,
         homograph_card: homographCardForms !== null,
+        entries_skipped_r9_shared: entriesSkippedR9,
+        r9: r9Info,
         allow_unknown_pos: allowUnknownPos,
         pos_debug_entries: posDebugEntries,
         matched_entry_ids: [...new Set(matchedEntryIds)],
@@ -1168,6 +1223,8 @@ serve(async (req) => {
       entries_skipped_pos_mismatch: entriesSkippedPosMismatch,
       entries_skipped_unknown_pos: entriesSkippedUnknownPos,
       allow_unknown_pos: allowUnknownPos,
+      entries_skipped_r9_shared: entriesSkippedR9,
+      r9: r9Info,
       matched_entry_ids: [...new Set(matchedEntryIds)],
       lem_matches: lemMatches,
       idiom_matches: idiomMatches,
