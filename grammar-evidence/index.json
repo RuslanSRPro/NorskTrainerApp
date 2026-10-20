@@ -1,0 +1,2467 @@
+{
+  "schema_version": "grammar-evidence-index-v2",
+  "head": "8cf59a372c280aa2b35492742caf9b7214dd7627",
+  "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
+  "file_count": 191,
+  "history_event_count": 51,
+  "strict_history_event_count": 4,
+  "history_runs": [
+    "A3.8F-R15D",
+    "A3.8F-R16",
+    "A3.8F-R17",
+    "A3.8F-R18",
+    "A3.8F-R19",
+    "A3.8F-R20-R23",
+    "A3.8F-R24F",
+    "A3.8F-R24J",
+    "A3.8F-R25B",
+    "A3.8F-R25C",
+    "A3.8F-R25C-D4-LOGGING",
+    "A3.8F-R26",
+    "PRODUCTION_ACTIVATION_AUDIT_2026-10-16",
+    "A3.8F-R27",
+    "A3.8F-R28",
+    "A3.8F-R29",
+    "A3.8F-R29B",
+    "A3.8F-R30",
+    "A3.8F-R31",
+    "A3.8F-R32",
+    "A3.8F-R32B",
+    "A3.8F-R33",
+    "A3.8F-R34",
+    "A3.8F-R35",
+    "A3.8F-R35B",
+    "GRAMMAR_EVIDENCE_SYSTEM_V1_INSTALL",
+    "GRAMMAR_EVIDENCE_SYSTEM_V1_VALIDATE",
+    "GRAMMAR_EVIDENCE_SYSTEM_V1_COMMIT",
+    "A3.8F-R36",
+    "A3.8F-R36B",
+    "GRAMMAR_GATE_RESOLVER_001",
+    "GRAMMAR_GATE_RESOLVER_002",
+    "R004",
+    "R005",
+    "R006",
+    "R007",
+    "R007B",
+    "DB_METADATA",
+    "R008",
+    "R009",
+    "R009B",
+    "R010",
+    "R010B",
+    "R011",
+    "R012",
+    "R013",
+    null,
+    "R032B-FIRST-STRICT-EVENT",
+    "R034-R033-CLI-PATH-BLOCKER",
+    "R035-SECURITY-DEFINER-METADATA",
+    "R046-EVIDENCE-RECONCILIATION-NO-PROMOTION"
+  ],
+  "history_policy": {
+    "legacy_events_preserved": true,
+    "strict_event_schema": "grammar-evidence-event-v2",
+    "strict_required_fields": [
+      "run",
+      "timestamp_utc",
+      "commit",
+      "proof_id",
+      "result_type",
+      "artifact_hash",
+      "status_before",
+      "status_after"
+    ],
+    "duplicate_strict_run_ids_rejected": true,
+    "strict_event_chronology_validated": true,
+    "strict_transition_chain_validated": true,
+    "artifact_sha256_validated": true,
+    "db_snapshot_default_max_age_hours": 24
+  },
+  "proof_dependencies": {
+    "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [],
+    "S0_FOCUSED_REGRESSION_SUITE": [],
+    "D4_COMPLETE_PRECONDITION_FIXTURE": [],
+    "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": [],
+    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [],
+    "ONE_OR_MORE_CARDINALITY_RUNTIME": [],
+    "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH": [],
+    "PHRASE_PRODUCER_EXECUTION": [],
+    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": [],
+    "CLAUSE_PUBLIC_BOUNDARY_WIRING": [],
+    "CLAUSE_SOURCE_BACKED_FIXTURE": [],
+    "CLAUSE_PRODUCER_EXECUTION": [
+      "CLAUSE_SOURCE_BACKED_FIXTURE"
+    ]
+  },
+  "proof_source_dependencies": {
+    "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
+      "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
+    ],
+    "S0_FOCUSED_REGRESSION_SUITE": [],
+    "D4_COMPLETE_PRECONDITION_FIXTURE": [],
+    "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": [],
+    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [],
+    "ONE_OR_MORE_CARDINALITY_RUNTIME": [
+      "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts"
+    ],
+    "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH": [],
+    "PHRASE_PRODUCER_EXECUTION": [],
+    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": [
+      "PHRASE_PRODUCER_EXECUTION",
+      "CLAUSE_PRODUCER_EXECUTION"
+    ],
+    "CLAUSE_PUBLIC_BOUNDARY_WIRING": [],
+    "CLAUSE_SOURCE_BACKED_FIXTURE": [],
+    "CLAUSE_PRODUCER_EXECUTION": [
+      "CLAUSE_PUBLIC_BOUNDARY_WIRING",
+      "CLAUSE_SOURCE_BACKED_FIXTURE"
+    ]
+  },
+  "proof_next_actions": {
+    "S0_OWNER_BINDING_AUTHORITY_IDENTITY": "",
+    "S0_FOCUSED_REGRESSION_SUITE": "",
+    "D4_COMPLETE_PRECONDITION_FIXTURE": "",
+    "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": "",
+    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": "",
+    "ONE_OR_MORE_CARDINALITY_RUNTIME": "",
+    "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH": "",
+    "PHRASE_PRODUCER_EXECUTION": "",
+    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "",
+    "CLAUSE_PUBLIC_BOUNDARY_WIRING": "",
+    "CLAUSE_SOURCE_BACKED_FIXTURE": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
+    "CLAUSE_PRODUCER_EXECUTION": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo."
+  },
+  "files": [
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+      "sha256": "85b6d0c8939c586dc87faa153300c4beddddc24343f64ec48e5f1e2be7e036fb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
+      "sha256": "6550ceda4cc5420dd8c1083eabe30fa6d99aa7b9fa05110860cd82d0414fbd5c",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-construction-candidate-lattice-v1.ts",
+      "sha256": "3f32de44a3e2227a28bdf6d556a7cde776169bb0d72ae4bab50a2ed5b39d2631",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-construction-projection-adapter-v1.ts",
+      "sha256": "6d996e6d79e9ed89c4eca0015fa5a85237fd487d697d809852a647623cee2d6d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "sha256": "7a9cedc3538dcb6416a6cf1d5e12fbb0c159e0fc295d8ab20c6ecddabbd08049",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "sha256": "3274177f9da7165434706fcb5b9d95880c06fb461b5bf963d757291071b274d5",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "sha256": "9c3a774699d087c1d2176bf75f9e30759435f8b190aa95b4f214bc6ed7eda6ae",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "sha256": "e9a3fbb49fdf95fcb63ee0cebb4c85880a1bfc55dc22798066d89ce2698a370e",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-node-type-occurrence-inventory-capability-v1.ts",
+      "sha256": "eceb66858f5f8ebe520e3c3ea671af418942bf5c697fb8f18205ac807806f5e2",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+      "sha256": "31ffa2000bac1ea97beb4f5c4814c0487572455b77f9eb842289dcf86c7f6da1",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": true,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-phrase-head-projection-adapter-v1.ts",
+      "sha256": "1638ad3353e0c0a28a85ed7256c0a974534cd571d69914173142eceb89e1e899",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "sha256": "d1b8387d15123e9aa02436aff96fadba6702014acf7b1f3a8279ab331b69ba1e",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-predicate-candidate-lattice-v1.ts",
+      "sha256": "74593133456274b5aa4fad55b6edaea1227514debd327edd654a6a890a9c2572",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-predicate-projection-adapter-v1.ts",
+      "sha256": "2a87c10d19b9998fc429985fe4cb5ae911fb9031e05ed394bdaad88cd7c50359",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-candidate-lattice-v1.ts",
+      "sha256": "d6bbbf1a2f766ff1c0049095afbd7b2486a1bb08c7e99ddc1e0cdd83b49a7585",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-occurrence-binding-v1.ts",
+      "sha256": "851ed8aa3a972f4a05a668241a4a6df62012f8d2013130ba04505c5a367e509c",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-role-ontology-v1.ts",
+      "sha256": "74a6ec882fae7612823e45359ce7b839e824f474f0217fb50fdd02eeaec29ed3",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-source-role-adapter-v1.ts",
+      "sha256": "57a0c5dfa4672410540c635ac23c22cce63192cdc082180d90067104f4ea83f4",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "sha256": "1f6af63e9b441dccc6de7a72f0fdedb15fee26d6355bc62fa970e5f356a99051",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-entity-compatibility-v1.ts",
+      "sha256": "6571ee21e3afb25f04c4d6d182694780ff4c65d5c11aa3efb7d6b95ad3b71652",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "sha256": "90c7174a1ec4f46ac8ac834f6637ee8ac4777399f367831b4ea4467544097aea",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "sha256": "8ea7fba601b0ef523ef693993c3e203f13a641aba3c6e81729983fbaf282d936",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "sha256": "74e60dfd86e53f6aede4b69ce98a2c1abd855d6bb8d905aa9b036c8b6856f8df",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
+      "sha256": "9e427df0f6ab2a9c6d99f9ff8b163ee1affe7f27244bc9848bb5ed477a17013b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-execution-context-input-v1.ts",
+      "sha256": "c1ef35a25d19b806eba1accc7874f96c2338a60ba592b825ecf992df8476c2af",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "sha256": "764c600beb46d3af81f4351ab09b33b636a2edbd8214a60e77c1d3702ee8f198",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "sha256": "41d0dfa7d359ff8735517897c0b15ebd0352215a511bae0ea00941ebc39109c9",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "sha256": "5d3acb0217c81597330c90c12190d77c0e6fa09895545e0b92253b9361814130",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "sha256": "8b779c9fc97c4c6b5580eaf094d6b2a5b49365dc21fd592d23441afffbbb1c17",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "sha256": "c03ac2c403d655716fa0d78eafaddaaa87a2fc467b4a53fac863c6ae5366fe7c",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "sha256": "4ce999c83a44a7832c00f05a9f4ab2dc206707df544de508ee340a74e10a0834",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
+      "sha256": "e20c1d9f8790b1ccc16784590ba1c036ad2cb7d3b3ee2e5b222f7928a1ef8df4",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
+      "sha256": "452cd244fbded30a0f3719f50e563d2bd17fef1458377f81e5f5f3bca3562a7d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "sha256": "a6749230012ed4b47eb9ec14395cac1a5b6cd5c294d4dc37ace33f345800c090",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "sha256": "6fbdc3a78662f175e55140da8ff75a72cebb6f03ceafce78ed86643821d7c457",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-recursive-compound-truth-composer-v1.ts",
+      "sha256": "35a208505105abcb521232088421e894cf3bd06c3df88fbb180ec1329579a335",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "sha256": "3c47f2bc517b84df2a4afcd23a915c4ff82c5bc11e9eb1c7d5b4f81c255311eb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "sha256": "f441f87327119dfea64f7c62c8e31c98a69f36f11356b38c7d8117ef8a716608",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "sha256": "adc096bf6dea05ed597c88bb1cf2ccfd2f4b11d125cd62f3791484119844a103",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-token-pos-authority-bound-child-truth-adapter-v1.ts",
+      "sha256": "f2766b2029ccad3de02137a12e213f49e5c3962a30a0c974fac1d2c04b381dc6",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-token-pos-context-bound-child-truth-adapter-v1.ts",
+      "sha256": "c8176cfe7a55c6111dba9a4cdc17f47186ea327181dd2a4a75edaa9b89883eb6",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-token-pos-leaf-truth-child-evidence-adapter-v1.ts",
+      "sha256": "025f1f273e0dd1d396d2652577b6eceafbbd2e126d21da52c35f4427f0b95167",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "sha256": "41436778ff4ccc28b6b641835842998aba98797f9519bd5023f3b5013a1b53ac",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "sha256": "10d1f577de031b0ef29b1d95c11b980ff2689a144c008f45bf8a9b4d061957a4",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
+      "sha256": "0614d66a54ad91ba507a21601c45926bf63ab1e0949720d3e9d70899a46e9693",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "sha256": "57cea05f54bb892fe45eada13ec4abc33022d2e413333b55b0c51483eebcc395",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
+      "sha256": "a31969c33e114ce04dd6d71f000797bce9ac463440b6826f7e361ac4df53f2fd",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "sha256": "ac7e15c2f0da51eab086aa1a4e684e61ddcf24787919b99649a807fc5d3ef19f",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-action-authority-v1.ts",
+      "sha256": "7e6bc527172406e93706f5659eed86e6c2ec79bfd61d4df23b1006f2d5d227d2",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-binding-entity-compatibility-v1.ts",
+      "sha256": "78b106837dc3dea9cac7b6f8e26dede3361e949d287166a93448245cde9094fb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-reference-root-authority-v1.ts",
+      "sha256": "c09d4078ebeff0627d0b9a02ef40826baed4273a5a18a98364f0d1ab1234925b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-scope-compatibility-composition-v1.ts",
+      "sha256": "d95ab541e0f1ff231f060f53bac55367a1841ac14adf5974ad7fa754c48f8fb0",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-type-occurrence-inventory-composition-v1.ts",
+      "sha256": "b1e110693eda591be5e36c1f4f46df31b9968c85131d01d93b433ae6abc0165b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-condition-truth-composition-v2.ts",
+      "sha256": "f2cf80d010531b5fe00c62bc6d94df3dd6ec9931628edca203dd5b5cf429b9a8",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-condition-truth-composition-v3.ts",
+      "sha256": "981b250ccc1ac69836e3148bd9c5e025982df08e4f0fdaba997029c5a124c370",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "sha256": "50b905e9fd50f61378b2d3de8517ecae998913d3dc05526d2acca14bc371f44c",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "sha256": "e4e8fb63d05710895490b40a38f1b912775fecc691b551d1be860739127412f8",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "sha256": "9b1da426a915667d87f03a0f190c705fc9f5b6e1c97802eab6cb138c7fb98c93",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-occurrence-set-v1.ts",
+      "sha256": "172c44afcec16e3168294dfe169a4ac03e7de6ebd0b88c566e73259ff69e8b92",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-value-projection-v1.ts",
+      "sha256": "9cf0ad289ddccbd0801e2ed7d7c6b9c21a475036d013775fd81b54437c1efcad",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
+      "sha256": "205d12b4127ed4889a327742eb0237c2f2d972dc6862043c61c88d75ab78f6b9",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts",
+      "sha256": "1cbc3b9cfa28f6df8ac0828db8da37d47a141a003e59ee8535bf42473cc948e9",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
+      "sha256": "3cd07a23e8b1e44f775ce9d99167c281ffd754291463dfd4ac93182c4fe5a735",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "sha256": "7ef506b5a18605df6188e4fcec1f9ccf31a4227ab3bc5738076666785a5bdf28",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-leaf-condition-disposition-v1.ts",
+      "sha256": "e4a348bb6e04113b5e820219eeca00382447d479072306166cf6c9b3f49fd8b5",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "sha256": "66d110283031854f8e27d973b9a91e129027a61003c3d98c5549f8f011abe9c3",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "sha256": "b8a44308c4e4f34b04ee95957cdc584ae26037c94d5ebe6ea7ca4227d6a8515b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "sha256": "69fac15954594644999ca239ad8be342436c3171f1418a65dcc96d925f56f0dc",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
+      "sha256": "a6d3b778dbcce7e069539715a6b60f30d42174dc2355c64de416c8f494cce0ca",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "sha256": "26bf8500cccbc25dc9b5513739f03c8978bc239dde1d1bbc03d262ecd8b31b33",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "sha256": "f9ab386ecc211c9a821753c89b9e322d9a75e18c4bc03b735f4bad0b621a0fca",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-eq-condition-truth-semantic-capability-v2.ts",
+      "sha256": "392315660a504d247643d105e294c0431b715406146268186de165de7ba0d7ba",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-leaf-root-candidate-disposition-v1.ts",
+      "sha256": "cabdae8583f1fa90a04d02bff1580af90d722df6b5ba7606cb7c3e543a84c07a",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "sha256": "50b2914ae2c6249cf34d4491504a58d6f1247bf8929319397ff356304af979eb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "sha256": "61ffbb98e0bfc892e4e7b7d59521ddb76c0657e27f5e1630494d6bfa66c0c2b0",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "sha256": "b96e369b4a160d1e8c6ca320338093c608d64cb047dd7cae5ef815bbdf45c624",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "sha256": "07afe95f0ef40342eebbf93e574c426db3aa42e1821fc5972cc033b1a70222ec",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-where-right-operand-site-authority-v1.ts",
+      "sha256": "1b37d7cb5136423495c4171e988b6a9f0e4399abbfc44b943f1020f97463b5bb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "sha256": "1faa6392d236149443d9f1dc8dce7ec6f04d3ddb995676d8b2f449ea22b67b55",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-sentence-occurrence-identity-authority-v1.ts",
+      "sha256": "ff5a52734f8dec5fd3e46169d9c2977dfd9e992ff21aa6ea6a5b303b665529d8",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "sha256": "686b79d9a61e2764df3cdab8e5f15d5c8cf13bea32c371a4890420c3996598d7",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "sha256": "ad7d4319d63be5f073a96409ba6605e12b8aeaa9ebf2facb97ab85625c97b3b1",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "sha256": "db5983ca7ea8f0361a2ebbc68c5d860b1b4219c5d3fa6ceb1951b735af6e91fb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "sha256": "3ea04b00e8f5065472923f13a41e34ea5ffa4f5aa04190b8e0c1988f0f5695e5",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "sha256": "53400e55d83f67ac86f32c387a8891cdb5e02d4bc4c22f59f71621cc7f23ba70",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
+      "sha256": "0b2a19c3e49d3be244d4f7512b6c547c5cbe87206bc5cfbfcc4aad837d3cb3d2",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
+      "sha256": "57117f8b8c51c06fc111574db1555cc707ccef244f58d48f523b3c82540d9520",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "sha256": "60c29658de21afc664033a3613d5436d3f6383cd4823333025289cec0bbe397e",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "sha256": "d6893b3ee6e28b4e4923d0dd9992ca4ea10a186fa841ab43d600b9816d6efeec",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "sha256": "89340ab14ad12be0e37b452ea98097326b818118f1e013677faa1af04405df0b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "sha256": "9383c42554e88fb0467cbe3aa22adee32eff6add17359cc67a54f12cf94a8fa1",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
+      "sha256": "df5b9b247d3e9abca840a701a53eaf73e4502a8fece05b83c2fe6f8481088960",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "sha256": "9dd35dbc572c2446ecee35d715b4accb9b3582b62db3eddb7cc7c0b1fef591bb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": true,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": true,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/morphology.ts",
+      "sha256": "27efdcdb01388812636fee6c7ee62fb4d24e81f7624cde7202aeeaf8d688fd40",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/normalize.ts",
+      "sha256": "cf176ba798f27f32442145cf41bf125e0a462265890c3414dceb3d2e46d6f15e",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "sha256": "fdb45e3936a98e5eae7f8b9d134b8f6b154dbb2d55b1ce4d3896690f0f09ca96",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-candidate-lattice-v1.ts",
+      "sha256": "4e466fbc7ea18886e3b98227116fa17d5071a057e3dfc4a603f80c3d746d1c78",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-constraint-propagation-v1.ts",
+      "sha256": "c27c0e35e81b99318772c4afdbd54f856d93493471bae9b4691679b01ad79736",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-construction-candidate-lattice-v1.ts",
+      "sha256": "d5797b677c4c1ef728a5dffbe0fe91edc94f422650356bc33e923680500c4794",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-construction-live-snapshot-adapter-v1.ts",
+      "sha256": "0b9b9d14ab186601d0467cb2bace29a67a0b3548decc0d4c22d31847f0135f0f",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-construction-projection-adapter-v1.ts",
+      "sha256": "92e7279370695f0092261f96d13f8823c967cdb6a7e4d916875ab3208cfed97b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-current-runtime-sentence-context-authority-v1.ts",
+      "sha256": "f37945179524d774d162a060314ac3d51024dfa25bde8762eb0789fdb5f0b92c",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-dependency-runtime-authority-v1.ts",
+      "sha256": "c5767a887bc57737a2e384a7a91b68d88f7c21272b01b7c0d154c61e43b25c35",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-graph-snapshot-identity-authority-v1.ts",
+      "sha256": "0760395d18ae7508d74f8bcb7b04c70ff66ca0de7f8b3ba6316447d69edc14fb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-node-type-occurrence-inventory-capability-v1.ts",
+      "sha256": "17c64bd09b29fefa4142acc2fa4383eea3fd288eb70a58022a7c6aadc1b37c44",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-phrase-candidate-lattice-v1.ts",
+      "sha256": "e0976c00f376ff3e35c68225f0169db1a1b2c05b6f48c25a6ca706d67c430011",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": true,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-phrase-head-projection-adapter-v1.ts",
+      "sha256": "658e68de20bfee7e7768faa53f42f7688a5eeab69a0b5b8d1fdc8000732fd8da",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": true,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-pos-fact-ownership-authority-v1.ts",
+      "sha256": "1dee777ba1086563395857fd68855ec42032bac9d3ab49356d6a4ee97c356dfc",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-predicate-candidate-lattice-v1.ts",
+      "sha256": "c99af097bffd6401d9b42c905f31dc28b5b98836f5f7164c518319fdfa7f2166",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-candidate-lattice-v1.ts",
+      "sha256": "cea202d54437499ce0ec413b1897d5250ed1f9bada330d7798f3c836772c052d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-live-structural-integration-v1.ts",
+      "sha256": "547597a07b772f66cf29b6da92c1c0d2b6b32589218029cd08603b1aeedd5293",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-occurrence-binding-v1.ts",
+      "sha256": "c3fccdfb3ccd2649f4463b560068c14ba714b972491aeae6d4041daa6cfb2beb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-role-ontology-v1.ts",
+      "sha256": "02494bd11d902c521ab5fb118a29d12216fd20de96876ca014c988ff64276ae0",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-source-role-adapter-v1.ts",
+      "sha256": "eed8f4ef3a6dfac095b23c2c85463265beeba7f1d9ed57f8d17346dc808a48a8",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-definition-authority-v1.ts",
+      "sha256": "660225f076bbe2c165ccd6b366172579e42847650713c54190163148f4bc5ea4",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-entity-compatibility-v1.ts",
+      "sha256": "db8754200eccb837afcac592535fffd5ee749a8a80934583676ce28737f540f9",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "sha256": "d439f24723f8946cf8c4c6c0c2dd07e7dfc5d99f77fc440049702c8098d1c94d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "sha256": "f0f442d848ecedbd221d962f4e76d3412b44e786774f1c4df4c18bde75a79b66",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "sha256": "ea5c4c79077d5b6de091357a1c022c26b9eeb5a2e223041ce80430899caa2218",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-shape-authority-v1.ts",
+      "sha256": "f692841656977a315644904322a1271babb157ef19aef04c93706513363e7d0d",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-execution-context-input-v1.ts",
+      "sha256": "550f381bb1d7b6f340fde21428e04e105557c0c5c1368e7f14ce8b8509ffdcef",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "sha256": "9ec2a913bae680b3213d93991ecb5c025b11f05c575d1df85ad1cd5e448295ae",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "sha256": "c3b71fefe223e1fc8b673503ef05958c91b97c4a3e114abb6ec2d0d4d94c59bb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "sha256": "67eceef1c4ef32589d8a8e242bb479dd5051425bd44940dc653def3fb1ed45b4",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "sha256": "29afbec682f48d9dcc05515d650348387df8ac8a2fc6ee24271b7462befd5cd9",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "sha256": "0a15d20b8c5b5474a698df000c3cb89cfb0ce1a130c88cd3585cfcc942f25f3d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "sha256": "1ded6ea3d80a34a1a40a10eaa2a44de010497753acbf9ba0e90772e2b6808141",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
+      "sha256": "06fada1a3331b6cff397f471203a7c112a509f6901a9135fe54a4d890d378a8b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
+      "sha256": "5ba7ba408005b24658afccc0ae07ec54f3d83f16434569b9bb3ddda447c9cb47",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "sha256": "bd83d54e034b99bfb3197e920d618e35504af149d8cba123d3df2ffdc9626c3d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "sha256": "d263ab7ef42fb9958cba19ec1bac6c2c336d9607b62f3170580d2e30de7ae6b0",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-recursive-compound-truth-composer-v1.ts",
+      "sha256": "3d005d2a090d1a234384b8f7251fd7f908d3e3e78de74f41849cbb7ea0d36100",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "sha256": "ff8e1de71b229b1a027702200832165e3b8de0ad5babc8b487c14ab43b6c3385",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "sha256": "aa568aedbc4cb418b1b18c29c8d9c4e8759c9c10d3650c6cbfcad6cdaed04623",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "sha256": "4712f4c05bf58546ac40d94af84c3908488113921902758bd02901ef7c861ddf",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-token-pos-authority-bound-child-truth-adapter-v1.ts",
+      "sha256": "73d409ca82317d077792e102933789e6c464bc8a495c0a8133f539d398c6aa27",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-token-pos-context-bound-child-truth-adapter-v1.ts",
+      "sha256": "0fcfe590d412b77a6edc6ba4fce76a1085f86c59c470fe7c36c991f99a204838",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-token-pos-leaf-truth-child-evidence-adapter-v1.ts",
+      "sha256": "a8c50402ae9169e9020a989a65a2719fd68cf6ea822e4f4d0e7b3dfa42313bcf",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "sha256": "605a6ba1051bda20f12da82f582da2d9b5bc348f611a57efa1a93c4850a09b45",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "sha256": "16c3cc36061c4a12ae2c8fb1493115571a73e4e3e17b58b96416686ffea1888f",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
+      "sha256": "0a2dc024ea1da6e20e39475650408c54e9cf23b52594f496cf77264f5850bc00",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "sha256": "7a06d4a7bc9a6d508c47141563a816ff58c997f2c9d953ce82b414d6272d61a1",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
+      "sha256": "b408064458486d58ea22100fd8c814cb3400431b3e919cd4fe9aff5571edc764",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "sha256": "d34e9bce8982654f0d96f0c4e3e6711540f2d5e8f0e71350b6a25ae91aca1e77",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-action-authority-v1.ts",
+      "sha256": "9edef1106afec8bf480b4c6103431c6346d48cd187a86dae1543b1e57db2974e",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-binding-entity-compatibility-v1.ts",
+      "sha256": "fb35cb26997a74ae384b76b455eb40ffc4ff8708cff0bfc4ab31080b1aacb231",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-reference-root-authority-v1.ts",
+      "sha256": "9465bebfbc01f235253043740303d6b36d939f1ad70639f74903bdf28f1a2df7",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-scope-compatibility-composition-v1.ts",
+      "sha256": "6dbf61e3311ec317663f0e484a33182c8cd54f6232a2dfc403c11e5c6d8cd923",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-type-occurrence-inventory-composition-v1.ts",
+      "sha256": "792f64ed02602250d2614ee05a4bbf306aa19e952d4739e51af4851c8008d67d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-condition-truth-composition-v2.ts",
+      "sha256": "ff746f1064fab13706ba8a9e6c426d556f3c98a6cbabc10cbb139f756ac85710",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-condition-truth-composition-v3.ts",
+      "sha256": "5a4f1e6e2691cddd24cdcb2b7b228736e8acc4de5548df2e573a7e1c29e8d8d0",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "sha256": "bf57658dd95264052776f9970c011f385a87fe3694ad587e0c41be466a2725b4",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "sha256": "aac572ee56efef7e68a3ce55116168ea11c21378e088bf839f5f8532dc529307",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "sha256": "ec22aeb980c8770eb924670ebaed60a4714b74706385b26a284ba66c8d9298c4",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-binding-occurrence-set-v1.ts",
+      "sha256": "96403ee9b811af85c7aca9c0721f44c6c714266ede83b8d23b0305736822551f",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-binding-value-projection-v1.ts",
+      "sha256": "7e1252eb3547afc025dad912552ded5b440df15611c666dac6a8c3dd88cfdf2d",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
+      "sha256": "f0d05ef9d99ceca4f909e4772f1c60ea4cbce541bce92bd517cbe0f7a7a54bc2",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts",
+      "sha256": "940c4f1f0e2f30fdd1da372974921f24698e0fa5524c06925529279b039a4d15",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
+      "sha256": "bc0d7f1207520b37ff6249c931b444b764f5d1d364eeae8cb3af9f86fad5b601",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "sha256": "950441d62f6047f3671d773fb465e3b24d02cca7f5cfdacadf10cc85c99d1fa0",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-leaf-condition-disposition-v1.ts",
+      "sha256": "99b87dc81fca09b7cf135c8187058195f74800d5d6ca0a71fd59316b78d5adbe",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "sha256": "423408e42fe4f5ac588f2a3aa72efb11d24c9cfd2254d8d0ef12adc412c8d278",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "sha256": "4663ea9905526993bb8c374dbe209f70c2abb44991071e2b2ecd61f4c2a387bb",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "sha256": "f7132466632dbd8756f5f8b35178146417a25bf59e426d48b9533c0df565351c",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
+      "sha256": "0338715ece9b3545ffe05e8477d7ae7d69d3920d14aed23b0a6d6dbf73b96e84",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "sha256": "2c157c1aa3a44683043ba0b95bae814121b95b15d1684e17e57880decf1b2a33",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "sha256": "b6ba0095f7894c86c0dfe9ed43cfd8a4c0a86c9b610656e58196b7487f26c7f9",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-eq-condition-truth-semantic-capability-v2.ts",
+      "sha256": "af25de7be3e64249581b7c61d5c3fae9d0b2aa1dbc008333aa704141e392117d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-leaf-root-candidate-disposition-v1.ts",
+      "sha256": "9a7081a64f7d6672e221c168a3ced89a3b6098a838477afd0ce85faf1f3e50e4",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-nested-leaf-child-evidence-e2e-golden-v1.ts",
+      "sha256": "d1d31565496e46abe2438ba08d71d06af7708e07736a2299da05ce0e3d690e42",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-nested-leaf-clean-path-golden-v1.ts",
+      "sha256": "65a8cb127815635ffd92ae62a2ff6e524887f50f1b2de2fe6569959d34f36e6f",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "sha256": "ee843ce422ce25cbc6fae2484d5f2a8d941bf3edd2c114e9b7d401a528fdcb57",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "sha256": "293b7f0122bff185a9c8e450d8cf37ea222a6998910a931c1a3c8fedb6b4a11a",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "sha256": "2a6cd3ef89946bd96f7632564fb5e48369a5963e06c8fa377c665fce10bec33f",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "sha256": "1310c0419005d9a7384bc4664f84e2b829f1f36acbb5e0880ba372fb779a3730",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-runtime-where-right-operand-site-authority-v1.ts",
+      "sha256": "368a0fa64588f0cefc47ae8e2db1ea3a99edeae15e06b6c9191747712293f2ec",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "sha256": "32749580736e04b0a3458df349dfc7dae36b5661865c93bb859364e670ae384b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-sentence-occurrence-identity-authority-v1.ts",
+      "sha256": "009cd103f7e1bc7b35e4776cb369a88ebe348158cd885e3fba7ba5e5811c9e5b",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "sha256": "b54bfb8b7982aba9d81e8bfbc15615ad601f80d10f0eeed7c1211b08f6541a04",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "sha256": "f3c0be73676a13353ac5253b7eba4c24e7df980d08835957f1ccd79bf2d53793",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "sha256": "ec8379001a07a7a019dd2210d5b81f2a0ca0462a1bca96c889118040ff2eaa58",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "sha256": "805fa77d43d27314749ec63d83a32d0804a9d11041b250166c9ad9b8c01563d5",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
+      "sha256": "f6e2f50df0ce8d1dfcd11ec1b011d3e6b798efd39f6c1e1041b61ef02f873491",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
+      "sha256": "8787771e6bfd50813a4c7e4b1b69c8a5fd02f465f99e16646426a4732a7039d0",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-hypothesis-set-read-v1.ts",
+      "sha256": "cc403ff55300fb6713e7387370842a2eee80d967b1551eb95c5d21f44e09c101",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "sha256": "76eae10cad333e3dc828da1e0e66a5d013382c15c9195c6359352433e88a142f",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "sha256": "d841a6b5f5e5db03d5914b66e984a169fe97c3c662f623b5d5d18823dd0d92aa",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-property-capability-v1.ts",
+      "sha256": "784f172689d945d8d03373c072e126ab3bf15af3ff9282ca21cd1ec835cf91d6",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-r048r-production-rpc-integration-v1.ts",
+      "sha256": "3087e3a9e1cc2241872cee1cfd50c34b9ee16879eb560628df08c42c9025f349",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/test-r048r-rule-evidence-v1.ts",
+      "sha256": "4c561d809ae71210f9d3321804182fa7c6e1a656172cc145ed77d671fa84c734",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "sha256": "9b92be9370390696487c6b8f6ac8176bbf740c699995a6f0326c001098b99205",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": true,
+        "buildCanonicalPhraseCandidateLatticePatchV1": true,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    }
+  ],
+  "proofs": [
+    {
+      "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "S0 preserves and reuses the exact canonical binding definition authority object identity through owner evidence and association.",
+      "result": "Recovered exact R15D proof passed 6/6 after the minimal identity-preservation patch; patch committed as current HEAD.",
+      "evidence_runs": [
+        "A3.8F-R24F",
+        "A3.8F-R25C",
+        "A3.8F-R26"
+      ],
+      "dependencies": [
+        "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [
+        "source dependency changed: supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+        "source dependency changed: supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
+      ],
+      "notes": "Authority IDs remain distinct; object identity contract was not weakened."
+    },
+    {
+      "proof_id": "S0_FOCUSED_REGRESSION_SUITE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Focused S0/runtime regression suite passes with required read permission.",
+      "result": "10/10 focused tests PASS.",
+      "evidence_runs": [
+        "A3.8F-R24J"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Kept separate from the exact recovered R15D proof."
+    },
+    {
+      "proof_id": "D4_COMPLETE_PRECONDITION_FIXTURE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Recovered runtime fixture reaches complete_action_execution_precondition_evidence with satisfied final disposition and no blocking reasons.",
+      "result": "One create_dependency candidate, coherent readiness, two resolved endpoint evidences, complete precondition evidence, blockingReasons=[], finalDecisionDisposition=satisfied.",
+      "evidence_runs": [
+        "A3.8F-R25C-D4-LOGGING"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Fixture endpoints both resolve to subject; this proves D4 mechanics, not activation suitability."
+    },
+    {
+      "proof_id": "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "proof_kind": "DB_SNAPSHOT",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Production activation authority table contained zero grants at the audited snapshot.",
+      "result": "canonical_dependency_action_activation_authority_v1 row count = 0.",
+      "evidence_runs": [
+        "PRODUCTION_ACTIVATION_AUDIT_2026-10-16"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [
+        "DB snapshot lacks strict freshness-bearing event"
+      ],
+      "notes": "No activation grant was created by R24F-R35B."
+    },
+    {
+      "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "proved_at_head": null,
+      "claim": "ir.structural.dependency.subject_of_predicate is activation-ready through the full runtime chain.",
+      "result": "Not proven. Clause/phrase occurrence-domain execution remains an upstream compatibility boundary; add_trace execution is also not proven.",
+      "evidence_runs": [
+        "A3.8F-R27",
+        "A3.8F-R28"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not activate."
+    },
+    {
+      "proof_id": "ONE_OR_MORE_CARDINALITY_RUNTIME",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_AND_TEST",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Runtime cardinality semantics support one_or_more as minimum 1 with unbounded maximum.",
+      "result": "Existing runtime contract and tests support one_or_more.",
+      "evidence_runs": [
+        "A3.8F-R28"
+      ],
+      "dependencies": [
+        "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": ""
+    },
+    {
+      "proof_id": "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "Existing canonical graph/legacy adapter path can materialize canonical clause nodes with spans and provenance; no new clause authority contract is required.",
+      "result": "Existing clause node and legacy adapter authority path identified.",
+      "evidence_runs": [
+        "A3.8F-R30"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Source-level architectural proof only; not clause producer executable proof."
+    },
+    {
+      "proof_id": "PHRASE_PRODUCER_EXECUTION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "buildCanonicalPhraseCandidateLatticePatchV1 passes its direct repository tests.",
+      "result": "2 direct phrase producer tests executed; 0 failures.",
+      "evidence_runs": [
+        "A3.8F-R32B"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Phrase status remains candidate; this is not clause+phrase composition proof."
+    },
+    {
+      "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": null,
+      "claim": "Real clause and phrase producers execute over one source-backed compatible fixture and yield containment-compatible canonical occurrences.",
+      "result": "No existing composed fixture/test found.",
+      "evidence_runs": [
+        "A3.8F-R31",
+        "A3.8F-R32B"
+      ],
+      "dependencies": [
+        "PHRASE_PRODUCER_EXECUTION",
+        "CLAUSE_PRODUCER_EXECUTION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Neutral span predicate proof does not promote this claim."
+    },
+    {
+      "proof_id": "CLAUSE_PUBLIC_BOUNDARY_WIRING",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "23a692da386380c7b0ed349c732dca55e7464175",
+      "claim": "projectLegacyNonPhraseStructureIntoCanonicalGraphV143 is a public production boundary that creates adapter context internally and invokes clausePatchFromLegacyV11.",
+      "result": "Public boundary and production wiring found in source.",
+      "evidence_runs": [
+        "A3.8F-R34",
+        "A3.8F-R35B"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Does not prove executable source-backed clause fixture."
+    },
+    {
+      "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "FIXTURE_AUTHORITY",
+      "proved_at_head": null,
+      "claim": "A reusable source-backed executable clause fixture exists for the public boundary.",
+      "result": "Construction/wiring sources found, but no executable reusable fixture proven.",
+      "evidence_runs": [
+        "A3.8F-R34",
+        "A3.8F-R35B"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "R35B heuristic classification was intentionally not promoted to PROVEN."
+    },
+    {
+      "proof_id": "CLAUSE_PRODUCER_EXECUTION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": null,
+      "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
+      "result": "No executable call-site fixture/test proven yet.",
+      "evidence_runs": [
+        "A3.8F-R33",
+        "A3.8F-R34",
+        "A3.8F-R35B"
+      ],
+      "dependencies": [
+        "CLAUSE_PUBLIC_BOUNDARY_WIRING",
+        "CLAUSE_SOURCE_BACKED_FIXTURE"
+      ],
+      "blocked_by": [
+        "CLAUSE_SOURCE_BACKED_FIXTURE"
+      ],
+      "stale_reasons": [],
+      "notes": "Next concrete proof target."
+    }
+  ],
+  "policy": {
+    "index_can_promote_proof": false,
+    "automatic_transition": "effective PROVEN->STALE only; never auto-promote declared proof status",
+    "stale_inputs": [
+      "tracked source dependency change",
+      "non-PROVEN blocked_by dependency",
+      "expired/unverifiable DB snapshot freshness"
+    ]
+  }
+}

@@ -1,0 +1,2524 @@
+[
+  {
+    "source_archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "priority": "P0",
+      "blocker": "S0 action association",
+      "cause": "exact_owner_binding_definition_missing_or_ambiguous",
+      "evidence": "R15D"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "priority": "P0",
+      "blocker": "canonical object identity",
+      "cause": "sourceBindingDefinitionAuthority lost/rederived",
+      "evidence": "R17–R19"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "priority": "P1",
+      "blocker": "scheduler end-to-end runtime",
+      "cause": "not yet proven",
+      "evidence": "A3.8F"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "priority": "P1",
+      "blocker": "activation grants",
+      "cause": "0 rows last reported",
+      "evidence": "A3.8A"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "priority": "P2",
+      "blocker": "action families",
+      "cause": "set_role/create_clause/scoring/diagnostic/trace gaps",
+      "evidence": "family audit"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "priority": "P2",
+      "blocker": "analyze-text",
+      "cause": "shadow-only; no learner feedback",
+      "evidence": "A3.8E"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "priority": "P2",
+      "blocker": "full Edge check",
+      "cause": "local node_modules missing",
+      "evidence": "A3.8E"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "P0",
+      "blocker": "genuine public two-authority B2 regression missing",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "P0",
+      "blocker": "coherence gate not wired post-filter/pre-cardinality",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "P0",
+      "blocker": "pre-v1.48 semantic closure not passed",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "P1",
+      "blocker": "NOT/ANY/ALL closure suite not reverified on final repair",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "P1",
+      "blocker": "post-WHERE OWNER chain needs revalidation after B2",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "P1",
+      "blocker": "activation authority not proven",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "id": "B07",
+      "priority": "P1",
+      "blocker": "no one-rule learner end-to-end execution proof",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "id": "B08",
+      "priority": "P2",
+      "blocker": "parallel morphology work shares worktree",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "source_file": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019/08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "id": "B09",
+      "priority": "P2",
+      "blocker": "final fixture audit blocked by PowerShell parser error",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019.zip",
+    "source_file": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "1",
+      "blocker": "No D7.10 production consumer",
+      "missing_edge": "plan→executor",
+      "status": "PROVEN",
+      "next_action": "D7.12 semantic compatibility audit"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019.zip",
+    "source_file": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "2",
+      "blocker": "No existing plane proven compatible",
+      "missing_edge": "consumer contract",
+      "status": "PROVEN",
+      "next_action": "compare exact input/output/provenance/mutation semantics"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019.zip",
+    "source_file": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "3",
+      "blocker": "Actual create_dependency execution not proven",
+      "missing_edge": "executor→mutation",
+      "status": "UNVERIFIED",
+      "next_action": "local executable proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019.zip",
+    "source_file": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "4",
+      "blocker": "Derived graph mutation/snapshot/idempotency not proven",
+      "missing_edge": "execution→facts",
+      "status": "UNVERIFIED",
+      "next_action": "shadow proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019.zip",
+    "source_file": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "5",
+      "blocker": "No learner-facing result for one activated rule",
+      "missing_edge": "facts→feedback",
+      "status": "UNVERIFIED",
+      "next_action": "controlled one-rule activation then regression"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019.zip",
+    "source_file": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "6",
+      "blocker": "Cross-chat/global completeness out of scope",
+      "missing_edge": "history",
+      "status": "PROVEN",
+      "next_action": "merge archives with current Git later"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT18-V18-V20-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "priority": "P0",
+      "blocker": "V19.4 canonical field",
+      "next_action": "Read actual sentence_model.predicates[0] from full debug/full response",
+      "missing_evidence": "No full authoritative response independently verified",
+      "permission": "read-only"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT18-V18-V20-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "priority": "P0",
+      "blocker": "Native activation authority",
+      "next_action": "Identify real native manifest/READY/ACTIVATED path and runtime producer",
+      "missing_evidence": "No native run IDs, manifests or activation proofs in this chat",
+      "permission": "read-only"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT18-V18-V20-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "priority": "P0",
+      "blocker": "Current Git/Production HEAD",
+      "next_action": "Match source versions to deployed revisions",
+      "missing_evidence": "No git SHA / deployment IDs verified",
+      "permission": "read-only"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT18-V18-V20-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "priority": "P1",
+      "blocker": "Golden execution",
+      "next_action": "Execute positive and negative local tests at known HEAD",
+      "missing_evidence": "Guides present; no audit execution",
+      "permission": "local only"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CHAT18-V18-V20-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "priority": "P1",
+      "blocker": "grammar_topics",
+      "next_action": "Review planned migration against live schema before any application",
+      "missing_evidence": "Roadmap is proposal, not deployed proof",
+      "permission": "read-only"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B1",
+      "priority": "Critical",
+      "blocker": "No verified current HEAD/runtime trace",
+      "next_action": "Read-only inspect repository and logs",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B2",
+      "priority": "Critical",
+      "blocker": "No verified activation authority/manifest/feedback path",
+      "next_action": "Map native runtime contract",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B3",
+      "priority": "High",
+      "blocker": "Predicate Builder finite_member role mismatch",
+      "next_action": "Root roles vs semantic roles; add invariant",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B4",
+      "priority": "High",
+      "blocker": "V18.2 / Orchestrator v1.7 not independently inspected",
+      "next_action": "Read source and deployment proof",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B5",
+      "priority": "High",
+      "blocker": "Golden test logs/commands absent",
+      "next_action": "Executable positive and negative fixtures",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B6",
+      "priority": "Medium",
+      "blocker": "Graph id namespace inconsistent",
+      "next_action": "Canonical ID policy; check subject/object",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "id": "B7",
+      "priority": "Medium",
+      "blocker": "Morphology legacy labels and expression cleanup impact",
+      "next_action": "Verify final rows and downstream dependencies",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "id": "B8",
+      "priority": "Medium",
+      "blocker": "Response profile compute gating/client compatibility unknown",
+      "next_action": "Inspect call sites",
+      "status": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "blocker_id": "B01",
+      "priority": "P0",
+      "blocker": "Generic snapshot-bound sentence occurrence foundation is not closed/committed",
+      "evidence": "R1–R15 Golden extension currently does not type-check; latest repair script aborted before modification",
+      "required_next_proof": "Repair Golden fixture only; production must remain byte-identical; obtain executable READY-path 39/39 then closure review",
+      "dependency": "C26",
+      "source": "SRC-CURRENT-CHAT"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "blocker_id": "B02",
+      "priority": "P0",
+      "blocker": "No independent CURRENT Runtime sentence-context authority/source",
+      "evidence": "Existing snapshot/sentence authorities enumerate identities but select none; no current/selected/winner semantics found",
+      "required_next_proof": "Define exact caller/runtime execution-context source after generic foundation closes",
+      "dependency": "C22",
+      "source": "SRC-CURRENT-CONTEXT-AUDIT"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "blocker_id": "B03",
+      "priority": "P0",
+      "blocker": "Candidate applicability to CURRENT context cannot be proven",
+      "evidence": "A4.6a1f outputs candidates but no independent current context exists",
+      "required_next_proof": "Implement only after B02; exact join by snapshotIdentityId + snapshotSentenceOccurrenceIdentityId",
+      "dependency": "C23",
+      "source": "SRC-CURRENT-CONTEXT-AUDIT"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "blocker_id": "B04",
+      "priority": "P0",
+      "blocker": "No occurrence winner/final Runtime occurrence binding",
+      "evidence": "Search found no production true markers",
+      "required_next_proof": "Design later layer after applicability; preserve ambiguity until proof",
+      "dependency": "C24",
+      "source": "SRC-CURRENT-CONTEXT-AUDIT"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "blocker_id": "B05",
+      "priority": "P0",
+      "blocker": "Cardinality metadata exists but enforcement not proven",
+      "evidence": "cardinalityEnforcementPerformed:true search returned 0",
+      "required_next_proof": "Add enforcement only after final binding semantics are proven",
+      "dependency": "C25",
+      "source": "SRC-CURRENT-CONTEXT-AUDIT"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "blocker_id": "B06",
+      "priority": "P1",
+      "blocker": "No native end-to-end proof of one Grammar KB rule from manifest to correct learner result",
+      "evidence": "Chat proves many runtime semantics but not ACTIVATED→EXECUTED→PRODUCED_CORRECT_RESULT",
+      "required_next_proof": "Select one verified runtime-eligible rule and build executable local/shadow proof",
+      "dependency": "activation path",
+      "source": "SRC-MARKUP; SRC-CURRENT-CONTEXT-AUDIT"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "blocker_id": "B07",
+      "priority": "P1",
+      "blocker": "Exact rule ID/manifest ID for the first activation candidate is not established in this chat",
+      "evidence": "No verified single rule identifier carried through current v1.46 chain",
+      "required_next_proof": "Read-only discovery in current Git/KB before activation work",
+      "dependency": "first-rule plan",
+      "source": "UNVERIFIED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "blocker_id": "B08",
+      "priority": "P1",
+      "blocker": "Legacy SQL executor exists but is not proof of native canonical runtime activation",
+      "evidence": "SQL migration can execute dependency_pattern, but target-path equivalence/activation not shown",
+      "required_next_proof": "Keep classified NOT_ON_TARGET_PATH unless exact call wiring to native path is proven",
+      "dependency": "C27",
+      "source": "SRC-SQL"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "source_file": "Grammar-History-ContextAuthority-V146-20261019/08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "blocker_id": "B09",
+      "priority": "P2",
+      "blocker": "v1.53 and later R/D package narrative requested by task is not evidenced in this chat corpus searched",
+      "evidence": "Search results surfaced v1.40/v1.43/v1.44/v1.46 but no verified v1.53/D48 sequence",
+      "required_next_proof": "Leave UNVERIFIED; reconcile with archives from other chats",
+      "dependency": "coverage",
+      "source": "SRC-TASK"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "blocker_id": "B001",
+      "priority": "P0",
+      "component": "Canonical Surface v1.38 DB contract",
+      "blocker": "SQL/psql DB connection path times out; safe SQL application cannot be verified",
+      "dependency": "Stable database connection/readback",
+      "evidence_status": "PROVEN",
+      "impact": "Cannot claim v1.38 contract row/function exists or is runtime-bound"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "blocker_id": "B002",
+      "priority": "P0",
+      "component": "Canonical Graph v1.39 DB contract",
+      "blocker": "Depends on v1.38 row and same failing DB connection",
+      "dependency": "B001 + verified v1.38 prerequisite",
+      "evidence_status": "PROVEN",
+      "impact": "Cannot claim canonical producer registry/core contract applied"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "blocker_id": "B003",
+      "priority": "P0",
+      "component": "v1.37 release control",
+      "blocker": "Causal comparator and promotion to shadow not completed; last verified status build",
+      "dependency": "Stable DB connection",
+      "evidence_status": "PROVEN",
+      "impact": "Release lineage after v1.36 is not fully certified"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "blocker_id": "B004",
+      "priority": "P0",
+      "component": "Canonical runtime call path",
+      "blocker": "v1.38/v1.39 files are not proven imported/called by production or shadow analyzer",
+      "dependency": "Current Git inspection + explicit call-site integration",
+      "evidence_status": "PROVEN",
+      "impact": "TYPE/TEST wiring is not runtime execution"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "blocker_id": "B005",
+      "priority": "P0",
+      "component": "Single canonical truth",
+      "blocker": "Legacy JSON layers still own parallel representations until producers emit graph patches on target path",
+      "dependency": "v1.39 runtime binding",
+      "evidence_status": "INFERRED",
+      "impact": "Risk of duplicated/stale facts if more layers are added before migration"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "blocker_id": "B006",
+      "priority": "P1",
+      "component": "Lexical/POS/Morph candidate lattice",
+      "blocker": "Canonical graph types exist but generic candidate generation + elimination propagation is not completed",
+      "dependency": "Canonical graph runtime binding",
+      "evidence_status": "PROVEN",
+      "impact": "Early ambiguity still depends on old analyzer outputs"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "blocker_id": "B007",
+      "priority": "P1",
+      "component": "Predicate/Lexical Sense",
+      "blocker": "Sense-sensitive forms/MWEs remain blocked by design (finne ut, bestemme, cross-standard bridges)",
+      "dependency": "Sense inventory/bridge with provenance",
+      "evidence_status": "PROVEN",
+      "impact": "Valency/attachment cannot safely resolve many predicates"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "blocker_id": "B008",
+      "priority": "P1",
+      "component": "General valency / arguments",
+      "blocker": "Coverage is partial; MWE-specific and selected complement frames only",
+      "dependency": "Canonical predicate/sense facts",
+      "evidence_status": "PROVEN",
+      "impact": "obj/iobj/PP/infinitive/clausal complements remain incomplete"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "blocker_id": "B009",
+      "priority": "P1",
+      "component": "Dependency completion",
+      "blocker": "Attachment layer can know relations not yet materialized as canonical dependency edges",
+      "dependency": "General valency + canonical graph",
+      "evidence_status": "PROVEN",
+      "impact": "Sentence graph incomplete"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 11,
+    "data": {
+      "blocker_id": "B010",
+      "priority": "P1",
+      "component": "Clause type / word order",
+      "blocker": "Full Schema A/B, V2, questions, imperative, exceptions, coordination not complete on canonical graph",
+      "dependency": "Clause/dependency graph",
+      "evidence_status": "PROVEN",
+      "impact": "Many NRG word-order rules cannot be safely applied"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 12,
+    "data": {
+      "blocker_id": "B011",
+      "priority": "P1",
+      "component": "NP/AP/PP internal graph",
+      "blocker": "Full determiner/adjective/noun/possessive/genitive/postmodifier/preposition complement structure incomplete",
+      "dependency": "Morph/POS candidate lattice",
+      "evidence_status": "PROVEN",
+      "impact": "Large adjective/noun/preposition rule families remain unbound"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 13,
+    "data": {
+      "blocker_id": "B012",
+      "priority": "P1",
+      "component": "Tense/Aspect/Modality constructions",
+      "blocker": "Construction semantics beyond basic forms/selected perfect handling incomplete",
+      "dependency": "Predicate/auxiliary construction graph",
+      "evidence_status": "PROVEN",
+      "impact": "Cannot evaluate many tense/modal rules"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 14,
+    "data": {
+      "blocker_id": "B013",
+      "priority": "P2",
+      "component": "Coordination/control/ellipsis",
+      "blocker": "Not yet generalized",
+      "dependency": "Dependency + predicate/clause graph",
+      "evidence_status": "PROVEN",
+      "impact": "Complex sentence coverage"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 15,
+    "data": {
+      "blocker_id": "B014",
+      "priority": "P2",
+      "component": "Punctuation syntax",
+      "blocker": "Tokenizer must preserve punctuation, but grammatical punctuation rules are separate and incomplete",
+      "dependency": "Canonical surface + clause graph",
+      "evidence_status": "PROVEN",
+      "impact": "Cannot diagnose comma/direct-speech rules reliably"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 16,
+    "data": {
+      "blocker_id": "B015",
+      "priority": "P2",
+      "component": "Orthography/spelling",
+      "blocker": "No canonical spelling/orthographic validity graph yet",
+      "dependency": "Canonical surface + lexeme/form inventory",
+      "evidence_status": "PROVEN",
+      "impact": "Unknown vs misspelled cannot be separated end-to-end"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 17,
+    "data": {
+      "blocker_id": "B016",
+      "priority": "P2",
+      "component": "Semantics/scope",
+      "blocker": "causal/temporal/conditional/modal/negation scope partial",
+      "dependency": "Syntax + sense + constructions",
+      "evidence_status": "PROVEN",
+      "impact": "Applicability for semantic-scoped source rules remains blocked"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 18,
+    "data": {
+      "blocker_id": "B017",
+      "priority": "P1",
+      "component": "Grammar Evidence Graph",
+      "blocker": "Canonical rule applicability/evidence/violation graph is roadmap only",
+      "dependency": "Completed canonical linguistic facts",
+      "evidence_status": "PROVEN",
+      "impact": "No unified candidate→applicable rule→evidence→teacher path"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 19,
+    "data": {
+      "blocker_id": "B018",
+      "priority": "P1",
+      "component": "Controlled production activation",
+      "blocker": "No explicit production active-release pointer/end-to-end one-rule learner feedback proof in this chat",
+      "dependency": "B004/B017 + explicit authorization",
+      "evidence_status": "UNVERIFIED",
+      "impact": "Shadow execution cannot be called user activation"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 20,
+    "data": {
+      "blocker_id": "B019",
+      "priority": "P2",
+      "component": "Current repository truth",
+      "blocker": "Attached repo-audit comment says app tokenizer/segmentation integration differs from status docs, but current Git was not inspected in this audit",
+      "dependency": "Read-only Git/code audit",
+      "evidence_status": "UNVERIFIED",
+      "impact": "Need verify actual call path before wiring v1.38"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 21,
+    "data": {
+      "blocker_id": "B020",
+      "priority": "P3",
+      "component": "DB/cron performance",
+      "blocker": "Heavy Goldens and cron compete; logs show statement/job startup timeouts",
+      "dependency": "Deferred architecture/performance phase after Language Graph",
+      "evidence_status": "PROVEN",
+      "impact": "Slows verification; intentionally not current priority"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CURRENT-RUNTIME-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "priority": "P0",
+      "blocker": "Corrected real canonical E2E harness has no execution output",
+      "dependency": "Run deno check and deno test locally; save log",
+      "proof_missing": "E2E positive singleton TRUE, exact lineage",
+      "status": "UNVERIFIED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CURRENT-RUNTIME-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "priority": "P1",
+      "blocker": "0/1/N fail-closed behavioral matrix not proven against real upstream",
+      "dependency": "P0",
+      "proof_missing": "0 empty, N multiple, unresolved, false filtered",
+      "status": "UNVERIFIED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-CURRENT-RUNTIME-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "priority": "P2",
+      "blocker": "WHERE operator/recursive composer and scheduler activation path not demonstrated",
+      "dependency": "P0-P1",
+      "proof_missing": "Production CALL_WIRED + shadow + user feedback",
+      "status": "UNVERIFIED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "blocker_id": "B01",
+      "priority": "P0",
+      "description": "No manifest/READY/ACTIVATED/native runtime proof",
+      "area": "activation",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "blocker_id": "B02",
+      "priority": "P0",
+      "description": "No learner feedback / full E2E execution",
+      "area": "activation",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "blocker_id": "B03",
+      "priority": "P0",
+      "description": "Current Git HEAD/SHA and deployed source unavailable",
+      "area": "provenance",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "blocker_id": "B04",
+      "priority": "P1",
+      "description": "Dependency→SentenceModel→Graph call-site not inspected",
+      "area": "graph",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "blocker_id": "B05",
+      "priority": "P1",
+      "description": "No adversarial candidate-ranking golden",
+      "area": "testing",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "blocker_id": "B06",
+      "priority": "P1",
+      "description": "No canonical feature normalization / unified perfect rule implemented",
+      "area": "grammar design",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "blocker_id": "B07",
+      "priority": "P1",
+      "description": "RPC signature mismatch fix not source-verified",
+      "area": "lexicon",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "blocker_id": "B08",
+      "priority": "P2",
+      "description": "Response profiles/trace volume not implemented",
+      "area": "API",
+      "resolution_evidence_needed": "current source + reproducible positive/negative proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-PROCESS-ACTIVATION-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "P-4",
+      "priority": "HIGH",
+      "blocker": "Design canonical eligibility/manifest contract",
+      "dependencies": "P-1 closed",
+      "required_evidence": "contract spec and executable fixtures"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-PROCESS-ACTIVATION-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "P-5",
+      "priority": "HIGH",
+      "blocker": "Define admission/identity semantics before activation",
+      "dependencies": "P-4",
+      "required_evidence": "approved schema and tests"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-PROCESS-ACTIVATION-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "P-6",
+      "priority": "HIGH",
+      "blocker": "Implement native activation authority",
+      "dependencies": "P-4,P-5",
+      "required_evidence": "versioned activation proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-PROCESS-ACTIVATION-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "P-7",
+      "priority": "HIGH",
+      "blocker": "Implement execution readiness/admission",
+      "dependencies": "P-6",
+      "required_evidence": "positive/negative admission proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-PROCESS-ACTIVATION-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "FALSE",
+      "priority": "MEDIUM",
+      "blocker": "Verify FALSE/NOT/ANY/ALL semantics",
+      "dependencies": "B2 closed",
+      "required_evidence": "executable truth-table matrix"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-GRAMMAR-PROCESS-ACTIVATION-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "E2E",
+      "priority": "HIGH",
+      "blocker": "Prove one rule shadow then controlled activation",
+      "dependencies": "P-4,P-5,P-6,P-7",
+      "required_evidence": "run IDs, derived facts, learner outcome"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Infinitive-Section-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "priority": "P0",
+      "blocker": "No manifest evidence",
+      "missing_evidence": "manifest ID and content for a single rule",
+      "next_action": "read-only discovery"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Infinitive-Section-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "priority": "P0",
+      "blocker": "No current runtime wiring proof",
+      "missing_evidence": "producer/consumer call sites and Git HEAD",
+      "next_action": "read-only code inspection"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Infinitive-Section-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "priority": "P0",
+      "blocker": "No executable positive/negative test",
+      "missing_evidence": "repeatable commands and logs",
+      "next_action": "local proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Infinitive-Section-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "priority": "P1",
+      "blocker": "Potential semantic duplicate",
+      "missing_evidence": "exact statements and digital_models for two UUIDs",
+      "next_action": "compare without mutation"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Infinitive-Section-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "priority": "P1",
+      "blocker": "No independent Production verification",
+      "missing_evidence": "read-only DB evidence with safe redaction",
+      "next_action": "read-only query"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-Infinitive-Section-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "priority": "P1",
+      "blocker": "No activation and feedback evidence",
+      "missing_evidence": "controlled authorization, runtime result, feedback",
+      "next_action": "shadow then explicit permission"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-20261019.zip",
+    "source_file": "Grammar-History-NRG-KB-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B1",
+      "priority": "HIGH",
+      "blocker": "Complete NRG §7.3.1.4.2 source coverage and exact excerpt-to-claim mapping",
+      "dependency": "Source audit"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-20261019.zip",
+    "source_file": "Grammar-History-NRG-KB-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B2",
+      "priority": "HIGH",
+      "blocker": "Finalize 17 draft candidates and semantic block allocation",
+      "dependency": "B1"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-20261019.zip",
+    "source_file": "Grammar-History-NRG-KB-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B3",
+      "priority": "HIGH",
+      "blocker": "Inspect actual SQL and DB import outcomes, with safe read-only proof",
+      "dependency": "B2"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-20261019.zip",
+    "source_file": "Grammar-History-NRG-KB-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B4",
+      "priority": "CRITICAL",
+      "blocker": "Find candidate → manifest → runtime executable contract and call site",
+      "dependency": "B3"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-20261019.zip",
+    "source_file": "Grammar-History-NRG-KB-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B5",
+      "priority": "CRITICAL",
+      "blocker": "Obtain positive/negative executable golden tests and current HEAD",
+      "dependency": "B4"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "P0",
+      "blocker": "No manifest-to-runtime proof",
+      "next_evidence": "read-only repo + DB discovery"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "P0",
+      "blocker": "No READY/ACTIVATED/EXECUTED evidence",
+      "next_evidence": "executable local and shadow proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "P0",
+      "blocker": "No verified learner feedback result",
+      "next_evidence": "controlled activation after permission"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "P1",
+      "blocker": "ExecutionModelV1 physical schema and consumers unverified",
+      "next_evidence": "schema/read-only audit"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "P1",
+      "blocker": "3.1.1 human review not done (source_verified only)",
+      "next_evidence": "human review"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "P1",
+      "blocker": "V18.2 construction_model bug fix unverified",
+      "next_evidence": "diff and regression"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "id": "B07",
+      "priority": "P1",
+      "blocker": "predicate_contract_version final serialization unverified",
+      "next_evidence": "output contract test"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "id": "B08",
+      "priority": "P1",
+      "blocker": "Git SHA/HEAD/test paths and run IDs missing",
+      "next_evidence": "repository + production evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "id": "B09",
+      "priority": "P2",
+      "blocker": "Lexicon enrichment→variants import wiring unverified",
+      "next_evidence": "staging promotion tests"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "blocker_id": "B01",
+      "priority": "P0",
+      "blocker": "Structural subject_of dependency is not materialized",
+      "evidence": "All 14 V2.2 shadow_dependency_gap cases have legacy subject_of=1 while structural clause=1/subject=1/predicate=1/dependency=0.",
+      "recommended_resolution": "Implement one narrow dependency_build manifest/rule and Golden Dependency Suite.",
+      "dependencies": "C18,C29",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "blocker_id": "B02",
+      "priority": "P0",
+      "blocker": "No controlled canary/native production activation path proven",
+      "evidence": "runtime-structural-v1 is shadow; active NRG grammar_rules=0; production routing remains legacy.",
+      "recommended_resolution": "Define/verify canary routing after dependency bridge and expanded shadow regression, only with explicit permission.",
+      "dependencies": "C07,C08,C27,C28",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "blocker_id": "B03",
+      "priority": "P1",
+      "blocker": "General subject-NP clause coverage incomplete",
+      "evidence": "Ungene har gått inn. remains a known structural limit; structural predicate/clause coverage is incomplete in this family.",
+      "recommended_resolution": "Generalize subject NP + perfect/predicate structure using source-backed rules; do not hardcode lexical strings.",
+      "dependencies": "C13,C17,C18",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "blocker_id": "B04",
+      "priority": "P1",
+      "blocker": "Contextual ambiguity for nå intentionally unresolved",
+      "evidence": "Structural runtime consistently leaves nå ambiguous_unresolved in Vi kan nå målet.; legacy chooses via hardcoded context.",
+      "recommended_resolution": "Add only if source-backed grammar/lexical evidence supports deterministic disambiguation; conservatism is preferable to heuristic guessing.",
+      "dependencies": "C10,C12,C27,C28",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "blocker_id": "B05",
+      "priority": "P1",
+      "blocker": "Possible spurious agreement_controller outside intended NP/AP context",
+      "evidence": "V2.2 shows shadow_dependency_gain=agreement_controller in Det virker bra nå.; this may reflect overbroad phrase/controller construction.",
+      "recommended_resolution": "Inspect raw structural graph and tighten phrase/controller applicability if confirmed.",
+      "dependencies": "C14,C15,C24",
+      "status": "INFERRED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "blocker_id": "B06",
+      "priority": "P1",
+      "blocker": "Git reproducibility gap",
+      "evidence": "No branch, HEAD or commit SHA was captured in this chat, so test PASS cannot be pinned to a Git revision.",
+      "recommended_resolution": "Capture git rev-parse HEAD + branch in next implementation session and attach to every new Golden/shadow run.",
+      "dependencies": "",
+      "status": "UNVERIFIED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "blocker_id": "B07",
+      "priority": "P2",
+      "blocker": "Global PDF provenance remediation execution not confirmed",
+      "evidence": "nrg_global_page_mapping_fix_v1.sql exists and guards exactly 7 rows, but this chat does not confirm it was run.",
+      "recommended_resolution": "Read-only re-audit page mapping before claiming global provenance closure.",
+      "dependencies": "C01,C02",
+      "status": "UNVERIFIED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "blocker_id": "B08",
+      "priority": "P2",
+      "blocker": "Runtime compiler coverage remains narrow",
+      "evidence": "1732 Runtime candidates exist, but only the small proof/structural subset is compiled into runtime-structural-v1.",
+      "recommended_resolution": "Expand only after vertical slices prove producer/consumer contracts; avoid mass compile/activation.",
+      "dependencies": "C04,C05,C06",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "blocker_id": "B09",
+      "priority": "P2",
+      "blocker": "Explicit constraint_strength missing on most Runtime candidates",
+      "evidence": "Earlier audit found 175 explicit strengths and 1557 Runtime candidates without explicit strength; architecture requires compiler normalization rather than KB mutation.",
+      "recommended_resolution": "Keep normalization in runtime manifest/compiler; do not backfill source truth without source evidence.",
+      "dependencies": "C04,C05",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 11,
+    "data": {
+      "blocker_id": "B10",
+      "priority": "P2",
+      "blocker": "Dialect/register runtime profile is not yet operational",
+      "evidence": "lexeme_form_variants.dialect_scope existed but was reported populated 0 in earlier audit.",
+      "recommended_resolution": "Treat dialect as future overlay/profile; not a blocker for current Bokmål/Nynorsk structural proof.",
+      "dependencies": "",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "source_file": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019/08-open-blockers.csv",
+    "source_row": 12,
+    "data": {
+      "blocker_id": "B11",
+      "priority": "P2",
+      "blocker": "Learner feedback/exercise consumer not end-to-end proven",
+      "evidence": "Runtime diagnostics and explanations exist, but user-facing teacher/exercise path was not executed in this chat.",
+      "recommended_resolution": "After canary-quality runtime, wire deterministic trace/diagnostic payload into learner feedback separately.",
+      "dependencies": "C30",
+      "status": "UNVERIFIED"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "P0",
+      "name": "CAPTURE_READBACK_CONTRACT",
+      "description": "One-shot evidence write exists; legal governed read-back not proven",
+      "dependency_next": "R048N read-only audit",
+      "exit_criterion": "Reader proven or missing classified",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "P0",
+      "name": "CLAUSE_SOURCE_BACKED_FIXTURE",
+      "description": "No real RPC output→clause_build_v1→v1.43 fixture",
+      "dependency_next": "B01 + guarded capture",
+      "exit_criterion": "Real fixture with provenance",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "P0",
+      "name": "CLAUSE_PRODUCER_EXECUTION",
+      "description": "Public wiring but no real execution proof",
+      "dependency_next": "B02",
+      "exit_criterion": "Canonical clause span/provenance proven",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "P0",
+      "name": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "description": "No same-real-sentence composition",
+      "dependency_next": "B03",
+      "exit_criterion": "Containment executable proof",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "P0",
+      "name": "SUBJECT_OF_PREDICATE_BINDINGS",
+      "description": "Real subject/predicate + clause scope/exists/one_or_more absent",
+      "dependency_next": "B04",
+      "exit_criterion": "Runtime binding proof",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "P0",
+      "name": "ADD_TRACE_EXECUTION",
+      "description": "Separate add_trace path absent",
+      "dependency_next": "B05",
+      "exit_criterion": "Admission/plan/execution/provenance",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "id": "B07",
+      "priority": "P0",
+      "name": "ACTIVATION_READY",
+      "description": "Validated != activation-ready",
+      "dependency_next": "B05+B06+create_dependency",
+      "exit_criterion": "Full governed readiness",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "id": "B08",
+      "priority": "P1",
+      "name": "FRESH_ACTIVATION_EVIDENCE",
+      "description": "Fresh user observation lacks governed artifact",
+      "dependency_next": "B07",
+      "exit_criterion": "Fresh SELECT-only snapshot",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "id": "B09",
+      "priority": "P1",
+      "name": "R036_R045_RECONCILIATION",
+      "description": "Late artifacts not fully linked",
+      "dependency_next": "discover/re-run",
+      "exit_criterion": "strict events or explicit missing",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 11,
+    "data": {
+      "id": "B10",
+      "priority": "P1",
+      "name": "R045_AUTH_SCOPE",
+      "description": "USING(true) scope intent not proven",
+      "dependency_next": "separate security review",
+      "exit_criterion": "intent accepted/changed",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 12,
+    "data": {
+      "id": "B11",
+      "priority": "P2",
+      "name": "REEVALUATION_IDEMPOTENCE",
+      "description": "No post-activation duplicate proof",
+      "dependency_next": "controlled execution",
+      "exit_criterion": "second pass no duplicates",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "source_file": "Grammar-History-R24F-R048M-Activation-Preparation-20261019/08-open-blockers.csv",
+    "source_row": 13,
+    "data": {
+      "id": "B12",
+      "priority": "P2",
+      "name": "MULTI_SITE_NEGATIVE",
+      "description": "No multi-site/negative proof",
+      "dependency_next": "B11",
+      "exit_criterion": "positive/FALSE/already/ambiguous protected",
+      "state": "OPEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "source_file": "Grammar-History-SURFACE-RESOLVER-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "P0",
+      "blocker": "No native Grammar KB candidate/manifest ID",
+      "next_evidence": "read-only inspect manifest and runtime entry",
+      "dependency": "native activation proof"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "source_file": "Grammar-History-SURFACE-RESOLVER-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "P0",
+      "blocker": "No executable native call-site / facts graph",
+      "next_evidence": "inspect source and test harness",
+      "dependency": "B01"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "source_file": "Grammar-History-SURFACE-RESOLVER-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "P1",
+      "blocker": "Four-arg resolver definition missing",
+      "next_evidence": "read-only pg_get_functiondef",
+      "dependency": "legacy POS diagnosis"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "source_file": "Grammar-History-SURFACE-RESOLVER-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "P1",
+      "blocker": "No complete homonym candidate inventory",
+      "next_evidence": "read-only source-backed audit",
+      "dependency": "candidate selection"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "source_file": "Grammar-History-SURFACE-RESOLVER-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "P1",
+      "blocker": "Schema/uniqueness and verification provenance unknown",
+      "next_evidence": "inspect pg_indexes/constraints and source evidence",
+      "dependency": "safe backfill"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "source_file": "Grammar-History-SURFACE-RESOLVER-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "P1",
+      "blocker": "No Golden positive/negative logs at current HEAD",
+      "next_evidence": "build local isolated fixture and run",
+      "dependency": "activation gate"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "source_file": "Grammar-History-SURFACE-RESOLVER-20261019/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "id": "B07",
+      "priority": "P1",
+      "blocker": "No shadow/activation/feedback evidence",
+      "next_evidence": "instrument local then controlled shadow; user permission for activation",
+      "dependency": "end-to-end"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B01",
+      "blocker": "No proven candidate → manifest/release compiler/promoter path",
+      "dependency": "Runtime source / manifest builder",
+      "evidence_status": "UNRESOLVED",
+      "why_it_blocks_first_rule": "Candidate cannot become executable without promoted representation.",
+      "next_read_only_action": "Locate producer, output schema, file/symbol/call-site, and one produced manifest entry."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B02",
+      "blocker": "No proven native Runtime IR consumer for Grammar KB candidate",
+      "dependency": "Runtime engine source",
+      "evidence_status": "UNRESOLVED",
+      "why_it_blocks_first_rule": "No proof engine interprets candidate model.",
+      "next_read_only_action": "Trace one candidate code into Runtime IR creation."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B03",
+      "blocker": "No proven applicability/binding/WHERE/cardinality/readiness chain",
+      "dependency": "Runtime contracts",
+      "evidence_status": "UNRESOLVED",
+      "why_it_blocks_first_rule": "Compiled rule still cannot safely execute.",
+      "next_read_only_action": "Find call-wired contracts and executable positive/negative proof."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B04",
+      "blocker": "No scheduler / activation-authority evidence",
+      "dependency": "Activation control plane",
+      "evidence_status": "UNRESOLVED",
+      "why_it_blocks_first_rule": "No proof when/why READY becomes active.",
+      "next_read_only_action": "Identify authority, gate and rollback mechanism."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B05",
+      "blocker": "No shadow-execution log",
+      "dependency": "Shadow runtime",
+      "evidence_status": "UNRESOLVED",
+      "why_it_blocks_first_rule": "Cannot compare expected vs actual facts before activation.",
+      "next_read_only_action": "Only after discovery/local proof, run shadow with no learner side effects."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B06",
+      "blocker": "No learner-feedback end-to-end proof",
+      "dependency": "Learner-facing consumer",
+      "evidence_status": "UNRESOLVED",
+      "why_it_blocks_first_rule": "Cannot establish PRODUCED_CORRECT_RESULT.",
+      "next_read_only_action": "Identify action/fact consumer and observable assertion."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "priority": "P1",
+      "blocker_id": "B07",
+      "blocker": "No Git SHA/branch/current HEAD captured",
+      "dependency": "Git repository",
+      "evidence_status": "UNVERIFIED",
+      "why_it_blocks_first_rule": "Reported PASS cannot be tied to exact revision.",
+      "next_read_only_action": "Read current Git state in a separate authorized audit."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "source_file": "Grammar-History-THIS-CHAT-20261020/08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "priority": "P1",
+      "blocker_id": "B08",
+      "blocker": "Chapter 12 lacks chapter-wide closure and captured zero-row package checks",
+      "dependency": "Chapter 12 DB audit",
+      "evidence_status": "UNVERIFIED",
+      "why_it_blocks_first_rule": "Import integrity not globally demonstrated.",
+      "next_read_only_action": "Build/run standalone Ch12 closure audit before freeze."
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "priority": "P0",
+      "blocker": "Capture read-back unproven",
+      "evidence_gap": "R048N audit result absent",
+      "dependency_or_action": "R048N local read-only runner",
+      "exit_criterion": "Read-only classification and source path",
+      "source": "Вставлений текст markdown(20261018-151010).md:L833-L935"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "priority": "P0",
+      "blocker": "Source archive does not show R048M auth module",
+      "evidence_gap": "Attached R048M-source lacks expected auth file",
+      "dependency_or_action": "Compare complete repo HEAD to reported commit",
+      "exit_criterion": "Exact source+commit consistency",
+      "source": "R048M-source(2).zip:member-list; Вставлений текст markdown(20261018-151010).md:L655-L673"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "priority": "P0",
+      "blocker": "No actual one-shot capture",
+      "evidence_gap": "Capture deliberately not executed",
+      "dependency_or_action": "read-back proof then explicit authorized capture",
+      "exit_criterion": "Exact rpc_input/rpc_output",
+      "source": "Вставлений текст markdown(20261018-151010).md:L975-L1020"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "priority": "P1",
+      "blocker": "No source-backed clause fixture",
+      "evidence_gap": "Only wiring/mechanical fixtures",
+      "dependency_or_action": "R051/R052 after capture",
+      "exit_criterion": "real clause_build_v1 through v1.43",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1024-L1080"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "priority": "P1",
+      "blocker": "Clause producer execution unproven",
+      "evidence_gap": "No canonical clause execution artifact",
+      "dependency_or_action": "real clause proof",
+      "exit_criterion": "node span provenance identity",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1086-L1100"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "priority": "P1",
+      "blocker": "Clause/phrase composition unproven",
+      "evidence_gap": "No same-sentence evidence",
+      "dependency_or_action": "same-sentence composition",
+      "exit_criterion": "correct containment",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1101-L1112"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "priority": "P1",
+      "blocker": "Subject/predicate bindings unproven",
+      "evidence_gap": "No real scope/cardinality proof",
+      "dependency_or_action": "runtime binding tests",
+      "exit_criterion": "scope=clause exists one_or_more",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1113-L1125"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "priority": "P1",
+      "blocker": "create_dependency production path unproven",
+      "evidence_gap": "D4 fixture subject→subject",
+      "dependency_or_action": "real runtime action",
+      "exit_criterion": "subject→predicate relation subject_of",
+      "source": "Вставлений текст markdown(20261018-151010).md:L220-L254"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "priority": "P1",
+      "blocker": "add_trace path unproven",
+      "evidence_gap": "Separate action not demonstrated",
+      "dependency_or_action": "trace proof",
+      "exit_criterion": "deterministic trace provenance",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1136-L1149"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 11,
+    "data": {
+      "priority": "P1",
+      "blocker": "Governed R036–R045 evidence gap",
+      "evidence_gap": "Investigations not reconciled",
+      "dependency_or_action": "read-only re-proof or artifact reconciliation",
+      "exit_criterion": "no historical status fabrication",
+      "source": "Вставлений текст markdown(20261018-151010).md:L647-L650"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 12,
+    "data": {
+      "priority": "P2",
+      "blocker": "Activation authority freshness",
+      "evidence_gap": "old zero-row snapshot",
+      "dependency_or_action": "fresh read-only DB audit when authorized",
+      "exit_criterion": "expected grant state",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1171-L1183"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 13,
+    "data": {
+      "priority": "P2",
+      "blocker": "Post-activation reevaluation and negative cases",
+      "evidence_gap": "No production execution",
+      "dependency_or_action": "only after controlled activation",
+      "exit_criterion": "idempotence and multi-site tests",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1229-L1258"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V13-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 14,
+    "data": {
+      "priority": "P2",
+      "blocker": "R045 read policy review",
+      "evidence_gap": "authenticated USING true possible broad access",
+      "dependency_or_action": "separate security review",
+      "exit_criterion": "intended authorization scope",
+      "source": "Вставлений текст markdown(20261018-151010).md:L1282-L1312"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "blocker_id": "B01",
+      "priority": "P0",
+      "blocker": "Remote PP shadow proof not executed",
+      "evidence": "Local binding/runner ready; remote deploy/run absent",
+      "dependency": "S11",
+      "next_action": "Deploy only canonical-graph-shadow-v1; run PP remote gate; inspect exact output",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "blocker_id": "B02",
+      "priority": "P0",
+      "blocker": "Current shadow changes uncommitted",
+      "evidence": "index.ts modified; PP runner untracked",
+      "dependency": "S11",
+      "next_action": "Start next chat with git status/log/diff; never stage runner",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "blocker_id": "B03",
+      "priority": "P1",
+      "blocker": "Live PP rule inactive",
+      "evidence": "is_active=false; active_pp_rule_count=0",
+      "dependency": "S10",
+      "next_action": "Do not activate until explicit permission + later gates",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "blocker_id": "B04",
+      "priority": "P1",
+      "blocker": "Rule Applicability Engine absent on canonical path",
+      "evidence": "Roadmap only; no implemented call path proven",
+      "dependency": "roadmap",
+      "next_action": "Implement after graph capability completion",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "blocker_id": "B05",
+      "priority": "P1",
+      "blocker": "Canonical graph incomplete beyond phrase layer",
+      "evidence": "v1.44–v1.52 remain roadmap",
+      "dependency": "roadmap",
+      "next_action": "After v1.43 close continue v1.44 in fixed order",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "blocker_id": "B06",
+      "priority": "P1",
+      "blocker": "Large Golden Corpus not executed",
+      "evidence": "Roadmap requires minimal pairs + project Goldens + UD + random corpus",
+      "dependency": "roadmap",
+      "next_action": "Run before parser replacement/activation",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "blocker_id": "B07",
+      "priority": "P1",
+      "blocker": "Learner feedback contract absent",
+      "evidence": "No canonical PP→Teacher/user proof",
+      "dependency": "activation path",
+      "next_action": "Add only after controlled activation design",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "blocker_id": "B08",
+      "priority": "P2",
+      "blocker": "Latest PP compile commit SHA unavailable",
+      "evidence": "Commit succeeded but SHA not in visible output",
+      "dependency": "Git audit",
+      "next_action": "Read-only git log in next chat",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "source_file": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019/08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "blocker_id": "B09",
+      "priority": "P2",
+      "blocker": "Global Supabase advisor backlog",
+      "evidence": "Pre-existing findings unrelated to PP migrations",
+      "dependency": "DB hardening",
+      "next_action": "Handle separately unless touched-object finding appears",
+      "status": "PROVEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B01",
+      "component": "A3.3.5a WHERE semantics",
+      "blocker": "A3.3.0 has opaque compoundKey and compoundSemanticsResolved=false",
+      "dependency": "Explicit semantics source for actual compound key",
+      "first_missing_contract": "Runtime WHERE compound-key truth authority",
+      "status": "OPEN",
+      "evidence": "turn208file1"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B02",
+      "component": "A3.3.5b survivability",
+      "blocker": "No proven mapping from A3.3.4c states to reject/survive/unresolved",
+      "dependency": "B01 + uncertainty-safe policy",
+      "first_missing_contract": "WHERE candidate filtering authority",
+      "status": "OPEN",
+      "evidence": "CHAT:A3.3.4c-GREEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B03",
+      "component": "Cardinality",
+      "blocker": "Cardinality labels remain opaque; no canonical semantics/enforcement established",
+      "dependency": "WHERE filtering first",
+      "first_missing_contract": "Cardinality semantic authority",
+      "status": "OPEN",
+      "evidence": "turn208file1"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B04",
+      "component": "Occurrence binding",
+      "blocker": "No final exact occurrence binding after scope/WHERE/cardinality",
+      "dependency": "B01-B03",
+      "first_missing_contract": "Runtime occurrence binding authority",
+      "status": "OPEN",
+      "evidence": "CHAT:A3.3.4c-GREEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "priority": "P1",
+      "blocker_id": "B05",
+      "component": "Runtime sentence context",
+      "blocker": "Per-sentence candidates exist but current Runtime sentence is not selected",
+      "dependency": "Explicit execution context if required",
+      "first_missing_contract": "Current sentence context authority",
+      "status": "OPEN",
+      "evidence": "CHAT:A3.2.4c-T-GREEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B06",
+      "component": "create_clause phrase target",
+      "blocker": "Target canonical type phrase; phrase->sentence containment unproven",
+      "dependency": "Explicit phrase occurrence containment",
+      "first_missing_contract": "Phrase->sentence containment authority",
+      "status": "OPEN",
+      "evidence": "CHAT:A3.2.4a-GREEN"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "priority": "P1",
+      "blocker_id": "B07",
+      "component": "create_clause execution",
+      "blocker": "No clause candidate/node generation authority proven",
+      "dependency": "B06 plus binding/WHERE/cardinality",
+      "first_missing_contract": "create_clause execution/clause generation",
+      "status": "OPEN",
+      "evidence": "CHAT:create_clause"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B08",
+      "component": "Production hot path",
+      "blocker": "No evidence new v1.46 chain is called by active Production request path",
+      "dependency": "Executable local chain + call-site proof",
+      "first_missing_contract": "Native canonical hot-path wiring",
+      "status": "OPEN",
+      "evidence": "CHAT:coverage-gap"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "priority": "P0",
+      "blocker_id": "B09",
+      "component": "Activation/result",
+      "blocker": "No controlled activation/user-facing execution/PRODUCED_CORRECT_RESULT proven",
+      "dependency": "B01-B08 + explicit permission",
+      "first_missing_contract": "End-to-end activated execution proof",
+      "status": "OPEN",
+      "evidence": "CHAT:coverage-gap"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "source_file": "Grammar-History-V146-Canonical-Runtime-Path-20261019/08-open-blockers.csv",
+    "source_row": 11,
+    "data": {
+      "priority": "P2",
+      "blocker_id": "B10",
+      "component": "Release/cutover",
+      "blocker": "Large Golden corpus/performance/cutover proof not established",
+      "dependency": "One-rule proof first",
+      "first_missing_contract": "Regression/performance/cutover evidence",
+      "status": "OPEN",
+      "evidence": "CHAT:coverage-gap"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "P0",
+      "blocker": "A2.9 runtime acceptance",
+      "dependency": "Source-valid three-input composition and true runtime assertions",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "P0",
+      "blocker": "First grammar rule execution",
+      "dependency": "No learner-facing executed rule demonstrated",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "P1",
+      "blocker": "Operator metadata projection",
+      "dependency": "Source-valid structural/operator identity compatibility",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "P1",
+      "blocker": "Generic applicability",
+      "dependency": "No lossless terminal envelope → applicability contract",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "P1",
+      "blocker": "Generic scheduler",
+      "dependency": "No cross-family dependency ordering/reevaluation proof",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "P1",
+      "blocker": "Activation authority",
+      "dependency": "No controlled release/feature-flag approval evidence",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 8,
+    "data": {
+      "id": "B07",
+      "priority": "P1",
+      "blocker": "Learner feedback",
+      "dependency": "No end-to-end feedback proof",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 9,
+    "data": {
+      "id": "B08",
+      "priority": "P2",
+      "blocker": "TAM perfect",
+      "dependency": "Source-authored TAM assertions absent",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 10,
+    "data": {
+      "id": "B09",
+      "priority": "P2",
+      "blocker": "Complex/non-local",
+      "dependency": "Semantic source data absent",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 11,
+    "data": {
+      "id": "B10",
+      "priority": "P2",
+      "blocker": "Punctuation",
+      "dependency": "Grammar punctuation payload absent",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 12,
+    "data": {
+      "id": "B11",
+      "priority": "P2",
+      "blocker": "Orthography generic builder",
+      "dependency": "Authoring projection missing",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 13,
+    "data": {
+      "id": "B12",
+      "priority": "P2",
+      "blocker": "Semantic scope",
+      "dependency": "Scope source authoring absent",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 14,
+    "data": {
+      "id": "B13",
+      "priority": "P2",
+      "blocker": "Lexicon integration",
+      "dependency": "No full cross-pipeline proof in this chat",
+      "status": "OPEN",
+      "source": "conversation / package evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-20261019.zip",
+    "source_file": "Grammar-History-V22-20261019/08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "P0",
+      "blocker": "No inspected grammar KB candidate or verification state",
+      "dependency": "candidate→verified",
+      "next_evidence": "Read-only candidate discovery",
+      "source": "S4;S5"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-20261019.zip",
+    "source_file": "Grammar-History-V22-20261019/08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "P0",
+      "blocker": "No manifest/READY/activation authority proof",
+      "dependency": "verified→READY→ACTIVATED",
+      "next_evidence": "Read-only manifest and authority trace",
+      "source": "S5"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-20261019.zip",
+    "source_file": "Grammar-History-V22-20261019/08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "P0",
+      "blocker": "No executable current-HEAD grammar runtime trace",
+      "dependency": "ACTIVATED→EXECUTED",
+      "next_evidence": "Local positive/negative execution",
+      "source": "S1;S5"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-20261019.zip",
+    "source_file": "Grammar-History-V22-20261019/08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "P1",
+      "blocker": "No actual grammar Golden test files, commands or logs",
+      "dependency": "runtime regression",
+      "next_evidence": "Locate fixtures and rerun locally",
+      "source": "S3"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-20261019.zip",
+    "source_file": "Grammar-History-V22-20261019/08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "P1",
+      "blocker": "No Git SHA, deployed grammar version or production run ID",
+      "dependency": "provenance",
+      "next_evidence": "Read-only Git/production inventory",
+      "source": "S1;S4"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-20261019.zip",
+    "source_file": "Grammar-History-V22-20261019/08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "P1",
+      "blocker": "No verified learner feedback integration",
+      "dependency": "result→feedback",
+      "next_evidence": "Read-only consumer mapping",
+      "source": "S5"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-NRG-KB-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 2,
+    "data": {
+      "id": "B01",
+      "priority": "P0",
+      "blocker": "§7.3.1.4.2 complete NRG source verification",
+      "exit_criterion": "Read source images; collect exact excerpt + page per atomic claim",
+      "dependencies": "No full verified extraction"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-NRG-KB-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 3,
+    "data": {
+      "id": "B02",
+      "priority": "P0",
+      "blocker": "Final Candidate Map not approved",
+      "exit_criterion": "Complete atomization, semantic blocks, duplicate audit",
+      "dependencies": "B01"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-NRG-KB-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 4,
+    "data": {
+      "id": "B03",
+      "priority": "P0",
+      "blocker": "KB import not verified",
+      "exit_criterion": "Inspect SQL and read-only KB state",
+      "dependencies": "B02"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-NRG-KB-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 5,
+    "data": {
+      "id": "B04",
+      "priority": "P0",
+      "blocker": "Canonical runtime consumer/wiring unknown",
+      "exit_criterion": "Read-only code discovery: producer → facts → consumer",
+      "dependencies": "No repo evidence"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-NRG-KB-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 6,
+    "data": {
+      "id": "B05",
+      "priority": "P0",
+      "blocker": "No positive/negative executable proof",
+      "exit_criterion": "Local fixture and Golden tests at pinned HEAD",
+      "dependencies": "B03,B04"
+    }
+  },
+  {
+    "source_archive": "Grammar-History-V22-NRG-KB-20261019.zip",
+    "source_file": "08-open-blockers.csv",
+    "source_row": 7,
+    "data": {
+      "id": "B06",
+      "priority": "P1",
+      "blocker": "No production / Git provenance",
+      "exit_criterion": "Read-only SHA, migration, release, run-ID lookup",
+      "dependencies": "No connected evidence"
+    }
+  }
+]

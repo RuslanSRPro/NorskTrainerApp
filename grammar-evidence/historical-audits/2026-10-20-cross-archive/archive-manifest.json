@@ -1,0 +1,122 @@
+[
+  {
+    "archive": "Grammar-History-A3-8F-CHAT-20261019.zip",
+    "files": 13,
+    "sha256": "d72aef18840811306f26f0d93a4f4305fe937e604593d084ea429a403c90aa1a"
+  },
+  {
+    "archive": "Grammar-History-B2-OWNER-OCCURRENCE-PRE-V148-CLOSURE-20261019.zip",
+    "files": 13,
+    "sha256": "a1c6f0feee3ebe6b97c5cc6aebdcdc5f7a05c8192dfd08ec2fb6eb556531e893"
+  },
+  {
+    "archive": "Grammar-History-CHAT-D7-EXECUTION-PLANE-20261019.zip",
+    "files": 13,
+    "sha256": "323c240c678644d3114253719bf72e1c09e0cc277d5abc3d2274ec6e8ab19624"
+  },
+  {
+    "archive": "Grammar-History-CHAT18-V18-V20-20261019.zip",
+    "files": 13,
+    "sha256": "e698a0dc9d4e52cfa40499ff2ef75956d8364df062c7e9f7bcc1479c8e8e32e4"
+  },
+  {
+    "archive": "Grammar-History-CONSTRUCTION-PIPELINE-20261019.zip",
+    "files": 13,
+    "sha256": "73883ec3c1cb31df79dabca3a2fd3cc1177b3fb3617e10ec81a5f3fb59babaaf"
+  },
+  {
+    "archive": "Grammar-History-ContextAuthority-V146-20261019.zip",
+    "files": 13,
+    "sha256": "9a714306a474ed52d52d80e7ddaf5964577e45ff79fa95776fba0073de9a8e1f"
+  },
+  {
+    "archive": "Grammar-History-Current-Chat-Language-Graph-20261019.zip",
+    "files": 13,
+    "sha256": "201d476b1eeb0ac1eeb7c882b2ea5e05187132c9f7b79bb7957fe1611b04c589"
+  },
+  {
+    "archive": "Grammar-History-CURRENT-RUNTIME-20261019.zip",
+    "files": 13,
+    "sha256": "f9dd5dcb2681184287a8c2423de41757b41921642a8db32a269596d69c8f9faf"
+  },
+  {
+    "archive": "Grammar-History-GRAMMAR-EARLY-20261019.zip",
+    "files": 13,
+    "sha256": "ce321aeaa8b0a0e954a2bb91ec7fd3917c5c2275ec50f21cd5219e0a11842f53"
+  },
+  {
+    "archive": "Grammar-History-GRAMMAR-PROCESS-ACTIVATION-20261019.zip",
+    "files": 13,
+    "sha256": "3497a47a27a057cbcc1ef4907da6fa6beb3b0407dbc1062bb84599d6f2edd0d5"
+  },
+  {
+    "archive": "Grammar-History-Infinitive-Section-20261019.zip",
+    "files": 13,
+    "sha256": "0ed20f0150c03cb8ded8db1491c9255baae56a93f4229fb90a75f9aa1a0e1f2b"
+  },
+  {
+    "archive": "Grammar-History-NRG-KB-20261019.zip",
+    "files": 13,
+    "sha256": "0f8111680833561f925b3db020c3df2137fbf98329bbc6f85c2625b6215fa88a"
+  },
+  {
+    "archive": "Grammar-History-NRG-KB-CH7-CH8-CHAT-20261019.zip",
+    "files": 13,
+    "sha256": "34069e7b4fab2cee8d3fe3e914f020e78e17d82b8373057d636cf2884dace8d2"
+  },
+  {
+    "archive": "Grammar-History-NRG-KB-V3-20261019.zip",
+    "files": 13,
+    "sha256": "39c6932581d18de6f5f1d27a6dc3b806fb7c16a48a7ae98569691703a91db566"
+  },
+  {
+    "archive": "Grammar-History-NRG-Runtime-to-Shadow-V2-20261019.zip",
+    "files": 13,
+    "sha256": "945b2d2fd7fea85fb3bcd30df40949e5161c4c3d1c7c34fa42600efe21932b5e"
+  },
+  {
+    "archive": "Grammar-History-R24F-R048M-Activation-Preparation-20261019.zip",
+    "files": 13,
+    "sha256": "7c402e9068aae5d4ca7a3004c910d86431447020b95617fa7e4067faaa02ad5b"
+  },
+  {
+    "archive": "Grammar-History-SURFACE-RESOLVER-20261019.zip",
+    "files": 13,
+    "sha256": "2ef49778ea4714f3eedf3bc89fab1358a68d5cf68b8fc5f928c0541a76cebe1f"
+  },
+  {
+    "archive": "Grammar-History-THIS-CHAT-20261020.zip",
+    "files": 13,
+    "sha256": "d0e721cd5f116723c4c99d4caadcea4847cf00c1daf46ba3646c74fc5e4db5ce"
+  },
+  {
+    "archive": "Grammar-History-V13-20261019.zip",
+    "files": 13,
+    "sha256": "cd3b233720cc211c98af933d1fd2b164c6d28b7282084c22fa01e5497c3816c1"
+  },
+  {
+    "archive": "Grammar-History-V140-V143-CANONICAL-GRAPH-20261019.zip",
+    "files": 13,
+    "sha256": "0424d428b47ba6e039fa47b2afff3abcab591094e2bd6312ccbdb38f51d3cd42"
+  },
+  {
+    "archive": "Grammar-History-V146-Canonical-Runtime-Path-20261019.zip",
+    "files": 13,
+    "sha256": "e9831d30d6c812c9a84758b172fd58a7e5bed67062153f8a6bc3f572c2af4869"
+  },
+  {
+    "archive": "Grammar-History-V153-OWNER-OCC-20261019.zip",
+    "files": 13,
+    "sha256": "5ad114f59aedfb6b8c85d9e545df93105655734d6e353814ec364117b334d55f"
+  },
+  {
+    "archive": "Grammar-History-V22-20261019.zip",
+    "files": 13,
+    "sha256": "7ccb672a219e9ce53ee22de943329f7d2086c9d8a5647a5e001cbcd7c51e1d85"
+  },
+  {
+    "archive": "Grammar-History-V22-NRG-KB-20261019.zip",
+    "files": 13,
+    "sha256": "091bad06e18eee83ce9b531f115e3333c8f7007d182c060d7e1949e80fea25ec"
+  }
+]

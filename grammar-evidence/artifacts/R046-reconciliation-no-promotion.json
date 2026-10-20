@@ -1,0 +1,22 @@
+{
+  "schema_version": "r046-reconciliation-audit-v1",
+  "timestamp_utc": "2026-10-17T19:20:37.920265Z",
+  "head": "f688bfd1da068e470895657ec6612956abedcab0",
+  "source_archives": {
+    "collection_zip_sha256": "a2e305a060d7cf358b10b0a073468e15daec3f400f657f9106c94aed648ffd5c",
+    "review_zip_sha256": "5eec11dafd27abc0d64c7724bde5ec95717a5bc1a4f4c52020b8a0a0b8928335"
+  },
+  "collection_archive_members": 76,
+  "inventory_rows": 74,
+  "claims": "R036-R045 provenance reconciliation: locally collected scripts and partial outputs; SQL execution in conversation not independently exported",
+  "classification": "PARTIAL_EVIDENCE_RECONCILIATION_NO_PROMOTION",
+  "db_snapshots": "User-transcribed values in review.zip; not independent DB exports",
+  "manifest_reported": "validated",
+  "activation_authority_reported": 0,
+  "fixture_status": "UNVERIFIED",
+  "producer_status": "UNVERIFIED",
+  "strict_events_for_R036_R045_proven": 0,
+  "rpc_executed": false,
+  "rule_executed": false,
+  "production_modified": false
+}
