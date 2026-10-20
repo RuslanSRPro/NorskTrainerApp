@@ -1,0 +1,26 @@
+{
+    "schema_version":  "grammar-evidence-artifact-v1",
+    "resolver":  "R033",
+    "proof_id":  "CLAUSE_SOURCE_BACKED_FIXTURE",
+    "result_type":  "BLOCKED",
+    "classification":  "SAFE_SECURITY_DEFINER_DEFINITION_RETRIEVAL_PATH_AUDITED",
+    "blocker":  "CLI_FUNCTION_DEFINITION_RETRIEVAL_UNAVAILABLE_WITHOUT_DOCKER_OR_EXPLICIT_DB_CREDENTIAL_PATH",
+    "project_failure":  false,
+    "supabase_cli_version":  "2.109.0",
+    "inspect_function_definition_subcommand_available":  false,
+    "db_dump_linked_schema_signal":  true,
+    "db_dump_known_environment_blocker":  "Docker unavailable from prior governed attempt",
+    "explicit_db_url_or_password_path_used":  false,
+    "target_definition_retrieval_performed":  false,
+    "targets":  [
+                    "merge_surface_candidates",
+                    "d10_homograph_rank_v1"
+                ],
+    "proof_status_before":  "UNVERIFIED",
+    "proof_status_after":  "UNVERIFIED",
+    "proof_promotion_performed":  false,
+    "db_action_performed":  false,
+    "rpc_invocation_performed":  false,
+    "endpoint_invocation_performed":  false,
+    "note":  "R033 inspected CLI help only. It did not retrieve definitions or expose credentials. CLI route is not accepted as a safe definition-retrieval path in the current environment."
+}

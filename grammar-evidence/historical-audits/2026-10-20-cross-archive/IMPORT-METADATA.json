@@ -1,0 +1,15 @@
+{
+  "source_zip": "Grammar-CrossArchive-Reconciliation-20261020.zip",
+  "source_zip_sha256": "41836f6ecd66c426a60954f405ba824493a07cc271c040ea431d7c69e937b1ec",
+  "import_kind": "historical_evidence_sidecar",
+  "promotion_performed": false,
+  "production_mutation": false,
+  "archive_count": 24,
+  "raw_row_counts": {
+    "timeline": 429,
+    "contracts": 351,
+    "tests": 439,
+    "blockers": 196,
+    "production": 590
+  }
+}

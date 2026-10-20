@@ -1,0 +1,58 @@
+{
+    "schema_version":  "grammar-evidence-artifact-v1",
+    "resolver":  "R035",
+    "proof_id":  "CLAUSE_SOURCE_BACKED_FIXTURE",
+    "result_type":  "BLOCKED",
+    "classification":  "SECURITY_DEFINER_METADATA_DEPENDENCY_INSUFFICIENT",
+    "project_id":  "kevpkawrbtovrgyjkkvu",
+    "query_mode":  "SELECT_ONLY_PG_CATALOG_METADATA",
+    "targets":  [
+                    {
+                        "oid":  "1233819",
+                        "proname":  "d10_homograph_rank_v1",
+                        "language":  "sql",
+                        "volatility":  "STABLE",
+                        "security_definer":  true,
+                        "prokind":  "f",
+                        "proconfig":  [
+                                          "search_path=pg_catalog, public"
+                                      ],
+                        "pg_depend":  [
+                                          {
+                                              "deptype":  "n",
+                                              "referenced_catalog":  "pg_namespace",
+                                              "referenced_object":  "2200"
+                                          }
+                                      ]
+                    },
+                    {
+                        "oid":  "16899",
+                        "proname":  "merge_surface_candidates",
+                        "language":  "sql",
+                        "volatility":  "STABLE",
+                        "security_definer":  true,
+                        "prokind":  "f",
+                        "proconfig":  [
+                                          "search_path=public"
+                                      ],
+                        "pg_depend":  [
+                                          {
+                                              "deptype":  "n",
+                                              "referenced_catalog":  "pg_namespace",
+                                              "referenced_object":  "2200"
+                                          }
+                                      ]
+                    }
+                ],
+    "dependency_function_edges_found":  0,
+    "dependency_relation_edges_found":  0,
+    "dependency_type_edges_found":  0,
+    "body_retrieval_performed":  false,
+    "function_invocation_performed":  false,
+    "rpc_invocation_performed":  false,
+    "db_mutation_performed":  false,
+    "safety_conclusion":  "Metadata confirms SQL/STABLE/SECURITY DEFINER and fixed search_path, but pg_depend exposes only namespace dependency for each target. This is insufficient to prove body-level or transitive read-only safety.",
+    "proof_status_before":  "UNVERIFIED",
+    "proof_status_after":  "UNVERIFIED",
+    "proof_promotion_performed":  false
+}
