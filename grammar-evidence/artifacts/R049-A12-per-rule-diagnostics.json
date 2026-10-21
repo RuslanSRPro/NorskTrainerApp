@@ -1,0 +1,256 @@
+{
+  "schema_version": "grammar-r049-a12-per-rule-diagnostics-v1",
+  "source": "User-transcribed R049-A12 Production SQL result supplied in conversation",
+  "production_project": "kevpkawrbtovrgyjkkvu",
+  "release_code": "runtime-structural-v1.37",
+  "query": "SELECT ... public.assess_runtime_rule_execution_v5(gr.id) ... WHERE rel.code = runtime-structural-v1.37 AND rrr.is_enabled IS TRUE",
+  "limitations": [
+    "Transcribed result, not independently exported SQL output",
+    "Diagnostic status is not Golden Test or activation authority"
+  ],
+  "rules": [
+    {
+      "rule_code": "nrg_rt_v1.preposition.complementless_category.candidate_constraint",
+      "pattern_type": "candidate_constraint",
+      "assessment_status": null,
+      "execution_status": "executable",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.clause.subject_finite_predicate",
+      "pattern_type": "clause_pattern",
+      "assessment_status": null,
+      "execution_status": "executable_via_canonical_clause_equivalent",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.schema.a.declarative_main",
+      "pattern_type": "clause_pattern",
+      "assessment_status": null,
+      "execution_status": "executable_via_clause_field_model_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.schema.b.subordinate_default",
+      "pattern_type": "clause_pattern",
+      "assessment_status": null,
+      "execution_status": "executable_via_subordinate_clause_foundation_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+      "pattern_type": "dependency_pattern",
+      "assessment_status": null,
+      "execution_status": "executable",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.agreement.controller_feature_copy.feature_unification",
+      "pattern_type": "feature_unification",
+      "assessment_status": null,
+      "execution_status": "executable_via_agreement_controller_bridge_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.agreement_controller.attributive_np",
+      "pattern_type": "graph_pattern",
+      "assessment_status": null,
+      "execution_status": "executable_via_agreement_controller_bridge_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.predicate.verb_phrase",
+      "pattern_type": "graph_pattern",
+      "assessment_status": null,
+      "execution_status": "executable_via_canonical_predicate_equivalent",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.schema.b.connector_field",
+      "pattern_type": "graph_pattern",
+      "assessment_status": null,
+      "execution_status": "executable_via_subordinate_clause_foundation_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.sentence_adverbial.midfield",
+      "pattern_type": "graph_pattern",
+      "assessment_status": null,
+      "execution_status": "executable_via_clause_field_model_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.agreement.class1.neuter_double_consonant_simplification",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.agreement.class1.neuter_stressed_vowel_tt",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.agreement.class1.plural_el_en_er_vowel_deletion",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.agreement.class1.plural_final_m_doubling",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.agreement.strong.class1.neuter_t",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.degree.suffix.el_en_er_vowel_deletion.comparative",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.degree.suffix.el_en_er_vowel_deletion.superlative",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.degree.suffix.post_deletion_consonant_simplification",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.degree.suffix.regular_endings.comparative",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.degree.suffix.regular_endings.superlative",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.degree.suffix.unstressed_e_deletion.comparative",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.adjective.degree.suffix.unstressed_e_deletion.superlative",
+      "pattern_type": "morphological_inflection",
+      "assessment_status": "ready",
+      "execution_status": "executable_via_morphological_inflection_operator_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.adjective_phrase.adjective_head",
+      "pattern_type": "phrase_pattern",
+      "assessment_status": null,
+      "execution_status": "executable",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.noun_phrase.noun_head",
+      "pattern_type": "phrase_pattern",
+      "assessment_status": null,
+      "execution_status": "executable",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.structural.verb_phrase.finite_head",
+      "pattern_type": "phrase_pattern",
+      "assessment_status": null,
+      "execution_status": "executable",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.word_order.schema_a_b.finite_adverbial.schema_a",
+      "pattern_type": "relative_order",
+      "assessment_status": null,
+      "execution_status": "executable_via_clause_field_model_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    },
+    {
+      "rule_code": "nrg_rt_v1.word_order.schema_a_b.finite_adverbial.schema_b",
+      "pattern_type": "relative_order",
+      "assessment_status": null,
+      "execution_status": "executable_via_subordinate_clause_foundation_v1",
+      "ready_without_code_change": true,
+      "upstream_blockers": [],
+      "reason_code": null
+    }
+  ]
+}

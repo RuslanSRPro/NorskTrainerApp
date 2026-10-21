@@ -208,6 +208,150 @@
         "CLAUSE_SOURCE_BACKED_FIXTURE"
       ],
       "next_action": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo."
+    },
+    {
+      "proof_id": "R049_RELEASE_INVENTORY",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "Production inventory reported: runtime-proof-v0 golden (1) and runtime-structural-v1 through v1.37 shadow (38); zero active releases.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A01–A03; user-transcribed Production SQL results. Snapshot must be refreshed before activation.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_KNOWLEDGE_ELIGIBILITY",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "Production view reported 4564 knowledge candidates: 1732 runtime_eligible=true, 2832 false.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A01–A05; eligibility is not a compiled executable rule.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_RULE_COMPILE_STATE",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "Production grammar_rules reported 37 rules: 9 is_active true without compile_hash, 28 compiled with is_active false, zero both compiled and active.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A01–A05; do not equate grammar_rules.is_active with release execution.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_SHADOW_RELEASE_RULES",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "Shadow runtime-structural-v1.37 reported 27 linked rules, all enabled with compiled_hash; one compiled rule not linked.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A01–A05; linked/enabled in SHADOW is not Production active.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_COMPILER_PLAN_INVENTORY",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "Compiler plans reported 14 deprecated v1.0 and 14 validated v1.1.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A06; compiler_contract grammar-runtime-compiler-v1; authority query returned no rows in grouped result.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_EXECUTION_PLANE_CONTRACT",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "build_rule_execution_plane_v1 inspects three rule families and returns bulk_activation_ready=false; apply_rule_execution_plane_v1 adds the plane to JSON.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A07–A11; source definition inspected in Production; cannot extrapolate non-execution for other families.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_27_RULE_DIAGNOSTICS",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "All 27 linked shadow rules reported ready_without_code_change=true and upstream_blockers=[]; 12 morphological assessment_status=ready, 15 null.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A12; diagnostic assertion only, not golden/runtime proof of all 27.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_DEPENDENCY_SQL_SMOKE",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "Production SQL smoke for subject_of_predicate reported dependency_count=1, canonical_v2_parity=true and trace_action_materialized=true.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-P09; one rule SQL smoke, not proof of bulk activation or full legacy compatibility.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R049_ACTIVATION_GATE",
+      "status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "claim": "Canonical activation authority and Golden Tests for all 27 rules have not been established by the reported R049 checks.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "result": "R049-A01–A12 and R049-P09; READY is not ACTIVATED. No activation performed.",
+      "dependencies": [],
+      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
     }
   ]
 }

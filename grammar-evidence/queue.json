@@ -32,6 +32,96 @@
       "search_gate": null
     },
     {
+      "proof_id": "R049_27_RULE_DIAGNOSTICS",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_ACTIVATION_GATE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_COMPILER_PLAN_INVENTORY",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_DEPENDENCY_SQL_SMOKE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_EXECUTION_PLANE_CONTRACT",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_KNOWLEDGE_ELIGIBILITY",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_RELEASE_INVENTORY",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_RULE_COMPILE_STATE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "R049_SHADOW_RELEASE_RULES",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+      "search_gate": null
+    },
+    {
+      "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null
+    },
+    {
       "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",

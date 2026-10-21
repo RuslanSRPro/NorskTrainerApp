@@ -1,10 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "8cf59a372c280aa2b35492742caf9b7214dd7627",
+  "head": "06c0007b26b30be1c62e59b6f88db024a68e1184",
+  "branch": "fix/audio-runtime-completion-p1",
+  "archive_head": "06c0007b26b30be1c62e59b6f88db024a68e1184",
+  "source_head": "06c0007b26b30be1c62e59b6f88db024a68e1184",
+  "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 191,
-  "history_event_count": 51,
-  "strict_history_event_count": 4,
+  "history_event_count": 61,
+  "strict_history_event_count": 14,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -56,7 +60,17 @@
     "R032B-FIRST-STRICT-EVENT",
     "R034-R033-CLI-PATH-BLOCKER",
     "R035-SECURITY-DEFINER-METADATA",
-    "R046-EVIDENCE-RECONCILIATION-NO-PROMOTION"
+    "R046-EVIDENCE-RECONCILIATION-NO-PROMOTION",
+    "R049-REGISTER-R049_RELEASE_INVENTORY",
+    "R049-REGISTER-R049_KNOWLEDGE_ELIGIBILITY",
+    "R049-REGISTER-R049_RULE_COMPILE_STATE",
+    "R049-REGISTER-R049_SHADOW_RELEASE_RULES",
+    "R049-REGISTER-R049_COMPILER_PLAN_INVENTORY",
+    "R049-REGISTER-R049_EXECUTION_PLANE_CONTRACT",
+    "R049-REGISTER-R049_27_RULE_DIAGNOSTICS",
+    "R049-REGISTER-R049_DEPENDENCY_SQL_SMOKE",
+    "R049-REGISTER-R049_ACTIVATION_GATE",
+    "R049-A12-PER-RULE-DETAIL-CAPTURE"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -91,7 +105,16 @@
     "CLAUSE_SOURCE_BACKED_FIXTURE": [],
     "CLAUSE_PRODUCER_EXECUTION": [
       "CLAUSE_SOURCE_BACKED_FIXTURE"
-    ]
+    ],
+    "R049_RELEASE_INVENTORY": [],
+    "R049_KNOWLEDGE_ELIGIBILITY": [],
+    "R049_RULE_COMPILE_STATE": [],
+    "R049_SHADOW_RELEASE_RULES": [],
+    "R049_COMPILER_PLAN_INVENTORY": [],
+    "R049_EXECUTION_PLANE_CONTRACT": [],
+    "R049_27_RULE_DIAGNOSTICS": [],
+    "R049_DEPENDENCY_SQL_SMOKE": [],
+    "R049_ACTIVATION_GATE": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -116,7 +139,16 @@
     "CLAUSE_PRODUCER_EXECUTION": [
       "CLAUSE_PUBLIC_BOUNDARY_WIRING",
       "CLAUSE_SOURCE_BACKED_FIXTURE"
-    ]
+    ],
+    "R049_RELEASE_INVENTORY": [],
+    "R049_KNOWLEDGE_ELIGIBILITY": [],
+    "R049_RULE_COMPILE_STATE": [],
+    "R049_SHADOW_RELEASE_RULES": [],
+    "R049_COMPILER_PLAN_INVENTORY": [],
+    "R049_EXECUTION_PLANE_CONTRACT": [],
+    "R049_27_RULE_DIAGNOSTICS": [],
+    "R049_DEPENDENCY_SQL_SMOKE": [],
+    "R049_ACTIVATION_GATE": []
   },
   "proof_next_actions": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": "",
@@ -130,12 +162,21 @@
     "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "",
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": "",
     "CLAUSE_SOURCE_BACKED_FIXTURE": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
-    "CLAUSE_PRODUCER_EXECUTION": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo."
+    "CLAUSE_PRODUCER_EXECUTION": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo.",
+    "R049_RELEASE_INVENTORY": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_KNOWLEDGE_ELIGIBILITY": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_RULE_COMPILE_STATE": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_SHADOW_RELEASE_RULES": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_COMPILER_PLAN_INVENTORY": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_EXECUTION_PLANE_CONTRACT": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_27_RULE_DIAGNOSTICS": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_DEPENDENCY_SQL_SMOKE": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_ACTIVATION_GATE": "Capture raw SQL result and verify the exact claim, then assess activation authority."
   },
   "files": [
     {
       "path": "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
-      "sha256": "85b6d0c8939c586dc87faa153300c4beddddc24343f64ec48e5f1e2be7e036fb",
+      "sha256": "a931de503df50571ed81505ba9cb589dcf3ad2451415527a9cdd74403c27a4a5",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -146,7 +187,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
-      "sha256": "6550ceda4cc5420dd8c1083eabe30fa6d99aa7b9fa05110860cd82d0414fbd5c",
+      "sha256": "19cd427e4be2fae3a90201ded8deb644e6261ac27fc2e3f4ac6c65b9bbe5d56f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -157,7 +198,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-construction-candidate-lattice-v1.ts",
-      "sha256": "3f32de44a3e2227a28bdf6d556a7cde776169bb0d72ae4bab50a2ed5b39d2631",
+      "sha256": "f45f4e742a378257d1e7df503070471be103bf2724a99240c4a62e6212d82a9c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -168,7 +209,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-construction-projection-adapter-v1.ts",
-      "sha256": "6d996e6d79e9ed89c4eca0015fa5a85237fd487d697d809852a647623cee2d6d",
+      "sha256": "c228bcf0541fdf390f7f970d61da25871f00735a9f3047a766e1af983c9a0360",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -179,7 +220,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
-      "sha256": "7a9cedc3538dcb6416a6cf1d5e12fbb0c159e0fc295d8ab20c6ecddabbd08049",
+      "sha256": "5988c63d94a61ea93992898021e9d49a9a934f33a2b59931b162276d1f5d4a9a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -190,7 +231,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
-      "sha256": "3274177f9da7165434706fcb5b9d95880c06fb461b5bf963d757291071b274d5",
+      "sha256": "18b7f3a107f6f7cd1e7e356c1cbd7be02b49e29a164962be038282731008e740",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -201,7 +242,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
-      "sha256": "9c3a774699d087c1d2176bf75f9e30759435f8b190aa95b4f214bc6ed7eda6ae",
+      "sha256": "465c059ce4570d638ef0290d04c6a7eaa67db43846a2ebab48334a491f1ced16",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -212,7 +253,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
-      "sha256": "e9a3fbb49fdf95fcb63ee0cebb4c85880a1bfc55dc22798066d89ce2698a370e",
+      "sha256": "9043074e0000976bb0864ccddef6ff6e43a0270c2ae44a03188b4f1c1f046a3e",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -223,7 +264,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-node-type-occurrence-inventory-capability-v1.ts",
-      "sha256": "eceb66858f5f8ebe520e3c3ea671af418942bf5c697fb8f18205ac807806f5e2",
+      "sha256": "6b83ffe136e426ab29b1a16d27f79f0ad8c2fa71c33e18d95a9b072b1c24d170",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -234,7 +275,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
-      "sha256": "31ffa2000bac1ea97beb4f5c4814c0487572455b77f9eb842289dcf86c7f6da1",
+      "sha256": "38d76d41bbbb54a820db08281e81cbfac5bed81cac50ad0bb9971e7e3a4604b3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -245,7 +286,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-phrase-head-projection-adapter-v1.ts",
-      "sha256": "1638ad3353e0c0a28a85ed7256c0a974534cd571d69914173142eceb89e1e899",
+      "sha256": "a28b5761d2518bbca47ab3420472296351efb1c7a4a96933640a7c688a282f0c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -256,7 +297,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
-      "sha256": "d1b8387d15123e9aa02436aff96fadba6702014acf7b1f3a8279ab331b69ba1e",
+      "sha256": "c383038ac3cc7e922e2d20cfb428b174c7d44c401b3d38691dd7f92089cfa4b2",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -267,7 +308,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-predicate-candidate-lattice-v1.ts",
-      "sha256": "74593133456274b5aa4fad55b6edaea1227514debd327edd654a6a890a9c2572",
+      "sha256": "b5d2dd372baa514915027f15e22af94b8584cbbb8dffd299e02cf66bffff5564",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -278,7 +319,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-predicate-projection-adapter-v1.ts",
-      "sha256": "2a87c10d19b9998fc429985fe4cb5ae911fb9031e05ed394bdaad88cd7c50359",
+      "sha256": "a006f0b220299810385d8adef9b4d0ee34c73f529ab1a69b2b59861a6325f584",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -289,7 +330,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-candidate-lattice-v1.ts",
-      "sha256": "d6bbbf1a2f766ff1c0049095afbd7b2486a1bb08c7e99ddc1e0cdd83b49a7585",
+      "sha256": "bf8d428856e82a32dfc00464bdfa8088adc174c0df9301565a17e6982b552081",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -300,7 +341,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-occurrence-binding-v1.ts",
-      "sha256": "851ed8aa3a972f4a05a668241a4a6df62012f8d2013130ba04505c5a367e509c",
+      "sha256": "1b66d6b6005d1ad49750369c79d60f5a06c1deb5ac878d0141232fb0074b29dc",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -311,7 +352,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-role-ontology-v1.ts",
-      "sha256": "74a6ec882fae7612823e45359ce7b839e824f474f0217fb50fdd02eeaec29ed3",
+      "sha256": "a8828a6d9b4667ee92f998e075e1ac9754181457e1378e54d3bcf449e857eb44",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -322,7 +363,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-source-role-adapter-v1.ts",
-      "sha256": "57a0c5dfa4672410540c635ac23c22cce63192cdc082180d90067104f4ea83f4",
+      "sha256": "78ccdc579dc926affa0b4a2c7bae8c0e8d12a3325b6474369ec960a013d950d1",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -333,7 +374,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
-      "sha256": "1f6af63e9b441dccc6de7a72f0fdedb15fee26d6355bc62fa970e5f356a99051",
+      "sha256": "b300e15b0362846f0460526a46530eef041823c97adc31a56c3371898ff8a410",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -344,7 +385,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-entity-compatibility-v1.ts",
-      "sha256": "6571ee21e3afb25f04c4d6d182694780ff4c65d5c11aa3efb7d6b95ad3b71652",
+      "sha256": "c96319773ebca39c0eeda8fc9fb2916e3056484923832db0cca9bbe2bda08529",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -355,7 +396,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
-      "sha256": "90c7174a1ec4f46ac8ac834f6637ee8ac4777399f367831b4ea4467544097aea",
+      "sha256": "921efd91ae96041cf40912a55b564c24db2b4dfbc6625efbecf1375e473c5235",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -366,7 +407,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
-      "sha256": "8ea7fba601b0ef523ef693993c3e203f13a641aba3c6e81729983fbaf282d936",
+      "sha256": "4bb802563ae7caec4f073d8f4ed7211056a38fd5ccd4c89858e74a60a2bf3f7c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -377,7 +418,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-right-operand-authority-v1.ts",
-      "sha256": "74e60dfd86e53f6aede4b69ce98a2c1abd855d6bb8d905aa9b036c8b6856f8df",
+      "sha256": "71c87d90b8dfe16e79ef53f2a0d6d8957177921cb49e73bf63789f0f061b094a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -388,7 +429,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
-      "sha256": "9e427df0f6ab2a9c6d99f9ff8b163ee1affe7f27244bc9848bb5ed477a17013b",
+      "sha256": "1c181bbcc9fb8fc2751e4c48cacc380cc22d9d0229a60af9a88627c08be986f0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -399,7 +440,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-execution-context-input-v1.ts",
-      "sha256": "c1ef35a25d19b806eba1accc7874f96c2338a60ba592b825ecf992df8476c2af",
+      "sha256": "b1f56becd95ccb3a36bc9b0bb2c45b2f644994ceea745fa2029f2e1c4496a7ad",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -410,7 +451,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
-      "sha256": "764c600beb46d3af81f4351ab09b33b636a2edbd8214a60e77c1d3702ee8f198",
+      "sha256": "bca102909b8f6e56a004de27e6dc56cd3a317439357ecf8a1b048f8a272b769c",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -421,7 +462,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
-      "sha256": "41d0dfa7d359ff8735517897c0b15ebd0352215a511bae0ea00941ebc39109c9",
+      "sha256": "113be6568bda5370d876c13d709f2dd844208f6a15693d8816bb665fc58c16d3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -432,7 +473,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
-      "sha256": "5d3acb0217c81597330c90c12190d77c0e6fa09895545e0b92253b9361814130",
+      "sha256": "cf3d104b9bfa528b0f1afb443ae9e0e8d0c536c97d950420f6bbddde65ce6c43",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -443,7 +484,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
-      "sha256": "8b779c9fc97c4c6b5580eaf094d6b2a5b49365dc21fd592d23441afffbbb1c17",
+      "sha256": "9963afd821e94ae5dc9cb99d3681ea75eb24005cd674435023a7b122ccfefbcf",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -454,7 +495,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
-      "sha256": "c03ac2c403d655716fa0d78eafaddaaa87a2fc467b4a53fac863c6ae5366fe7c",
+      "sha256": "097d6d071e2e2cb51045b332d9fefe77106c1e97f58be94edbdda92505fb248a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -465,7 +506,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
-      "sha256": "4ce999c83a44a7832c00f05a9f4ab2dc206707df544de508ee340a74e10a0834",
+      "sha256": "70827d61bddaf293db55e559f44e0ca5c5fcdfadfaa3caae33d8fb3d8d9abcdd",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -476,7 +517,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
-      "sha256": "e20c1d9f8790b1ccc16784590ba1c036ad2cb7d3b3ee2e5b222f7928a1ef8df4",
+      "sha256": "a4c709a2b5ef5494a4bce0817f7a28b9faf4e3b6bd3483aaae89f3170542af65",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -487,7 +528,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
-      "sha256": "452cd244fbded30a0f3719f50e563d2bd17fef1458377f81e5f5f3bca3562a7d",
+      "sha256": "b61c3a5dae7f7cc24ef2412cb863e0f92343a2867fcd212013f10809a0a7ae9d",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -498,7 +539,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
-      "sha256": "a6749230012ed4b47eb9ec14395cac1a5b6cd5c294d4dc37ace33f345800c090",
+      "sha256": "9aee0351b47348b2d6092c2cc3dbae8f6c51a0ce052ce21856128619f4b4519c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -509,7 +550,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
-      "sha256": "6fbdc3a78662f175e55140da8ff75a72cebb6f03ceafce78ed86643821d7c457",
+      "sha256": "8019f94fbc1a1c73a85d9d7c17b0b44b654c2b7000ab5565a825b73e50e24c38",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -520,7 +561,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-recursive-compound-truth-composer-v1.ts",
-      "sha256": "35a208505105abcb521232088421e894cf3bd06c3df88fbb180ec1329579a335",
+      "sha256": "900b514cc48bca13a67035d28bf13aa296f593ef093edb9adbf1cb94b2c822ba",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -531,7 +572,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
-      "sha256": "3c47f2bc517b84df2a4afcd23a915c4ff82c5bc11e9eb1c7d5b4f81c255311eb",
+      "sha256": "2ae8bcf059b902846ffa474472d931eb8b93fd62fd39a46300aa4a7f86958f2e",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -542,7 +583,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
-      "sha256": "f441f87327119dfea64f7c62c8e31c98a69f36f11356b38c7d8117ef8a716608",
+      "sha256": "cdca17104ab269e94cb89ca87157f54b75ea6ca39c197d0ea4ca0028768b914f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -553,7 +594,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
-      "sha256": "adc096bf6dea05ed597c88bb1cf2ccfd2f4b11d125cd62f3791484119844a103",
+      "sha256": "1a081cf169349bbeae71f304af0436114202c9409e97843f5257d454046efed1",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -564,7 +605,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-token-pos-authority-bound-child-truth-adapter-v1.ts",
-      "sha256": "f2766b2029ccad3de02137a12e213f49e5c3962a30a0c974fac1d2c04b381dc6",
+      "sha256": "28b34413c70d5fba10cf74e4c9c47bc3b06acbb851576db10dd4d478100b1407",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -575,7 +616,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-token-pos-context-bound-child-truth-adapter-v1.ts",
-      "sha256": "c8176cfe7a55c6111dba9a4cdc17f47186ea327181dd2a4a75edaa9b89883eb6",
+      "sha256": "7f98848bfae44de984a70df24921cb12e1c2030cdb8fb781146bb1ff81a35ee7",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -586,7 +627,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-token-pos-leaf-truth-child-evidence-adapter-v1.ts",
-      "sha256": "025f1f273e0dd1d396d2652577b6eceafbbd2e126d21da52c35f4427f0b95167",
+      "sha256": "0d4ebf9476e2a53a13d4efcca33d3392631aa44f2a93ea85c2f8b47efb26c5e0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -597,7 +638,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
-      "sha256": "41436778ff4ccc28b6b641835842998aba98797f9519bd5023f3b5013a1b53ac",
+      "sha256": "4a25fa228dc6f1408e230ecf08c847b367d2061f887a4a872f090783b0d6cac3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -608,7 +649,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
-      "sha256": "10d1f577de031b0ef29b1d95c11b980ff2689a144c008f45bf8a9b4d061957a4",
+      "sha256": "547e13e8ff08d74591e8e8632edd7248460967c8c2733532d18a0288ea7cc38c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -619,7 +660,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
-      "sha256": "0614d66a54ad91ba507a21601c45926bf63ab1e0949720d3e9d70899a46e9693",
+      "sha256": "3d14124ad2549cd22372450705e06b20350d9011852969e08019577e0456cbb9",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -630,7 +671,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
-      "sha256": "57cea05f54bb892fe45eada13ec4abc33022d2e413333b55b0c51483eebcc395",
+      "sha256": "7b286a91ef9669298cf5b7ff734e67afb3822d698722612de366fe21fd22e67c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -641,7 +682,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
-      "sha256": "a31969c33e114ce04dd6d71f000797bce9ac463440b6826f7e361ac4df53f2fd",
+      "sha256": "1752e0378eba20c551d0e619d312da3756d620ee35b5c18c2e73569649619fb6",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -652,7 +693,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
-      "sha256": "ac7e15c2f0da51eab086aa1a4e684e61ddcf24787919b99649a807fc5d3ef19f",
+      "sha256": "6ea49751becfe1917a3bb6b28ffc296547b86b93ed26935e71472b9e3d11cf2a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -663,7 +704,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-action-authority-v1.ts",
-      "sha256": "7e6bc527172406e93706f5659eed86e6c2ec79bfd61d4df23b1006f2d5d227d2",
+      "sha256": "49875350b3cb91b4d993d5c2f506327d80faa7ad31db9be394e12373dbe35b48",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -674,7 +715,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-binding-entity-compatibility-v1.ts",
-      "sha256": "78b106837dc3dea9cac7b6f8e26dede3361e949d287166a93448245cde9094fb",
+      "sha256": "1d383309bb2aa241b6b5e282a1c1915174d2204407861090f0046c71d08ed72c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -685,7 +726,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-reference-root-authority-v1.ts",
-      "sha256": "c09d4078ebeff0627d0b9a02ef40826baed4273a5a18a98364f0d1ab1234925b",
+      "sha256": "933d7cd94ea12882c1f84ad9ff33055e0094ff64329938d557dd0b3a09cdfd6f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -696,7 +737,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-scope-compatibility-composition-v1.ts",
-      "sha256": "d95ab541e0f1ff231f060f53bac55367a1841ac14adf5974ad7fa754c48f8fb0",
+      "sha256": "579c16bc84a4f927d4cc65599c6168f5069139e5320ddff584d26afd0e0597d3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -707,7 +748,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-set-role-target-type-occurrence-inventory-composition-v1.ts",
-      "sha256": "b1e110693eda591be5e36c1f4f46df31b9968c85131d01d93b433ae6abc0165b",
+      "sha256": "b3ae84d4785a5b6b50b5f07b40f43dd1e726ade33deacfcff1efaafb333b7323",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -718,7 +759,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-condition-truth-composition-v2.ts",
-      "sha256": "f2cf80d010531b5fe00c62bc6d94df3dd6ec9931628edca203dd5b5cf429b9a8",
+      "sha256": "70c387f99f66c4d87886f1aacc9af3f1542af7797c70770ab25f288072e411a0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -729,7 +770,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-condition-truth-composition-v3.ts",
-      "sha256": "981b250ccc1ac69836e3148bd9c5e025982df08e4f0fdaba997029c5a124c370",
+      "sha256": "1eeea9f528e5900b2d97c2823c97116d2032deaf481d354a8fb6e1e58eaef10b",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -740,7 +781,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
-      "sha256": "50b905e9fd50f61378b2d3de8517ecae998913d3dc05526d2acca14bc371f44c",
+      "sha256": "5432cacab925244ccb44f4a72bbd52651a76dab5a7b4c853db1860cae7be294b",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -751,7 +792,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
-      "sha256": "e4e8fb63d05710895490b40a38f1b912775fecc691b551d1be860739127412f8",
+      "sha256": "68c46e14fd26f67eecf7316cc5b08617c5856ff57020180a68dca2ab1b96c7ab",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -762,7 +803,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
-      "sha256": "9b1da426a915667d87f03a0f190c705fc9f5b6e1c97802eab6cb138c7fb98c93",
+      "sha256": "f277a4c8d2e001f079f91f36d4200cb4bc4b20026e59e054c6593b76d6395681",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -773,7 +814,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-occurrence-set-v1.ts",
-      "sha256": "172c44afcec16e3168294dfe169a4ac03e7de6ebd0b88c566e73259ff69e8b92",
+      "sha256": "4ba69c4d9be8b406d2b143cf7dc2994d845af38b95f87961c0133ab556470593",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -784,7 +825,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-value-projection-v1.ts",
-      "sha256": "9cf0ad289ddccbd0801e2ed7d7c6b9c21a475036d013775fd81b54437c1efcad",
+      "sha256": "455ca6496bc053cbb6a05cbe0451477aeacf293a0cd26eaf87918a63c067a97a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -795,7 +836,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
-      "sha256": "205d12b4127ed4889a327742eb0237c2f2d972dc6862043c61c88d75ab78f6b9",
+      "sha256": "27d0a4367e0d1e0790792dad86c160f79214578d29b216449193b286b0128054",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -806,7 +847,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts",
-      "sha256": "1cbc3b9cfa28f6df8ac0828db8da37d47a141a003e59ee8535bf42473cc948e9",
+      "sha256": "739284e2628ec1ab9d97025eb285603444bd42f4059c2d37588210d31420ef95",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -817,7 +858,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
-      "sha256": "3cd07a23e8b1e44f775ce9d99167c281ffd754291463dfd4ac93182c4fe5a735",
+      "sha256": "c291d3d5ed8699912b0c87ffe2cabcfd033a616597c99a08a532a1ad297fa974",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -828,7 +869,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
-      "sha256": "7ef506b5a18605df6188e4fcec1f9ccf31a4227ab3bc5738076666785a5bdf28",
+      "sha256": "d821cc9a7d9712476a9cf5249dc3cf26633c7641a9565553459f224bd1394c63",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -839,7 +880,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-leaf-condition-disposition-v1.ts",
-      "sha256": "e4a348bb6e04113b5e820219eeca00382447d479072306166cf6c9b3f49fd8b5",
+      "sha256": "7c58cb8a554b26882221895d54b8a82db9dae3b89cd57e2defb86563e90f3bf8",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -850,7 +891,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
-      "sha256": "66d110283031854f8e27d973b9a91e129027a61003c3d98c5549f8f011abe9c3",
+      "sha256": "a68dee9bf312adddfe3177d94a2305d4da9a35af3c4d63969f9d176b48b60e03",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -861,7 +902,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
-      "sha256": "b8a44308c4e4f34b04ee95957cdc584ae26037c94d5ebe6ea7ca4227d6a8515b",
+      "sha256": "c88fe921b0858f2c94cff77c1a9820f5aedf21c069d893593a94dc69c41be65c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -872,7 +913,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
-      "sha256": "69fac15954594644999ca239ad8be342436c3171f1418a65dcc96d925f56f0dc",
+      "sha256": "e30b60d225be44daa016eed6255022c442cca603ae7c964450d079f06b0b7d17",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -883,7 +924,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
-      "sha256": "a6d3b778dbcce7e069539715a6b60f30d42174dc2355c64de416c8f494cce0ca",
+      "sha256": "a1e296731e95570a3ebd47a0132b0b065a4cc54def63eb615b7666844a31ac47",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -894,7 +935,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
-      "sha256": "26bf8500cccbc25dc9b5513739f03c8978bc239dde1d1bbc03d262ecd8b31b33",
+      "sha256": "8403cb0cde3ad3a644122ba7853e708425532759069bd789127c7bf6a9d57088",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -905,7 +946,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
-      "sha256": "f9ab386ecc211c9a821753c89b9e322d9a75e18c4bc03b735f4bad0b621a0fca",
+      "sha256": "7fc0060cac3eb44d845838fb950294470c23686e8e2fb8b6f78a56c924dabce1",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -916,7 +957,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-eq-condition-truth-semantic-capability-v2.ts",
-      "sha256": "392315660a504d247643d105e294c0431b715406146268186de165de7ba0d7ba",
+      "sha256": "74acb0a2b8ed6edc90aae78d6ea40e6d8e31ff37628d2546befad96ea4df55cd",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -927,7 +968,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-leaf-root-candidate-disposition-v1.ts",
-      "sha256": "cabdae8583f1fa90a04d02bff1580af90d722df6b5ba7606cb7c3e543a84c07a",
+      "sha256": "84c3d32db7fb23536006e0525ccd8095031afcea47906190ca7120d8acb43829",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -938,7 +979,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
-      "sha256": "50b2914ae2c6249cf34d4491504a58d6f1247bf8929319397ff356304af979eb",
+      "sha256": "91ee34bf78b085622f638b59ab7219f9f46999cb6d345388018b0fb23ff52bd9",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -949,7 +990,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
-      "sha256": "61ffbb98e0bfc892e4e7b7d59521ddb76c0657e27f5e1630494d6bfa66c0c2b0",
+      "sha256": "41f03c2337c15d883660663179dec330d3472a3cc3aad2749a0bc2b16a74759c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -960,7 +1001,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
-      "sha256": "b96e369b4a160d1e8c6ca320338093c608d64cb047dd7cae5ef815bbdf45c624",
+      "sha256": "7b55c84579d22be24133fba322e6f78377edf064c262a9ad193512f85fadd1f9",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -971,7 +1012,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-suffix-compatibility-v1.ts",
-      "sha256": "07afe95f0ef40342eebbf93e574c426db3aa42e1821fc5972cc033b1a70222ec",
+      "sha256": "d369e69bbaff9176e0e3bf81f7cc3fbaffb61728b1b2b144de149d2b22e65667",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -982,7 +1023,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-runtime-where-right-operand-site-authority-v1.ts",
-      "sha256": "1b37d7cb5136423495c4171e988b6a9f0e4399abbfc44b943f1020f97463b5bb",
+      "sha256": "7a5449c10278b3f9f5d14875301978043ddfeee2f32fed2811647ac182f72b83",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -993,7 +1034,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
-      "sha256": "1faa6392d236149443d9f1dc8dce7ec6f04d3ddb995676d8b2f449ea22b67b55",
+      "sha256": "d068ca3bd591e5bab14fef230d04fc443a3a3c8d0596d0fbb7503834e2732f55",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1004,7 +1045,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-sentence-occurrence-identity-authority-v1.ts",
-      "sha256": "ff5a52734f8dec5fd3e46169d9c2977dfd9e992ff21aa6ea6a5b303b665529d8",
+      "sha256": "b9b084287def91fa444163f6a4ff81d4570ccc153c6a32da2ad73a4a46e0ba67",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1015,7 +1056,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
-      "sha256": "686b79d9a61e2764df3cdab8e5f15d5c8cf13bea32c371a4890420c3996598d7",
+      "sha256": "331d3696233400de14326d15d42ae6cc586f11535ed0e022f29859a6b46754e6",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1026,7 +1067,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
-      "sha256": "ad7d4319d63be5f073a96409ba6605e12b8aeaa9ebf2facb97ab85625c97b3b1",
+      "sha256": "42a28a99ba7cf2f30090cd41126f01068648b7aaf816c7e50f92672106ba8f99",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1037,7 +1078,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-surface-graph-provenance-binding-authority-v1.ts",
-      "sha256": "db5983ca7ea8f0361a2ebbc68c5d860b1b4219c5d3fa6ceb1951b735af6e91fb",
+      "sha256": "ee96e8b0320287eeeaee42abf46ce0bc8b173c9457837c6eeb7248150fc33263",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1048,7 +1089,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
-      "sha256": "3ea04b00e8f5065472923f13a41e34ea5ffa4f5aa04190b8e0c1988f0f5695e5",
+      "sha256": "a93f82ed5c38424e5d3cd3a5cec34eed88b8250570b5d3f39d2a098e2b43fc1e",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1059,7 +1100,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
-      "sha256": "53400e55d83f67ac86f32c387a8891cdb5e02d4bc4c22f59f71621cc7f23ba70",
+      "sha256": "78af35336c7b8313b021758c1f4ac5ab9ef49950796c21a6c387e68e7c469c32",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1070,7 +1111,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
-      "sha256": "0b2a19c3e49d3be244d4f7512b6c547c5cbe87206bc5cfbfcc4aad837d3cb3d2",
+      "sha256": "bf42ca9bf958739a807eff32b368350108318b9c9b27781e2c09ea7dbf71a3e0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1081,7 +1122,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
-      "sha256": "57117f8b8c51c06fc111574db1555cc707ccef244f58d48f523b3c82540d9520",
+      "sha256": "37f7ec51c60a43101f97980d28039c198ce327edaf704b506e88244002b80276",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1092,7 +1133,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
-      "sha256": "60c29658de21afc664033a3613d5436d3f6383cd4823333025289cec0bbe397e",
+      "sha256": "c2d19ea8f29e170bdf2cd50c36dbe0445b86e8a1018effa5fcc5358213ca9257",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1103,7 +1144,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
-      "sha256": "d6893b3ee6e28b4e4923d0dd9992ca4ea10a186fa841ab43d600b9816d6efeec",
+      "sha256": "1f4bfa81caef9aab7024b70f2b75b93cd04cc8112060c262695ed98ce2b13a7f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1114,7 +1155,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
-      "sha256": "89340ab14ad12be0e37b452ea98097326b818118f1e013677faa1af04405df0b",
+      "sha256": "32f6958505af38d382044035b2cb81eac845e2ed2a66962fcc44c55d15f963ba",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1125,7 +1166,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
-      "sha256": "9383c42554e88fb0467cbe3aa22adee32eff6add17359cc67a54f12cf94a8fa1",
+      "sha256": "15880a36457e66f91a3d719e594d9cf36ff64a27fc2d2a75b8b306cae4c34533",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1136,7 +1177,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
-      "sha256": "df5b9b247d3e9abca840a701a53eaf73e4502a8fece05b83c2fe6f8481088960",
+      "sha256": "abe8b523d6c801f917456b37ad9c93ad9ac82ad0413279bc15ce01cd91a86c5e",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1158,7 +1199,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/morphology.ts",
-      "sha256": "27efdcdb01388812636fee6c7ee62fb4d24e81f7624cde7202aeeaf8d688fd40",
+      "sha256": "6bfeb88844edf406864af2502dc6374fee72f4e984bdef284cc8ff5af5736b47",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1169,7 +1210,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/normalize.ts",
-      "sha256": "cf176ba798f27f32442145cf41bf125e0a462265890c3414dceb3d2e46d6f15e",
+      "sha256": "a8874305fe1010375109e65a45f578d1dba454daf02bac2f2758167db12753c3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1180,7 +1221,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
-      "sha256": "fdb45e3936a98e5eae7f8b9d134b8f6b154dbb2d55b1ce4d3896690f0f09ca96",
+      "sha256": "8d9bc704ce7da7f852d018d28405cb28d3780aacbacf55bdfe9b2590fe45329c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1191,7 +1232,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-candidate-lattice-v1.ts",
-      "sha256": "4e466fbc7ea18886e3b98227116fa17d5071a057e3dfc4a603f80c3d746d1c78",
+      "sha256": "aa4e2c01634a83f945224e177f14575210ef88dfb660d027ab66c185301fbb6a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1202,7 +1243,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-constraint-propagation-v1.ts",
-      "sha256": "c27c0e35e81b99318772c4afdbd54f856d93493471bae9b4691679b01ad79736",
+      "sha256": "92469368ab40e34f5a057bb15b4eb70f44537e676ccf0edc492cfc7e38907485",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1213,7 +1254,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-construction-candidate-lattice-v1.ts",
-      "sha256": "d5797b677c4c1ef728a5dffbe0fe91edc94f422650356bc33e923680500c4794",
+      "sha256": "3e485dfab178cc78619918460fe5e5a892f40175643f8d22ff159d0069f0cc5c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1224,7 +1265,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-construction-live-snapshot-adapter-v1.ts",
-      "sha256": "0b9b9d14ab186601d0467cb2bace29a67a0b3548decc0d4c22d31847f0135f0f",
+      "sha256": "b703bbf718ecda0c288ab648b362cc61d7ba303a6a51fb41b4bd52b46e93bede",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1235,7 +1276,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-construction-projection-adapter-v1.ts",
-      "sha256": "92e7279370695f0092261f96d13f8823c967cdb6a7e4d916875ab3208cfed97b",
+      "sha256": "578ec26e321073ce71edde36bd371bf2a9053373142f6953e76f023f4846b3a5",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1246,7 +1287,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-current-runtime-sentence-context-authority-v1.ts",
-      "sha256": "f37945179524d774d162a060314ac3d51024dfa25bde8762eb0789fdb5f0b92c",
+      "sha256": "d78631f526af808cecd9e93e68e4d2190654b4340b6a6490ec3649e12b2af816",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1257,7 +1298,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-dependency-runtime-authority-v1.ts",
-      "sha256": "c5767a887bc57737a2e384a7a91b68d88f7c21272b01b7c0d154c61e43b25c35",
+      "sha256": "8c061436341cde8a2a3cf7f9f500e419dc389f44b49a2902167a49cc53e42958",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1268,7 +1309,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-graph-snapshot-identity-authority-v1.ts",
-      "sha256": "0760395d18ae7508d74f8bcb7b04c70ff66ca0de7f8b3ba6316447d69edc14fb",
+      "sha256": "ae52a654c22896833e7a77840cbad8f502b132505c011777e967d896d76be2e5",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1279,7 +1320,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-node-type-occurrence-inventory-capability-v1.ts",
-      "sha256": "17c64bd09b29fefa4142acc2fa4383eea3fd288eb70a58022a7c6aadc1b37c44",
+      "sha256": "da643a459ba2c71438fd7ff7e81fee3640523a38bc9f9d39ec8d548c7dc87bc4",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1290,7 +1331,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-phrase-candidate-lattice-v1.ts",
-      "sha256": "e0976c00f376ff3e35c68225f0169db1a1b2c05b6f48c25a6ca706d67c430011",
+      "sha256": "e46bf8c9b3d784929626bcd04b80cdfcb51d3a2fc7dda57c238bbe892f5cd033",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1301,7 +1342,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-phrase-head-projection-adapter-v1.ts",
-      "sha256": "658e68de20bfee7e7768faa53f42f7688a5eeab69a0b5b8d1fdc8000732fd8da",
+      "sha256": "c508bcb0b162a96a059bd821ee96fa0c71bb4abd3131ceffaba0d331296ffb07",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1312,7 +1353,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-pos-fact-ownership-authority-v1.ts",
-      "sha256": "1dee777ba1086563395857fd68855ec42032bac9d3ab49356d6a4ee97c356dfc",
+      "sha256": "7cb6924ba04da4bf5510a13c3b05d4d91d2383c551dc0399dffcc1af88204cd9",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1323,7 +1364,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-predicate-candidate-lattice-v1.ts",
-      "sha256": "c99af097bffd6401d9b42c905f31dc28b5b98836f5f7164c518319fdfa7f2166",
+      "sha256": "fc98e312215820b584f75079dd5685646b132d854d19da1b3753948be4caa52f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1334,7 +1375,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-candidate-lattice-v1.ts",
-      "sha256": "cea202d54437499ce0ec413b1897d5250ed1f9bada330d7798f3c836772c052d",
+      "sha256": "287e5bac053a34cdc53385a2da966fdc8c6a497f50e68ed0292ddd73c563a81a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1345,7 +1386,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-live-structural-integration-v1.ts",
-      "sha256": "547597a07b772f66cf29b6da92c1c0d2b6b32589218029cd08603b1aeedd5293",
+      "sha256": "5ef829cf9e686be7dc93ee732497b8940d3bc3e24cd028a16f202f3a40b9938f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1356,7 +1397,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-occurrence-binding-v1.ts",
-      "sha256": "c3fccdfb3ccd2649f4463b560068c14ba714b972491aeae6d4041daa6cfb2beb",
+      "sha256": "ae907bf9316f8bd039a8359063ab93dbaaddb581fc4fcc225558b491f4618800",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1367,7 +1408,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-role-ontology-v1.ts",
-      "sha256": "02494bd11d902c521ab5fb118a29d12216fd20de96876ca014c988ff64276ae0",
+      "sha256": "441f3b53520184d8e25e972a5c1749157dd1a090390c1e932d5d82ab28a56b6c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1378,7 +1419,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-predicate-sense-source-role-adapter-v1.ts",
-      "sha256": "eed8f4ef3a6dfac095b23c2c85463265beeba7f1d9ed57f8d17346dc808a48a8",
+      "sha256": "3c0caccf79a0723b47a9ea21f992f80d7c126927587a3dc514584b82d57add65",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1389,7 +1430,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-definition-authority-v1.ts",
-      "sha256": "660225f076bbe2c165ccd6b366172579e42847650713c54190163148f4bc5ea4",
+      "sha256": "13fb54c083891c3c35407db2ace7cd313c8b5f75f5490e98fc89de917af93360",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1400,7 +1441,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-entity-compatibility-v1.ts",
-      "sha256": "db8754200eccb837afcac592535fffd5ee749a8a80934583676ce28737f540f9",
+      "sha256": "72f88c0906fe53d3293cbb38c5066afb7b4a074f22520521c6c319516a3d2255",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1411,7 +1452,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-left-right-site-authority-v1.ts",
-      "sha256": "d439f24723f8946cf8c4c6c0c2dd07e7dfc5d99f77fc440049702c8098d1c94d",
+      "sha256": "aef44b6f9ba7d756a4e5404a6d4799215c2a9144adcbe4da233d19c5d39fbb88",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1422,7 +1463,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-reference-root-authority-v1.ts",
-      "sha256": "f0f442d848ecedbd221d962f4e76d3412b44e786774f1c4df4c18bde75a79b66",
+      "sha256": "350092cc7c10e3b37c18a61f01478cf8cdf4c969750f63876370618792dfe745",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1433,7 +1474,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-right-operand-authority-v1.ts",
-      "sha256": "ea5c4c79077d5b6de091357a1c022c26b9eeb5a2e223041ce80430899caa2218",
+      "sha256": "70b229ad0efc605d952877553f1df8c0c3bdd002696b44fdc4a83dc90e6654bb",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1444,7 +1485,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-binding-where-shape-authority-v1.ts",
-      "sha256": "f692841656977a315644904322a1271babb157ef19aef04c93706513363e7d0d",
+      "sha256": "03f5438c10b1244d4b3f053cf84d532cf1470ab9c5092ed7304617121b7e15ba",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1455,7 +1496,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-execution-context-input-v1.ts",
-      "sha256": "550f381bb1d7b6f340fde21428e04e105557c0c5c1368e7f14ce8b8509ffdcef",
+      "sha256": "918e726c59e18980ae13f5a224b7f35852f83e3a7207c40b052d71000464c12f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1466,7 +1507,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-definition-authority-v1.ts",
-      "sha256": "9ec2a913bae680b3213d93991ecb5c025b11f05c575d1df85ad1cd5e448295ae",
+      "sha256": "721cfcaa0868761c5da407698a599aeb7d368db562a1d38966dd20ac07ce62de",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1477,7 +1518,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
-      "sha256": "c3b71fefe223e1fc8b673503ef05958c91b97c4a3e114abb6ec2d0d4d94c59bb",
+      "sha256": "522024c64b1b3dda35a769b12edd7c42dd6a5d263ff458011e86f17d1f2517fd",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1488,7 +1529,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
-      "sha256": "67eceef1c4ef32589d8a8e242bb479dd5051425bd44940dc653def3fb1ed45b4",
+      "sha256": "2a32bed4faeb6259f2281c21b09de99f523c2114f27d6e9568b7edf879679e1b",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1499,7 +1540,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
-      "sha256": "29afbec682f48d9dcc05515d650348387df8ac8a2fc6ee24271b7462befd5cd9",
+      "sha256": "34580b78aa070494d2ae83040f1bb5d45b44de746d0487ad5d5dbb3b2f8b2b5c",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1510,7 +1551,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
-      "sha256": "0a15d20b8c5b5474a698df000c3cb89cfb0ce1a130c88cd3585cfcc942f25f3d",
+      "sha256": "7d99e35270bb4d94374419d965680138ad7b3cb0c95956c2e7cb8ab11cf946a0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1521,7 +1562,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
-      "sha256": "1ded6ea3d80a34a1a40a10eaa2a44de010497753acbf9ba0e90772e2b6808141",
+      "sha256": "7d2505970ef1fa999bf267287284a36994b4d09c49fcb1e3b511f2042da47309",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1532,7 +1573,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
-      "sha256": "06fada1a3331b6cff397f471203a7c112a509f6901a9135fe54a4d890d378a8b",
+      "sha256": "555b9f11cf2a6904f26094f5ad5cb0720488947fa722ccba501310cf4f6ab142",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1543,7 +1584,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
-      "sha256": "5ba7ba408005b24658afccc0ae07ec54f3d83f16434569b9bb3ddda447c9cb47",
+      "sha256": "778c83fdb27b02bb81dda42f8102c4fac4200f179f1ff3d38b553e8a811cfd7b",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1554,7 +1595,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
-      "sha256": "bd83d54e034b99bfb3197e920d618e35504af149d8cba123d3df2ffdc9626c3d",
+      "sha256": "0a77416153994630032472a2ecf7cef5b071755de64a4f4bbcf1cf6b8cdcdaa2",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1565,7 +1606,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
-      "sha256": "d263ab7ef42fb9958cba19ec1bac6c2c336d9607b62f3170580d2e30de7ae6b0",
+      "sha256": "62b453f83c84de6bbfde79076db5a4c274dea5cfe9e3256a31cb2466b82ae006",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1576,7 +1617,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-recursive-compound-truth-composer-v1.ts",
-      "sha256": "3d005d2a090d1a234384b8f7251fd7f908d3e3e78de74f41849cbb7ea0d36100",
+      "sha256": "80f28ed4dc6ce7a9a7b8763dcb826c9c176fba3a98a88331f652837be69f2b26",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1587,7 +1628,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
-      "sha256": "ff8e1de71b229b1a027702200832165e3b8de0ad5babc8b487c14ab43b6c3385",
+      "sha256": "17b77b8cae714b612f3552c77d79c4362e1c2448be0cec061fd9e08c9150de64",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1598,7 +1639,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
-      "sha256": "aa568aedbc4cb418b1b18c29c8d9c4e8759c9c10d3650c6cbfcad6cdaed04623",
+      "sha256": "bdf61c5562d225027abfa570e965f885eba5f9efc8fb854b6e2627c5700b1442",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1609,7 +1650,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
-      "sha256": "4712f4c05bf58546ac40d94af84c3908488113921902758bd02901ef7c861ddf",
+      "sha256": "6cbfc30e26d91331facf17fd3d0fa3c1f34174e490e51551e5a650a38d513fbe",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1620,7 +1661,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-token-pos-authority-bound-child-truth-adapter-v1.ts",
-      "sha256": "73d409ca82317d077792e102933789e6c464bc8a495c0a8133f539d398c6aa27",
+      "sha256": "f26794d317622806be1c7633cc8b52d6dde35d601d44a0725ecaf8fa1be08d8f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1631,7 +1672,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-token-pos-context-bound-child-truth-adapter-v1.ts",
-      "sha256": "0fcfe590d412b77a6edc6ba4fce76a1085f86c59c470fe7c36c991f99a204838",
+      "sha256": "7c74124793dd31f78c62e45eaed0ff30538968ad17daab92a348c8b87c1d6c79",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1642,7 +1683,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-binding-where-token-pos-leaf-truth-child-evidence-adapter-v1.ts",
-      "sha256": "a8c50402ae9169e9020a989a65a2719fd68cf6ea822e4f4d0e7b3dfa42313bcf",
+      "sha256": "bf540202339827a14be7d4df331d30c54983bdbe88b42ec7593124585a0af28e",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1653,7 +1694,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
-      "sha256": "605a6ba1051bda20f12da82f582da2d9b5bc348f611a57efa1a93c4850a09b45",
+      "sha256": "efe9816a9521ef23b773ca2866db9025e513e199606a68136eb16166b1a09d88",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1664,7 +1705,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
-      "sha256": "16c3cc36061c4a12ae2c8fb1493115571a73e4e3e17b58b96416686ffea1888f",
+      "sha256": "000573b469c2fa72a3356af1fb1d800fecd035d670a256cabb24cc1fbff5f5d7",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1675,7 +1716,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
-      "sha256": "0a2dc024ea1da6e20e39475650408c54e9cf23b52594f496cf77264f5850bc00",
+      "sha256": "84a8d377e448076941fa87f23ff28d657c0942e9d9330f764390c7f468910ea6",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1686,7 +1727,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
-      "sha256": "7a06d4a7bc9a6d508c47141563a816ff58c997f2c9d953ce82b414d6272d61a1",
+      "sha256": "325f3025b96cfb8e9a79ce00d07dfea8a788f759529060576a92d590de4f7d33",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1697,7 +1738,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
-      "sha256": "b408064458486d58ea22100fd8c814cb3400431b3e919cd4fe9aff5571edc764",
+      "sha256": "11d99d312138b2ba7486a05f3e32d068d1f8f04df619537044475bcbff7df147",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1708,7 +1749,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
-      "sha256": "d34e9bce8982654f0d96f0c4e3e6711540f2d5e8f0e71350b6a25ae91aca1e77",
+      "sha256": "b15972368ef9fe98ddae157dd748e1bf2854fba895cea7eb5780346a4132de5a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1719,7 +1760,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-action-authority-v1.ts",
-      "sha256": "9edef1106afec8bf480b4c6103431c6346d48cd187a86dae1543b1e57db2974e",
+      "sha256": "c299a8330b259259df529711d3c48bc338fc8f95771d3bfc0ef10bb1f5818624",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1730,7 +1771,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-binding-entity-compatibility-v1.ts",
-      "sha256": "fb35cb26997a74ae384b76b455eb40ffc4ff8708cff0bfc4ab31080b1aacb231",
+      "sha256": "f32d1bf266161a1294cf07656e79ea5bf06e100180f370e11e027eb7bc360ef1",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1741,7 +1782,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-reference-root-authority-v1.ts",
-      "sha256": "9465bebfbc01f235253043740303d6b36d939f1ad70639f74903bdf28f1a2df7",
+      "sha256": "c7c5d2e176f8d52186cb27744969970b6051d4952e5d5f6b1b32fba91d900135",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1752,7 +1793,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-scope-compatibility-composition-v1.ts",
-      "sha256": "6dbf61e3311ec317663f0e484a33182c8cd54f6232a2dfc403c11e5c6d8cd923",
+      "sha256": "7c8b9c7c807f4376e45ef025df6c4ec81897091e0c4cc785ed5fc91f5dbec42f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1763,7 +1804,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-set-role-target-type-occurrence-inventory-composition-v1.ts",
-      "sha256": "792f64ed02602250d2614ee05a4bbf306aa19e952d4739e51af4851c8008d67d",
+      "sha256": "7c6d81aff92c17ee14fb01ae76050db6f915c914da8009711c584fa08a0c90ce",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1774,7 +1815,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-condition-truth-composition-v2.ts",
-      "sha256": "ff746f1064fab13706ba8a9e6c426d556f3c98a6cbabc10cbb139f756ac85710",
+      "sha256": "eb1f5a0bff5293c1436e60bf919de809aee43b09fa66d53bd8cfaeb86460e21f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1785,7 +1826,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-condition-truth-composition-v3.ts",
-      "sha256": "5a4f1e6e2691cddd24cdcb2b7b228736e8acc4de5548df2e573a7e1c29e8d8d0",
+      "sha256": "743473258616e12930f6e543fc4967820e6207ab38a9cc04638f5f16ad87bf7f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1796,7 +1837,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
-      "sha256": "bf57658dd95264052776f9970c011f385a87fe3694ad587e0c41be466a2725b4",
+      "sha256": "0ca136c543d7dbd0bf6711db93916f91ede250cfb91879dfb3f950a8a22b15e3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1807,7 +1848,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
-      "sha256": "aac572ee56efef7e68a3ce55116168ea11c21378e088bf839f5f8532dc529307",
+      "sha256": "875c13f506039074592f0d536b515ef7c5247e7541ef2548ce731a6eb50e6a50",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1818,7 +1859,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
-      "sha256": "ec22aeb980c8770eb924670ebaed60a4714b74706385b26a284ba66c8d9298c4",
+      "sha256": "78fc9db2a958d562ae96a48caaef829c13efb149b65cea3972eaa1dea73d7b0b",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1829,7 +1870,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-binding-occurrence-set-v1.ts",
-      "sha256": "96403ee9b811af85c7aca9c0721f44c6c714266ede83b8d23b0305736822551f",
+      "sha256": "1b82c06406db9b9179eed4150844b606e34a2880bae21fba94569045eb9b5715",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1840,7 +1881,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-binding-value-projection-v1.ts",
-      "sha256": "7e1252eb3547afc025dad912552ded5b440df15611c666dac6a8c3dd88cfdf2d",
+      "sha256": "69a0c8419d4ade618d5984c8c2680f8dc9a5d0c8cd78175211e15741619a5ecc",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1851,7 +1892,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
-      "sha256": "f0d05ef9d99ceca4f909e4772f1c60ea4cbce541bce92bd517cbe0f7a7a54bc2",
+      "sha256": "47e2112b4c0362fa2055b31d083988e2827f8ff78ec866314e4b22c3220a209c",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1862,7 +1903,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts",
-      "sha256": "940c4f1f0e2f30fdd1da372974921f24698e0fa5524c06925529279b039a4d15",
+      "sha256": "889ef423752265938f41beb54d0c363ad10a3b1ac45bfff01cbcc7dfd7823805",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1873,7 +1914,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
-      "sha256": "bc0d7f1207520b37ff6249c931b444b764f5d1d364eeae8cb3af9f86fad5b601",
+      "sha256": "54e17d47d25179f4bfd02299c02263ea77f3ad8a61efc579a2bee9e30d5f5603",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1884,7 +1925,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
-      "sha256": "950441d62f6047f3671d773fb465e3b24d02cca7f5cfdacadf10cc85c99d1fa0",
+      "sha256": "811ad30a7a986f6d55feaf9a7b0e57735bf20407e8d4b891922f4954b2494563",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1895,7 +1936,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-leaf-condition-disposition-v1.ts",
-      "sha256": "99b87dc81fca09b7cf135c8187058195f74800d5d6ca0a71fd59316b78d5adbe",
+      "sha256": "199c937caca9cf4307f38b1c3e0ecaa5f139edd252380be835e941a114026d85",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1906,7 +1947,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
-      "sha256": "423408e42fe4f5ac588f2a3aa72efb11d24c9cfd2254d8d0ef12adc412c8d278",
+      "sha256": "79ba1a47be50fca127cbc8dc21971c956ab83d5c24d4b638bdffb6490e8697ad",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1917,7 +1958,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
-      "sha256": "4663ea9905526993bb8c374dbe209f70c2abb44991071e2b2ecd61f4c2a387bb",
+      "sha256": "fd55cee84b6cdba6824b5ec0460f402a6e13ed7e74a984ba35a25a62ffadf609",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1928,7 +1969,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
-      "sha256": "f7132466632dbd8756f5f8b35178146417a25bf59e426d48b9533c0df565351c",
+      "sha256": "c921d72c499b113570897438726eb8ba00c111b4cee2065e194cd5a8a835094d",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1939,7 +1980,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
-      "sha256": "0338715ece9b3545ffe05e8477d7ae7d69d3920d14aed23b0a6d6dbf73b96e84",
+      "sha256": "dcdae2f4721ef63bf9d5071b1cef4a6655d317ad88603faab57b207c99e8d1e1",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1950,7 +1991,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
-      "sha256": "2c157c1aa3a44683043ba0b95bae814121b95b15d1684e17e57880decf1b2a33",
+      "sha256": "ad99299c56c80007760b2e6db2681aa7e9b71d6a1f089d94fe8b6214d1dbcf81",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1961,7 +2002,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
-      "sha256": "b6ba0095f7894c86c0dfe9ed43cfd8a4c0a86c9b610656e58196b7487f26c7f9",
+      "sha256": "8c5c627140f907314ad5f1c10db14a3a3c055bd08295dcd069066a0f4c1c4412",
       "symbols": {
         "create_dependency": true,
         "clausePatchFromLegacyV11": false,
@@ -1972,7 +2013,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-eq-condition-truth-semantic-capability-v2.ts",
-      "sha256": "af25de7be3e64249581b7c61d5c3fae9d0b2aa1dbc008333aa704141e392117d",
+      "sha256": "7f99a41e691bb39e94b7a49f97a8ff48eb9d69b14321e29757a028b5fed7bfa0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1983,7 +2024,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-leaf-root-candidate-disposition-v1.ts",
-      "sha256": "9a7081a64f7d6672e221c168a3ced89a3b6098a838477afd0ce85faf1f3e50e4",
+      "sha256": "694dc42af8ebe0e254bbd54103d66afb15c1a94ccb2f47e9ec0bc918762d0a50",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1994,7 +2035,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-nested-leaf-child-evidence-e2e-golden-v1.ts",
-      "sha256": "d1d31565496e46abe2438ba08d71d06af7708e07736a2299da05ce0e3d690e42",
+      "sha256": "f85dacec80e758484bacbf21ec9c6ea8ffc35ec3a3b4c29c3bc9be60cb9b2b81",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2005,7 +2046,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-nested-leaf-clean-path-golden-v1.ts",
-      "sha256": "65a8cb127815635ffd92ae62a2ff6e524887f50f1b2de2fe6569959d34f36e6f",
+      "sha256": "1f02dbc28f70c5e8f2bc4b958f78f397552c56738e26250224be091bf14be201",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2016,7 +2057,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
-      "sha256": "ee843ce422ce25cbc6fae2484d5f2a8d941bf3edd2c114e9b7d401a528fdcb57",
+      "sha256": "03f8b098b8a5cb8d316fb11d1bedf9e07e303ac335d082b8281debb7e0f89fce",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2027,7 +2068,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
-      "sha256": "293b7f0122bff185a9c8e450d8cf37ea222a6998910a931c1a3c8fedb6b4a11a",
+      "sha256": "cf5f4e8f803d945df3a9baed09b084306180977acb0fd535393d9df198fe4c18",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2038,7 +2079,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
-      "sha256": "2a6cd3ef89946bd96f7632564fb5e48369a5963e06c8fa377c665fce10bec33f",
+      "sha256": "caf18c1301cae6c8632092fdcc7b8259bd164ac0451e9fd01028b03d92358586",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2049,7 +2090,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-token-pos-suffix-compatibility-v1.ts",
-      "sha256": "1310c0419005d9a7384bc4664f84e2b829f1f36acbb5e0880ba372fb779a3730",
+      "sha256": "99eef2bb1ef3ab69ad233022a10dfab934e218853f936f4c999fbb3bdcf572e1",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2060,7 +2101,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-runtime-where-right-operand-site-authority-v1.ts",
-      "sha256": "368a0fa64588f0cefc47ae8e2db1ea3a99edeae15e06b6c9191747712293f2ec",
+      "sha256": "8981e7771b5d9b3e5e94e4c6ad9b59f11e1548655467b27b8808e57ee7f8d710",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2071,7 +2112,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
-      "sha256": "32749580736e04b0a3458df349dfc7dae36b5661865c93bb859364e670ae384b",
+      "sha256": "6e7a7a2957f030361daea33f0717ee2a6b8ebccda97f2b086044aeccc16b4110",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2082,7 +2123,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-sentence-occurrence-identity-authority-v1.ts",
-      "sha256": "009cd103f7e1bc7b35e4776cb369a88ebe348158cd885e3fba7ba5e5811c9e5b",
+      "sha256": "3996467e136e63ba4fa83a3b4b92d8b76fcffad3527301b1881109948ae77667",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2093,7 +2134,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
-      "sha256": "b54bfb8b7982aba9d81e8bfbc15615ad601f80d10f0eeed7c1211b08f6541a04",
+      "sha256": "8de48b63c48abbcf7d599333970340e6b7bcda28bcc7fab20d8e1e6889650eb5",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2104,7 +2145,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-surface-graph-provenance-binding-authority-v1.ts",
-      "sha256": "f3c0be73676a13353ac5253b7eba4c24e7df980d08835957f1ccd79bf2d53793",
+      "sha256": "e90c5b8a83e34a250d34cafe8c41e02485e0f57456905d81afb29028f745594b",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2115,7 +2156,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
-      "sha256": "ec8379001a07a7a019dd2210d5b81f2a0ca0462a1bca96c889118040ff2eaa58",
+      "sha256": "1287e73b5ce283dfd68278a1f35db5d8e67b3d20756b64e074e67e74861608a3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2126,7 +2167,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
-      "sha256": "805fa77d43d27314749ec63d83a32d0804a9d11041b250166c9ad9b8c01563d5",
+      "sha256": "3f3500eca3ff8e4243372468523e0c959c2e30c725961fee5004c234e5d16e40",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2137,7 +2178,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
-      "sha256": "f6e2f50df0ce8d1dfcd11ec1b011d3e6b798efd39f6c1e1041b61ef02f873491",
+      "sha256": "5d1c453ac17220895c7cf1f7e0302f00701df8da06a067830f17dd9655a1e37f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2148,7 +2189,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
-      "sha256": "8787771e6bfd50813a4c7e4b1b69c8a5fd02f465f99e16646426a4732a7039d0",
+      "sha256": "9aeaeaf08861b84f4b4c30dbce8e58ac8e1524fdb71608a90d083ad33a18ef96",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2159,7 +2200,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-hypothesis-set-read-v1.ts",
-      "sha256": "cc403ff55300fb6713e7387370842a2eee80d967b1551eb95c5d21f44e09c101",
+      "sha256": "deffaffecb292735454d57662e61f6a198b28f957fcd4c5d62909d25b2e2ee95",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2170,7 +2211,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
-      "sha256": "76eae10cad333e3dc828da1e0e66a5d013382c15c9195c6359352433e88a142f",
+      "sha256": "a7e0ca293baad59e0389df6509c9200322a092dc18a85b755bb6b62d75481f8a",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2181,7 +2222,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
-      "sha256": "d841a6b5f5e5db03d5914b66e984a169fe97c3c662f623b5d5d18823dd0d92aa",
+      "sha256": "0954279c9907e1b5ef1cd67010efb6e9d102b5c13d125c594a9e8cbbe5a963f7",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2192,7 +2233,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-canonical-token-pos-property-capability-v1.ts",
-      "sha256": "784f172689d945d8d03373c072e126ab3bf15af3ff9282ca21cd1ec835cf91d6",
+      "sha256": "37f9b0e0582138769970238d8f037016dd0fc6c528af1a27ca3d5a7b86ebeaf5",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2225,7 +2266,7 @@
     },
     {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
-      "sha256": "9b92be9370390696487c6b8f6ac8176bbf740c699995a6f0326c001098b99205",
+      "sha256": "8e006617e614abf40d726c1574ad60d525b30d4fc0f75e81ad36de02b36793b2",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2255,8 +2296,8 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "source dependency changed: supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
-        "source dependency changed: supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
+        "SOURCE_DEPENDENCY_MISSING_AT_HEAD: supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+        "SOURCE_DEPENDENCY_MISSING_AT_HEAD: supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
       ],
       "notes": "Authority IDs remain distinct; object identity contract was not weakened."
     },
@@ -2453,13 +2494,167 @@
       ],
       "stale_reasons": [],
       "notes": "Next concrete proof target."
+    },
+    {
+      "proof_id": "R049_RELEASE_INVENTORY",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "Production inventory reported: runtime-proof-v0 golden (1) and runtime-structural-v1 through v1.37 shadow (38); zero active releases.",
+      "result": "R049-A01–A03; user-transcribed Production SQL results. Snapshot must be refreshed before activation.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_KNOWLEDGE_ELIGIBILITY",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "Production view reported 4564 knowledge candidates: 1732 runtime_eligible=true, 2832 false.",
+      "result": "R049-A01–A05; eligibility is not a compiled executable rule.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_RULE_COMPILE_STATE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "Production grammar_rules reported 37 rules: 9 is_active true without compile_hash, 28 compiled with is_active false, zero both compiled and active.",
+      "result": "R049-A01–A05; do not equate grammar_rules.is_active with release execution.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_SHADOW_RELEASE_RULES",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "Shadow runtime-structural-v1.37 reported 27 linked rules, all enabled with compiled_hash; one compiled rule not linked.",
+      "result": "R049-A01–A05; linked/enabled in SHADOW is not Production active.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_COMPILER_PLAN_INVENTORY",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "Compiler plans reported 14 deprecated v1.0 and 14 validated v1.1.",
+      "result": "R049-A06; compiler_contract grammar-runtime-compiler-v1; authority query returned no rows in grouped result.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_EXECUTION_PLANE_CONTRACT",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "build_rule_execution_plane_v1 inspects three rule families and returns bulk_activation_ready=false; apply_rule_execution_plane_v1 adds the plane to JSON.",
+      "result": "R049-A07–A11; source definition inspected in Production; cannot extrapolate non-execution for other families.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_27_RULE_DIAGNOSTICS",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "All 27 linked shadow rules reported ready_without_code_change=true and upstream_blockers=[]; 12 morphological assessment_status=ready, 15 null.",
+      "result": "R049-A12; diagnostic assertion only, not golden/runtime proof of all 27.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_DEPENDENCY_SQL_SMOKE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "Production SQL smoke for subject_of_predicate reported dependency_count=1, canonical_v2_parity=true and trace_action_materialized=true.",
+      "result": "R049-P09; one rule SQL smoke, not proof of bulk activation or full legacy compatibility.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R049_ACTIVATION_GATE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "proved_at_head": null,
+      "claim": "Canonical activation authority and Golden Tests for all 27 rules have not been established by the reported R049 checks.",
+      "result": "R049-A01–A12 and R049-P09; READY is not ACTIVATED. No activation performed.",
+      "evidence_runs": [
+        "R049-A01–A12",
+        "R049-P09"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
     }
   ],
   "policy": {
     "index_can_promote_proof": false,
     "automatic_transition": "effective PROVEN->STALE only; never auto-promote declared proof status",
     "stale_inputs": [
-      "tracked source dependency change",
+      "source dependency missing or changed at selected source revision",
+      "Git inspection failure",
       "non-PROVEN blocked_by dependency",
       "expired/unverifiable DB snapshot freshness"
     ]
