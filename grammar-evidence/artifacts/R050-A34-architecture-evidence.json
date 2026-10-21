@@ -1,0 +1,18 @@
+{
+  "schema_version": "r050-architecture-source-evidence-v1",
+  "run": "R050-A34",
+  "captured_at_utc": "2026-10-21T17:06:20.834773Z",
+  "basis": "User-transcribed Supabase pg_get_functiondef/pg_proc output in project conversation, 2026-10-21",
+  "evidence_kind": "SOURCE_INSPECTION",
+  "claim": "merge_surface_candidates groups collect_surface_candidates rows by lexeme_id and POS, initializes grammar score=0 and trace=[]; token lexical-class wrapper delegates to resolve_grammar_lexical_classes_v2.",
+  "observation": "Definitions inspected; neither wrapper itself implements productive unknown-form generation.",
+  "limits": [
+    "Source inspection only; no executable Golden test",
+    "No complete-system absence claim",
+    "No readiness or activation claim",
+    "No Production writes performed by this recorder"
+  ],
+  "release_code": "runtime-structural-v1.37",
+  "activation_ready_change": false,
+  "bulk_activation_ready_change": false
+}

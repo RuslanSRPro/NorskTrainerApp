@@ -352,6 +352,90 @@
       "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
       "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    },
+    {
+      "proof_id": "R050-A31",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "Token-construction function inventory identifies build_shadow_token_v1 and build_structural_token_v1/v2; text-reference flags alone do not establish runtime behavior.",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A31"
+      ],
+      "result": "Metadata query returned six named functions and boolean source-text references; no function executed.",
+      "dependencies": [],
+      "invalidation": "Source definition is a user-transcribed Production snapshot; re-inspect after function changes. No runtime claim.",
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A32",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "build_structural_token_v2 constructs morphology.readings by normalizing existing surface_resolution.candidates; an empty candidate array produces no readings. build_shadow_token_v1 uses surface resolver and registered lexical-class members.",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A32"
+      ],
+      "result": "Definitions inspected; no independent productive morphology generator observed inside these functions.",
+      "dependencies": [],
+      "invalidation": "Source definition is a user-transcribed Production snapshot; re-inspect after function changes. No runtime claim.",
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A33",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "build_shadow_token_lexical_v2 delegates to build_shadow_token_v1 and lexical-class resolver; resolve_surface_form_v2 returns no rows when merge_surface_candidates returns zero.",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A33"
+      ],
+      "result": "Definitions inspected; context_applied=false and grammar_engine_version=null in resolver output construction.",
+      "dependencies": [],
+      "invalidation": "Source definition is a user-transcribed Production snapshot; re-inspect after function changes. No runtime claim.",
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A34",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "merge_surface_candidates groups collect_surface_candidates rows by lexeme_id and POS, initializes grammar score=0 and trace=[]; token lexical-class wrapper delegates to resolve_grammar_lexical_classes_v2.",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A34"
+      ],
+      "result": "Definitions inspected; neither wrapper itself implements productive unknown-form generation.",
+      "dependencies": [],
+      "invalidation": "Source definition is a user-transcribed Production snapshot; re-inspect after function changes. No runtime claim.",
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A35",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "collect_surface_candidates matches existing D10 V2, compound-head, NAOB and lexeme forms; resolve_grammar_lexical_classes_v2 matches registered members by lexeme_id or normalized_lemma.",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A35"
+      ],
+      "result": "Definitions inspected; these implementations do not generate new lemmas or arbitrary unknown-word inflections.",
+      "dependencies": [],
+      "invalidation": "Source definition is a user-transcribed Production snapshot; re-inspect after function changes. No runtime claim.",
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-DECISION-01",
+      "status": "INFERRED",
+      "proof_kind": "ARCHITECTURE_DECISION",
+      "claim": "Plan shared per-rule applicability and execution, bidirectional morphology, independent downstream D10 verification; implement in Production with separate explicit activation control.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R050-REGISTER-R050-DECISION-01"
+      ],
+      "result": "Decision only; no implementation, rule activation, runtime test, or readiness promotion.",
+      "dependencies": [],
+      "invalidation": "Source definition is a user-transcribed Production snapshot; re-inspect after function changes. No runtime claim.",
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
     }
   ]
 }

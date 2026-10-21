@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "06c0007b26b30be1c62e59b6f88db024a68e1184",
+  "head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "06c0007b26b30be1c62e59b6f88db024a68e1184",
-  "source_head": "06c0007b26b30be1c62e59b6f88db024a68e1184",
-  "source_revision": "HEAD",
+  "archive_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+  "source_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+  "source_revision": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 191,
-  "history_event_count": 61,
-  "strict_history_event_count": 14,
+  "history_event_count": 67,
+  "strict_history_event_count": 20,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -70,7 +70,13 @@
     "R049-REGISTER-R049_27_RULE_DIAGNOSTICS",
     "R049-REGISTER-R049_DEPENDENCY_SQL_SMOKE",
     "R049-REGISTER-R049_ACTIVATION_GATE",
-    "R049-A12-PER-RULE-DETAIL-CAPTURE"
+    "R049-A12-PER-RULE-DETAIL-CAPTURE",
+    "R050-REGISTER-R050-A31",
+    "R050-REGISTER-R050-A32",
+    "R050-REGISTER-R050-A33",
+    "R050-REGISTER-R050-A34",
+    "R050-REGISTER-R050-A35",
+    "R050-REGISTER-R050-DECISION-01"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -114,7 +120,13 @@
     "R049_EXECUTION_PLANE_CONTRACT": [],
     "R049_27_RULE_DIAGNOSTICS": [],
     "R049_DEPENDENCY_SQL_SMOKE": [],
-    "R049_ACTIVATION_GATE": []
+    "R049_ACTIVATION_GATE": [],
+    "R050-A31": [],
+    "R050-A32": [],
+    "R050-A33": [],
+    "R050-A34": [],
+    "R050-A35": [],
+    "R050-DECISION-01": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -148,7 +160,13 @@
     "R049_EXECUTION_PLANE_CONTRACT": [],
     "R049_27_RULE_DIAGNOSTICS": [],
     "R049_DEPENDENCY_SQL_SMOKE": [],
-    "R049_ACTIVATION_GATE": []
+    "R049_ACTIVATION_GATE": [],
+    "R050-A31": [],
+    "R050-A32": [],
+    "R050-A33": [],
+    "R050-A34": [],
+    "R050-A35": [],
+    "R050-DECISION-01": []
   },
   "proof_next_actions": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": "",
@@ -171,7 +189,13 @@
     "R049_EXECUTION_PLANE_CONTRACT": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
     "R049_27_RULE_DIAGNOSTICS": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
     "R049_DEPENDENCY_SQL_SMOKE": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-    "R049_ACTIVATION_GATE": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+    "R049_ACTIVATION_GATE": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R050-A31": "",
+    "R050-A32": "",
+    "R050-A33": "",
+    "R050-A34": "",
+    "R050-A35": "",
+    "R050-DECISION-01": ""
   },
   "files": [
     {
@@ -2647,6 +2671,102 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+    },
+    {
+      "proof_id": "R050-A31",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "claim": "Token-construction function inventory identifies build_shadow_token_v1 and build_structural_token_v1/v2; text-reference flags alone do not establish runtime behavior.",
+      "result": "Metadata query returned six named functions and boolean source-text references; no function executed.",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A31"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A32",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "claim": "build_structural_token_v2 constructs morphology.readings by normalizing existing surface_resolution.candidates; an empty candidate array produces no readings. build_shadow_token_v1 uses surface resolver and registered lexical-class members.",
+      "result": "Definitions inspected; no independent productive morphology generator observed inside these functions.",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A32"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A33",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "claim": "build_shadow_token_lexical_v2 delegates to build_shadow_token_v1 and lexical-class resolver; resolve_surface_form_v2 returns no rows when merge_surface_candidates returns zero.",
+      "result": "Definitions inspected; context_applied=false and grammar_engine_version=null in resolver output construction.",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A33"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A34",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "claim": "merge_surface_candidates groups collect_surface_candidates rows by lexeme_id and POS, initializes grammar score=0 and trace=[]; token lexical-class wrapper delegates to resolve_grammar_lexical_classes_v2.",
+      "result": "Definitions inspected; neither wrapper itself implements productive unknown-form generation.",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A34"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-A35",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+      "claim": "collect_surface_candidates matches existing D10 V2, compound-head, NAOB and lexeme forms; resolve_grammar_lexical_classes_v2 matches registered members by lexeme_id or normalized_lemma.",
+      "result": "Definitions inspected; these implementations do not generate new lemmas or arbitrary unknown-word inflections.",
+      "evidence_runs": [
+        "R050-REGISTER-R050-A35"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R050-DECISION-01",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "ARCHITECTURE_DECISION",
+      "proved_at_head": null,
+      "claim": "Plan shared per-rule applicability and execution, bidirectional morphology, independent downstream D10 verification; implement in Production with separate explicit activation control.",
+      "result": "Decision only; no implementation, rule activation, runtime test, or readiness promotion.",
+      "evidence_runs": [
+        "R050-REGISTER-R050-DECISION-01"
+      ],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
     }
   ],
   "policy": {

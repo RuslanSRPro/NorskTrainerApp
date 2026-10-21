@@ -113,6 +113,15 @@
       "search_gate": null
     },
     {
+      "proof_id": "R050-DECISION-01",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",

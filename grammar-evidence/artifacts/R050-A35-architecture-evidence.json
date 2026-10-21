@@ -1,0 +1,19 @@
+{
+  "schema_version": "r050-architecture-source-evidence-v1",
+  "run": "R050-A35",
+  "captured_at_utc": "2026-10-21T17:06:20.834773Z",
+  "basis": "User-transcribed Supabase pg_get_functiondef/pg_proc output in project conversation, 2026-10-21",
+  "evidence_kind": "SOURCE_INSPECTION",
+  "claim": "collect_surface_candidates matches existing D10 V2, compound-head, NAOB and lexeme forms; resolve_grammar_lexical_classes_v2 matches registered members by lexeme_id or normalized_lemma.",
+  "observation": "Definitions inspected; these implementations do not generate new lemmas or arbitrary unknown-word inflections.",
+  "limits": [
+    "Source inspection only; no executable Golden test",
+    "No complete-system absence claim",
+    "No readiness or activation claim",
+    "No Production writes performed by this recorder"
+  ],
+  "release_code": "runtime-structural-v1.37",
+  "activation_ready_change": false,
+  "bulk_activation_ready_change": false,
+  "dictionary_independence_note": "Registered lexical class membership may match without a surface candidate, but this is not productive generation."
+}
