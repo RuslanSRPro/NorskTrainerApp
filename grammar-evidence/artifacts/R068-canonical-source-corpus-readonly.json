@@ -1,0 +1,522 @@
+{
+  "evidence_id": "R068-CANONICAL-SOURCE-CORPUS-READONLY-2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "release_code": "runtime-structural-v1.37",
+  "method": "Local current-source canonical surface builder and SQL compatibility map generated RPC token envelopes; direct read-only Production RPC execution on each sentence; independent expected subject and predicate annotations in corpus generator.",
+  "source_files_sha256": {
+    "canonical_surface_boundary": "ad7d4319d63be5f073a96409ba6605e12b8aeaa9ebf2facb97ab85625c97b3b1",
+    "sql_structural_compatibility_map": "fdb45e3936a98e5eae7f8b9d134b8f6b154dbb2d55b1ce4d3896690f0f09ca96",
+    "corpus_generator": "ec6f7adfaefac822401f50dbab82c02ecb226facbf0053de78163cc2eb919717"
+  },
+  "source_backing": "R051 production structural projection test passed against current local canonical modules. Current local source generation is proven; deployed canonical shadow bundle parity for every sentence was not reverified.",
+  "rpc_definition_md5": "968759622f01f1489b79b67f60cce775",
+  "v32_definition_md5": "13447a8763b15dbfbbf1ec65df7068fe",
+  "summary": {
+    "positive_cases": 12,
+    "positive_matches": 6,
+    "positive_missing": 6,
+    "negative_controls": 2,
+    "negative_controls_without_edges": 2,
+    "unexpected_subject_edges": 0
+  },
+  "cases": [
+    {
+      "case_id": 1,
+      "text": "Katten sover",
+      "expected_subject": "Katten",
+      "expected_predicate": "sover",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Katten",
+          "target": "sover",
+          "target_id": "pred1:simple:2",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:6"
+        }
+      ],
+      "expectation_met": true,
+      "diagnostic_category": "positive_matched"
+    },
+    {
+      "case_id": 2,
+      "text": "Jeg sover",
+      "expected_subject": "Jeg",
+      "expected_predicate": "sover",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Jeg",
+          "target": "sover",
+          "target_id": "pred1:simple:2",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:3"
+        }
+      ],
+      "expectation_met": true,
+      "diagnostic_category": "positive_matched"
+    },
+    {
+      "case_id": 3,
+      "text": "Han er glad",
+      "expected_subject": "Han",
+      "expected_predicate": "er glad",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Han",
+          "target": "er glad",
+          "target_id": "pred1:cres1:cr1:copular_predicative:2:3",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:3"
+        }
+      ],
+      "expectation_met": true,
+      "diagnostic_category": "positive_matched"
+    },
+    {
+      "case_id": 4,
+      "text": "Hunden spiser fisken",
+      "expected_subject": "Hunden",
+      "expected_predicate": "spiser",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Hunden",
+          "target": "spiser",
+          "target_id": "pred1:simple:2",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:6"
+        }
+      ],
+      "expectation_met": true,
+      "diagnostic_category": "positive_matched"
+    },
+    {
+      "case_id": 5,
+      "text": "Jenta leser boken",
+      "expected_subject": "Jenta",
+      "expected_predicate": "leser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false,
+      "diagnostic_category": "object_candidate_ambiguous"
+    },
+    {
+      "case_id": 6,
+      "text": "Barnet drikker vann",
+      "expected_subject": "Barnet",
+      "expected_predicate": "drikker",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false,
+      "diagnostic_category": "object_candidate_ambiguous_and_second_finite_reading"
+    },
+    {
+      "case_id": 7,
+      "text": "Fisken spiser hunden",
+      "expected_subject": "Fisken",
+      "expected_predicate": "spiser",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Fisken",
+          "target": "spiser",
+          "target_id": "pred1:simple:2",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:6"
+        }
+      ],
+      "expectation_met": true,
+      "diagnostic_category": "positive_matched"
+    },
+    {
+      "case_id": 8,
+      "text": "Jeg spiser fisken",
+      "expected_subject": "Jeg",
+      "expected_predicate": "spiser",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Jeg",
+          "target": "spiser",
+          "target_id": "pred1:simple:2",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:3"
+        }
+      ],
+      "expectation_met": true,
+      "diagnostic_category": "positive_matched"
+    },
+    {
+      "case_id": 9,
+      "text": "Hunden spiser raskt",
+      "expected_subject": "Hunden",
+      "expected_predicate": "spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false,
+      "diagnostic_category": "adverbial_not_in_noun_object_bootstrap"
+    },
+    {
+      "case_id": 10,
+      "text": "Hunden spiser fisken i dag",
+      "expected_subject": "Hunden",
+      "expected_predicate": "spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false,
+      "diagnostic_category": "sentence_longer_than_bootstrap_scope"
+    },
+    {
+      "case_id": 11,
+      "text": "Den store hunden spiser fisken",
+      "expected_subject": "hunden",
+      "expected_predicate": "spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false,
+      "diagnostic_category": "multiword_prefinite_subject"
+    },
+    {
+      "case_id": 12,
+      "text": "Spiser hunden fisken?",
+      "expected_subject": "hunden",
+      "expected_predicate": "Spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false,
+      "diagnostic_category": "verb_initial_inversion"
+    },
+    {
+      "case_id": 13,
+      "text": "Hunden og fisken",
+      "expected_subject": null,
+      "expected_predicate": null,
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": true,
+      "diagnostic_category": "negative_control_matched"
+    },
+    {
+      "case_id": 14,
+      "text": "Hunden",
+      "expected_subject": null,
+      "expected_predicate": null,
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": true,
+      "diagnostic_category": "negative_control_matched"
+    }
+  ],
+  "diagnosis": [
+    {
+      "case_id": 5,
+      "surface": "Jenta leser boken",
+      "tokens": [
+        {
+          "surface": "Jenta",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "leser",
+          "morph_pos": [
+            "verb"
+          ],
+          "source_pos": null,
+          "morph_status": "resolved_single",
+          "source_count": "2",
+          "source_status": "ambiguous_unresolved"
+        },
+        {
+          "surface": "boken",
+          "morph_pos": [],
+          "source_pos": null,
+          "morph_status": "no_morph_reading",
+          "source_count": "3",
+          "source_status": "ambiguous_unresolved"
+        }
+      ],
+      "v32_base_clauses": "0",
+      "clause_summary": {
+        "clause_count": 0,
+        "finite_count": 0,
+        "blocked_count": 0,
+        "nonfinite_count": 0,
+        "hypothesis_count": 0
+      }
+    },
+    {
+      "case_id": 6,
+      "surface": "Barnet drikker vann",
+      "tokens": [
+        {
+          "surface": "Barnet",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "drikker",
+          "morph_pos": [
+            "verb"
+          ],
+          "source_pos": "verb",
+          "morph_status": "resolved_single",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "vann",
+          "morph_pos": [
+            "verb"
+          ],
+          "source_pos": null,
+          "morph_status": "resolved_single",
+          "source_count": "2",
+          "source_status": "ambiguous_unresolved"
+        }
+      ],
+      "v32_base_clauses": "0",
+      "clause_summary": {
+        "clause_count": 0,
+        "finite_count": 0,
+        "blocked_count": 0,
+        "nonfinite_count": 0,
+        "hypothesis_count": 0
+      }
+    },
+    {
+      "case_id": 9,
+      "surface": "Hunden spiser raskt",
+      "tokens": [
+        {
+          "surface": "Hunden",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "spiser",
+          "morph_pos": [
+            "verb"
+          ],
+          "source_pos": null,
+          "morph_status": "resolved_single",
+          "source_count": "2",
+          "source_status": "ambiguous_unresolved"
+        },
+        {
+          "surface": "raskt",
+          "morph_pos": [],
+          "source_pos": "adjective",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        }
+      ],
+      "v32_base_clauses": "0",
+      "clause_summary": {
+        "clause_count": 0,
+        "finite_count": 0,
+        "blocked_count": 0,
+        "nonfinite_count": 0,
+        "hypothesis_count": 0
+      }
+    },
+    {
+      "case_id": 10,
+      "surface": "Hunden spiser fisken i dag",
+      "tokens": [
+        {
+          "surface": "Hunden",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "spiser",
+          "morph_pos": [
+            "verb"
+          ],
+          "source_pos": null,
+          "morph_status": "resolved_single",
+          "source_count": "2",
+          "source_status": "ambiguous_unresolved"
+        },
+        {
+          "surface": "fisken",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "i",
+          "morph_pos": [],
+          "source_pos": null,
+          "morph_status": "no_morph_reading",
+          "source_count": "0",
+          "source_status": "no_candidate"
+        },
+        {
+          "surface": "dag",
+          "morph_pos": [],
+          "source_pos": null,
+          "morph_status": "no_morph_reading",
+          "source_count": "2",
+          "source_status": "ambiguous_unresolved"
+        }
+      ],
+      "v32_base_clauses": "0",
+      "clause_summary": {
+        "clause_count": 0,
+        "finite_count": 0,
+        "blocked_count": 0,
+        "nonfinite_count": 0,
+        "hypothesis_count": 0
+      }
+    },
+    {
+      "case_id": 11,
+      "surface": "Den store hunden spiser fisken",
+      "tokens": [
+        {
+          "surface": "Den",
+          "morph_pos": [],
+          "source_pos": "pronoun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "store",
+          "morph_pos": [
+            "adjective"
+          ],
+          "source_pos": "adjective",
+          "morph_status": "resolved_single",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "hunden",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "spiser",
+          "morph_pos": [
+            "verb"
+          ],
+          "source_pos": null,
+          "morph_status": "resolved_single",
+          "source_count": "2",
+          "source_status": "ambiguous_unresolved"
+        },
+        {
+          "surface": "fisken",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        }
+      ],
+      "v32_base_clauses": "0",
+      "clause_summary": {
+        "clause_count": 0,
+        "finite_count": 0,
+        "blocked_count": 0,
+        "nonfinite_count": 0,
+        "hypothesis_count": 0
+      }
+    },
+    {
+      "case_id": 12,
+      "surface": "Spiser hunden fisken?",
+      "tokens": [
+        {
+          "surface": "Spiser",
+          "morph_pos": [
+            "verb"
+          ],
+          "source_pos": null,
+          "morph_status": "resolved_single",
+          "source_count": "2",
+          "source_status": "ambiguous_unresolved"
+        },
+        {
+          "surface": "hunden",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        },
+        {
+          "surface": "fisken",
+          "morph_pos": [],
+          "source_pos": "noun",
+          "morph_status": "no_morph_reading",
+          "source_count": "1",
+          "source_status": "single_candidate"
+        }
+      ],
+      "v32_base_clauses": "0",
+      "clause_summary": {
+        "clause_count": 0,
+        "finite_count": 0,
+        "blocked_count": 0,
+        "nonfinite_count": 0,
+        "hypothesis_count": 0
+      }
+    }
+  ],
+  "additional_diagnosis": {
+    "Jenta leser boken": "boken has three unresolved source candidates, so the R067 exact one-candidate object guard fails despite one finite verb.",
+    "Barnet drikker vann": "vann has two unresolved source candidates and a second Fin verb reading, so both the object guard and one-finite-verb guard fail. The candidate verb reading was not accepted as the intended sentence predicate.",
+    "interpretation": "A future structural disambiguator must use independent syntax and morphology evidence; it must not infer the correct object by consulting stored answer forms as authority."
+  },
+  "limits": [
+    "Corpus is selected diagnostic coverage, not a representative accuracy sample.",
+    "Expected labels are manually specified grammatical judgments.",
+    "Missing edge means absent predicate/clause for six positives; rule execution status alone is insufficient.",
+    "No grant, app route, Edge deployment or Production write was used."
+  ],
+  "next_action": "Prioritize object lexical ambiguity and controlled clause coverage for valid adverbial, longer subject phrase and verb-initial inversion. Prove changes with the same canonical inputs before broader activation."
+}

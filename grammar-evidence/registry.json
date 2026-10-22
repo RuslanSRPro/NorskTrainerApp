@@ -879,13 +879,13 @@
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "R065 proved one short-lived Production grant and revocation. R067 repaired the V32 three-token noun-verb-noun gap and passed seven Production probes. Release remains shadow and global rule inactive. Wider source-backed corpus and activation monitoring remain open.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION", "R065_COMMITTED_ONE_RULE_SQL_PILOT", "R067_V32_NOUN_OBJECT_PRODUCTION_FIX"],
+      "result": "R065 proved one short-lived Production grant and revocation. R067 repaired one V32 noun-verb-noun gap. R068 current-source canonical input corpus matched 6/12 expected subject relations and missed 6, with no edges on two nonfinite controls. Release remains shadow and global rule inactive.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION", "R065_COMMITTED_ONE_RULE_SQL_PILOT", "R067_V32_NOUN_OBJECT_PRODUCTION_FIX", "R068_CANONICAL_SOURCE_CORPUS_COVERAGE"],
       "blocked_by": [],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Expand to source-backed positive and negative sentences, check subject/predicate identity and overgeneration, then define monitored SQL activation transition. Keep new graph output out of app routes."
+      "next_action": "Address the six R068 missing relations by failure family. First prove syntax-based disambiguation of object candidates and finite-verb readings; then handle adverbial tails, longer subject phrases and verb-initial inversion with separate contracts. Repeat the same corpus before global activation."
     },
     {
       "proof_id": "R065_COMMITTED_ONE_RULE_SQL_PILOT",
@@ -923,7 +923,20 @@
       "dependencies": ["grammar-evidence/artifacts/R067-v32-noun-object-production-proof.json", "supabase/migrations/20261022202018_grammar_v32_noun_subject_with_object.sql"],
       "invalidation": "Refresh after V32, structural token builder, public RPC or release membership changes.",
       "notes": "Diagnostic seven-case corpus with manually assembled RPC inputs. Not general grammatical correctness or full activation.",
-      "next_action": "Run source-backed corpus across more syntactic forms and negative controls before global activation."
+      "next_action": "Use R068 corpus failure families to expand coverage without weakening the R067 guard."
+    },
+    {
+      "proof_id": "R068_CANONICAL_SOURCE_CORPUS_COVERAGE",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
+      "claim": "Current canonical source modules generate identity-preserving SQL inputs; on a selected fourteen-case read-only Production corpus, six of twelve expected subject relations are produced and six are absent, with zero edges on two nonfinite controls.",
+      "proved_at_head": "e041bf8",
+      "evidence_runs": ["R068-CANONICAL-SOURCE-CORPUS-READONLY-2026-10-22"],
+      "result": "R051 canonical projection test passed. Fourteen current-source canonical input envelopes were sent to the Production SQL RPC. Six positives matched subject and predicate surfaces with canonical parity; six valid positives lacked predicate/clause; two nonfinite controls produced no edge. Object ambiguity and additional finite reading explain two failures; longer or reordered structure explains four.",
+      "dependencies": ["grammar-evidence/artifacts/R068-canonical-source-corpus-readonly.json", "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json", "grammar-evidence/tools/build-r068-canonical-corpus.ts", "R067_V32_NOUN_OBJECT_PRODUCTION_FIX"],
+      "invalidation": "Refresh after canonical surface/token map, V32, public RPC or release changes.",
+      "notes": "Selected diagnostic corpus, not a representative accuracy rate. Local current-source input generation is proven; deployed canonical Edge bundle parity on all fourteen sentences is not claimed. No grant or application integration.",
+      "next_action": "Fix one failure family at a time using independent structural evidence, then rerun positive and negative canonical-input cases before considering activation."
     }
   ]
 }

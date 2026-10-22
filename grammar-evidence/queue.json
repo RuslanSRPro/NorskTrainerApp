@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Expand to source-backed positive and negative sentences, check subject/predicate identity and overgeneration, then define monitored SQL activation transition. Keep new graph output out of app routes.",
+      "next_action": "Address the six R068 missing relations by failure family. First prove syntax-based disambiguation of object candidates and finite-verb readings; then handle adverbial tails, longer subject phrases and verb-initial inversion with separate contracts. Repeat the same corpus before global activation.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -220,7 +220,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Expand to source-backed positive and negative sentences, check subject/predicate identity and overgeneration, then define monitored SQL activation transition. Keep new graph output out of app routes.",
+    "next_action": "Address the six R068 missing relations by failure family. First prove syntax-based disambiguation of object candidates and finite-verb readings; then handle adverbial tails, longer subject phrases and verb-initial inversion with separate contracts. Repeat the same corpus before global activation.",
     "search_gate": null,
     "queue_priority": -1
   }
