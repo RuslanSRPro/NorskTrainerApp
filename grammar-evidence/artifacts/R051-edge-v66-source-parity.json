@@ -1,0 +1,23 @@
+{
+  "schema_version": "grammar-edge-source-parity-v1",
+  "observed_on": "2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "function_slug": "canonical-graph-shadow-v1",
+  "deployed_version": 66,
+  "deployed_ezbr_sha256": "fdb110220b28e19ea5934d8419fa60d22ed5e5f536e41eb312e26bbfdfd597ca",
+  "source_revision": "80bbf8d",
+  "comparison": "Exact text equality after CRLF-to-LF conversion and trailing newline removal; SHA-256 over normalized UTF-8 text",
+  "files": [
+    {
+      "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "501a05dc3827105361a0a8433b2f3680e8eb4b5c5484930ee428a854f2bbcfe7"
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "909a1f6d0479e8ef2cdd4119ef3cb9e553143b8a0986ca91e0325b33ec83416c"
+    }
+  ],
+  "scope_limit": "This compares two bundled files only. It does not prove every bundled dependency, SQL migration lineage, action admission or user-facing activation."
+}
