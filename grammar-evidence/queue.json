@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Find or add a pre-rule-plane capture boundary for the unchanged v1.37 structural sentence, then prove a live service-only call that invokes R059 without running the full plane first.",
+      "next_action": "Audit the administrative one-grant procedure and app isolation, then run a controlled fresh-input R059 call and revoke the grant; compare its single rule output with the R051 baseline.",
       "search_gate": null,
       "queue_priority": -2
     },
@@ -220,7 +220,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Find or add a pre-rule-plane capture boundary for the unchanged v1.37 structural sentence, then prove a live service-only call that invokes R059 without running the full plane first.",
+    "next_action": "Audit the administrative one-grant procedure and app isolation, then run a controlled fresh-input R059 call and revoke the grant; compare its single rule output with the R051 baseline.",
     "search_gate": null,
     "queue_priority": -2
   }

@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "912541f994e541e48fdb0dab0cb1697885265ac7",
+  "head": "39ec100841281a625310e228d94fd92c8a9626ee",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "912541f994e541e48fdb0dab0cb1697885265ac7",
-  "source_head": "912541f994e541e48fdb0dab0cb1697885265ac7",
+  "archive_head": "39ec100841281a625310e228d94fd92c8a9626ee",
+  "source_head": "39ec100841281a625310e228d94fd92c8a9626ee",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 97,
-  "strict_history_event_count": 50,
+  "history_event_count": 98,
+  "strict_history_event_count": 51,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -106,7 +106,8 @@
     "R059-PILOT-AUDIT-ACL-SNAPSHOT-2026-10-22",
     "R061-RELEASE-CONTROL-WRITE-BOUNDARY-2026-10-22",
     "R059-P1-LOCAL-PARITY-AND-DORMANT-INSTALL-2026-10-22",
-    "R059-PRODUCTION-DORMANT-INSTALL-2026-10-22"
+    "R059-PRODUCTION-DORMANT-INSTALL-2026-10-22",
+    "R062-PRE-RULE-PLANE-PRODUCTION-PARITY-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -181,6 +182,7 @@
     "R059_SQL_ONE_RULE_PILOT_P1": [],
     "R059_PRODUCTION_DORMANT_ADMISSION": [],
     "R061_RELEASE_CONTROL_WRITE_BOUNDARY": [],
+    "R062_PRE_RULE_PLANE_PRODUCER_PARITY": [],
     "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE": [],
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
@@ -351,10 +353,16 @@
       "grammar-evidence/artifacts/R061-release-control-write-boundary.json",
       "supabase/migrations/20261022161426_20261022161220_restrict_grammar_release_control_writes.sql"
     ],
+    "R062_PRE_RULE_PLANE_PRODUCER_PARITY": [
+      "grammar-evidence/artifacts/R062-pre-rule-plane-production-parity.json",
+      "supabase/migrations/20261022193721_grammar_pre_rule_plane_pilot_builder.sql",
+      "R059_PRODUCTION_DORMANT_ADMISSION"
+    ],
     "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE": [
       "R058_SQL_RELEASE_WIDE_RULE_EXECUTION",
       "R059_SQL_ONE_RULE_PILOT_P1",
-      "R059_PRODUCTION_DORMANT_ADMISSION"
+      "R059_PRODUCTION_DORMANT_ADMISSION",
+      "R062_PRE_RULE_PLANE_PRODUCER_PARITY"
     ],
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": [
       "grammar-evidence/artifacts/R059-pilot-audit-acl-snapshot.json",
@@ -422,7 +430,8 @@
     "R059_SQL_ONE_RULE_PILOT_P1": "",
     "R059_PRODUCTION_DORMANT_ADMISSION": "",
     "R061_RELEASE_CONTROL_WRITE_BOUNDARY": "",
-    "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE": "Find or add a pre-rule-plane capture boundary for the unchanged v1.37 structural sentence, then prove a live service-only call that invokes R059 without running the full plane first.",
+    "R062_PRE_RULE_PLANE_PRODUCER_PARITY": "",
+    "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE": "Audit the administrative one-grant procedure and app isolation, then run a controlled fresh-input R059 call and revoke the grant; compare its single rule output with the R051 baseline.",
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": "",
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Prove a live pre-rule-plane structural input route, then define the one-rule grant, monitoring and rollback procedure while graph output remains isolated from the app."
   },
@@ -3513,22 +3522,43 @@
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
     {
+      "proof_id": "R062_PRE_RULE_PLANE_PRODUCER_PARITY",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": "39ec100",
+      "claim": "The private v1.37 producer builds a live structural sentence equivalent to the current public RPC before its Rule Execution Plane call on the R051 canonical token fixture.",
+      "result": "Production JSONB equality passed after removing the public RPC Rule Execution Plane field; one clause and predicate; no plane in private output. App roles lack access; zero grants; fresh input to R059 fails closed with PILOT_GRANT_INVALID.",
+      "evidence_runs": [
+        "R062-PRE-RULE-PLANE-PRODUCTION-PARITY-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R062-pre-rule-plane-production-parity.json",
+        "supabase/migrations/20261022193721_grammar_pre_rule_plane_pilot_builder.sql",
+        "R059_PRODUCTION_DORMANT_ADMISSION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "One-fixture live structural parity only; no grant and no one-rule execution."
+    },
+    {
       "proof_id": "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "proved_at_head": null,
       "claim": "A live request can build the v1.37 structural sentence and invoke only the admitted subject_of_predicate rule without first executing other Rule Execution Plane members.",
-      "result": "R059 local parity uses a saved R051 sentence. The current run_canonical_legacy_compatibility_v140 invokes the full Rule Execution Plane before returning that sentence, so no live pre-plane producer boundary has been proven.",
+      "result": "A private live pre-plane structural producer now has Production parity on one R051 fixture. A fresh-input call to the R059 executor fails closed without a grant. Live admitted one-rule execution remains unproven.",
       "evidence_runs": [],
       "dependencies": [
         "R058_SQL_RELEASE_WIDE_RULE_EXECUTION",
         "R059_SQL_ONE_RULE_PILOT_P1",
-        "R059_PRODUCTION_DORMANT_ADMISSION"
+        "R059_PRODUCTION_DORMANT_ADMISSION",
+        "R062_PRE_RULE_PLANE_PRODUCER_PARITY"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Do not claim end-to-end one-rule execution from the local replay. Existing full-plane shadow execution is a separate fact."
+      "notes": "Do not claim end-to-end one-rule execution from structural parity or the local replay. Existing full-plane shadow execution is a separate fact."
     },
     {
       "proof_id": "R059_PILOT_AUDIT_ACL_SNAPSHOT",
@@ -3556,7 +3586,7 @@
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
-      "result": "Real shadow execution and local same-input one-rule parity are proven. The R059 admission boundary is installed in Production with zero grants. R061 closed anon/auth writes to four release-control tables. A live pre-plane one-rule route, complete app-output isolation, controlled grant, monitoring and rollback rehearsal remain unproven.",
+      "result": "Real shadow execution and local same-input one-rule parity are proven. R059 admission has zero grants; R061 closed public release-control writes. R062 proved a private live pre-plane structural producer on one fixture. An admitted live one-rule call, complete app-output isolation, controlled grant, monitoring and rollback rehearsal remain unproven.",
       "evidence_runs": [
         "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
       ],
