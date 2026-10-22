@@ -1,0 +1,11 @@
+{
+  "evidence_id": "R058-SQL-ONE-RULE-SELECTOR-2026-10-22",
+  "observed_at_utc": "2026-10-22T15:02:21Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "method": "read-only Production pg_get_functiondef inspection",
+  "build_rule_execution_plane_v1": "Looks up release ID and executes every enabled release member whose pattern_type is candidate_constraint, phrase_pattern or dependency_pattern. It has no pilot rule-code selector or activation grant check.",
+  "run_canonical_legacy_compatibility_v140": "Passes one p_release_code through morphology, phrase, construction, predicate, clause, dependency and rule-plane stages. Release status build/golden/shadow/canary/active is accepted.",
+  "consequence": "Disabling other release members to isolate subject_of_predicate could change its upstream inputs. An isolated one-rule SQL pilot needs a rule-plane selector or separate execution contract that preserves the existing structural release.",
+  "scope": "Specific current Production function definitions. This does not prove no alternative pilot function exists elsewhere.",
+  "production_changes": "none"
+}

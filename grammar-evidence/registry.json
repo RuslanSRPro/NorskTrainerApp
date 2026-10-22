@@ -734,19 +734,31 @@
       "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis."
     },
     {
+      "proof_id": "R058_SQL_RELEASE_WIDE_RULE_EXECUTION",
+      "status": "PROVEN",
+      "proof_kind": "PRODUCTION_SOURCE_INSPECTION",
+      "claim": "The current SQL Rule Execution Plane consumes every enabled member of one release and has no one-rule activation selector, while the same release code drives upstream structural layers.",
+      "proved_at_head": "4d18206",
+      "evidence_runs": ["R058-SQL-ONE-RULE-SELECTOR-2026-10-22"],
+      "result": "Production build_rule_execution_plane_v1 loops all enabled candidate/phrase/dependency rules in the requested release. Production run_canonical_legacy_compatibility_v140 passes the same release code to upstream morphology through dependency builders. A one-rule child release made by disabling other members may alter its upstream input.",
+      "dependencies": ["grammar-evidence/artifacts/R058-sql-one-rule-selector-gap.json", "supabase/migrations/20260831145026_rule_execution_plane_v1_closure.sql"],
+      "invalidation": "Reinspect after either Production function definition or release membership contract changes.",
+      "notes": "This is a scoped source proof; do not claim all possible pilot mechanisms are absent. Preserve upstream release behavior while selecting one rule for execution."
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready. Direct SQL rule-plane access is now restricted to service_role, but the exact one-rule grant/write contract, whole-app output isolation, rollback and monitoring have not yet been proven.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R055_APP_GRAPH_OUTPUT_ISOLATION"],
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready. Direct SQL and Edge graph access are restricted; current SQL rule plane executes all enabled release members and has no one-rule selector. The pilot grant, complete output isolation, rollback and monitoring remain unproven.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R055_APP_GRAPH_OUTPUT_ISOLATION", "R058_SQL_RELEASE_WIDE_RULE_EXECUTION"],
       "blocked_by": [],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet."
+      "next_action": "Design a one-rule SQL pilot selector or explicit grant that preserves the upstream structural release; prove subject_of_predicate alone executes on source-backed input, then verify graph result, rollback and monitoring without app integration."
     }
   ]
 }
