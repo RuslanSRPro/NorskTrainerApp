@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
+  "head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
-  "source_head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
+  "archive_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
+  "source_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 193,
-  "history_event_count": 78,
-  "strict_history_event_count": 31,
+  "file_count": 194,
+  "history_event_count": 81,
+  "strict_history_event_count": 34,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -87,7 +87,10 @@
     "R051-EDGE-V66-SOURCE-PARITY",
     "R051-EDGE-V66-FULL-BUNDLE-PARITY",
     "R051-SUBJECT-ENDPOINT-CONTRACT-REVIEW",
-    "R051-SUBJECT-TOKEN-VIEW-DISCOVERY"
+    "R051-SUBJECT-TOKEN-VIEW-DISCOVERY",
+    "R051-SUBJECT-MANIFEST-BOUNDARY-TEST",
+    "R051-SUBJECT-MANIFEST-COMPATIBILITY-REVIEW",
+    "R051-SUBJECT-EDGE-COEXISTENCE-TEST"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -147,7 +150,9 @@
     "R051_R048M_IMPORT_CLOSURE": [],
     "R051_EDGE_V66_SOURCE_PARITY": [],
     "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT": [],
-    "R051_SUBJECT_TOKEN_VIEW_DERIVATION": []
+    "R051_SUBJECT_TOKEN_VIEW_DERIVATION": [],
+    "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH": [],
+    "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -236,6 +241,16 @@
     ],
     "R051_SUBJECT_TOKEN_VIEW_DERIVATION": [
       "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT"
+    ],
+    "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH": [
+      "supabase/functions/_shared/nlp/test-r051-subject-manifest-boundary-v1.ts",
+      "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+      "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
+    ],
+    "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": [
+      "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts"
     ]
   },
   "proof_next_actions": {
@@ -247,7 +262,7 @@
     "ONE_OR_MORE_CARDINALITY_RUNTIME": "",
     "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH": "",
     "PHRASE_PRODUCER_EXECUTION": "",
-    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "On the R051 source-backed fixture, prove a resolved phrase occurrence that can satisfy the target manifest predicate binding inside the resolved clause. Keep candidate phrase and resolved predicate distinct.",
+    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding.",
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": "",
     "CLAUSE_SOURCE_BACKED_FIXTURE": "",
     "CLAUSE_PRODUCER_EXECUTION": "",
@@ -266,12 +281,14 @@
     "R050-A34": "",
     "R050-A35": "",
     "R050-DECISION-01": "",
-    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify both create_dependency and add_trace action requirements.",
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run the actual R048M binding evaluator on the source-backed graph with a reviewed manifest mapping. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify create_dependency and add_trace.",
     "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
     "R051_R048M_IMPORT_CLOSURE": "",
     "R051_EDGE_V66_SOURCE_PARITY": "",
     "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT": "",
-    "R051_SUBJECT_TOKEN_VIEW_DERIVATION": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge."
+    "R051_SUBJECT_TOKEN_VIEW_DERIVATION": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge.",
+    "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH": "",
+    "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": ""
   },
   "files": [
     {
@@ -2387,6 +2404,17 @@
       }
     },
     {
+      "path": "supabase/functions/_shared/nlp/test-r051-subject-manifest-boundary-v1.ts",
+      "sha256": "2f63abb65b507198ad7c2141f56a1f04283df11ad73f27af7ab0c811b12a0320",
+      "symbols": {
+        "create_dependency": true,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": true,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
       "sha256": "8e006617e614abf40d726c1574ad60d525b30d4fc0f75e81ad36de02b36793b2",
       "symbols": {
@@ -2890,9 +2918,10 @@
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "proved_at_head": null,
       "claim": "The current subject_of_predicate manifest bindings resolve against the source-backed canonical clause, token and predicate/phrase occurrences with correct scopes and provenance.",
-      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. R048M D7.14 additionally requires token endpoints. Runtime compatibility is not yet proven.",
+      "result": "Executable R051 boundary test confirms the V32 legacy clause has type=finite and predicate_phrase_id=vp:2, while resolved clause_build_v1 has clause_type and predicate_id, and public v1.43 projection creates a predicate node without projecting that V32 phrase. The current manifest asks for the V32-style fields and a phrase endpoint; R048M D7.14 requires token endpoints. Actual binding evaluator compatibility remains unproven.",
       "evidence_runs": [
-        "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT"
+        "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT",
+        "R051-SUBJECT-MANIFEST-BOUNDARY-TEST"
       ],
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
@@ -2903,7 +2932,7 @@
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
       ],
       "stale_reasons": [],
-      "notes": "Observed field/type differences are a compatibility question, not an activation grant."
+      "notes": "The V32 phrase exists in raw SQL; absence is at the resolved canonical projection boundary. Do not silently alias V32 vp:2, phrase_build_v1 and predicate occurrence identities."
     },
     {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
@@ -3012,6 +3041,46 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Derived token view is useful for form and position checks; do not interpret it as a second independent subject_of rule."
+    },
+    {
+      "proof_id": "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
+      "claim": "The current subject manifest's V32 phrase reference does not directly bind the resolved clause and predicate nodes in the public v1.43 non-phrase projection of the R051 Production case.",
+      "result": "V32 clause type=finite and predicate_phrase_id=vp:2 point to a raw V32 phrase. Resolved clause_build_v1 instead has clause_type and predicate_id; public projection has a predicate node and no projected V32 vp:2 phrase. Deno boundary test and type check PASS. Full Edge phrase lattice and R048M binding evaluator were not executed.",
+      "evidence_runs": [
+        "R051-SUBJECT-MANIFEST-BOUNDARY-TEST"
+      ],
+      "dependencies": [
+        "supabase/functions/_shared/nlp/test-r051-subject-manifest-boundary-v1.ts",
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+        "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Negative boundary proof only; do not promote runtime compatibility or activation readiness."
+    },
+    {
+      "proof_id": "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
+      "claim": "The current graph patch primitive deduplicates edge IDs, but distinct plan IDs can retain two subject_of edges with the same token endpoints.",
+      "result": "R048R replay kept one token-to-predicate edge. A local patch shaped like R048M D7.14 kept one edge on same-plan replay but two semantic token-to-token duplicates for different plan IDs. The R048M scheduler itself was not executed.",
+      "evidence_runs": [
+        "R051-SUBJECT-EDGE-COEXISTENCE-TEST"
+      ],
+      "dependencies": [
+        "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not add a global semantic deduper without defining relation ownership and evidence merge semantics."
     }
   ],
   "policy": {

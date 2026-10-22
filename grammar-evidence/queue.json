@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "On the R051 source-backed fixture, prove a resolved phrase occurrence that can satisfy the target manifest predicate binding inside the resolved clause. Keep candidate phrase and resolved predicate distinct.",
+      "next_action": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding.",
       "search_gate": null
     },
     {
@@ -134,7 +134,7 @@
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
       ],
       "ready_for_next_action": false,
-      "next_action": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify both create_dependency and add_trace action requirements.",
+      "next_action": "Run the actual R048M binding evaluator on the source-backed graph with a reviewed manifest mapping. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify create_dependency and add_trace.",
       "search_gate": null
     },
     {
@@ -157,7 +157,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "On the R051 source-backed fixture, prove a resolved phrase occurrence that can satisfy the target manifest predicate binding inside the resolved clause. Keep candidate phrase and resolved predicate distinct.",
+    "next_action": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding.",
     "search_gate": null
   }
 }

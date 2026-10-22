@@ -158,7 +158,7 @@
       ],
       "invalidation": "N/A until proven.",
       "notes": "Neutral span predicate proof does not promote this claim. The R051 SQL clause fixture and public projection are now proven separately.",
-      "next_action": "On the R051 source-backed fixture, prove a resolved phrase occurrence that can satisfy the target manifest predicate binding inside the resolved clause. Keep candidate phrase and resolved predicate distinct."
+      "next_action": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding."
     },
     {
       "proof_id": "CLAUSE_PUBLIC_BOUNDARY_WIRING",
@@ -458,20 +458,21 @@
       "claim": "The current subject_of_predicate manifest bindings resolve against the source-backed canonical clause, token and predicate/phrase occurrences with correct scopes and provenance.",
       "proved_at_head": null,
       "evidence_runs": [
-        "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT"
+        "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT",
+        "R051-SUBJECT-MANIFEST-BOUNDARY-TEST"
       ],
-      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. R048M D7.14 additionally requires token endpoints. Runtime compatibility is not yet proven.",
+      "result": "Executable R051 boundary test confirms the V32 legacy clause has type=finite and predicate_phrase_id=vp:2, while resolved clause_build_v1 has clause_type and predicate_id, and public v1.43 projection creates a predicate node without projecting that V32 phrase. The current manifest asks for the V32-style fields and a phrase endpoint; R048M D7.14 requires token endpoints. Actual binding evaluator compatibility remains unproven.",
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
       ],
       "invalidation": "N/A until an executable manifest/runtime compatibility proof passes.",
-      "notes": "Observed field/type differences are a compatibility question, not an activation grant.",
+      "notes": "The V32 phrase exists in raw SQL; absence is at the resolved canonical projection boundary. Do not silently alias V32 vp:2, phrase_build_v1 and predicate occurrence identities.",
       "blocked_by": [
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
       ],
-      "next_action": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify both create_dependency and add_trace action requirements."
+      "next_action": "Run the actual R048M binding evaluator on the source-backed graph with a reviewed manifest mapping. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify create_dependency and add_trace."
     },
     {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
@@ -567,6 +568,38 @@
       "invalidation": "N/A until an executable multi-construction derivation proof passes.",
       "notes": "Derived token view is useful for form and position checks; do not interpret it as a second independent subject_of rule.",
       "next_action": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge."
+    },
+    {
+      "proof_id": "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "The current subject manifest's V32 phrase reference does not directly bind the resolved clause and predicate nodes in the public v1.43 non-phrase projection of the R051 Production case.",
+      "proved_at_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
+      "evidence_runs": ["R051-SUBJECT-MANIFEST-BOUNDARY-TEST"],
+      "result": "V32 clause type=finite and predicate_phrase_id=vp:2 point to a raw V32 phrase. Resolved clause_build_v1 instead has clause_type and predicate_id; public projection has a predicate node and no projected V32 vp:2 phrase. Deno boundary test and type check PASS. Full Edge phrase lattice and R048M binding evaluator were not executed.",
+      "dependencies": [
+        "supabase/functions/_shared/nlp/test-r051-subject-manifest-boundary-v1.ts",
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+        "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
+      ],
+      "invalidation": "STALE if the test or projected source changes; refresh after manifest or Production producer changes.",
+      "notes": "Negative boundary proof only; do not promote runtime compatibility or activation readiness."
+    },
+    {
+      "proof_id": "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "The current graph patch primitive deduplicates edge IDs, but distinct plan IDs can retain two subject_of edges with the same token endpoints.",
+      "proved_at_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
+      "evidence_runs": ["R051-SUBJECT-EDGE-COEXISTENCE-TEST"],
+      "result": "R048R replay kept one token-to-predicate edge. A local patch shaped like R048M D7.14 kept one edge on same-plan replay but two semantic token-to-token duplicates for different plan IDs. The R048M scheduler itself was not executed.",
+      "dependencies": [
+        "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts"
+      ],
+      "invalidation": "STALE if the graph patch primitive or test changes; rerun against the selected scheduler patch after integration.",
+      "notes": "Do not add a global semantic deduper without defining relation ownership and evidence merge semantics."
     }
   ]
 }
