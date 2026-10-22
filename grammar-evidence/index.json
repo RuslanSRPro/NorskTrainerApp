@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "51882ff4919f0da651a5b1f61d786cfc6d4748f8",
+  "head": "a1fb4eab7edc5a9168c0f02acd2b1746f4d5334c",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "51882ff4919f0da651a5b1f61d786cfc6d4748f8",
-  "source_head": "51882ff4919f0da651a5b1f61d786cfc6d4748f8",
+  "archive_head": "a1fb4eab7edc5a9168c0f02acd2b1746f4d5334c",
+  "source_head": "a1fb4eab7edc5a9168c0f02acd2b1746f4d5334c",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 101,
-  "strict_history_event_count": 54,
+  "history_event_count": 103,
+  "strict_history_event_count": 56,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -110,7 +110,9 @@
     "R062-PRE-RULE-PLANE-PRODUCTION-PARITY-2026-10-22",
     "R063-LIVE-ONE-RULE-2026-10-22",
     "R063-ADMIN-GRANT-REVOKE-2026-10-22",
-    "R063-APP-ISOLATION-SNAPSHOT-2026-10-22"
+    "R063-APP-ISOLATION-SNAPSHOT-2026-10-22",
+    "R064-NEW-GRAMMAR-APP-PATH-INVENTORY-2026-10-22",
+    "R065-COMMITTED-ONE-RULE-SQL-PILOT-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -190,7 +192,9 @@
     "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE": [],
     "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT": [],
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": [],
-    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
+    "R064_NEW_GRAMMAR_APP_PATH_ISOLATION": [],
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [],
+    "R065_COMMITTED_ONE_RULE_SQL_PILOT": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -383,16 +387,26 @@
       "grammar-evidence/artifacts/R059-pilot-audit-acl-snapshot.json",
       "supabase/migrations/20260831141802_rule_execution_plane_pilot_v1_foundation.sql"
     ],
+    "R064_NEW_GRAMMAR_APP_PATH_ISOLATION": [
+      "grammar-evidence/artifacts/R064-new-grammar-app-path-inventory.json",
+      "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT"
+    ],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
       "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
       "R053_SUBJECT_SQL_READINESS_GATES",
       "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
-      "R055_APP_GRAPH_OUTPUT_ISOLATION",
       "R059_SQL_ONE_RULE_PILOT_P1",
       "R059_PRODUCTION_DORMANT_ADMISSION",
       "R061_RELEASE_CONTROL_WRITE_BOUNDARY",
       "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
-      "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE"
+      "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE",
+      "R064_NEW_GRAMMAR_APP_PATH_ISOLATION",
+      "R065_COMMITTED_ONE_RULE_SQL_PILOT"
+    ],
+    "R065_COMMITTED_ONE_RULE_SQL_PILOT": [
+      "grammar-evidence/artifacts/R065-committed-one-rule-sql-pilot.json",
+      "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
+      "R064_NEW_GRAMMAR_APP_PATH_ISOLATION"
     ]
   },
   "proof_next_actions": {
@@ -451,7 +465,9 @@
     "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE": "",
     "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT": "",
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": "",
-    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Define a committed-grant operating procedure with expiry, monitoring and revocation checks; inventory authorized canonical-shadow consumers and prevent graph output from reaching app analysis before approving a persistent pilot grant."
+    "R064_NEW_GRAMMAR_APP_PATH_ISOLATION": "",
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Define repeatable monitoring and activation transition criteria for the SQL rule; expand the fixture corpus while keeping the app disconnected from the new graph.",
+    "R065_COMMITTED_ONE_RULE_SQL_PILOT": ""
   },
   "files": [
     {
@@ -3641,13 +3657,32 @@
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
     {
+      "proof_id": "R064_NEW_GRAMMAR_APP_PATH_ISOLATION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DEPLOYED_SOURCE_SNAPSHOT",
+      "proved_at_head": "a1fb4ea",
+      "claim": "At the observed deployed versions, no known app analysis path invokes the new canonical Grammar Graph or private SQL pilot, and direct app SQL roles cannot execute their functions.",
+      "result": "All 53 deployed Edge Function bundles were searched: only canonical shadow itself references the v1.40 structural RPC; no deployed function references the private pilot. Local app source has no canonical/pilot call; anon/auth SQL EXECUTE is denied; canonical shadow had one 401 and no 200 in the prior 24 hours.",
+      "evidence_runs": [
+        "R064-NEW-GRAMMAR-APP-PATH-INVENTORY-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R064-new-grammar-app-path-inventory.json",
+        "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Scoped to the new Grammar Graph and known deployed/app sources. External service-key callers remain outside the inventory. The legacy language-graph-engine is separate and unchanged."
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
-      "result": "Real shadow execution, local parity and a live one-rule Production transaction with grant, revocation and rollback are proven. Zero grants remain. A persistent-grant procedure, monitoring, rollback rehearsal across committed transactions and complete app-output isolation remain unproven.",
+      "result": "R065 committed one short-lived Production grant, executed one subject_of_predicate rule on fresh R051 input with exact saved-result parity, committed revocation in a separate transaction and verified subsequent denial plus zero active grants. Release remains shadow and global rule inactive. Full activation and repeated monitoring are not proven.",
       "evidence_runs": [
         "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
       ],
@@ -3655,16 +3690,37 @@
         "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
         "R053_SUBJECT_SQL_READINESS_GATES",
         "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
-        "R055_APP_GRAPH_OUTPUT_ISOLATION",
         "R059_SQL_ONE_RULE_PILOT_P1",
         "R059_PRODUCTION_DORMANT_ADMISSION",
         "R061_RELEASE_CONTROL_WRITE_BOUNDARY",
         "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
-        "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE"
+        "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE",
+        "R064_NEW_GRAMMAR_APP_PATH_ISOLATION",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT"
       ],
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support."
+    },
+    {
+      "proof_id": "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "proved_at_head": "a1fb4ea",
+      "claim": "One short-lived committed Production grant admits exactly one private SQL subject_of_predicate execution; a separately committed revocation denies later calls.",
+      "result": "Grant ID 1 was committed, service_role produced one subject_of dependency for Katten sover with exact R051 rule-result hash parity, revocation was committed, the next call raised PILOT_GRANT_INVALID, and zero active grants remain.",
+      "evidence_runs": [
+        "R065-COMMITTED-ONE-RULE-SQL-PILOT-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R065-committed-one-rule-sql-pilot.json",
+        "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
+        "R064_NEW_GRAMMAR_APP_PATH_ISOLATION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This is one bounded pilot, not global activation or application integration. The legacy graph route was unchanged."
     }
   ],
   "policy": {

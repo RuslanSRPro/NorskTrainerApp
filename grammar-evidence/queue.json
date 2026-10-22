@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Define a committed-grant operating procedure with expiry, monitoring and revocation checks; inventory authorized canonical-shadow consumers and prevent graph output from reaching app analysis before approving a persistent pilot grant.",
+      "next_action": "Define repeatable monitoring and activation transition criteria for the SQL rule; expand the fixture corpus while keeping the app disconnected from the new graph.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -210,7 +210,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Define a committed-grant operating procedure with expiry, monitoring and revocation checks; inventory authorized canonical-shadow consumers and prevent graph output from reaching app analysis before approving a persistent pilot grant.",
+    "next_action": "Define repeatable monitoring and activation transition criteria for the SQL rule; expand the fixture corpus while keeping the app disconnected from the new graph.",
     "search_gate": null,
     "queue_priority": -1
   }

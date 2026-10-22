@@ -1,0 +1,55 @@
+{
+  "evidence_id": "R065-COMMITTED-ONE-RULE-SQL-PILOT-2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "grant_tag": "R065_CONTROLLED_SQL_PILOT_20261022_2006",
+  "release_code": "runtime-structural-v1.37",
+  "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+  "compiled_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e",
+  "protocol": "Preflight exact release membership and source hashes; commit one short-lived grant; build fresh R051 pre-rule-plane sentence; execute one private rule as service_role; commit a separate revocation; verify next service_role call fails closed and count zero active grants.",
+  "preflight": {
+    "release_status": "shadow",
+    "membership_count": 1,
+    "member_enabled": true,
+    "compiled_hash_matches": true,
+    "global_rule_active": false,
+    "active_grants": 0,
+    "upstream_source_definition_md5": "968759622f01f1489b79b67f60cce775",
+    "private_producer_definition_md5": "7be6a79614163ca12589ec9e68f54f30"
+  },
+  "grant": {
+    "grant_id": 1,
+    "granted_at_utc": "2026-10-22 20:05:25.322838+00",
+    "expires_at_utc": "2026-10-22 20:08:25.345633+00",
+    "committed": true
+  },
+  "execution": {
+    "role": "service_role",
+    "status": "executed",
+    "relation": "subject_of",
+    "dependency_count": 1,
+    "source_surface": "Katten",
+    "target_surface": "sover",
+    "result_jsonb_text_md5": "63972eb3daa79d27e51f3d39683f7c25",
+    "saved_r051_subject_result_jsonb_text_md5": "63972eb3daa79d27e51f3d39683f7c25"
+  },
+  "revocation": {
+    "grant_id": 1,
+    "revoked_at_utc": "2026-10-22 20:06:36.432416+00",
+    "committed": true,
+    "post_revocation_call": "PILOT_GRANT_INVALID",
+    "active_grants_after": 0,
+    "tagged_grants": 1,
+    "tagged_revocations": 1
+  },
+  "final_state": {
+    "release_status": "shadow",
+    "global_rule_active": false,
+    "app_endpoint_called": false,
+    "app_output_written": false
+  },
+  "limits": [
+    "One sentence and one rule were exercised; this does not activate the full rule set.",
+    "The new Grammar Graph was not integrated into text analysis or the application.",
+    "The legacy language-graph-engine is a separate path and was not changed."
+  ]
+}

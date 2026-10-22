@@ -864,7 +864,7 @@
       "status": "PROVEN",
       "proof_kind": "DEPLOYED_SOURCE_SNAPSHOT",
       "claim": "At the observed deployed versions, no known app analysis path invokes the new canonical Grammar Graph or private SQL pilot, and direct app SQL roles cannot execute their functions.",
-      "proved_at_head": "a930147",
+      "proved_at_head": "a1fb4ea",
       "evidence_runs": ["R064-NEW-GRAMMAR-APP-PATH-INVENTORY-2026-10-22"],
       "result": "All 53 deployed Edge Function bundles were searched: only canonical shadow itself references the v1.40 structural RPC; no deployed function references the private pilot. Local app source has no canonical/pilot call; anon/auth SQL EXECUTE is denied; canonical shadow had one 401 and no 200 in the prior 24 hours.",
       "dependencies": ["grammar-evidence/artifacts/R064-new-grammar-app-path-inventory.json", "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT"],
@@ -879,13 +879,25 @@
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "Real shadow execution, local parity and a live one-rule Production transaction with grant, revocation and rollback are proven. R064 found no known app path to the new graph. Zero grants remain. A monitored, short-lived committed pilot with revocation across transactions remains unproven.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION"],
+      "result": "R065 committed one short-lived Production grant, executed one subject_of_predicate rule on fresh R051 input with exact saved-result parity, committed revocation in a separate transaction and verified subsequent denial plus zero active grants. Release remains shadow and global rule inactive. Full activation and repeated monitoring are not proven.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION", "R065_COMMITTED_ONE_RULE_SQL_PILOT"],
       "blocked_by": [],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Issue one short-lived exact-hash admin grant for the private SQL pilot; invoke fresh-input subject_of_predicate once under service_role; append revocation in a separate transaction; verify result parity, denial after revocation and zero live grants. Keep output out of app routes."
+      "next_action": "Define repeatable monitoring and activation transition criteria for the SQL rule; expand the fixture corpus while keeping the app disconnected from the new graph."
+    },
+    {
+      "proof_id": "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "One short-lived committed Production grant admits exactly one private SQL subject_of_predicate execution; a separately committed revocation denies later calls.",
+      "proved_at_head": "a1fb4ea",
+      "evidence_runs": ["R065-COMMITTED-ONE-RULE-SQL-PILOT-2026-10-22"],
+      "result": "Grant ID 1 was committed, service_role produced one subject_of dependency for Katten sover with exact R051 rule-result hash parity, revocation was committed, the next call raised PILOT_GRANT_INVALID, and zero active grants remain.",
+      "dependencies": ["grammar-evidence/artifacts/R065-committed-one-rule-sql-pilot.json", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION"],
+      "invalidation": "Refresh if the release, member hash, private pilot functions, SQL ACLs or source RPC definition changes.",
+      "notes": "This is one bounded pilot, not global activation or application integration. The legacy graph route was unchanged."
     }
   ]
 }
