@@ -738,7 +738,7 @@
       "status": "PROVEN",
       "proof_kind": "PRODUCTION_SOURCE_INSPECTION",
       "claim": "The current SQL Rule Execution Plane consumes every enabled member of one release and has no one-rule activation selector, while the same release code drives upstream structural layers.",
-      "proved_at_head": "4d18206",
+      "proved_at_head": "3296ed7",
       "evidence_runs": ["R058-SQL-ONE-RULE-SELECTOR-2026-10-22"],
       "result": "Production build_rule_execution_plane_v1 loops all enabled candidate/phrase/dependency rules in the requested release. Production run_canonical_legacy_compatibility_v140 passes the same release code to upstream morphology through dependency builders. A one-rule child release made by disabling other members may alter its upstream input.",
       "dependencies": ["grammar-evidence/artifacts/R058-sql-one-rule-selector-gap.json", "supabase/migrations/20260831145026_rule_execution_plane_v1_closure.sql"],

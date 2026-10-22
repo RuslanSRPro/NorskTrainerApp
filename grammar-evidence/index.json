@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "8d7d0a3f4f202f9081b6a321aa0f8897474e9178",
+  "head": "3296ed773da8bb1e96cdcaa0bdcb7432c7ca27e6",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "8d7d0a3f4f202f9081b6a321aa0f8897474e9178",
-  "source_head": "8d7d0a3f4f202f9081b6a321aa0f8897474e9178",
+  "archive_head": "3296ed773da8bb1e96cdcaa0bdcb7432c7ca27e6",
+  "source_head": "3296ed773da8bb1e96cdcaa0bdcb7432c7ca27e6",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 91,
-  "strict_history_event_count": 44,
+  "history_event_count": 92,
+  "strict_history_event_count": 45,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -100,7 +100,8 @@
     "R054-BRANCH-PORT-TRIAGE-2026-10-22",
     "R055-RULE-PLANE-ACL-2026-10-22",
     "R056-SHADOW-EDGE-AUTH-2026-10-22",
-    "R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22"
+    "R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22",
+    "R058-SQL-ONE-RULE-SELECTOR-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -170,6 +171,7 @@
     "R056_SHADOW_EDGE_AUTH_BOUNDARY": [],
     "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT": [],
     "R055_APP_GRAPH_OUTPUT_ISOLATION": [],
+    "R058_SQL_RELEASE_WIDE_RULE_EXECUTION": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
   },
   "proof_source_dependencies": {
@@ -313,11 +315,16 @@
       "R056_SHADOW_EDGE_AUTH_BOUNDARY",
       "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT"
     ],
+    "R058_SQL_RELEASE_WIDE_RULE_EXECUTION": [
+      "grammar-evidence/artifacts/R058-sql-one-rule-selector-gap.json",
+      "supabase/migrations/20260831145026_rule_execution_plane_v1_closure.sql"
+    ],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
       "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
       "R053_SUBJECT_SQL_READINESS_GATES",
       "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
-      "R055_APP_GRAPH_OUTPUT_ISOLATION"
+      "R055_APP_GRAPH_OUTPUT_ISOLATION",
+      "R058_SQL_RELEASE_WIDE_RULE_EXECUTION"
     ]
   },
   "proof_next_actions": {
@@ -366,7 +373,8 @@
     "R056_SHADOW_EDGE_AUTH_BOUNDARY": "",
     "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT": "",
     "R055_APP_GRAPH_OUTPUT_ISOLATION": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
-    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet."
+    "R058_SQL_RELEASE_WIDE_RULE_EXECUTION": "",
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Design a one-rule SQL pilot selector or explicit grant that preserves the upstream structural release; prove subject_of_predicate alone executes on source-backed input, then verify graph result, rollback and monitoring without app integration."
   },
   "files": [
     {
@@ -3354,13 +3362,32 @@
       "notes": "Do not infer whole-app isolation from absence of a static app import or SQL ACLs alone."
     },
     {
+      "proof_id": "R058_SQL_RELEASE_WIDE_RULE_EXECUTION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "PRODUCTION_SOURCE_INSPECTION",
+      "proved_at_head": "3296ed7",
+      "claim": "The current SQL Rule Execution Plane consumes every enabled member of one release and has no one-rule activation selector, while the same release code drives upstream structural layers.",
+      "result": "Production build_rule_execution_plane_v1 loops all enabled candidate/phrase/dependency rules in the requested release. Production run_canonical_legacy_compatibility_v140 passes the same release code to upstream morphology through dependency builders. A one-rule child release made by disabling other members may alter its upstream input.",
+      "evidence_runs": [
+        "R058-SQL-ONE-RULE-SELECTOR-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R058-sql-one-rule-selector-gap.json",
+        "supabase/migrations/20260831145026_rule_execution_plane_v1_closure.sql"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This is a scoped source proof; do not claim all possible pilot mechanisms are absent. Preserve upstream release behavior while selecting one rule for execution."
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
-      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready. Direct SQL rule-plane access is now restricted to service_role, but the exact one-rule grant/write contract, whole-app output isolation, rollback and monitoring have not yet been proven.",
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready. Direct SQL and Edge graph access are restricted; current SQL rule plane executes all enabled release members and has no one-rule selector. The pilot grant, complete output isolation, rollback and monitoring remain unproven.",
       "evidence_runs": [
         "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
       ],
@@ -3368,7 +3395,8 @@
         "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
         "R053_SUBJECT_SQL_READINESS_GATES",
         "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
-        "R055_APP_GRAPH_OUTPUT_ISOLATION"
+        "R055_APP_GRAPH_OUTPUT_ISOLATION",
+        "R058_SQL_RELEASE_WIDE_RULE_EXECUTION"
       ],
       "blocked_by": [],
       "stale_reasons": [],

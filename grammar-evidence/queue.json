@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet.",
+      "next_action": "Design a one-rule SQL pilot selector or explicit grant that preserves the upstream structural release; prove subject_of_predicate alone executes on source-backed input, then verify graph result, rollback and monitoring without app integration.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -210,7 +210,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet.",
+    "next_action": "Design a one-rule SQL pilot selector or explicit grant that preserves the upstream structural release; prove subject_of_predicate alone executes on source-backed input, then verify graph result, rollback and monitoring without app integration.",
     "search_gate": null,
     "queue_priority": -1
   }
