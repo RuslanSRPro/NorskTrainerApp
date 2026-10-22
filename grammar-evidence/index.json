@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
+  "head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
-  "source_head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
+  "archive_head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
+  "source_head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 192,
-  "history_event_count": 75,
-  "strict_history_event_count": 28,
+  "history_event_count": 76,
+  "strict_history_event_count": 29,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -84,7 +84,8 @@
     "R051-CURRENT-PRODUCTION-SQL-SUBJECT-EXECUTION",
     "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-REVALIDATION",
     "R051-R048M-STATIC-IMPORT-AUDIT",
-    "R051-EDGE-V66-SOURCE-PARITY"
+    "R051-EDGE-V66-SOURCE-PARITY",
+    "R051-EDGE-V66-FULL-BUNDLE-PARITY"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -212,7 +213,15 @@
     "R051_EDGE_V66_SOURCE_PARITY": [
       "grammar-evidence/artifacts/R051-edge-v66-source-parity.json",
       "supabase/functions/canonical-graph-shadow-v1/index.ts",
-      "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts"
+      "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
+      "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "supabase/functions/import_map.json"
     ]
   },
   "proof_next_actions": {
@@ -2876,7 +2885,7 @@
       "proof_kind": "SOURCE_DEPLOYMENT_RECONCILIATION",
       "proved_at_head": null,
       "claim": "The reviewed current source, deployed canonical Edge and Production SQL capture objects have a reproducible, documented lineage without losing later R048R behavior.",
-      "result": "Production Edge v66 entrypoint and bundled R048R adapter match the current source text exactly after line-ending normalization. That deployed entrypoint lacks R048M capture and bounded scheduler wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
+      "result": "All ten files returned in the Production Edge v66 bundle match current tracked source text exactly after line-ending normalization. That deployed entrypoint lacks R048M capture and bounded scheduler wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
       "evidence_runs": [
         "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
       ],
@@ -2913,20 +2922,29 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "DEPLOYED_SOURCE_COMPARISON",
-      "proved_at_head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
-      "claim": "The current tracked canonical-graph-shadow-v1 entrypoint and legacy adapter match their bundled files in deployed Edge version 66.",
-      "result": "Exact text equality for both files after CRLF-to-LF normalization and trailing newline removal; per-file normalized SHA-256 values and deployed version/package hash preserved.",
+      "proved_at_head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
+      "claim": "All ten files in the deployed canonical-graph-shadow-v1 Edge version 66 bundle match the corresponding tracked source files.",
+      "result": "Exact text equality for all ten bundled files after CRLF-to-LF normalization and trailing newline removal; per-file normalized SHA-256 values and deployed version/package hash preserved.",
       "evidence_runs": [
-        "R051-EDGE-V66-SOURCE-PARITY"
+        "R051-EDGE-V66-SOURCE-PARITY",
+        "R051-EDGE-V66-FULL-BUNDLE-PARITY"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R051-edge-v66-source-parity.json",
         "supabase/functions/canonical-graph-shadow-v1/index.ts",
-        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts"
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+        "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
+        "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+        "supabase/functions/import_map.json"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Two-file parity only; not all bundled dependencies, SQL lineage or activation."
+      "notes": "Full returned bundle parity only; not SQL lineage or activation."
     }
   ],
   "policy": {

@@ -482,7 +482,7 @@
       "evidence_runs": [
         "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
       ],
-      "result": "Production Edge v66 entrypoint and bundled R048R adapter match the current source text exactly after line-ending normalization. That deployed entrypoint lacks R048M capture and bounded scheduler wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
+      "result": "All ten files returned in the Production Edge v66 bundle match current tracked source text exactly after line-ending normalization. That deployed entrypoint lacks R048M capture and bounded scheduler wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
       "dependencies": [
         "grammar-evidence/artifacts/R051-current-source-lineage.json",
         "R051_R048M_IMPORT_CLOSURE",
@@ -513,19 +513,28 @@
       "proof_id": "R051_EDGE_V66_SOURCE_PARITY",
       "status": "PROVEN",
       "proof_kind": "DEPLOYED_SOURCE_COMPARISON",
-      "claim": "The current tracked canonical-graph-shadow-v1 entrypoint and legacy adapter match their bundled files in deployed Edge version 66.",
-      "proved_at_head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
+      "claim": "All ten files in the deployed canonical-graph-shadow-v1 Edge version 66 bundle match the corresponding tracked source files.",
+      "proved_at_head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
       "evidence_runs": [
-        "R051-EDGE-V66-SOURCE-PARITY"
+        "R051-EDGE-V66-SOURCE-PARITY",
+        "R051-EDGE-V66-FULL-BUNDLE-PARITY"
       ],
-      "result": "Exact text equality for both files after CRLF-to-LF normalization and trailing newline removal; per-file normalized SHA-256 values and deployed version/package hash preserved.",
+      "result": "Exact text equality for all ten bundled files after CRLF-to-LF normalization and trailing newline removal; per-file normalized SHA-256 values and deployed version/package hash preserved.",
       "dependencies": [
         "grammar-evidence/artifacts/R051-edge-v66-source-parity.json",
         "supabase/functions/canonical-graph-shadow-v1/index.ts",
-        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts"
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+        "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
+        "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+        "supabase/functions/import_map.json"
       ],
-      "invalidation": "STALE after an Edge redeploy or a change to either tracked source file.",
-      "notes": "Two-file parity only; not all bundled dependencies, SQL lineage or activation."
+      "invalidation": "STALE after an Edge redeploy or a change to any bundled tracked source file.",
+      "notes": "Full returned bundle parity only; not SQL lineage or activation."
     }
   ]
 }
