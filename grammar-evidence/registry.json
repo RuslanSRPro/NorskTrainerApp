@@ -655,6 +655,33 @@
       "freshness_max_age_hours": 24
     },
     {
+      "proof_id": "R054_BRANCH_PORT_TRIAGE",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_AND_DB_SNAPSHOT",
+      "claim": "The three named WHERE branches are ancestors of R048M; no R048M transplant is required for the already executing SQL subject pilot, and the one-shot capture migration needs separate ledger reconciliation.",
+      "proved_at_head": "a46d2db",
+      "evidence_runs": ["R054-BRANCH-PORT-TRIAGE-2026-10-22"],
+      "result": "All three WHERE tips are ancestors of 7d964a3. The R048M tip changed five capture files. All 41 previously absent import-closure modules remain absent in current HEAD; the current SQL shadow case runs without them. Production has one private capture row and its writer function, but no 20261018 migration ledger row.",
+      "dependencies": ["grammar-evidence/artifacts/R054-branch-port-triage.json", "grammar-evidence/artifacts/R051-r048m-static-import-audit.json", "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R052_SUBJECT_R048M_S0_SEED_ABSENT"],
+      "invalidation": "Refresh if branch tips, current source, Production capture objects or migration ledger change.",
+      "notes": "Decision is scoped to the first SQL pilot; it does not classify all 41 modules as useless or prove full cross-branch integrity. No Production or Edge change was made."
+    },
+    {
+      "proof_id": "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION",
+      "status": "UNVERIFIED",
+      "proof_kind": "SOURCE_COMPATIBILITY",
+      "claim": "Useful historical R048M graph modules have been classified individually, adapted to current R048R identity and edge contracts, and tested before deployment.",
+      "proved_at_head": null,
+      "evidence_runs": ["R054-BRANCH-PORT-TRIAGE-2026-10-22"],
+      "result": "Presence and branch ancestry are known. Module-by-module semantic equivalence, dependency closure, structural S0 entry, duplicate prevention and R048R coexistence are still open.",
+      "dependencies": ["R051_R048M_IMPORT_CLOSURE", "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP", "R052_R048M_TOKEN_ROOTED_S0_CONTRACT"],
+      "blocked_by": [],
+      "invalidation": "N/A until a selected module set passes integration tests.",
+      "notes": "This future canonical scheduler track is independent of the one-rule SQL pilot.",
+      "queue_priority": 50,
+      "next_action": "Classify the 41 absent modules by capture, token-POS WHERE and dependency scheduler role; for each chosen module compare its contract with current R048R source, then port only a tested coherent slice."
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",

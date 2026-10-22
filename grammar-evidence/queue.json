@@ -21,6 +21,16 @@
       "queue_priority": 0
     },
     {
+      "proof_id": "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Classify the 41 absent modules by capture, token-POS WHERE and dependency scheduler role; for each chosen module compare its contract with current R048R source, then port only a tested coherent slice.",
+      "search_gate": null,
+      "queue_priority": 50
+    },
+    {
       "proof_id": "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",

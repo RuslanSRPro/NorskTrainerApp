@@ -1,0 +1,37 @@
+{
+  "evidence_id": "R054-BRANCH-PORT-TRIAGE-2026-10-22",
+  "observed_date": "2026-10-22",
+  "current_branch": "fix/audio-runtime-completion-p1",
+  "branch_ancestry": {
+    "target": "grammar/current-owner-binding-occurrence-provenance",
+    "target_tip": "7d964a3",
+    "included_ancestor_tips": ["ee0b7a0", "605e073", "a7ceb98"],
+    "method": "git merge-base --is-ancestor returned 0 for each tip"
+  },
+  "r048m_tip_commit": {
+    "scope": "five-file guarded one-shot structural RPC capture",
+    "files": [
+      "supabase/config.toml",
+      "supabase/functions/_shared/nlp/r048m-capture-auth-v1.ts",
+      "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "supabase/functions/tests/r048m-capture-auth-v1_test.ts",
+      "supabase/migrations/20261018_r048m_capture.sql"
+    ],
+    "decision": "Do not transplant this capture commit into the current deployed R048R entrypoint: the one-shot capture already exists and the migration is marked manual. Reconcile the exact live writer and ledger before any reproducibility repair."
+  },
+  "import_closure_refresh": {
+    "prior_artifact": "grammar-evidence/artifacts/R051-r048m-static-import-audit.json",
+    "previously_absent_modules": 41,
+    "now_present_in_current_branch": 0,
+    "classification_scope": "presence only; each module still needs semantic equivalence and dependency review"
+  },
+  "production_capture_metadata": {
+    "capture_rows": 1,
+    "writer_functions": 1,
+    "migration_ledger_rows_with_20261018_prefix": 0,
+    "method": "read-only count queries; raw capture contents were not read"
+  },
+  "first_sql_pilot_decision": "No R048M module has been shown necessary for the existing SQL subject_of_predicate shadow execution. Select no branch transplant for this pilot; build the missing one-rule SQL activation and app isolation contract separately.",
+  "future_graph_decision": "The R048M scheduler, S0 and WHERE modules remain candidates for future canonical graph work. Structural S0 is currently token-POS rooted and yields zero seeds for the exact subject manifest, so this is not a ready deployable package.",
+  "production_changes": "none"
+}

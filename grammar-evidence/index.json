@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "262389f297479e019bb2d8df6c4e511302b85070",
+  "head": "a46d2db81636f066d5c0d2af8c58812cf3d7a90d",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "262389f297479e019bb2d8df6c4e511302b85070",
-  "source_head": "262389f297479e019bb2d8df6c4e511302b85070",
+  "archive_head": "a46d2db81636f066d5c0d2af8c58812cf3d7a90d",
+  "source_head": "a46d2db81636f066d5c0d2af8c58812cf3d7a90d",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 87,
-  "strict_history_event_count": 40,
+  "history_event_count": 88,
+  "strict_history_event_count": 41,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -96,7 +96,8 @@
     "R052-SUBJECT-MANIFEST-RUNTIME-COMPATIBILITY-REVIEW",
     "R052-R048M-STRUCTURAL-S0-CONTRACT-AUDIT",
     "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22",
-    "R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22"
+    "R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22",
+    "R054-BRANCH-PORT-TRIAGE-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -160,6 +161,8 @@
     "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": [],
     "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS": [],
     "R053_SUBJECT_SQL_READINESS_GATES": [],
+    "R054_BRANCH_PORT_TRIAGE": [],
+    "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
   },
   "proof_source_dependencies": {
@@ -274,6 +277,17 @@
     "R053_SUBJECT_SQL_READINESS_GATES": [
       "grammar-evidence/artifacts/R053-subject-sql-readiness-gates.json"
     ],
+    "R054_BRANCH_PORT_TRIAGE": [
+      "grammar-evidence/artifacts/R054-branch-port-triage.json",
+      "grammar-evidence/artifacts/R051-r048m-static-import-audit.json",
+      "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
+      "R052_SUBJECT_R048M_S0_SEED_ABSENT"
+    ],
+    "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION": [
+      "R051_R048M_IMPORT_CLOSURE",
+      "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP",
+      "R052_R048M_TOKEN_ROOTED_S0_CONTRACT"
+    ],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
       "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
       "R053_SUBJECT_SQL_READINESS_GATES"
@@ -319,6 +333,8 @@
     "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": "",
     "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS": "",
     "R053_SUBJECT_SQL_READINESS_GATES": "",
+    "R054_BRANCH_PORT_TRIAGE": "",
+    "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION": "Classify the 41 absent modules by capture, token-POS WHERE and dependency scheduler role; for each chosen module compare its contract with current R048R source, then port only a tested coherent slice.",
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet."
   },
   "files": [
@@ -3184,6 +3200,47 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
+    },
+    {
+      "proof_id": "R054_BRANCH_PORT_TRIAGE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_AND_DB_SNAPSHOT",
+      "proved_at_head": "a46d2db",
+      "claim": "The three named WHERE branches are ancestors of R048M; no R048M transplant is required for the already executing SQL subject pilot, and the one-shot capture migration needs separate ledger reconciliation.",
+      "result": "All three WHERE tips are ancestors of 7d964a3. The R048M tip changed five capture files. All 41 previously absent import-closure modules remain absent in current HEAD; the current SQL shadow case runs without them. Production has one private capture row and its writer function, but no 20261018 migration ledger row.",
+      "evidence_runs": [
+        "R054-BRANCH-PORT-TRIAGE-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R054-branch-port-triage.json",
+        "grammar-evidence/artifacts/R051-r048m-static-import-audit.json",
+        "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
+        "R052_SUBJECT_R048M_S0_SEED_ABSENT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Decision is scoped to the first SQL pilot; it does not classify all 41 modules as useless or prove full cross-branch integrity. No Production or Edge change was made."
+    },
+    {
+      "proof_id": "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "SOURCE_COMPATIBILITY",
+      "proved_at_head": null,
+      "claim": "Useful historical R048M graph modules have been classified individually, adapted to current R048R identity and edge contracts, and tested before deployment.",
+      "result": "Presence and branch ancestry are known. Module-by-module semantic equivalence, dependency closure, structural S0 entry, duplicate prevention and R048R coexistence are still open.",
+      "evidence_runs": [
+        "R054-BRANCH-PORT-TRIAGE-2026-10-22"
+      ],
+      "dependencies": [
+        "R051_R048M_IMPORT_CLOSURE",
+        "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP",
+        "R052_R048M_TOKEN_ROOTED_S0_CONTRACT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This future canonical scheduler track is independent of the one-rule SQL pilot."
     },
     {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
