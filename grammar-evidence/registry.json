@@ -860,19 +860,32 @@
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
     {
+      "proof_id": "R064_NEW_GRAMMAR_APP_PATH_ISOLATION",
+      "status": "PROVEN",
+      "proof_kind": "DEPLOYED_SOURCE_SNAPSHOT",
+      "claim": "At the observed deployed versions, no known app analysis path invokes the new canonical Grammar Graph or private SQL pilot, and direct app SQL roles cannot execute their functions.",
+      "proved_at_head": "a930147",
+      "evidence_runs": ["R064-NEW-GRAMMAR-APP-PATH-INVENTORY-2026-10-22"],
+      "result": "All 53 deployed Edge Function bundles were searched: only canonical shadow itself references the v1.40 structural RPC; no deployed function references the private pilot. Local app source has no canonical/pilot call; anon/auth SQL EXECUTE is denied; canonical shadow had one 401 and no 200 in the prior 24 hours.",
+      "dependencies": ["grammar-evidence/artifacts/R064-new-grammar-app-path-inventory.json", "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT"],
+      "invalidation": "Refresh after an Edge redeploy, application call-site change, SQL ACL change or log-window expiry.",
+      "notes": "Scoped to the new Grammar Graph and known deployed/app sources. External service-key callers remain outside the inventory. The legacy language-graph-engine is separate and unchanged.",
+      "freshness_max_age_hours": 24
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "Real shadow execution, local parity and a live one-rule Production transaction with grant, revocation and rollback are proven. Zero grants remain. A persistent-grant procedure, monitoring, rollback rehearsal across committed transactions and complete app-output isolation remain unproven.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R055_APP_GRAPH_OUTPUT_ISOLATION", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE"],
+      "result": "Real shadow execution, local parity and a live one-rule Production transaction with grant, revocation and rollback are proven. R064 found no known app path to the new graph. Zero grants remain. A monitored, short-lived committed pilot with revocation across transactions remains unproven.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION"],
       "blocked_by": [],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Define a committed-grant operating procedure with expiry, monitoring and revocation checks; inventory authorized canonical-shadow consumers and prevent graph output from reaching app analysis before approving a persistent pilot grant."
+      "next_action": "Issue one short-lived exact-hash admin grant for the private SQL pilot; invoke fresh-input subject_of_predicate once under service_role; append revocation in a separate transaction; verify result parity, denial after revocation and zero live grants. Keep output out of app routes."
     }
   ]
 }

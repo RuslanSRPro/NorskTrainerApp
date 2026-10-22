@@ -1,0 +1,320 @@
+{
+  "evidence_id": "R064-NEW-GRAMMAR-APP-PATH-INVENTORY-2026-10-22",
+  "observed_at_utc": "2026-10-22T20:03:06Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "deployed_function_count": 53,
+  "deployed_function_inventory": [
+    {
+      "slug": "analyze-text",
+      "version": 172,
+      "bundle_sha256": "952c4959da4331a63bb5af48155082b89e5cb7bed99bd277a2b23ba8135393eb"
+    },
+    {
+      "slug": "lexical-worker",
+      "version": 104,
+      "bundle_sha256": "6760e9167f5293f3b1d1885f0a0ca92648b0e6c250b25a31f39de50044221536"
+    },
+    {
+      "slug": "job-orchestrator",
+      "version": 113,
+      "bundle_sha256": "67dfda4864c8a5c0092b68ba72e073bb86225fce8864c259fd81264ed93b8a27"
+    },
+    {
+      "slug": "semantic-audit-worker",
+      "version": 79,
+      "bundle_sha256": "5c69dc014dcd28e14ce745353d1d7c3435d8c9070c7c25bdcfe2790a0515c306"
+    },
+    {
+      "slug": "relation-resolver",
+      "version": 69,
+      "bundle_sha256": "ee610484faf311bc3d62350d25f1eb437d87e2841f799c0d09ad7fe59fe3edce"
+    },
+    {
+      "slug": "ordbokene-article-fetcher",
+      "version": 65,
+      "bundle_sha256": "9c33e6c03d6efde9f03fc7594811be1192dcf55fddef39654f32fdf7d07d5e0d"
+    },
+    {
+      "slug": "ordbokene-expression-extractor",
+      "version": 66,
+      "bundle_sha256": "b3895e65a0f453f2f12656319feb6a90b0545c1efca0090f2c300d028f346a9c"
+    },
+    {
+      "slug": "ordbokene-expression-promotion-worker",
+      "version": 76,
+      "bundle_sha256": "d160b37afc152d480541c3d5d35cb3a17ba1e58061172519bb50d7ddace7ea97"
+    },
+    {
+      "slug": "ordbokene-sub-article-relation-worker",
+      "version": 72,
+      "bundle_sha256": "3345fb914141a93c858e205956cc9535dfbad61a39a34db97062867dc633d977"
+    },
+    {
+      "slug": "ordbokene-article-ref-relation-worker",
+      "version": 69,
+      "bundle_sha256": "a86555f6c1932f13a6b17269ce6f6c5331306dd75db2672b5b29c698f25dd4b7"
+    },
+    {
+      "slug": "ordbokene-lexeme-pipeline-worker",
+      "version": 84,
+      "bundle_sha256": "0b5bc9bd60d91182a92239ad10174fff90aab140d13152004368e456d82d7d11"
+    },
+    {
+      "slug": "naob-article-fetcher",
+      "version": 66,
+      "bundle_sha256": "eb18fac8613f198200071388621627c3fc1059d521c02132bc4fee4a7fff073c"
+    },
+    {
+      "slug": "naob-structure-extractor",
+      "version": 78,
+      "bundle_sha256": "b0f21143fdc634e9550c49d678de02240e4dd79894610a1fceba8e18da0095dd"
+    },
+    {
+      "slug": "naob-expression-batch-worker",
+      "version": 66,
+      "bundle_sha256": "b01e8070c50e09478c6c3dd5ef67e0409595e8f37e76fabeac6959c958c69659"
+    },
+    {
+      "slug": "naob-pipeline-worker",
+      "version": 65,
+      "bundle_sha256": "1e49f8ad12a55de9ed7ff502eb0a5fe98e9242552ed18b4b567a0464762000fe"
+    },
+    {
+      "slug": "authoritative-enrichment-pipeline-worker",
+      "version": 89,
+      "bundle_sha256": "b3d122d6f11e853c2b8a823e6944197b7a641d0333583bb34541ee0a8759461a"
+    },
+    {
+      "slug": "naob-jf-relation-worker",
+      "version": 66,
+      "bundle_sha256": "acc51bda953c01a5f600ff4baaa7c319cc1386ff5c69ab672b4e2e1b999ad9f6"
+    },
+    {
+      "slug": "lexin-enrichment-worker",
+      "version": 116,
+      "bundle_sha256": "da9388a686fceec0ccb0c001eba76db69aa5e05dbf4d46969e467e5b0ea40d4f"
+    },
+    {
+      "slug": "translation-ranking-worker",
+      "version": 73,
+      "bundle_sha256": "e95090dfe7dd949fcd4617fd396e31d203673cdf4cd8229d3d06d712ed2dbd7b"
+    },
+    {
+      "slug": "wiktionary-enrichment-worker",
+      "version": 66,
+      "bundle_sha256": "f714e6e85c47ea125400a19763de7f32b24c451312d16ed413c196713251337a"
+    },
+    {
+      "slug": "get-job-status",
+      "version": 81,
+      "bundle_sha256": "8c6763889cf9fa17bcebb149b6be54927bfa10dae21d86a6a2d82289c3d0efcd"
+    },
+    {
+      "slug": "lexicon-refresh-orchestrator",
+      "version": 66,
+      "bundle_sha256": "8efc55cdfcc922097e3ddf94aac3f90cd32031f469cb234c13a2dd5ec4439c75"
+    },
+    {
+      "slug": "ai-enrichment-worker",
+      "version": 108,
+      "bundle_sha256": "89177d07fffce88545b237f797b688c316195dd85a49e18b6919ec893aaf5dc7"
+    },
+    {
+      "slug": "naob-synonym-extractor",
+      "version": 69,
+      "bundle_sha256": "40e854301f920e037a3ca5443546e1dcf08e053ec5b400122dc65429575da6b6"
+    },
+    {
+      "slug": "job-completion-auditor",
+      "version": 85,
+      "bundle_sha256": "a4af7ae08a3be20227108bef0399bca84a3048bda8b10d8ff5268df68885983c"
+    },
+    {
+      "slug": "job-enrichment-batch-worker",
+      "version": 105,
+      "bundle_sha256": "01e5d0fc85fd0e4834ca6531e0b9aeae5f20c6dd58ffe3b9dee0d5ba589cd510"
+    },
+    {
+      "slug": "pipeline-supervisor",
+      "version": 119,
+      "bundle_sha256": "08a5a34cb2be0ca573f112c51233276465d08edd51de891971f0a915035f98bc"
+    },
+    {
+      "slug": "naob-synonym-resolver",
+      "version": 63,
+      "bundle_sha256": "9b792bc28825fe645f7741e8d1b93543903ed9133381760d6d8043d440903baa"
+    },
+    {
+      "slug": "translation-canonicalization-worker",
+      "version": 70,
+      "bundle_sha256": "d698c7d5263427a4e6fe8bbfdbb0bdc008bf83b147d35cfe6e0fd59c30995f83"
+    },
+    {
+      "slug": "word-frequency-importer",
+      "version": 61,
+      "bundle_sha256": "75fa582e0991cb4f45fc52dd681ed07fdfd965823d8bc6467a403d31f680db6f"
+    },
+    {
+      "slug": "grammar-pattern-engine",
+      "version": 64,
+      "bundle_sha256": "b499fbdf636fecb5a0752a7d18aef1157de347a33f6840ac60b94fbed44512ee"
+    },
+    {
+      "slug": "grammar-analysis-orchestrator",
+      "version": 75,
+      "bundle_sha256": "06ef01a45623d19ffdec5bf3d8ac4fa800555436ba961f169f6117fe9be41213"
+    },
+    {
+      "slug": "grammar-interpretation-engine",
+      "version": 65,
+      "bundle_sha256": "e51b1ddcc7518908c90f50df64d88ecc4649e7e4e530e1755415cc9ed32bd0cc"
+    },
+    {
+      "slug": "language-graph-engine",
+      "version": 64,
+      "bundle_sha256": "dda9f6cdf1f9666dd1989d140b8e4dbdab84671c22116b26e604a33079b6da16"
+    },
+    {
+      "slug": "clause-pattern-engine",
+      "version": 65,
+      "bundle_sha256": "bbdf387bf7c547a429cf252818e64b88ce5477b3b2753b57c4c46e624e2a1e4b"
+    },
+    {
+      "slug": "dependency-engine",
+      "version": 66,
+      "bundle_sha256": "4f4e116e97cab6833aa7e52f615801abc62b2fd9c6ceff968f9097e750149c52"
+    },
+    {
+      "slug": "construction-resolution-engine",
+      "version": 63,
+      "bundle_sha256": "c1294d0f448aad273a2155e49a8b66dd162807c92785adc6398c4da4fe817bd9"
+    },
+    {
+      "slug": "predicate-builder",
+      "version": 67,
+      "bundle_sha256": "64f9b91fc506fc049befb1bf75d9e296b1540486c02a1b2a4c83d7167d1a7350"
+    },
+    {
+      "slug": "translation-aspect-reorder-worker",
+      "version": 79,
+      "bundle_sha256": "e3de28501c30b28f71223e22fbde26fb4ec8002276a633c129c9c5791908c6f0"
+    },
+    {
+      "slug": "expression-candidate-promoter",
+      "version": 65,
+      "bundle_sha256": "841e731fd2f7c66527c5d2ac88bdf7853c9b840910259d3383c6db0a29fe838b"
+    },
+    {
+      "slug": "key-diagnostics-temp",
+      "version": 60,
+      "bundle_sha256": "86d23a6748ffa6a65404e49403b1c09b2718836ce789e52daa9c3dbfd56924ea"
+    },
+    {
+      "slug": "completion-contract-shadow",
+      "version": 61,
+      "bundle_sha256": "cf262c820e973cc7fcfc294d8b3fdb7633d5a242b75ca817dd43b5cb4835c291"
+    },
+    {
+      "slug": "grammar-shadow-compare-v2",
+      "version": 55,
+      "bundle_sha256": "9542f5ad134a1df946364487f0fcf12526a626481c9f0cbee61b951a8e25bdac"
+    },
+    {
+      "slug": "canonical-graph-shadow-v1",
+      "version": 67,
+      "bundle_sha256": "d4dfa4efe9207955089796870fd6fff7eef0a06b02eef0fbd1854943ad4673bd"
+    },
+    {
+      "slug": "forms-enrichment-v2-shadow",
+      "version": 56,
+      "bundle_sha256": "c1bdaff7129d0d16b8fa6e55a42c3ad0248d769b40d2172204058593a929abdc"
+    },
+    {
+      "slug": "forms-enrichment-v2-worker",
+      "version": 69,
+      "bundle_sha256": "72bebce99ce13cd213ca50a65527a14461a4644e05df577a2b529f0b0057c143"
+    },
+    {
+      "slug": "compound-candidate-promoter",
+      "version": 5,
+      "bundle_sha256": "8f351884e413168fb3f0b94c0de5d30da5c16b7dda7a5ee5f5f86aa4d2af5439"
+    },
+    {
+      "slug": "job-completion-report",
+      "version": 12,
+      "bundle_sha256": "aff5cb2d0947ad252bb3f84d37f3550ef9839cd19b7670804c5ba8da10ddb04e"
+    },
+    {
+      "slug": "ai-translation-review",
+      "version": 6,
+      "bundle_sha256": "e8237aba6b046b2cff34b1d0a65dfc6f2696520b1fce32606d33d9b717f7cdc5"
+    },
+    {
+      "slug": "ai-example-review",
+      "version": 5,
+      "bundle_sha256": "05271c84501b0243d4ec3ec6c0425e2a2a132c05d5db478d2231d764478d2b93"
+    },
+    {
+      "slug": "compound-head-forms-worker",
+      "version": 3,
+      "bundle_sha256": "fa91a2c3c98ff17a1ad866d0e62ac0ce1398b1efe3d8c5ca918b2f5c279ea394"
+    },
+    {
+      "slug": "read-word-preview",
+      "version": 3,
+      "bundle_sha256": "c067fbc935a0e119b8cb188ac5d9a023d4b67a7d206f593c573f11199416e1e5"
+    },
+    {
+      "slug": "naob-forms-worker",
+      "version": 4,
+      "bundle_sha256": "22aa484304d53a0046940e36ed37c60a4379d6a84267feddda6b66056c3dcb9b"
+    }
+  ],
+  "search_terms": [
+    "canonical-graph-shadow-v1",
+    "run_canonical_legacy_compatibility_v140",
+    "grammar_pilot_private",
+    "run_one_rule_v1"
+  ],
+  "hits": [
+    {
+      "slug": "canonical-graph-shadow-v1",
+      "file": "functions/canonical-graph-shadow-v1/index.ts",
+      "term": "run_canonical_legacy_compatibility_v140"
+    }
+  ],
+  "local_app_source_scope": [
+    "app",
+    "services",
+    "components",
+    "hooks"
+  ],
+  "local_app_source_pilot_or_canonical_calls_found": 0,
+  "direct_sql_acl": {
+    "anon_authenticated_run_canonical_legacy_compatibility_v140": false,
+    "anon_authenticated_build_rule_execution_plane_v1": false,
+    "anon_authenticated_execute_dependency_pattern_rule_v2": false,
+    "anon_authenticated_private_pilot_schema_usage": false
+  },
+  "canonical_shadow": {
+    "deployed_version": 67,
+    "internal_service_authorization": true,
+    "returns_language_graph_to_authorized_service_callers": true,
+    "function_edge_logs_default_last_24h": {
+      "status_401": 1,
+      "status_200": 0
+    }
+  },
+  "separate_legacy_graph_route": {
+    "orchestrator": "grammar-analysis-orchestrator v75",
+    "uses": "language-graph-engine v64",
+    "calls_new_canonical_or_pilot": false,
+    "comparator": "grammar-shadow-compare-v2 v55 calls orchestrator with responseProfile=model"
+  },
+  "result": "No known deployed application function or local app source calls the new canonical shadow or private pilot; direct app SQL roles are denied. The controlled SQL pilot will not forward its result to app code.",
+  "limits": [
+    "This proves absence only in the inspected deployed 53-function snapshot and local app source, not every external holder of service credentials.",
+    "Canonical shadow can return graph data to an authorized service caller, but no known app path invokes it.",
+    "Legacy language-graph-engine is a different route and is not changed by this pilot."
+  ]
+}
