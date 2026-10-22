@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Inspect current deployed canonical-graph-shadow-v1 request authorization, exposure and response consumers; keep shadow diagnostics operator-only or explicitly out of the app path.",
+      "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
       "search_gate": null,
       "queue_priority": -2
     },
@@ -141,6 +141,16 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R051_EDGE_V66_SOURCE_PARITY",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -200,7 +210,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Inspect current deployed canonical-graph-shadow-v1 request authorization, exposure and response consumers; keep shadow diagnostics operator-only or explicitly out of the app path.",
+    "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
     "search_gate": null,
     "queue_priority": -2
   }

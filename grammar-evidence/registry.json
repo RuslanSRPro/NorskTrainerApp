@@ -698,7 +698,7 @@
       "status": "PROVEN",
       "proof_kind": "DEPLOYED_SOURCE_AND_HTTP_PROBE",
       "claim": "The deployed canonical graph shadow Edge endpoint rejects unauthenticated requests before executing or returning graph data.",
-      "proved_at_head": "61bab16",
+      "proved_at_head": "05449a7",
       "evidence_runs": ["R056-SHADOW-EDGE-AUTH-2026-10-22"],
       "result": "Production Edge v67 bundle matches the local guarded entrypoint and includes the shared exact-service-credential helper. An unauthenticated POST returned HTTP 401; the helper test passed 1/1. No authorized runtime request was made.",
       "dependencies": ["supabase/functions/canonical-graph-shadow-v1/index.ts", "supabase/functions/_shared/authoritative-morphology-v2/internal-authorization.ts", "grammar-evidence/artifacts/R056-shadow-edge-authorization-boundary.json"],
