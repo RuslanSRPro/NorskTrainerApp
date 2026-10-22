@@ -1,0 +1,18 @@
+{
+  "evidence_id": "R059-PILOT-AUDIT-ACL-SNAPSHOT-2026-10-22",
+  "observed_date": "2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "method": "read-only Production pg_proc privilege and pg_class/RLS inspection, plus migration source inspection",
+  "functions": {
+    "apply_rule_execution_pilot_v1(jsonb,text)": {"anon_execute": true, "authenticated_execute": true, "volatility": "stable"},
+    "build_rule_execution_pilot_v1(jsonb,text)": {"anon_execute": true, "authenticated_execute": true, "volatility": "stable"},
+    "run_rule_execution_pilot_shadow_comparator_v1(text,text,text)": {"anon_execute": true, "authenticated_execute": true, "volatility": "volatile"}
+  },
+  "tables": {
+    "grammar_shadow_v2_batches": {"anon_insert": true, "authenticated_insert": true, "rls_enabled": true, "policy_count": 0},
+    "grammar_shadow_v2_comparisons": {"anon_insert": true, "authenticated_insert": true, "rls_enabled": true, "policy_count": 0},
+    "grammar_shadow_v2_corpus_cases": {"anon_select": true, "authenticated_select": true, "anon_insert": true, "authenticated_insert": true, "rls_enabled": false}
+  },
+  "interpretation": "The audit/comparator ACLs are broader than the five rule-plane functions restricted in R055. RLS with no policies on the output tables likely blocks ordinary anon/auth comparator writes, but no role-level call was attempted. Corpus-case access is a separate surface to review. This is not proof that app output is exposed.",
+  "production_changes": "none"
+}

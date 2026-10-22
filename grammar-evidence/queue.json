@@ -1,12 +1,22 @@
 {
   "queue": [
     {
+      "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Run the SQL draft and seven P1 cases on a disposable PostgreSQL copy with the saved R051 sentence and matching rule/release data; record exact outputs and hashes.",
+      "search_gate": null,
+      "queue_priority": -2
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Design a one-rule SQL pilot selector or explicit grant that preserves the upstream structural release; prove subject_of_predicate alone executes on source-backed input, then verify graph result, rollback and monitoring without app integration.",
+      "next_action": "Use the existing one-rule SQL executor behind a bounded grant check on the unchanged structural release; prove P1 parity and fail-closed behavior on a disposable database copy, then verify graph result, rollback and monitoring without app integration.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -205,13 +215,13 @@
     }
   ],
   "next": {
-    "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
+    "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Design a one-rule SQL pilot selector or explicit grant that preserves the upstream structural release; prove subject_of_predicate alone executes on source-backed input, then verify graph result, rollback and monitoring without app integration.",
+    "next_action": "Run the SQL draft and seven P1 cases on a disposable PostgreSQL copy with the saved R051 sentence and matching rule/release data; record exact outputs and hashes.",
     "search_gate": null,
-    "queue_priority": -1
+    "queue_priority": -2
   }
 }

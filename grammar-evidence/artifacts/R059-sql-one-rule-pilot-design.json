@@ -1,0 +1,23 @@
+{
+  "evidence_id": "R059-SQL-ONE-RULE-PILOT-DESIGN-2026-10-22",
+  "status": "UNVERIFIED",
+  "scope": "Local draft only; not installed in Production or a database copy",
+  "draft_path": "grammar-evidence/patches/R059-sql-one-rule-pilot-draft.sql",
+  "input_contract": "A precomputed sentence with analysis.language_graph from the unchanged runtime-structural-v1.37 pipeline",
+  "execution_contract": "Check exact shadow-release membership, inclusion in existing pilot_rule_codes, compiled hash and one live grant, then call existing execute_dependency_pattern_rule_v2 exactly once for subject_of_predicate",
+  "grant_contract": "Append-only grant and revocation events; no matching grant, two live grants or a hash mismatch fails closed",
+  "p1_test_cases": [
+    "On a disposable database copy, load the R051 source-backed Katten sover sentence and matching release/rule rows",
+    "With one valid grant, compare the selector's jsonb output with the subject_of_predicate item from build_rule_execution_plane_v1 on the identical precomputed sentence",
+    "With no grant, confirm PILOT_GRANT_INVALID and no rule execution",
+    "With an incorrect compiled hash, confirm PILOT_GRANT_INVALID and no rule execution",
+    "With two live grants, confirm PILOT_GRANT_INVALID and no rule execution",
+    "After a revocation event, confirm PILOT_GRANT_INVALID and no rule execution",
+    "Confirm anon and authenticated cannot use the dedicated schema or function"
+  ],
+  "limitations": [
+    "SQL draft has not been parsed or executed against PostgreSQL",
+    "The current environment has no local PostgreSQL or Docker runtime",
+    "App output isolation, monitoring and Production deployment remain separate gates"
+  ]
+}

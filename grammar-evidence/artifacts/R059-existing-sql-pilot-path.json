@@ -1,0 +1,20 @@
+{
+  "evidence_id": "R059-EXISTING-SQL-PILOT-PATH-2026-10-22",
+  "observed_at_utc": "2026-10-22T15:32:37Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "methods": ["source inspection of migrations 20260831141802 and 20260831145026", "read-only Production SELECT of release metadata"],
+  "single_rule_executor": "public.execute_dependency_pattern_rule_v2(jsonb,uuid) executes one dependency_pattern rule but does not check release membership or pilot grants",
+  "pilot_audit": "public.build_rule_execution_pilot_v1(jsonb,text) iterates metadata.pilot_rule_codes and reports observed architecture/evidence; it does not call the single-rule executor",
+  "production_metadata": {
+    "runtime-structural-v1.17": {
+      "status": "shadow",
+      "pilot_rule_codes": ["nrg_rt_v1.preposition.complementless_category.candidate_constraint", "nrg_rt_v1.structural.noun_phrase.noun_head", "nrg_rt_v1.structural.dependency.subject_of_predicate"]
+    },
+    "runtime-structural-v1.37": {
+      "status": "shadow",
+      "pilot_rule_codes": ["nrg_rt_v1.preposition.complementless_category.candidate_constraint", "nrg_rt_v1.structural.noun_phrase.noun_head", "nrg_rt_v1.structural.dependency.subject_of_predicate"]
+    }
+  },
+  "consequence": "No new rule executor or child release is needed for R059. A narrow admission guard and an exact same-input comparison remain unverified.",
+  "production_changes": "none"
+}

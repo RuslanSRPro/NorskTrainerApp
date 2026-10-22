@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "3296ed773da8bb1e96cdcaa0bdcb7432c7ca27e6",
+  "head": "f828081052f5a77954b3e079b57c8376ab890e91",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "3296ed773da8bb1e96cdcaa0bdcb7432c7ca27e6",
-  "source_head": "3296ed773da8bb1e96cdcaa0bdcb7432c7ca27e6",
+  "archive_head": "f828081052f5a77954b3e079b57c8376ab890e91",
+  "source_head": "f828081052f5a77954b3e079b57c8376ab890e91",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 92,
-  "strict_history_event_count": 45,
+  "history_event_count": 94,
+  "strict_history_event_count": 47,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -101,7 +101,9 @@
     "R055-RULE-PLANE-ACL-2026-10-22",
     "R056-SHADOW-EDGE-AUTH-2026-10-22",
     "R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22",
-    "R058-SQL-ONE-RULE-SELECTOR-2026-10-22"
+    "R058-SQL-ONE-RULE-SELECTOR-2026-10-22",
+    "R059-EXISTING-SQL-PILOT-PATH-2026-10-22",
+    "R059-PILOT-AUDIT-ACL-SNAPSHOT-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -172,6 +174,9 @@
     "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT": [],
     "R055_APP_GRAPH_OUTPUT_ISOLATION": [],
     "R058_SQL_RELEASE_WIDE_RULE_EXECUTION": [],
+    "R059_EXISTING_SQL_PILOT_PATH": [],
+    "R059_SQL_ONE_RULE_PILOT_P1": [],
+    "R059_PILOT_AUDIT_ACL_SNAPSHOT": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
   },
   "proof_source_dependencies": {
@@ -319,12 +324,29 @@
       "grammar-evidence/artifacts/R058-sql-one-rule-selector-gap.json",
       "supabase/migrations/20260831145026_rule_execution_plane_v1_closure.sql"
     ],
+    "R059_EXISTING_SQL_PILOT_PATH": [
+      "grammar-evidence/artifacts/R059-existing-sql-pilot-path.json",
+      "supabase/migrations/20260831141802_rule_execution_plane_pilot_v1_foundation.sql",
+      "supabase/migrations/20260831145026_rule_execution_plane_v1_closure.sql"
+    ],
+    "R059_SQL_ONE_RULE_PILOT_P1": [
+      "grammar-evidence/patches/R059-sql-one-rule-pilot-draft.sql",
+      "grammar-evidence/artifacts/R059-sql-one-rule-pilot-design.json",
+      "CLAUSE_SOURCE_BACKED_FIXTURE",
+      "R059_EXISTING_SQL_PILOT_PATH"
+    ],
+    "R059_PILOT_AUDIT_ACL_SNAPSHOT": [
+      "grammar-evidence/artifacts/R059-pilot-audit-acl-snapshot.json",
+      "supabase/migrations/20260831141802_rule_execution_plane_pilot_v1_foundation.sql"
+    ],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
       "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
       "R053_SUBJECT_SQL_READINESS_GATES",
       "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
       "R055_APP_GRAPH_OUTPUT_ISOLATION",
-      "R058_SQL_RELEASE_WIDE_RULE_EXECUTION"
+      "R059_EXISTING_SQL_PILOT_PATH",
+      "R059_SQL_ONE_RULE_PILOT_P1",
+      "R059_PILOT_AUDIT_ACL_SNAPSHOT"
     ]
   },
   "proof_next_actions": {
@@ -374,7 +396,10 @@
     "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT": "",
     "R055_APP_GRAPH_OUTPUT_ISOLATION": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
     "R058_SQL_RELEASE_WIDE_RULE_EXECUTION": "",
-    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Design a one-rule SQL pilot selector or explicit grant that preserves the upstream structural release; prove subject_of_predicate alone executes on source-backed input, then verify graph result, rollback and monitoring without app integration."
+    "R059_EXISTING_SQL_PILOT_PATH": "",
+    "R059_SQL_ONE_RULE_PILOT_P1": "Run the SQL draft and seven P1 cases on a disposable PostgreSQL copy with the saved R051 sentence and matching rule/release data; record exact outputs and hashes.",
+    "R059_PILOT_AUDIT_ACL_SNAPSHOT": "",
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Use the existing one-rule SQL executor behind a bounded grant check on the unchanged structural release; prove P1 parity and fail-closed behavior on a disposable database copy, then verify graph result, rollback and monitoring without app integration."
   },
   "files": [
     {
@@ -3378,7 +3403,67 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "This is a scoped source proof; do not claim all possible pilot mechanisms are absent. Preserve upstream release behavior while selecting one rule for execution."
+      "notes": "Scoped only to build_rule_execution_plane_v1. execute_dependency_pattern_rule_v2 already executes one rule, and build_rule_execution_pilot_v1 selects pilot codes for architecture audit but does not execute that rule. Preserve upstream release behavior."
+    },
+    {
+      "proof_id": "R059_EXISTING_SQL_PILOT_PATH",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_AND_DB_SNAPSHOT",
+      "proved_at_head": "f828081",
+      "claim": "The SQL runtime has a one-rule dependency executor; the separate pilot-code selector is an audit, and v1.37 Production metadata includes subject_of_predicate.",
+      "result": "execute_dependency_pattern_rule_v2 accepts one rule UUID without release or grant checks. build_rule_execution_pilot_v1 iterates pilot_rule_codes for architecture/evidence reporting and never calls the executor. Production v1.37 pilot_rule_codes contains subject_of_predicate.",
+      "evidence_runs": [
+        "R059-EXISTING-SQL-PILOT-PATH-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R059-existing-sql-pilot-path.json",
+        "supabase/migrations/20260831141802_rule_execution_plane_pilot_v1_foundation.sql",
+        "supabase/migrations/20260831145026_rule_execution_plane_v1_closure.sql"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Existing metadata selection is not an execution authorization gate. No Production change made."
+    },
+    {
+      "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": null,
+      "claim": "A single admitted subject_of_predicate execution on unchanged upstream input equals the corresponding full-release result and fails closed without a valid grant.",
+      "result": "An existing one-rule executor and v1.37 pilot-code metadata are proven. A local admission guard and append-only grant/revocation draft exists. No database-copy execution or parity proof has been run.",
+      "evidence_runs": [
+        "R059-SQL-ONE-RULE-PILOT-DESIGN-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/patches/R059-sql-one-rule-pilot-draft.sql",
+        "grammar-evidence/artifacts/R059-sql-one-rule-pilot-design.json",
+        "CLAUSE_SOURCE_BACKED_FIXTURE",
+        "R059_EXISTING_SQL_PILOT_PATH"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not apply to Production before P1. The selector calls one rule executor; full-release execution is comparison only."
+    },
+    {
+      "proof_id": "R059_PILOT_AUDIT_ACL_SNAPSHOT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "proved_at_head": "f828081",
+      "claim": "Legacy pilot-audit functions are executable by anon and authenticated, while the comparator output tables have RLS enabled with no policies.",
+      "result": "Production ACL read shows anon/auth EXECUTE on apply/build pilot audit and volatile comparator; anon/auth INSERT grants on shadow batches/comparisons coexist with RLS and zero policies. Corpus cases table has no RLS. No role-level invocation was attempted.",
+      "evidence_runs": [
+        "R059-PILOT-AUDIT-ACL-SNAPSHOT-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R059-pilot-audit-acl-snapshot.json",
+        "supabase/migrations/20260831141802_rule_execution_plane_pilot_v1_foundation.sql"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
     {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
@@ -3387,7 +3472,7 @@
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
-      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready. Direct SQL and Edge graph access are restricted; current SQL rule plane executes all enabled release members and has no one-rule selector. The pilot grant, complete output isolation, rollback and monitoring remain unproven.",
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Existing one-rule SQL executor and v1.37 pilot-code metadata are proven. Pilot audit functions retain broad ACLs. The pilot grant, same-input parity, complete output isolation, rollback and monitoring remain unproven.",
       "evidence_runs": [
         "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
       ],
@@ -3396,7 +3481,9 @@
         "R053_SUBJECT_SQL_READINESS_GATES",
         "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
         "R055_APP_GRAPH_OUTPUT_ISOLATION",
-        "R058_SQL_RELEASE_WIDE_RULE_EXECUTION"
+        "R059_EXISTING_SQL_PILOT_PATH",
+        "R059_SQL_ONE_RULE_PILOT_P1",
+        "R059_PILOT_AUDIT_ACL_SNAPSHOT"
       ],
       "blocked_by": [],
       "stale_reasons": [],
