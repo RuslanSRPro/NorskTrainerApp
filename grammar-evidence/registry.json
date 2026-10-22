@@ -812,7 +812,7 @@
       "status": "PROVEN",
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "claim": "A live request can build the v1.37 structural sentence and invoke only the admitted subject_of_predicate rule without first executing other Rule Execution Plane members.",
-      "proved_at_head": "05e0138",
+      "proved_at_head": "51882ff",
       "evidence_runs": ["R063-LIVE-ONE-RULE-2026-10-22"],
       "result": "Production transaction built fresh pre-plane input, executed only subject_of_predicate under service_role with one uncommitted admin grant, matched the saved R051 rule-result JSONB hash, rejected the post-revocation call and rolled back. Zero grants remain.",
       "dependencies": ["grammar-evidence/artifacts/R063-production-pilot-grant-isolation-revocation.json", "R058_SQL_RELEASE_WIDE_RULE_EXECUTION", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R062_PRE_RULE_PLANE_PRODUCER_PARITY"],
@@ -827,7 +827,7 @@
       "status": "PROVEN",
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "claim": "An administrative grant can admit one Production service_role call, and an appended revocation immediately denies the next call; a transaction rollback leaves no grant rows.",
-      "proved_at_head": "05e0138",
+      "proved_at_head": "51882ff",
       "evidence_runs": ["R063-ADMIN-GRANT-REVOKE-2026-10-22"],
       "result": "postgres inserted an explicit-ID grant inside a transaction; service_role returned one matching subject_of dependency; postgres appended revocation; the next service_role call raised PILOT_GRANT_INVALID; ROLLBACK left zero grants and revocations.",
       "dependencies": ["grammar-evidence/artifacts/R063-production-pilot-grant-isolation-revocation.json", "R059_PRODUCTION_DORMANT_ADMISSION", "R062_PRE_RULE_PLANE_PRODUCER_PARITY"],
@@ -839,7 +839,7 @@
       "status": "PROVEN",
       "proof_kind": "DEPLOYED_SOURCE_SNAPSHOT",
       "claim": "At the observed deployed versions, four inspected app analysis server functions have no pilot or canonical shadow call and the last-24-hour canonical shadow log has no successful request.",
-      "proved_at_head": "05e0138",
+      "proved_at_head": "51882ff",
       "evidence_runs": ["R063-APP-ISOLATION-SNAPSHOT-2026-10-22"],
       "result": "Deployed analyze-text v172, grammar-analysis-orchestrator v75, language-graph-engine v64 and job-orchestrator v113 lack pilot/canonical references; private SQL ACL blocks app roles; canonical shadow logs show one 401 and zero 200 in the default last-24-hour window.",
       "dependencies": ["grammar-evidence/artifacts/R063-production-pilot-grant-isolation-revocation.json"],
@@ -872,7 +872,7 @@
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Prove a live pre-rule-plane structural input route, then define the one-rule grant, monitoring and rollback procedure while graph output remains isolated from the app."
+      "next_action": "Define a committed-grant operating procedure with expiry, monitoring and revocation checks; inventory authorized canonical-shadow consumers and prevent graph output from reaching app analysis before approving a persistent pilot grant."
     }
   ]
 }

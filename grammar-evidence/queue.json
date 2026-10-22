@@ -1,22 +1,12 @@
 {
   "queue": [
     {
-      "proof_id": "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
-      "declared_status": "UNVERIFIED",
-      "effective_status": "UNVERIFIED",
-      "blocked_by": [],
-      "ready_for_next_action": true,
-      "next_action": "Audit the administrative one-grant procedure and app isolation, then run a controlled fresh-input R059 call and revoke the grant; compare its single rule output with the R051 baseline.",
-      "search_gate": null,
-      "queue_priority": -2
-    },
-    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Prove a live pre-rule-plane structural input route, then define the one-rule grant, monitoring and rollback procedure while graph output remains isolated from the app.",
+      "next_action": "Define a committed-grant operating procedure with expiry, monitoring and revocation checks; inventory authorized canonical-shadow consumers and prevent graph output from reaching app analysis before approving a persistent pilot grant.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -215,13 +205,13 @@
     }
   ],
   "next": {
-    "proof_id": "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
+    "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Audit the administrative one-grant procedure and app isolation, then run a controlled fresh-input R059 call and revoke the grant; compare its single rule output with the R051 baseline.",
+    "next_action": "Define a committed-grant operating procedure with expiry, monitoring and revocation checks; inventory authorized canonical-shadow consumers and prevent graph output from reaching app analysis before approving a persistent pilot grant.",
     "search_gate": null,
-    "queue_priority": -2
+    "queue_priority": -1
   }
 }
