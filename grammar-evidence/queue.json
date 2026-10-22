@@ -105,7 +105,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Classify R048M capture as historical or required, reconcile the SQL migration ledger, and prepare a minimal tested source patch that preserves R048R and matches the intended deployed Edge route.",
+      "next_action": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
       "search_gate": null
     },
     {

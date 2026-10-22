@@ -482,13 +482,31 @@
       "evidence_runs": [
         "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
       ],
-      "result": "Production Edge v66 bundles R048R adapter evidence but lacks R048M capture and bounded scheduler entrypoint wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Current HEAD tracks R048P but not R048M capture source.",
+      "result": "Production Edge v66 bundles R048R adapter evidence but lacks R048M capture and bounded scheduler entrypoint wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Current HEAD tracks R048P but not R048M capture source. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
       "dependencies": [
-        "grammar-evidence/artifacts/R051-current-source-lineage.json"
+        "grammar-evidence/artifacts/R051-current-source-lineage.json",
+        "R051_R048M_IMPORT_CLOSURE"
       ],
       "invalidation": "Recheck after any Edge deploy, SQL definition change, migration reconciliation or source patch.",
       "notes": "Do not overwrite the later R048R adapter with the older branch snapshot; classify required source changes before deployment.",
-      "next_action": "Classify R048M capture as historical or required, reconcile the SQL migration ledger, and prepare a minimal tested source patch that preserves R048R and matches the intended deployed Edge route."
+      "next_action": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R."
+    },
+    {
+      "proof_id": "R051_R048M_IMPORT_CLOSURE",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "The R048M Edge entrypoint static relative import closure and its paths missing from the selected current HEAD have been enumerated reproducibly.",
+      "proved_at_head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
+      "evidence_runs": [
+        "R051-R048M-STATIC-IMPORT-AUDIT"
+      ],
+      "result": "19 direct NLP imports, 10 absent in HEAD; 115 reachable source modules, 41 absent in HEAD across the static relative import closure. This is a source inventory only.",
+      "dependencies": [
+        "grammar-evidence/tools/audit-r048m-imports.py",
+        "grammar-evidence/artifacts/R051-r048m-static-import-audit.json"
+      ],
+      "invalidation": "STALE if the audit script or artifact changes; rerun after the target HEAD changes.",
+      "notes": "Absent modules are not automatically required or safe to transplant. The deployed Edge v66 does not contain the R048M scheduler entrypoint."
     }
   ]
 }

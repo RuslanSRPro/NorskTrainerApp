@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
+  "head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
-  "source_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
+  "archive_head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
+  "source_head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 192,
-  "history_event_count": 73,
-  "strict_history_event_count": 26,
+  "history_event_count": 74,
+  "strict_history_event_count": 27,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -82,7 +82,8 @@
     "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT",
     "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION",
     "R051-CURRENT-PRODUCTION-SQL-SUBJECT-EXECUTION",
-    "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-REVALIDATION"
+    "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-REVALIDATION",
+    "R051-R048M-STATIC-IMPORT-AUDIT"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -138,7 +139,8 @@
     "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": [
       "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
     ],
-    "R051_SOURCE_DEPLOYMENT_LINEAGE": []
+    "R051_SOURCE_DEPLOYMENT_LINEAGE": [],
+    "R051_R048M_IMPORT_CLOSURE": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -197,7 +199,12 @@
       "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
     ],
     "R051_SOURCE_DEPLOYMENT_LINEAGE": [
-      "grammar-evidence/artifacts/R051-current-source-lineage.json"
+      "grammar-evidence/artifacts/R051-current-source-lineage.json",
+      "R051_R048M_IMPORT_CLOSURE"
+    ],
+    "R051_R048M_IMPORT_CLOSURE": [
+      "grammar-evidence/tools/audit-r048m-imports.py",
+      "grammar-evidence/artifacts/R051-r048m-static-import-audit.json"
     ]
   },
   "proof_next_actions": {
@@ -229,7 +236,8 @@
     "R050-A35": "",
     "R050-DECISION-01": "",
     "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve the phrase/predicate and clause field mapping explicitly; verify both create_dependency and add_trace action requirements.",
-    "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify R048M capture as historical or required, reconcile the SQL migration ledger, and prepare a minimal tested source patch that preserves R048R and matches the intended deployed Edge route."
+    "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
+    "R051_R048M_IMPORT_CLOSURE": ""
   },
   "files": [
     {
@@ -2859,16 +2867,36 @@
       "proof_kind": "SOURCE_DEPLOYMENT_RECONCILIATION",
       "proved_at_head": null,
       "claim": "The reviewed current source, deployed canonical Edge and Production SQL capture objects have a reproducible, documented lineage without losing later R048R behavior.",
-      "result": "Production Edge v66 bundles R048R adapter evidence but lacks R048M capture and bounded scheduler entrypoint wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Current HEAD tracks R048P but not R048M capture source.",
+      "result": "Production Edge v66 bundles R048R adapter evidence but lacks R048M capture and bounded scheduler entrypoint wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Current HEAD tracks R048P but not R048M capture source. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
       "evidence_runs": [
         "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
       ],
       "dependencies": [
-        "grammar-evidence/artifacts/R051-current-source-lineage.json"
+        "grammar-evidence/artifacts/R051-current-source-lineage.json",
+        "R051_R048M_IMPORT_CLOSURE"
       ],
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Do not overwrite the later R048R adapter with the older branch snapshot; classify required source changes before deployment."
+    },
+    {
+      "proof_id": "R051_R048M_IMPORT_CLOSURE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
+      "claim": "The R048M Edge entrypoint static relative import closure and its paths missing from the selected current HEAD have been enumerated reproducibly.",
+      "result": "19 direct NLP imports, 10 absent in HEAD; 115 reachable source modules, 41 absent in HEAD across the static relative import closure. This is a source inventory only.",
+      "evidence_runs": [
+        "R051-R048M-STATIC-IMPORT-AUDIT"
+      ],
+      "dependencies": [
+        "grammar-evidence/tools/audit-r048m-imports.py",
+        "grammar-evidence/artifacts/R051-r048m-static-import-audit.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Absent modules are not automatically required or safe to transplant. The deployed Edge v66 does not contain the R048M scheduler entrypoint."
     }
   ],
   "policy": {
