@@ -1,9 +1,9 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "7c6daed274c78c602b824d786780fda062589799",
+  "head": "912541f994e541e48fdb0dab0cb1697885265ac7",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "7c6daed274c78c602b824d786780fda062589799",
-  "source_head": "7c6daed274c78c602b824d786780fda062589799",
+  "archive_head": "912541f994e541e48fdb0dab0cb1697885265ac7",
+  "source_head": "912541f994e541e48fdb0dab0cb1697885265ac7",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
@@ -3453,9 +3453,9 @@
     {
       "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
       "declared_status": "PROVEN",
-      "effective_status": "STALE",
+      "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_COMPOSITION",
-      "proved_at_head": "7c6daed",
+      "proved_at_head": "912541f",
       "claim": "A single admitted subject_of_predicate execution on unchanged upstream input equals the corresponding full-release result and fails closed without a valid grant.",
       "result": "On a minimal local PostgreSQL 17.11 harness using the saved R051 sentence, Production rule snapshot, and actual SQL executor source, the admitted JSONB output matched the subject_of_predicate item in the saved full-release output. Seven tests passed: no grant, wrong hash, parity, duplicate grants, membership tamper, revocation and app-role ACL. This does not prove a live one-rule upstream path.",
       "evidence_runs": [
@@ -3471,17 +3471,15 @@
         "R059_EXISTING_SQL_PILOT_PATH"
       ],
       "blocked_by": [],
-      "stale_reasons": [
-        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261022162000_grammar_sql_one_rule_pilot_admission.sql"
-      ],
+      "stale_reasons": [],
       "notes": "P1 is a scoped local parity proof, not a full Production-clone or live end-to-end one-rule execution proof. Production installation has zero grants."
     },
     {
       "proof_id": "R059_PRODUCTION_DORMANT_ADMISSION",
       "declared_status": "PROVEN",
-      "effective_status": "STALE",
+      "effective_status": "PROVEN",
       "proof_kind": "DB_SNAPSHOT",
-      "proved_at_head": "7c6daed",
+      "proved_at_head": "912541f",
       "claim": "The one-rule SQL admission boundary is installed in Production with no grants and no app-role access.",
       "result": "Production ledger 20261022162000 contains the migration. Grant and revocation tables are empty, anon/auth cannot use the schema or function, service_role can execute but cannot insert a grant, and a no-grant call is rejected.",
       "evidence_runs": [
@@ -3492,9 +3490,7 @@
         "supabase/migrations/20261022162000_grammar_sql_one_rule_pilot_admission.sql"
       ],
       "blocked_by": [],
-      "stale_reasons": [
-        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261022162000_grammar_sql_one_rule_pilot_admission.sql"
-      ],
+      "stale_reasons": [],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
     {

@@ -181,26 +181,6 @@
       "queue_priority": 100
     },
     {
-      "proof_id": "R059_PRODUCTION_DORMANT_ADMISSION",
-      "declared_status": "PROVEN",
-      "effective_status": "STALE",
-      "blocked_by": [],
-      "ready_for_next_action": true,
-      "next_action": "",
-      "search_gate": null,
-      "queue_priority": 100
-    },
-    {
-      "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
-      "declared_status": "PROVEN",
-      "effective_status": "STALE",
-      "blocked_by": [],
-      "ready_for_next_action": true,
-      "next_action": "",
-      "search_gate": null,
-      "queue_priority": 100
-    },
-    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
