@@ -25,6 +25,11 @@ const projection = projectLegacyNonPhraseStructureIntoCanonicalGraphV143(
   sqlMap,
 );
 const graph = projection.graph;
+const execution = evidence.rpc_output.language_graph.rule_execution_plane_v1.dependency_pattern_executions
+  .find(item => item.rule_code === 'nrg_rt_v1.structural.dependency.subject_of_predicate');
+assert(execution?.status === 'executed', 'SQL subject rule did not execute');
+assert(execution.actions_fully_supported === true && execution.trace_action_materialized === true, 'SQL rule actions incomplete');
+assert(execution.dependencies.length === 1 && execution.dependencies[0].canonical_v2_parity === true, 'SQL dependency parity failed');
 const subject = graph.edges.filter(edge => edge.relation === 'subject_of' && edge.status === 'resolved' && edge.targetId === 'predicate:0:pred1:simple:2');
 assert(subject.length === 1, 'expected exactly one subject-to-predicate edge');
 assert(subject[0].sourceId === 'tok:0:0:6', 'subject canonical identity changed');
