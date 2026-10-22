@@ -1,0 +1,24 @@
+{
+  "schema_version": "structural-s0-contract-audit-v1",
+  "observed_on": "2026-10-22",
+  "source_revision": "7d964a3fd0bf85c81ec410a8c8deda9e1928c41b",
+  "source_files": [
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "sha256": "1ae13efa1445808f353ee4a0c9791dd2b89b118c10946cf6cdce741ae089ce9d",
+      "observation": "Seeds are mapped exclusively from expectedResult.candidates produced by the token-POS normalized-label equality chain; zero candidates yields status ready with zero seeds."
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "sha256": "32ec0a2ae191ced3eb2f8793755b4679fc399e38f41a1a98bc3c1d3ce660852c",
+      "observation": "Initial epoch input requires tokenNodeId, expectedResult and expectedAuthority; tokenNodeId is checked for presence."
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-runtime-multi-site-s0-initial-epoch-aggregation-boundary-v1.ts",
+      "sha256": "46dc98eff9ff6225ca5f641b1745bcac249b1fb4a89ce7ada9c7ae43743668a5",
+      "observation": "Multi-site aggregation receives tokenNodeIds, rejects an empty list and evaluates each token site."
+    }
+  ],
+  "conclusion": "The historical R048M entry path is token-POS-site rooted. Supporting a structural clause/predicate manifest requires a reviewed initial-epoch seed and site contract, not only a manifest field alias or one extra seed candidate.",
+  "scope": "Static source architecture review plus the separate exact-manifest S0 execution artifact; no structural implementation or scheduler transition was executed."
+}
