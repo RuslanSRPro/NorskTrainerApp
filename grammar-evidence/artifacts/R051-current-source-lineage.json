@@ -1,0 +1,31 @@
+{
+  "schema_version": "grammar-source-lineage-observation-v1",
+  "observed_on": "2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "working_branch": "fix/audio-runtime-completion-p1",
+  "audited_source_head_before_evidence_patch": "a9e3ab1cb59e25cf2ee008f58d01bc427717c383",
+  "alternate_r048m_commit": "7d964a3fd0bf85c81ec410a8c8deda9e1928c41b",
+  "deployed_edge": {
+    "slug": "canonical-graph-shadow-v1",
+    "version": 66,
+    "status": "ACTIVE",
+    "ezbr_sha256": "fdb110220b28e19ea5934d8419fa60d22ed5e5f536e41eb312e26bbfdfd597ca",
+    "entry_has_r048m_capture": false,
+    "entry_has_bounded_dependency_scheduler": false,
+    "bundled_legacy_adapter_has_r048r_rule_evidence": true
+  },
+  "production_sql": {
+    "r048m_writer_exists": true,
+    "r048m_writer_definition_md5": "95ed8d537da53d020c09a1e657859c9b",
+    "stored_capture_rows": 1,
+    "activation_authority_rows": 0,
+    "schema_migration_rows_with_version_prefix_20261018": 0
+  },
+  "working_head": {
+    "r048m_auth_helper_tracked": false,
+    "r048m_capture_migration_tracked": false,
+    "r048r_adapter_evidence_present": true,
+    "r048p_migration_tracked": true
+  },
+  "interpretation": "The deployed Edge source follows the later R048R adapter path but lacks R048M capture and bounded scheduler entrypoint wiring. SQL capture objects exist without corresponding 20261018 migration ledger rows. Source and deployment lineage is not yet reconciled."
+}

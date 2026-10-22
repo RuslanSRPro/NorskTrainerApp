@@ -1,0 +1,42 @@
+{
+  "schema_version": "grammar-manifest-snapshot-v1",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "observed_on": "2026-10-22",
+  "source": "read-only SELECT from public.grammar_runtime_manifests",
+  "code": "ir.structural.dependency.subject_of_predicate",
+  "bindings": {
+    "clause": {
+      "scope": "sentence",
+      "where": { "op": "eq", "left": { "ref": "clause.type" }, "right": "finite" },
+      "entity": "clause",
+      "cardinality": "one_or_more"
+    },
+    "subject": {
+      "scope": "clause",
+      "where": { "op": "exists", "left": { "ref": "clause.subject_token_index" } },
+      "entity": "token",
+      "cardinality": "one"
+    },
+    "predicate": {
+      "scope": "clause",
+      "where": { "op": "exists", "left": { "ref": "clause.predicate_phrase_id" } },
+      "entity": "phrase",
+      "cardinality": "one"
+    }
+  },
+  "actions": [
+    {
+      "value": { "source_ref": "subject", "target_ref": "predicate" },
+      "action": "create_dependency",
+      "target": "predicate",
+      "relation": "subject_of",
+      "reason_code": "nrg_subject_of_finite_predicate"
+    },
+    {
+      "value": { "explanation_key": "subject_is_linked_to_finite_predicate" },
+      "action": "add_trace",
+      "target": "clause",
+      "reason_code": "nrg_subject_definition"
+    }
+  ]
+}
