@@ -470,7 +470,7 @@
       "invalidation": "N/A until an executable manifest/runtime compatibility proof passes.",
       "notes": "The V32 phrase exists in raw SQL; absence is at the resolved canonical projection boundary. Do not silently alias V32 vp:2, phrase_build_v1 and predicate occurrence identities.",
       "blocked_by": [],
-      "next_action": "First design a source-backed S0 seed path for clause/predicate structural conditions; do not add a fake token.pos condition. Then choose predicate-occurrence mapping or prove a phrase bridge, and execute binding, D7.14 endpoint, create_dependency and add_trace checks."
+      "next_action": "Design and test a source-backed structural initial-epoch seed and site contract for resolved clause/predicate occurrences; current R048M S0 is token-POS-site rooted. Do not add a fake token.pos condition. Then choose predicate mapping or prove a phrase bridge and execute binding, D7.14 endpoint, create_dependency and add_trace checks."
     },
     {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
@@ -615,6 +615,18 @@
       ],
       "invalidation": "Rerun after manifest changes, S0 seed composer changes or graph source changes; historical R048M source SHA is fixed in the artifact.",
       "notes": "Ready with zero seeds is not execution. The historical S0 path specializes in token POS expected-label equality; do not infer a structural seed by relabeling the manifest."
+    },
+    {
+      "proof_id": "R052_R048M_TOKEN_ROOTED_S0_CONTRACT",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "Historical R048M initial-epoch composition is rooted in token-POS expected authorities and token node sites, not resolved clause/predicate structural occurrences.",
+      "proved_at_head": "86b6e85edcc6625913a64f1c844901dd2a47c46a",
+      "evidence_runs": ["R052-R048M-STRUCTURAL-S0-CONTRACT-AUDIT"],
+      "result": "S0 seed composer maps only token-POS expected candidates; initial epoch requires tokenNodeId, expectedResult and expectedAuthority; multi-site aggregation iterates tokenNodeIds and rejects an empty domain. Structural rule support requires a reviewed initial-epoch and site contract, not a manifest alias alone.",
+      "dependencies": ["grammar-evidence/artifacts/R052-structural-s0-contract-audit.json"],
+      "invalidation": "Historical source revision is fixed; re-audit any newly selected scheduler source or structural implementation.",
+      "notes": "Source architecture proof, not a deployed runtime proof. No structural S0 producer was found in the inspected Grammar Graph branch set."
     }
   ]
 }
