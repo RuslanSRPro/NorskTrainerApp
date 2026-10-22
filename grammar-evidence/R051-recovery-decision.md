@@ -14,6 +14,18 @@ This report separates three questions: reproducibility of the R048M branch, inte
 | R048M source divergence | `artifacts/R051-r048m-static-import-audit.json` | The alternate entrypoint has 19 direct NLP imports, 10 absent from the audited HEAD; its static relative closure reaches 115 source modules, 41 absent from HEAD. Absence does not establish necessity or safe equivalence. |
 | Production governance | Read-only count on 22 October | Canonical dependency activation authority has zero rows; the capture table has one row. The R048M writer exists in SQL, while no `20261018%` rows were found in the migration ledger. |
 
+## R048R / R048M subject-edge coexistence checks
+
+The executable local check is `supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts`. It uses the saved Production RPC result for R048R and models the exact R048M D7.14 patch identity and endpoint shape from commit `7d964a3`. It does not execute the R048M scheduler or grant activation authority.
+
+| Check | Result | Consequence |
+|---|---|---|
+| Endpoints and meaning | **MISMATCH.** R048R attaches SQL rule evidence to a resolved `subject_of` edge from canonical subject token `tok:0:0:6` to predicate occurrence `predicate:0:pred1:simple:2`. R048M D7.14 requires two token nodes and writes `sourceMember.tokenNodeId → targetMember.tokenNodeId`; the likely finite-token target in this fixture is `tok:1:7:12`, but that exact binding has not been executed. | Equal relation labels do not establish an equivalent graph fact. A token→predicate contract decision and real endpoint binding proof are required before combining them. |
+| Creation owner | **DISTINCT.** The current dependency projection creates the token→predicate edge; R048R only attaches evidence when exactly one resolved matching edge exists. R048M D7.14 prepares a new edge from an admitted execution plan and D7.15 applies its patch. | Do not let both paths independently claim ownership of the same semantic dependency. Preserve R048R's evidence-only behavior until one canonical creation policy is specified. |
+| Replay and duplicate handling | **PARTIAL.** Replaying R048R on this fixture retains one edge ID and the same evidence count. `applyGraphPatchV1` retains one edge for the same plan ID. Two distinct plan IDs produce two token→token `subject_of` edges with the same endpoints; it deduplicates IDs, not semantic relation keys. The R048M scheduler also blocks a repeated snapshot/action pair within one run, but that is not a cross-run or cross-plan uniqueness proof. | A semantic duplicate guard and a scheduler replay test are needed before a combined route can write graph edges. |
+
+**Decision:** No source merge or activation grant follows from these checks. The first blocker is endpoint contract divergence; duplicate protection is a second independent blocker. The R048M scheduler remains unexecuted in this audit.
+
 ## Recovery decision
 
 1. **Preserve the current R048R adapter.** R048R was committed after R048M. The 59-line difference in `legacy-language-graph-adapter-v1.ts` is later functionality, not a deliberate deletion by R048M. Do not replace this file with the older branch snapshot.
