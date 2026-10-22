@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "a1fb4eab7edc5a9168c0f02acd2b1746f4d5334c",
+  "head": "e0089288a98b8d33424b47bc19b902d535c1b8ee",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "a1fb4eab7edc5a9168c0f02acd2b1746f4d5334c",
-  "source_head": "a1fb4eab7edc5a9168c0f02acd2b1746f4d5334c",
+  "archive_head": "e0089288a98b8d33424b47bc19b902d535c1b8ee",
+  "source_head": "e0089288a98b8d33424b47bc19b902d535c1b8ee",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 103,
-  "strict_history_event_count": 56,
+  "history_event_count": 104,
+  "strict_history_event_count": 57,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -112,7 +112,8 @@
     "R063-ADMIN-GRANT-REVOKE-2026-10-22",
     "R063-APP-ISOLATION-SNAPSHOT-2026-10-22",
     "R064-NEW-GRAMMAR-APP-PATH-INVENTORY-2026-10-22",
-    "R065-COMMITTED-ONE-RULE-SQL-PILOT-2026-10-22"
+    "R065-COMMITTED-ONE-RULE-SQL-PILOT-2026-10-22",
+    "R066-SQL-SUBJECT-CORPUS-READONLY-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -194,7 +195,8 @@
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": [],
     "R064_NEW_GRAMMAR_APP_PATH_ISOLATION": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [],
-    "R065_COMMITTED_ONE_RULE_SQL_PILOT": []
+    "R065_COMMITTED_ONE_RULE_SQL_PILOT": [],
+    "R066_SQL_SUBJECT_CORPUS_V32_GAP": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -407,6 +409,10 @@
       "grammar-evidence/artifacts/R065-committed-one-rule-sql-pilot.json",
       "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
       "R064_NEW_GRAMMAR_APP_PATH_ISOLATION"
+    ],
+    "R066_SQL_SUBJECT_CORPUS_V32_GAP": [
+      "grammar-evidence/artifacts/R066-sql-subject-corpus-readonly.json",
+      "R065_COMMITTED_ONE_RULE_SQL_PILOT"
     ]
   },
   "proof_next_actions": {
@@ -466,8 +472,9 @@
     "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT": "",
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": "",
     "R064_NEW_GRAMMAR_APP_PATH_ISOLATION": "",
-    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Define repeatable monitoring and activation transition criteria for the SQL rule; expand the fixture corpus while keeping the app disconnected from the new graph.",
-    "R065_COMMITTED_ONE_RULE_SQL_PILOT": ""
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "R066 found a V32 clause-production gap for Hunden spiser fisken despite resolved noun-verb-noun POS. Inspect and fix that upstream gap, then rerun the corpus before a broader activation decision.",
+    "R065_COMMITTED_ONE_RULE_SQL_PILOT": "",
+    "R066_SQL_SUBJECT_CORPUS_V32_GAP": "Inspect V32 base clause creation for noun subject plus finite verb plus object, then test a targeted fix against all four probes."
   },
   "files": [
     {
@@ -3721,6 +3728,25 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "This is one bounded pilot, not global activation or application integration. The legacy graph route was unchanged."
+    },
+    {
+      "proof_id": "R066_SQL_SUBJECT_CORPUS_V32_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_READONLY",
+      "proved_at_head": "e008928",
+      "claim": "The current SQL pipeline produces subject_of for three simple probes but stops before predicate and clause for Hunden spiser fisken, despite resolved POS and verb morphology.",
+      "result": "Katten sover, Jeg sover and Han er glad each yielded one predicate, clause and subject_of edge. Hunden spiser fisken yielded zero of all three; V32 base clause count is zero although structural POS is noun-verb-noun and spiser has resolved verb morphology.",
+      "evidence_runs": [
+        "R066-SQL-SUBJECT-CORPUS-READONLY-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R066-sql-subject-corpus-readonly.json",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Four diagnostic manually assembled RPC token envelopes; not live canonical-surface captures or evidence for broad activation."
     }
   ],
   "policy": {

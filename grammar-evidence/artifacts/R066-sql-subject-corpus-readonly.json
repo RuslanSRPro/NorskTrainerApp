@@ -1,0 +1,53 @@
+{
+  "evidence_id": "R066-SQL-SUBJECT-CORPUS-READONLY-2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "method": "Read-only Production RPC on manually assembled R051-shaped canonical token envelopes; no grant or app call.",
+  "release_code": "runtime-structural-v1.37",
+  "rpc_definition_md5": "968759622f01f1489b79b67f60cce775",
+  "v32_definition_md5": "a373f16bdb95aa9e30bca3d9aa108f4f",
+  "cases": [
+    {
+      "surface": "Katten sover",
+      "predicates": 1,
+      "clauses": 1,
+      "subject_of": 1,
+      "source": "Katten",
+      "target": "sover"
+    },
+    {
+      "surface": "Jeg sover",
+      "predicates": 1,
+      "clauses": 1,
+      "subject_of": 1,
+      "source": "Jeg",
+      "target": "sover"
+    },
+    {
+      "surface": "Han er glad",
+      "predicates": 1,
+      "clauses": 1,
+      "subject_of": 1,
+      "source": "Han",
+      "target": "er glad"
+    },
+    {
+      "surface": "Hunden spiser fisken",
+      "predicates": 0,
+      "clauses": 0,
+      "subject_of": 0,
+      "structural_pos": [
+        "noun",
+        "verb",
+        "noun"
+      ],
+      "verb_morphology": "resolved_single",
+      "v32_base_clauses": 0
+    }
+  ],
+  "finding": "The first observed break for Hunden spiser fisken is V32 base clause construction despite resolved noun-verb-noun POS and present verb morphology. Rule execution with zero edges is not production of subject_of.",
+  "limits": [
+    "Manually assembled tokens are diagnostic probes, not captured live canonical-surface requests.",
+    "Four cases do not establish broad reliability or authorize global activation."
+  ],
+  "next_action": "Inspect V32 noun-subject finite clause construction with a following object; test a targeted fix against all four cases."
+}

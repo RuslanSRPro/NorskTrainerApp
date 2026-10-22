@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Define repeatable monitoring and activation transition criteria for the SQL rule; expand the fixture corpus while keeping the app disconnected from the new graph.",
+      "next_action": "R066 found a V32 clause-production gap for Hunden spiser fisken despite resolved noun-verb-noun POS. Inspect and fix that upstream gap, then rerun the corpus before a broader activation decision.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -210,7 +210,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Define repeatable monitoring and activation transition criteria for the SQL rule; expand the fixture corpus while keeping the app disconnected from the new graph.",
+    "next_action": "R066 found a V32 clause-production gap for Hunden spiser fisken despite resolved noun-verb-noun POS. Inspect and fix that upstream gap, then rerun the corpus before a broader activation decision.",
     "search_gate": null,
     "queue_priority": -1
   }
