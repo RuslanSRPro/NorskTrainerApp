@@ -1,0 +1,40 @@
+{
+  "evidence_id": "R062-PRE-RULE-PLANE-PRODUCTION-PARITY-2026-10-22",
+  "observed_at_utc": "2026-10-22T19:39:49Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_fixture": "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+  "migration_file": "supabase/migrations/20261022193721_grammar_pre_rule_plane_pilot_builder.sql",
+  "production_ledger_version": "20261022193721",
+  "production_ledger_name": "grammar_pre_rule_plane_pilot_builder",
+  "upstream_function": "public.run_canonical_legacy_compatibility_v140(jsonb,text)",
+  "upstream_definition_md5": "968759622f01f1489b79b67f60cce775",
+  "pilot_function": "grammar_pilot_private.build_pre_rule_plane_v1(jsonb,text)",
+  "pilot_definition_md5": "7be6a79614163ca12589ec9e68f54f30",
+  "input": "R051 canonical RPC tokens for Katten sover; release runtime-structural-v1.37",
+  "production_test": {
+    "comparison": "pilot JSONB output equals the current public RPC JSONB output after removing language_graph.rule_execution_plane_v1",
+    "exact_pre_plane_parity": true,
+    "pilot_has_no_rule_execution_plane": true,
+    "clause_count": 1,
+    "predicate_count": 1,
+    "full_rpc_dependency_pattern_execution_count": 1,
+    "pilot_jsonb_text_md5": "85b6c3b07fabb30392fdcc62c18332b0",
+    "full_rpc_without_plane_jsonb_text_md5": "85b6c3b07fabb30392fdcc62c18332b0",
+    "fresh_pre_plane_input_to_one_rule_without_grant": "PILOT_GRANT_INVALID"
+  },
+  "access": {
+    "anon_schema_usage": false,
+    "authenticated_schema_usage": false,
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "service_role_execute": true,
+    "active_grants": 0,
+    "revocations": 0
+  },
+  "limits": [
+    "Proves a live structural producer boundary and same-input structural parity on one fixture, not an admitted one-rule execution.",
+    "No grant was created and no rule was activated; the live composition correctly stopped at PILOT_GRANT_INVALID.",
+    "The pilot function copies the current RPC body minus its final Rule Execution Plane call. The upstream definition hash must be monitored for drift.",
+    "No claim that all app consumers or all sentences have been checked."
+  ]
+}

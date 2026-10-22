@@ -795,19 +795,32 @@
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
     {
+      "proof_id": "R062_PRE_RULE_PLANE_PRODUCER_PARITY",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "The private v1.37 producer builds a live structural sentence equivalent to the current public RPC before its Rule Execution Plane call on the R051 canonical token fixture.",
+      "proved_at_head": "90aedbe",
+      "evidence_runs": ["R062-PRE-RULE-PLANE-PRODUCTION-PARITY-2026-10-22"],
+      "result": "Production JSONB equality passed after removing the public RPC Rule Execution Plane field; one clause and predicate; no plane in private output. App roles lack access; zero grants; fresh input to R059 fails closed with PILOT_GRANT_INVALID.",
+      "dependencies": ["grammar-evidence/artifacts/R062-pre-rule-plane-production-parity.json", "supabase/migrations/20261022193721_grammar_pre_rule_plane_pilot_builder.sql", "R059_PRODUCTION_DORMANT_ADMISSION"],
+      "invalidation": "Refresh when public run_canonical_legacy_compatibility_v140 definition md5 differs from 968759622f01f1489b79b67f60cce775 or the private producer changes.",
+      "notes": "One-fixture live structural parity only; no grant and no one-rule execution.",
+      "queue_priority": -3
+    },
+    {
       "proof_id": "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
       "status": "UNVERIFIED",
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "claim": "A live request can build the v1.37 structural sentence and invoke only the admitted subject_of_predicate rule without first executing other Rule Execution Plane members.",
       "proved_at_head": null,
       "evidence_runs": [],
-      "result": "R059 local parity uses a saved R051 sentence. The current run_canonical_legacy_compatibility_v140 invokes the full Rule Execution Plane before returning that sentence, so no live pre-plane producer boundary has been proven.",
-      "dependencies": ["R058_SQL_RELEASE_WIDE_RULE_EXECUTION", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION"],
+      "result": "A private live pre-plane structural producer now has Production parity on one R051 fixture. A fresh-input call to the R059 executor fails closed without a grant. Live admitted one-rule execution remains unproven.",
+      "dependencies": ["R058_SQL_RELEASE_WIDE_RULE_EXECUTION", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R062_PRE_RULE_PLANE_PRODUCER_PARITY"],
       "blocked_by": [],
       "invalidation": "N/A until a live pre-plane input path is proven.",
-      "notes": "Do not claim end-to-end one-rule execution from the local replay. Existing full-plane shadow execution is a separate fact.",
+      "notes": "Do not claim end-to-end one-rule execution from structural parity or the local replay. Existing full-plane shadow execution is a separate fact.",
       "queue_priority": -2,
-      "next_action": "Find or add a pre-rule-plane capture boundary for the unchanged v1.37 structural sentence, then prove a live service-only call that invokes R059 without running the full plane first."
+      "next_action": "Audit the administrative one-grant procedure and app isolation, then run a controlled fresh-input R059 call and revoke the grant; compare its single rule output with the R051 baseline."
     },
     {
       "proof_id": "R059_PILOT_AUDIT_ACL_SNAPSHOT",
