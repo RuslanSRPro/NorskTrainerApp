@@ -1,6 +1,16 @@
 {
   "queue": [
     {
+      "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Inspect current deployed canonical-graph-shadow-v1 request authorization, exposure and response consumers; keep shadow diagnostics operator-only or explicitly out of the app path.",
+      "search_gate": null,
+      "queue_priority": -2
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -185,13 +195,13 @@
     }
   ],
   "next": {
-    "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
+    "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet.",
+    "next_action": "Inspect current deployed canonical-graph-shadow-v1 request authorization, exposure and response consumers; keep shadow diagnostics operator-only or explicitly out of the app path.",
     "search_gate": null,
-    "queue_priority": -1
+    "queue_priority": -2
   }
 }

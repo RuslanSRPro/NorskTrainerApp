@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "a46d2db81636f066d5c0d2af8c58812cf3d7a90d",
+  "head": "40fb89ac1c7d5f50cee195fc2c022ec54af616e5",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "a46d2db81636f066d5c0d2af8c58812cf3d7a90d",
-  "source_head": "a46d2db81636f066d5c0d2af8c58812cf3d7a90d",
+  "archive_head": "40fb89ac1c7d5f50cee195fc2c022ec54af616e5",
+  "source_head": "40fb89ac1c7d5f50cee195fc2c022ec54af616e5",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 88,
-  "strict_history_event_count": 41,
+  "history_event_count": 89,
+  "strict_history_event_count": 42,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -97,7 +97,8 @@
     "R052-R048M-STRUCTURAL-S0-CONTRACT-AUDIT",
     "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22",
     "R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22",
-    "R054-BRANCH-PORT-TRIAGE-2026-10-22"
+    "R054-BRANCH-PORT-TRIAGE-2026-10-22",
+    "R055-RULE-PLANE-ACL-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -163,6 +164,8 @@
     "R053_SUBJECT_SQL_READINESS_GATES": [],
     "R054_BRANCH_PORT_TRIAGE": [],
     "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION": [],
+    "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY": [],
+    "R055_APP_GRAPH_OUTPUT_ISOLATION": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
   },
   "proof_source_dependencies": {
@@ -288,9 +291,18 @@
       "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP",
       "R052_R048M_TOKEN_ROOTED_S0_CONTRACT"
     ],
+    "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY": [
+      "supabase/migrations/20261022144929_restrict_grammar_rule_plane_to_service_role.sql",
+      "grammar-evidence/artifacts/R055-rule-plane-service-role-boundary.json"
+    ],
+    "R055_APP_GRAPH_OUTPUT_ISOLATION": [
+      "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY"
+    ],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
       "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
-      "R053_SUBJECT_SQL_READINESS_GATES"
+      "R053_SUBJECT_SQL_READINESS_GATES",
+      "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
+      "R055_APP_GRAPH_OUTPUT_ISOLATION"
     ]
   },
   "proof_next_actions": {
@@ -335,6 +347,8 @@
     "R053_SUBJECT_SQL_READINESS_GATES": "",
     "R054_BRANCH_PORT_TRIAGE": "",
     "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION": "Classify the 41 absent modules by capture, token-POS WHERE and dependency scheduler role; for each chosen module compare its contract with current R048R source, then port only a tested coherent slice.",
+    "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY": "",
+    "R055_APP_GRAPH_OUTPUT_ISOLATION": "Inspect current deployed canonical-graph-shadow-v1 request authorization, exposure and response consumers; keep shadow diagnostics operator-only or explicitly out of the app path.",
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet."
   },
   "files": [
@@ -3243,19 +3257,58 @@
       "notes": "This future canonical scheduler track is independent of the one-rule SQL pilot."
     },
     {
+      "proof_id": "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DEPLOYED_MIGRATION_AND_DB_SNAPSHOT",
+      "proved_at_head": "40fb89ac1c7d5f50cee195fc2c022ec54af616e5",
+      "claim": "Direct EXECUTE on the five SQL Rule Execution Plane functions is restricted to service_role and trusted database roles, preserving the server-side shadow route.",
+      "result": "Migration 20261022144929 applied in Production. For apply/build plane and candidate/dependency/phrase executors, anon=false, authenticated=false, service_role=true. Release v1.37 remains shadow, activated_at=null, subject_of_predicate is_active=false.",
+      "evidence_runs": [
+        "R055-RULE-PLANE-ACL-2026-10-22"
+      ],
+      "dependencies": [
+        "supabase/migrations/20261022144929_restrict_grammar_rule_plane_to_service_role.sql",
+        "grammar-evidence/artifacts/R055-rule-plane-service-role-boundary.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The old PUBLIC, anon and authenticated EXECUTE grants were revoked. This closes these direct SQL endpoints; whole-app graph output isolation and rule activation remain separate proofs."
+    },
+    {
+      "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "END_TO_END_EXPOSURE",
+      "proved_at_head": null,
+      "claim": "No app-facing path exposes Grammar Graph output before the complete rule set is activated and approved for integration.",
+      "result": "Static repository search found no app call site for the canonical shadow Edge function or structural SQL RPC. Direct SQL rule-plane calls are now restricted. The deployed shadow Edge endpoint still returns language_graph to its caller; caller authorization and all external consumers have not yet been audited.",
+      "evidence_runs": [
+        "R055-RULE-PLANE-ACL-2026-10-22"
+      ],
+      "dependencies": [
+        "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not infer whole-app isolation from absence of a static app import or SQL ACLs alone."
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
-      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready, but the exact one-rule SQL grant/write contract, isolation from app output, rollback and monitoring have not yet been proven.",
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready. Direct SQL rule-plane access is now restricted to service_role, but the exact one-rule grant/write contract, whole-app output isolation, rollback and monitoring have not yet been proven.",
       "evidence_runs": [
         "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
       ],
       "dependencies": [
         "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
-        "R053_SUBJECT_SQL_READINESS_GATES"
+        "R053_SUBJECT_SQL_READINESS_GATES",
+        "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
+        "R055_APP_GRAPH_OUTPUT_ISOLATION"
       ],
       "blocked_by": [],
       "stale_reasons": [],

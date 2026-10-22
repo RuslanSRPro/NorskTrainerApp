@@ -686,7 +686,7 @@
       "status": "PROVEN",
       "proof_kind": "DEPLOYED_MIGRATION_AND_DB_SNAPSHOT",
       "claim": "Direct EXECUTE on the five SQL Rule Execution Plane functions is restricted to service_role and trusted database roles, preserving the server-side shadow route.",
-      "proved_at_head": "a29a9c2",
+      "proved_at_head": "40fb89ac1c7d5f50cee195fc2c022ec54af616e5",
       "evidence_runs": ["R055-RULE-PLANE-ACL-2026-10-22"],
       "result": "Migration 20261022144929 applied in Production. For apply/build plane and candidate/dependency/phrase executors, anon=false, authenticated=false, service_role=true. Release v1.37 remains shadow, activated_at=null, subject_of_predicate is_active=false.",
       "dependencies": ["supabase/migrations/20261022144929_restrict_grammar_rule_plane_to_service_role.sql", "grammar-evidence/artifacts/R055-rule-plane-service-role-boundary.json"],
