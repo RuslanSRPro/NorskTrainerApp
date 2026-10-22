@@ -109,6 +109,15 @@
       "search_gate": null
     },
     {
+      "proof_id": "R051_SUBJECT_TOKEN_VIEW_DERIVATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge.",
+      "search_gate": null
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
@@ -125,7 +134,7 @@
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
       ],
       "ready_for_next_action": false,
-      "next_action": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve the phrase/predicate and clause field mapping explicitly; verify both create_dependency and add_trace action requirements.",
+      "next_action": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify both create_dependency and add_trace action requirements.",
       "search_gate": null
     },
     {

@@ -81,7 +81,7 @@
         "A3.8F-R27",
         "A3.8F-R28"
       ],
-      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
+      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Source contracts support subject token to predicate occurrence as the primary subject_of relation. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
@@ -89,7 +89,7 @@
         "R051_SOURCE_DEPLOYMENT_LINEAGE"
       ],
       "invalidation": "N/A until proven.",
-      "notes": "Do not activate.",
+      "notes": "Do not activate. A token-level finite/head view is a separate derived capability; it must not create a second authoritative subject_of fact.",
       "blocked_by": [
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
@@ -460,7 +460,7 @@
       "evidence_runs": [
         "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT"
       ],
-      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. Runtime compatibility is not yet proven.",
+      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. R048M D7.14 additionally requires token endpoints. Runtime compatibility is not yet proven.",
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
@@ -471,7 +471,7 @@
       "blocked_by": [
         "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
       ],
-      "next_action": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve the phrase/predicate and clause field mapping explicitly; verify both create_dependency and add_trace action requirements."
+      "next_action": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify both create_dependency and add_trace action requirements."
     },
     {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
@@ -535,6 +535,38 @@
       ],
       "invalidation": "STALE after an Edge redeploy or a change to any bundled tracked source file.",
       "notes": "Full returned bundle parity only; not SQL lineage or activation."
+    },
+    {
+      "proof_id": "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "Current SQL dependency and validation contracts make subject token to predicate occurrence the primary subject_of fact; the R051 Production fixture demonstrates one instance.",
+      "proved_at_head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
+      "evidence_runs": ["R051-SUBJECT-ENDPOINT-CONTRACT-REVIEW"],
+      "result": "dependency_build_v2 emits token to predicate; grammar_validation_v2 counts subject_of against predicate_id. Golden cases specify whole modal and copular predicates. R051 executable projection confirms Katten to resolved predicate and stable R048R replay. This is a contract/source conclusion, not a live multiword Production proof.",
+      "dependencies": [
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
+        "supabase/migrations/20260831091809_dependency_build_v2_golden_suite_v2.sql",
+        "supabase/migrations/20260831094632_grammar_validation_v2_runtime.sql",
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+      ],
+      "invalidation": "STALE if a tracked source contract, test or Production fixture changes.",
+      "notes": "The R048M D7.14 token-only patch is not equivalent to this relation. Do not merge it as another authoritative subject_of producer."
+    },
+    {
+      "proof_id": "R051_SUBJECT_TOKEN_VIEW_DERIVATION",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "A word-order or form rule can derive the relevant finite or head token from a resolved subject-to-predicate fact without creating a second authoritative subject_of edge.",
+      "proved_at_head": null,
+      "evidence_runs": ["R051-SUBJECT-ENDPOINT-CONTRACT-REVIEW"],
+      "result": "SQL predicates expose finite, grammatical-head and lexical-head indices and corresponding membership relations. Selection semantics for modal, auxiliary and copular predicates have not been executed as one canonical derivation.",
+      "dependencies": ["R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT"],
+      "blocked_by": [],
+      "invalidation": "N/A until an executable multi-construction derivation proof passes.",
+      "notes": "Derived token view is useful for form and position checks; do not interpret it as a second independent subject_of rule.",
+      "next_action": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge."
     }
   ]
 }

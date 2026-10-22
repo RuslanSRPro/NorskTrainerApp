@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
+  "head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
-  "source_head": "9cff779492476b8c5a87b8177004cb4ba88b97f6",
+  "archive_head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
+  "source_head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 192,
-  "history_event_count": 76,
-  "strict_history_event_count": 29,
+  "file_count": 193,
+  "history_event_count": 78,
+  "strict_history_event_count": 31,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -85,7 +85,9 @@
     "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-REVALIDATION",
     "R051-R048M-STATIC-IMPORT-AUDIT",
     "R051-EDGE-V66-SOURCE-PARITY",
-    "R051-EDGE-V66-FULL-BUNDLE-PARITY"
+    "R051-EDGE-V66-FULL-BUNDLE-PARITY",
+    "R051-SUBJECT-ENDPOINT-CONTRACT-REVIEW",
+    "R051-SUBJECT-TOKEN-VIEW-DISCOVERY"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -143,7 +145,9 @@
     ],
     "R051_SOURCE_DEPLOYMENT_LINEAGE": [],
     "R051_R048M_IMPORT_CLOSURE": [],
-    "R051_EDGE_V66_SOURCE_PARITY": []
+    "R051_EDGE_V66_SOURCE_PARITY": [],
+    "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT": [],
+    "R051_SUBJECT_TOKEN_VIEW_DERIVATION": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -222,6 +226,16 @@
       "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
       "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
       "supabase/functions/import_map.json"
+    ],
+    "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT": [
+      "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
+      "supabase/migrations/20260831091809_dependency_build_v2_golden_suite_v2.sql",
+      "supabase/migrations/20260831094632_grammar_validation_v2_runtime.sql",
+      "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+    ],
+    "R051_SUBJECT_TOKEN_VIEW_DERIVATION": [
+      "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT"
     ]
   },
   "proof_next_actions": {
@@ -252,10 +266,12 @@
     "R050-A34": "",
     "R050-A35": "",
     "R050-DECISION-01": "",
-    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve the phrase/predicate and clause field mapping explicitly; verify both create_dependency and add_trace action requirements.",
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify both create_dependency and add_trace action requirements.",
     "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
     "R051_R048M_IMPORT_CLOSURE": "",
-    "R051_EDGE_V66_SOURCE_PARITY": ""
+    "R051_EDGE_V66_SOURCE_PARITY": "",
+    "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT": "",
+    "R051_SUBJECT_TOKEN_VIEW_DERIVATION": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge."
   },
   "files": [
     {
@@ -2360,6 +2376,17 @@
       }
     },
     {
+      "path": "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
+      "sha256": "1259fa2d797debcc9c89e6e46af52ea97a323496d4db17ef4068c74aaa351b8a",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": true,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
       "sha256": "8e006617e614abf40d726c1574ad60d525b30d4fc0f75e81ad36de02b36793b2",
       "symbols": {
@@ -2453,7 +2480,7 @@
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "ir.structural.dependency.subject_of_predicate is activation-ready through the full runtime chain.",
-      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
+      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Source contracts support subject token to predicate occurrence as the primary subject_of relation. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
       "evidence_runs": [
         "A3.8F-R27",
         "A3.8F-R28"
@@ -2470,7 +2497,7 @@
         "R051_SOURCE_DEPLOYMENT_LINEAGE"
       ],
       "stale_reasons": [],
-      "notes": "Do not activate."
+      "notes": "Do not activate. A token-level finite/head view is a separate derived capability; it must not create a second authoritative subject_of fact."
     },
     {
       "proof_id": "ONE_OR_MORE_CARDINALITY_RUNTIME",
@@ -2863,7 +2890,7 @@
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "proved_at_head": null,
       "claim": "The current subject_of_predicate manifest bindings resolve against the source-backed canonical clause, token and predicate/phrase occurrences with correct scopes and provenance.",
-      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. Runtime compatibility is not yet proven.",
+      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. R048M D7.14 additionally requires token endpoints. Runtime compatibility is not yet proven.",
       "evidence_runs": [
         "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT"
       ],
@@ -2945,6 +2972,46 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Full returned bundle parity only; not SQL lineage or activation."
+    },
+    {
+      "proof_id": "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "6bbe6351281388d6a6b9a521169dd03451bb1ead",
+      "claim": "Current SQL dependency and validation contracts make subject token to predicate occurrence the primary subject_of fact; the R051 Production fixture demonstrates one instance.",
+      "result": "dependency_build_v2 emits token to predicate; grammar_validation_v2 counts subject_of against predicate_id. Golden cases specify whole modal and copular predicates. R051 executable projection confirms Katten to resolved predicate and stable R048R replay. This is a contract/source conclusion, not a live multiword Production proof.",
+      "evidence_runs": [
+        "R051-SUBJECT-ENDPOINT-CONTRACT-REVIEW"
+      ],
+      "dependencies": [
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
+        "supabase/migrations/20260831091809_dependency_build_v2_golden_suite_v2.sql",
+        "supabase/migrations/20260831094632_grammar_validation_v2_runtime.sql",
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The R048M D7.14 token-only patch is not equivalent to this relation. Do not merge it as another authoritative subject_of producer."
+    },
+    {
+      "proof_id": "R051_SUBJECT_TOKEN_VIEW_DERIVATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": null,
+      "claim": "A word-order or form rule can derive the relevant finite or head token from a resolved subject-to-predicate fact without creating a second authoritative subject_of edge.",
+      "result": "SQL predicates expose finite, grammatical-head and lexical-head indices and corresponding membership relations. Selection semantics for modal, auxiliary and copular predicates have not been executed as one canonical derivation.",
+      "evidence_runs": [
+        "R051-SUBJECT-ENDPOINT-CONTRACT-REVIEW"
+      ],
+      "dependencies": [
+        "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Derived token view is useful for form and position checks; do not interpret it as a second independent subject_of rule."
     }
   ],
   "policy": {
