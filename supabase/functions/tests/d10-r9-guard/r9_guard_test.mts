@@ -91,3 +91,37 @@ test('R9 guard: same explanations -> review', () => {
   const cand = { articleId: 2, hgno: 2, forms: ['a', 'c'], definitions: ['z'], refArticleIds: [] };
   assert.equal(decideHomographs([main], [{ articleId: 2, parsed: cand }])[0].review, true);
 });
+
+// D10 20.10.2026 (agreed): a second card needs positive proof of OWN forms
+// and an OWN meaning. bære II (article 8440, reconstructed from the review):
+// paradigm "VERB Uninfl" with only "bære", body = only the nested expression
+// "trøste og bære".
+const baereI = { articleId: 8439, hgno: 1, forms: ['bar', 'bære', 'bærer', 'båret'], definitions: ['holde og flytte'], refArticleIds: [] };
+const baereII = { article_id: 8440, lemmas: [{ lemma: 'bære', hgno: 2, paradigm_info: [
+  { tags: ['VERB', 'Uninfl'], inflection: [{ word_form: 'bære' }] }] }],
+  body: { definitions: [{ type_: 'definition', elements: [{ type_: 'sub_article', article_id: 9999,
+    lemmas: ['trøste og bære'], article: { body: { definitions: [{ type_: 'explanation', content: 'trøste', items: [] }] } } }] }] } };
+test('R9 evidence: bære II (Uninfl, only the lemma) -> no card, review', () => {
+  const parsed = parseHomographArticle(baereII, 8440, 'bære', 'verb')!;
+  assert.equal(parsed.uninflected, true);
+  const d = decideHomographs([baereI], [{ articleId: 8440, parsed }]);
+  assert.equal(d[0].decision, 'skipped'); assert.equal(d[0].review, true); assert.equal(d[0].reason, 'r9_guard_no_own_forms');
+});
+test('R9 evidence: own forms but only nested expressions -> no card, review', () => {
+  const art = { article_id: 8441, lemmas: [{ lemma: 'bære', hgno: 3, paradigm_info: [
+    { tags: ['VERB'], inflection: [{ word_form: 'bære' }, { word_form: 'bærte' }] }] }],
+    body: baereII.body };
+  const parsed = parseHomographArticle(art, 8441, 'bære', 'verb')!;
+  assert.equal(parsed.uninflected, false);
+  assert.deepEqual(parsed.definitions, []);
+  const d = decideHomographs([baereI], [{ articleId: 8441, parsed }]);
+  assert.equal(d[0].decision, 'skipped'); assert.equal(d[0].reason, 'r9_guard_no_own_meaning');
+});
+test('R9 evidence: være III (own forms and own meaning) -> still a second card', () => {
+  const p = parseHomographArticle(vaereIII, 69212, 'være', 'verb')!;
+  assert.equal(p.uninflected, false);
+  assert.ok((p.definitions ?? []).length > 0);
+  const main = { articleId: 1, hgno: 1, forms: ['er', 'var', 'vært', 'være', 'vær'], definitions: ['eksistere'], refArticleIds: [] };
+  const d = decideHomographs([main], [{ articleId: 69212, parsed: p }]);
+  assert.equal(d[0].decision, 'r9_card');
+});

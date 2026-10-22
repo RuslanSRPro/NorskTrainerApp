@@ -23,6 +23,9 @@ export type ParsedArticle = {
   // and the articles they refer to.
   definitions?: string[];
   refArticleIds?: number[];
+  // D10 20.10.2026 (agreed): the article's paradigm of this POS is marked
+  // "Uninfl" or lists no form besides the lemma (bære II, article 8440).
+  uninflected?: boolean;
 };
 
 export type HomographDecision = {
@@ -121,9 +124,11 @@ export function parseHomographArticle(
     const paradigms = Array.isArray(e.paradigm_info) ? e.paradigm_info as Record<string, unknown>[] : [];
     const forms = new Set<string>([wanted]);
     let posMatch = false;
+    let allUninfl = true;
     for (const p of paradigms) {
       if (!Array.isArray(p.tags) || !(p.tags as unknown[]).includes(tag)) continue;
       posMatch = true;
+      if (!(p.tags as unknown[]).includes('Uninfl')) allUninfl = false;
       for (const inflection of Array.isArray(p.inflection) ? p.inflection as Record<string, unknown>[] : []) {
         const form = norm(inflection.word_form);
         if (form) forms.add(form);
@@ -140,6 +145,7 @@ export function parseHomographArticle(
       forms: [...forms].sort(),
       definitions: [...new Set(definitions)],
       refArticleIds: [...new Set(refArticleIds)],
+      uninflected: allUninfl || forms.size <= 1,
     };
   }
   return null;
@@ -190,10 +196,20 @@ export function decideHomographs(
     } else if (sameNumber) {
       decisions.push({ articleId: c.articleId, decision: 'skipped', hgno: c.parsed.hgno,
         reason: 'homograph_number_of_main_card', forms: c.parsed.forms });
+    } else if (c.parsed.uninflected === true || c.parsed.forms.length <= 1) {
+      // D10 20.10.2026 (agreed): no own forms (Uninfl / only the lemma) is not
+      // a different paradigm -> no card, the article is shown for review.
+      decisions.push({ articleId: c.articleId, decision: 'skipped', hgno: c.parsed.hgno,
+        reason: 'r9_guard_no_own_forms', forms: c.parsed.forms, review: true });
     } else if (sameMeaningAsMain(c.parsed, reference)) {
       // R9 guard: different forms, same meaning -> shown to the user.
       decisions.push({ articleId: c.articleId, decision: 'skipped', hgno: c.parsed.hgno,
         reason: 'r9_guard_same_meaning', forms: c.parsed.forms, review: true });
+    } else if ((c.parsed.definitions ?? []).length === 0) {
+      // D10 20.10.2026 (agreed): no own explanation (only nested expressions
+      // or references) is no proof of an own meaning -> no card, review.
+      decisions.push({ articleId: c.articleId, decision: 'skipped', hgno: c.parsed.hgno,
+        reason: 'r9_guard_no_own_meaning', forms: c.parsed.forms, review: true });
     } else {
       decisions.push({ articleId: c.articleId, decision: 'r9_card', hgno: c.parsed.hgno,
         reason: 'different_paradigm', forms: c.parsed.forms });
