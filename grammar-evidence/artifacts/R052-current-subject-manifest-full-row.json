@@ -1,0 +1,179 @@
+{
+  "schema_version": "grammar-manifest-full-row-snapshot-v1",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "observed_on": "2026-10-22",
+  "source": "read-only SELECT from public.grammar_runtime_manifests",
+  "row": {
+    "id": "fc5b3154-5cf2-4c40-810b-aec0dfee85ef",
+    "code": "ir.structural.dependency.subject_of_predicate",
+    "authoring_status": "validated",
+    "runtime_family": "dependency",
+    "execution_phase": "dependency_build",
+    "constraint_strength": "categorical",
+    "actions": [
+      {
+        "value": {
+          "source_ref": "subject",
+          "target_ref": "predicate"
+        },
+        "action": "create_dependency",
+        "target": "predicate",
+        "relation": "subject_of",
+        "reason_code": "nrg_subject_of_finite_predicate"
+      },
+      {
+        "value": {
+          "explanation_key": "subject_is_linked_to_finite_predicate"
+        },
+        "action": "add_trace",
+        "target": "clause",
+        "reason_code": "nrg_subject_definition"
+      }
+    ],
+    "ir_spec": {
+      "code": "ir.structural.dependency.subject_of_predicate",
+      "source": {
+        "source_section": "8.2.1",
+        "primary_candidate_code": "sentence.subject.definition.nominal_finite_predicate",
+        "supporting_candidate_codes": [
+          "sentence.subject.requirement.finite_clause"
+        ]
+      },
+      "actions": [
+        {
+          "value": {
+            "source_ref": "subject",
+            "target_ref": "predicate"
+          },
+          "action": "create_dependency",
+          "target": "predicate",
+          "relation": "subject_of",
+          "reason_code": "nrg_subject_of_finite_predicate"
+        },
+        {
+          "value": {
+            "explanation_key": "subject_is_linked_to_finite_predicate"
+          },
+          "action": "add_trace",
+          "target": "clause",
+          "reason_code": "nrg_subject_definition"
+        }
+      ],
+      "runtime": {
+        "phase": "dependency_build",
+        "family": "dependency",
+        "capabilities": [
+          "recognize",
+          "relate",
+          "explain"
+        ],
+        "execution_mode": "deterministic",
+        "diagnostic_policy": "none",
+        "constraint_strength": "categorical",
+        "minimum_resolution_confidence": 0.8
+      },
+      "bindings": {
+        "clause": {
+          "scope": "sentence",
+          "where": {
+            "op": "eq",
+            "left": {
+              "ref": "clause.type"
+            },
+            "right": "finite"
+          },
+          "entity": "clause",
+          "cardinality": "one_or_more"
+        },
+        "subject": {
+          "scope": "clause",
+          "where": {
+            "op": "exists",
+            "left": {
+              "ref": "clause.subject_token_index"
+            }
+          },
+          "entity": "token",
+          "cardinality": "one"
+        },
+        "predicate": {
+          "scope": "clause",
+          "where": {
+            "op": "exists",
+            "left": {
+              "ref": "clause.predicate_phrase_id"
+            }
+          },
+          "entity": "phrase",
+          "cardinality": "one"
+        }
+      },
+      "compiler": {
+        "strategy": "single_rule",
+        "target_rule_types": [
+          "dependency_pattern"
+        ]
+      },
+      "condition": {
+        "all": [
+          {
+            "op": "exists",
+            "left": {
+              "ref": "clause.id"
+            }
+          },
+          {
+            "op": "exists",
+            "left": {
+              "ref": "clause.subject_token_index"
+            }
+          },
+          {
+            "op": "exists",
+            "left": {
+              "ref": "clause.predicate_phrase_id"
+            }
+          }
+        ]
+      },
+      "generation": {
+        "enabled": false,
+        "strategy": "none",
+        "output_constraints": []
+      },
+      "ir_version": "1.0",
+      "explanation": {
+        "focus": [
+          "subject",
+          "predicate",
+          "dependency"
+        ],
+        "teacher_role": "clause_dependency",
+        "why_it_applies_template": "Subjektet er det nominale leddet som hører til det finitte predikatet i setningen.",
+        "why_not_alternative_template": "Relasjonen opprettes bare når både subjekt og finitt predikat allerede er identifisert i samme setning."
+      },
+      "dependencies": {
+        "required_entities": [
+          "clause",
+          "subject",
+          "predicate"
+        ],
+        "required_graph_fields": [
+          "clause.subject_token_index",
+          "clause.predicate_phrase_id"
+        ]
+      },
+      "language_scope": {
+        "registers": [
+          "neutral",
+          "formal",
+          "informal"
+        ],
+        "written_standards": [
+          "nb",
+          "nn"
+        ]
+      }
+    }
+  }
+}

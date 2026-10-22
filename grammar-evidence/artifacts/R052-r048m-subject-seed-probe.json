@@ -1,0 +1,27 @@
+{
+  "schema_version": "r048m-subject-seed-probe-evidence-v1",
+  "observed_on": "2026-10-22",
+  "source_revision": "7d964a3fd0bf85c81ec410a8c8deda9e1928c41b",
+  "source_method": "git archive of source_revision; isolated local Deno execution",
+  "s0_seed_composer_sha256": "1ae13efa1445808f353ee4a0c9791dd2b89b118c10946cf6cdce741ae089ce9d",
+  "manifest_artifact": "grammar-evidence/artifacts/R052-current-subject-manifest-full-row.json",
+  "manifest_sha256": "d217d00b036baefcbd27db82d4bb92fbadbf8f446b7a4b688fc853689589d2d2",
+  "production_rpc_artifact": "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+  "production_rpc_sha256": "4ad1b0ae264e60d1d392c93051cfea282ca49df61d47350e43c9f6c2f9092f42",
+  "probe": "grammar-evidence/tools/probe-r048m-subject-seed.ts",
+  "probe_sha256": "72ffe0301ed9f5783258a29d6349f753b73518a5c3fc9db094f930e7f8efe137",
+  "result": {
+    "manifest_code": "ir.structural.dependency.subject_of_predicate",
+    "authority_status": "ready",
+    "dependency_authority_count": 1,
+    "binding_definition_status": "ready",
+    "binding_definition_count": 3,
+    "where_shape_status": "ready",
+    "where_shape_count": 3,
+    "s0_status": "ready",
+    "s0_seed_count": 0,
+    "s0_expected_authority_count": 0,
+    "blocking_reasons": []
+  },
+  "scope": "Exact current Production manifest row and saved R051 RPC case against the historical R048M source. No activation authority, scheduler invocation, graph transition or Production write. The S0 composer is specialized to token POS expected-label equality; this manifest contains clause/phrase structural conditions and yields no seed in this run."
+}
