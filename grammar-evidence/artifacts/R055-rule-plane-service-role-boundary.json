@@ -1,0 +1,31 @@
+{
+  "evidence_id": "R055-RULE-PLANE-ACL-2026-10-22",
+  "observed_at_utc": "2026-10-22T14:50:32Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "migration_file": "supabase/migrations/20261022144929_restrict_grammar_rule_plane_to_service_role.sql",
+  "production_migration_ledger": {
+    "version": "20261022144929",
+    "name": "restrict_grammar_rule_plane_to_service_role"
+  },
+  "post_deploy_privileges": {
+    "functions": [
+      "public.apply_rule_execution_plane_v1(jsonb,text)",
+      "public.build_rule_execution_plane_v1(jsonb,text)",
+      "public.execute_candidate_constraint_rule_v2(jsonb,uuid)",
+      "public.execute_dependency_pattern_rule_v2(jsonb,uuid)",
+      "public.validate_phrase_rule_operator_v1(uuid)"
+    ],
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "service_role_execute": true,
+    "verification": "Production has_function_privilege query returned the stated privileges for every listed function"
+  },
+  "unchanged_activation_state": {
+    "release_code": "runtime-structural-v1.37",
+    "release_status": "shadow",
+    "activated_at": null,
+    "subject_of_predicate_is_active": false
+  },
+  "scope": "Direct Data API execution of these five rule-plane functions is closed to app roles. This does not by itself prove that all graph outputs are isolated from every server or Edge path, and it does not activate a rule.",
+  "rollback": "A reviewed follow-up migration could restore the previous EXECUTE grants to PUBLIC, anon and authenticated if a verified dependency requires them; no rollback was applied."
+}
