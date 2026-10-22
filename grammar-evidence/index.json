@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "05449a7b28224ad8bb4020584187c1c858fa4c0c",
+  "head": "8d7d0a3f4f202f9081b6a321aa0f8897474e9178",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "05449a7b28224ad8bb4020584187c1c858fa4c0c",
-  "source_head": "05449a7b28224ad8bb4020584187c1c858fa4c0c",
+  "archive_head": "8d7d0a3f4f202f9081b6a321aa0f8897474e9178",
+  "source_head": "8d7d0a3f4f202f9081b6a321aa0f8897474e9178",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 90,
-  "strict_history_event_count": 43,
+  "history_event_count": 91,
+  "strict_history_event_count": 44,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -99,7 +99,8 @@
     "R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22",
     "R054-BRANCH-PORT-TRIAGE-2026-10-22",
     "R055-RULE-PLANE-ACL-2026-10-22",
-    "R056-SHADOW-EDGE-AUTH-2026-10-22"
+    "R056-SHADOW-EDGE-AUTH-2026-10-22",
+    "R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -167,6 +168,7 @@
     "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION": [],
     "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY": [],
     "R056_SHADOW_EDGE_AUTH_BOUNDARY": [],
+    "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT": [],
     "R055_APP_GRAPH_OUTPUT_ISOLATION": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
   },
@@ -302,9 +304,14 @@
       "supabase/functions/_shared/authoritative-morphology-v2/internal-authorization.ts",
       "grammar-evidence/artifacts/R056-shadow-edge-authorization-boundary.json"
     ],
+    "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT": [
+      "grammar-evidence/artifacts/R057-app-canonical-shadow-consumer-snapshot.json",
+      "R056_SHADOW_EDGE_AUTH_BOUNDARY"
+    ],
     "R055_APP_GRAPH_OUTPUT_ISOLATION": [
       "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
-      "R056_SHADOW_EDGE_AUTH_BOUNDARY"
+      "R056_SHADOW_EDGE_AUTH_BOUNDARY",
+      "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT"
     ],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
       "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
@@ -357,6 +364,7 @@
     "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION": "Classify the 41 absent modules by capture, token-POS WHERE and dependency scheduler role; for each chosen module compare its contract with current R048R source, then port only a tested coherent slice.",
     "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY": "",
     "R056_SHADOW_EDGE_AUTH_BOUNDARY": "",
+    "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT": "",
     "R055_APP_GRAPH_OUTPUT_ISOLATION": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet."
   },
@@ -3307,19 +3315,39 @@
       "notes": "verify_jwt remains false; authorization is enforced in the handler. This is a direct endpoint proof, not an audit of all downstream consumers."
     },
     {
+      "proof_id": "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DEPLOYED_SOURCE_AND_LOG_SNAPSHOT",
+      "proved_at_head": "8d7d0a3",
+      "claim": "The inspected current app analysis entrypoints do not call the canonical shadow graph or structural SQL RPC.",
+      "result": "Deployed analyze-text v172, grammar-analysis-orchestrator v75 and language-graph-engine v64 bundles contain no canonical shadow, structural RPC or rule plane reference. Repository non-test source search agrees. Last-24-hour canonical shadow request log has only the R056 unauthenticated 401 probe.",
+      "evidence_runs": [
+        "R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R057-app-canonical-shadow-consumer-snapshot.json",
+        "R056_SHADOW_EDGE_AUTH_BOUNDARY"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Bounded app-path snapshot only; it does not prove every external or future authorized caller is absent."
+    },
+    {
       "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "END_TO_END_EXPOSURE",
       "proved_at_head": null,
       "claim": "No app-facing path exposes Grammar Graph output before the complete rule set is activated and approved for integration.",
-      "result": "Static repository search found no app call site for the canonical shadow Edge function or structural SQL RPC. Direct SQL rule-plane calls are restricted; Production Edge v67 now rejects unauthenticated calls. The endpoint still returns language_graph to authorized callers, and all server-side consumers have not yet been audited.",
+      "result": "Direct SQL rule-plane calls are restricted; Production Edge v67 rejects unauthenticated calls; the three inspected deployed app analysis bundles have no canonical shadow or structural RPC reference, and recent traffic contains only the R056 401 probe. The endpoint still returns language_graph to authorized callers; an exhaustive inventory of external and future authorized consumers is not proven.",
       "evidence_runs": [
         "R055-RULE-PLANE-ACL-2026-10-22"
       ],
       "dependencies": [
         "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY",
-        "R056_SHADOW_EDGE_AUTH_BOUNDARY"
+        "R056_SHADOW_EDGE_AUTH_BOUNDARY",
+        "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT"
       ],
       "blocked_by": [],
       "stale_reasons": [],

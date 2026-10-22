@@ -710,7 +710,7 @@
       "status": "PROVEN",
       "proof_kind": "DEPLOYED_SOURCE_AND_LOG_SNAPSHOT",
       "claim": "The inspected current app analysis entrypoints do not call the canonical shadow graph or structural SQL RPC.",
-      "proved_at_head": "949181e",
+      "proved_at_head": "8d7d0a3",
       "evidence_runs": ["R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22"],
       "result": "Deployed analyze-text v172, grammar-analysis-orchestrator v75 and language-graph-engine v64 bundles contain no canonical shadow, structural RPC or rule plane reference. Repository non-test source search agrees. Last-24-hour canonical shadow request log has only the R056 unauthenticated 401 probe.",
       "dependencies": ["grammar-evidence/artifacts/R057-app-canonical-shadow-consumer-snapshot.json", "R056_SHADOW_EDGE_AUTH_BOUNDARY"],

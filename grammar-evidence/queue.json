@@ -1,16 +1,6 @@
 {
   "queue": [
     {
-      "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
-      "declared_status": "UNVERIFIED",
-      "effective_status": "UNVERIFIED",
-      "blocked_by": [],
-      "ready_for_next_action": true,
-      "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
-      "search_gate": null,
-      "queue_priority": -2
-    },
-    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -29,6 +19,16 @@
       "next_action": "Design and test a source-backed structural initial-epoch seed and site contract for resolved clause/predicate occurrences; current R048M S0 is token-POS-site rooted. Do not add a fake token.pos condition. Then choose predicate mapping or prove a phrase bridge and execute binding, D7.14 endpoint, create_dependency and add_trace checks.",
       "search_gate": null,
       "queue_priority": 0
+    },
+    {
+      "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
+      "search_gate": null,
+      "queue_priority": 10
     },
     {
       "proof_id": "R054_FUTURE_GRAPH_MODULE_PORT_SELECTION",
@@ -205,13 +205,13 @@
     }
   ],
   "next": {
-    "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
+    "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis.",
+    "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet.",
     "search_gate": null,
-    "queue_priority": -2
+    "queue_priority": -1
   }
 }
