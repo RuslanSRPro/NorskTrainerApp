@@ -1,0 +1,69 @@
+{
+  "evidence_id": "R063-PRODUCTION-PILOT-GRANT-ISOLATION-REVOCATION-2026-10-22",
+  "observed_at_utc": "2026-10-22T19:49:33Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_head": "05e0138",
+  "release_code": "runtime-structural-v1.37",
+  "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+  "compiled_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e",
+  "input": "R051 canonical tokens for Katten sover through grammar_pilot_private.build_pre_rule_plane_v1",
+  "authority": {
+    "table_owner": "postgres",
+    "postgres_can_insert_grant_and_revocation": true,
+    "service_role_can_select_but_not_insert_grant_and_revocation": true,
+    "anon_and_authenticated_can_insert": false,
+    "service_role_can_execute_pilot": true
+  },
+  "production_transaction_test": {
+    "protocol": "BEGIN; insert one explicit negative-ID grant as postgres; SET LOCAL ROLE service_role; build fresh pre-plane input and run one rule; RESET ROLE; insert revocation as postgres; SET LOCAL ROLE service_role; verify the next call raises PILOT_GRANT_INVALID; RESET ROLE; ROLLBACK",
+    "grant_id": -2,
+    "identity_sequence_consumed": false,
+    "execution_role": "service_role",
+    "status": "executed",
+    "dependency_count": 1,
+    "relation": "subject_of",
+    "source_entity": "token",
+    "source_surface": "Katten",
+    "target_entity": "predicate",
+    "target_surface": "sover",
+    "result_jsonb_text_md5": "63972eb3daa79d27e51f3d39683f7c25",
+    "saved_r051_subject_result_jsonb_text_md5": "63972eb3daa79d27e51f3d39683f7c25",
+    "post_revocation_call": "PILOT_GRANT_INVALID",
+    "rollback_completed": true,
+    "persistent_grants_after": 0,
+    "persistent_revocations_after": 0,
+    "probe_rows_after": 0
+  },
+  "execution_scope": {
+    "private_producer_has_no_rule_execution_plane_field": true,
+    "production_functions_with_build_rule_execution_plane_v1_call": ["public.apply_rule_execution_plane_v1", "public.build_rule_execution_plane_v1", "public.run_canonical_legacy_compatibility_v140"],
+    "production_functions_with_execute_dependency_pattern_rule_v2_call": ["grammar_pilot_private.run_one_rule_v1", "public.build_rule_execution_plane_v1", "public.execute_dependency_pattern_rule_v2"],
+    "pilot_producer_and_pilot_runner_do_not_call_the_full_plane": true
+  },
+  "app_isolation_snapshot": {
+    "inspected_deployed_functions": [
+      {"slug": "analyze-text", "version": 172, "bundle_sha256": "952c4959da4331a63bb5af48155082b89e5cb7bed99bd277a2b23ba8135393eb"},
+      {"slug": "grammar-analysis-orchestrator", "version": 75, "bundle_sha256": "06ef01a45623d19ffdec5bf3d8ac4fa800555436ba961f169f6117fe9be41213"},
+      {"slug": "language-graph-engine", "version": 64, "bundle_sha256": "dda9f6cdf1f9666dd1989d140b8e4dbdab84671c22116b26e604a33079b6da16"},
+      {"slug": "job-orchestrator", "version": 113, "bundle_sha256": "67dfda4864c8a5c0092b68ba72e073bb86225fce8864c259fd81264ed93b8a27"}
+    ],
+    "search_terms_absent_in_those_bundles": ["grammar_pilot_private", "run_one_rule_v1", "canonical-graph-shadow-v1", "run_canonical_legacy_compatibility_v140", "rule_execution_plane_v1"],
+    "pilot_sql_anon_authenticated_access": false,
+    "canonical_shadow_deployed_version": 67,
+    "canonical_shadow_authorization": "requires internal service authorization; verify_jwt=false",
+    "canonical_shadow_response": "returns language_graph to an authorized service caller",
+    "canonical_shadow_function_edge_logs_default_last_24h": {"status_401": 1, "status_200": 0}
+  },
+  "grant_order_for_future_committed_pilot": [
+    "Refresh source and release hashes, grant counts, ACLs, deployed app consumers and traffic snapshot.",
+    "As postgres only, serialize grant issuance; verify there is no live grant for this release/rule and insert one short-lived exact-hash grant.",
+    "Call the private producer and one-rule runner only from an isolated service workflow; compare the returned rule identity, hash and dependency output.",
+    "Append a revocation for that grant ID as postgres; verify later calls fail with PILOT_GRANT_INVALID and count zero live grants."
+  ],
+  "limits": [
+    "The Production grant and revocation were uncommitted and rolled back. A persistent administrative grant/revocation has not been rehearsed.",
+    "The checked Edge bundles and 24-hour traffic window give bounded evidence only; external and future authorized consumers of canonical shadow are not exhaustively known.",
+    "The existing canonical shadow endpoint still returns language_graph to an authorized service caller. It is separate from this private SQL pilot.",
+    "No pilot result was sent to an application endpoint or table. No production grant remains."
+  ]
+}
