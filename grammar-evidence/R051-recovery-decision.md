@@ -26,6 +26,17 @@ The executable local check is `supabase/functions/_shared/nlp/test-r051-subject-
 
 **Decision:** No source merge or activation grant follows from these checks. The first blocker is endpoint contract divergence; duplicate protection is a second independent blocker. The R048M scheduler remains unexecuted in this audit.
 
+## Which `subject_of` target is needed?
+
+This is a contract review against current SQL source, golden fixtures, the saved Production case and the R048M branch source. It is not a new live multi-sentence Production run.
+
+| Candidate | Evidence of need | Limit |
+|---|---|---|
+| Subject token → predicate occurrence | Current `dependency_build_v2` emits this shape; `grammar_validation_v2` counts `subject_of` against `predicate_id` for finite clauses. Golden cases require `Han → kan ringe` for a modal predicate and `Han → er lærer` for a copular predicate. The R051 Production case and R048R projection confirm the shape for `Katten → sover`. | For token order or inflection, the consumer must also resolve the predicate's finite or head member. |
+| Subject token → verb token | A concrete token pair can support a word-order view. The current SQL predicate exposes `finite_token_index` and emits `finite_member_of_predicate`, `grammatical_head_of_predicate` and `lexical_head_of_predicate` facts. R048M D7.14 can write token→token edges. | Choosing one token as the target loses the predicate's multiword identity and may choose different tokens for modal, auxiliary and copular constructions. No searched non-test consumer requires a separate authoritative token→token `subject_of`, and R048M's real endpoint binding has not been proven. |
+
+**Provisional contract:** retain subject token → predicate occurrence as the authoritative `subject_of` fact. Derive a token-level view through the predicate's explicit finite/head membership when a word-order or form rule needs it; preserve which member was chosen and why. Do not mint another authoritative `subject_of` edge merely to satisfy the current token-only D7.14 patch. The R048M manifest currently asks for a `phrase` predicate, while its patch requires token endpoints; reconcile these contracts before scheduler activation. Multiword and copular Production captures plus an executed endpoint-binding test remain required before this provisional choice becomes an activation gate.
+
 ## Recovery decision
 
 1. **Preserve the current R048R adapter.** R048R was committed after R048M. The 59-line difference in `legacy-language-graph-adapter-v1.ts` is later functionality, not a deliberate deletion by R048M. Do not replace this file with the older branch snapshot.
