@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+  "head": "6d7c28ef9f0a5899221c1e50aa60cb1d8fa9862e",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
-  "source_head": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
-  "source_revision": "a91ed84581cf720906b7dd1e9f65f8f6720a8d49",
+  "archive_head": "6d7c28ef9f0a5899221c1e50aa60cb1d8fa9862e",
+  "source_head": "6d7c28ef9f0a5899221c1e50aa60cb1d8fa9862e",
+  "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 191,
-  "history_event_count": 67,
-  "strict_history_event_count": 20,
+  "file_count": 192,
+  "history_event_count": 71,
+  "strict_history_event_count": 24,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -76,7 +76,11 @@
     "R050-REGISTER-R050-A33",
     "R050-REGISTER-R050-A34",
     "R050-REGISTER-R050-A35",
-    "R050-REGISTER-R050-DECISION-01"
+    "R050-REGISTER-R050-DECISION-01",
+    "R051-CURRENT-PRODUCTION-STRUCTURAL-RPC-SMOKE",
+    "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-TEST",
+    "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT",
+    "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -102,16 +106,18 @@
     "S0_FOCUSED_REGRESSION_SUITE": [],
     "D4_COMPLETE_PRECONDITION_FIXTURE": [],
     "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": [],
-    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [],
+    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [
+      "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+      "R051_SOURCE_DEPLOYMENT_LINEAGE"
+    ],
     "ONE_OR_MORE_CARDINALITY_RUNTIME": [],
     "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH": [],
     "PHRASE_PRODUCER_EXECUTION": [],
     "CLAUSE_PHRASE_COMPOSITION_EXECUTION": [],
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": [],
     "CLAUSE_SOURCE_BACKED_FIXTURE": [],
-    "CLAUSE_PRODUCER_EXECUTION": [
-      "CLAUSE_SOURCE_BACKED_FIXTURE"
-    ],
+    "CLAUSE_PRODUCER_EXECUTION": [],
     "R049_RELEASE_INVENTORY": [],
     "R049_KNOWLEDGE_ELIGIBILITY": [],
     "R049_RULE_COMPILE_STATE": [],
@@ -126,7 +132,11 @@
     "R050-A33": [],
     "R050-A34": [],
     "R050-A35": [],
-    "R050-DECISION-01": []
+    "R050-DECISION-01": [],
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": [
+      "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
+    ],
+    "R051_SOURCE_DEPLOYMENT_LINEAGE": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -136,7 +146,12 @@
     "S0_FOCUSED_REGRESSION_SUITE": [],
     "D4_COMPLETE_PRECONDITION_FIXTURE": [],
     "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": [],
-    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [],
+    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [
+      "CLAUSE_PRODUCER_EXECUTION",
+      "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+      "R051_SOURCE_DEPLOYMENT_LINEAGE"
+    ],
     "ONE_OR_MORE_CARDINALITY_RUNTIME": [
       "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts"
     ],
@@ -147,10 +162,14 @@
       "CLAUSE_PRODUCER_EXECUTION"
     ],
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": [],
-    "CLAUSE_SOURCE_BACKED_FIXTURE": [],
+    "CLAUSE_SOURCE_BACKED_FIXTURE": [
+      "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+    ],
     "CLAUSE_PRODUCER_EXECUTION": [
       "CLAUSE_PUBLIC_BOUNDARY_WIRING",
-      "CLAUSE_SOURCE_BACKED_FIXTURE"
+      "CLAUSE_SOURCE_BACKED_FIXTURE",
+      "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts"
     ],
     "R049_RELEASE_INVENTORY": [],
     "R049_KNOWLEDGE_ELIGIBILITY": [],
@@ -166,21 +185,29 @@
     "R050-A33": [],
     "R050-A34": [],
     "R050-A35": [],
-    "R050-DECISION-01": []
+    "R050-DECISION-01": [],
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": [
+      "CLAUSE_PRODUCER_EXECUTION",
+      "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
+    ],
+    "R051_SOURCE_DEPLOYMENT_LINEAGE": [
+      "grammar-evidence/artifacts/R051-current-source-lineage.json"
+    ]
   },
   "proof_next_actions": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": "",
     "S0_FOCUSED_REGRESSION_SUITE": "",
     "D4_COMPLETE_PRECONDITION_FIXTURE": "",
     "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": "",
-    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": "",
+    "SUBJECT_OF_PREDICATE_ACTIVATION_READY": "After blockers pass, prove one create_dependency admission, patch, graph transition and reevaluation with exact endpoints; decide the required add_trace behavior.",
     "ONE_OR_MORE_CARDINALITY_RUNTIME": "",
     "CLAUSE_CANONICAL_AUTHORITY_REUSE_PATH": "",
     "PHRASE_PRODUCER_EXECUTION": "",
-    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "",
+    "CLAUSE_PHRASE_COMPOSITION_EXECUTION": "On the R051 source-backed fixture, prove a resolved phrase occurrence that can satisfy the target manifest predicate binding inside the resolved clause. Keep candidate phrase and resolved predicate distinct.",
     "CLAUSE_PUBLIC_BOUNDARY_WIRING": "",
-    "CLAUSE_SOURCE_BACKED_FIXTURE": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
-    "CLAUSE_PRODUCER_EXECUTION": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo.",
+    "CLAUSE_SOURCE_BACKED_FIXTURE": "",
+    "CLAUSE_PRODUCER_EXECUTION": "",
     "R049_RELEASE_INVENTORY": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
     "R049_KNOWLEDGE_ELIGIBILITY": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
     "R049_RULE_COMPILE_STATE": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
@@ -195,7 +222,9 @@
     "R050-A33": "",
     "R050-A34": "",
     "R050-A35": "",
-    "R050-DECISION-01": ""
+    "R050-DECISION-01": "",
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve the phrase/predicate and clause field mapping explicitly; verify both create_dependency and add_trace action requirements.",
+    "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify R048M capture as historical or required, reconcile the SQL migration ledger, and prepare a minimal tested source patch that preserves R048R and matches the intended deployed Edge route."
   },
   "files": [
     {
@@ -2289,6 +2318,17 @@
       }
     },
     {
+      "path": "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts",
+      "sha256": "c18b282e984fd0aa91f443cd6f95458aedd883da9dc2be89daa00d82fd5fee78",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": true,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
       "sha256": "8e006617e614abf40d726c1574ad60d525b30d4fc0f75e81ad36de02b36793b2",
       "symbols": {
@@ -2382,13 +2422,22 @@
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "ir.structural.dependency.subject_of_predicate is activation-ready through the full runtime chain.",
-      "result": "Not proven. Clause/phrase occurrence-domain execution remains an upstream compatibility boundary; add_trace execution is also not proven.",
+      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
       "evidence_runs": [
         "A3.8F-R27",
         "A3.8F-R28"
       ],
-      "dependencies": [],
-      "blocked_by": [],
+      "dependencies": [
+        "CLAUSE_PRODUCER_EXECUTION",
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+        "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+        "R051_SOURCE_DEPLOYMENT_LINEAGE"
+      ],
+      "blocked_by": [
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+        "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+        "R051_SOURCE_DEPLOYMENT_LINEAGE"
+      ],
       "stale_reasons": [],
       "notes": "Do not activate."
     },
@@ -2460,7 +2509,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Neutral span predicate proof does not promote this claim."
+      "notes": "Neutral span predicate proof does not promote this claim. The R051 SQL clause fixture and public projection are now proven separately."
     },
     {
       "proof_id": "CLAUSE_PUBLIC_BOUNDARY_WIRING",
@@ -2481,43 +2530,47 @@
     },
     {
       "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
-      "declared_status": "UNVERIFIED",
-      "effective_status": "UNVERIFIED",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
       "proof_kind": "FIXTURE_AUTHORITY",
-      "proved_at_head": null,
+      "proved_at_head": "1fe8ad16c9daf18ea330c05d8ed51afda1e58de4",
       "claim": "A reusable source-backed executable clause fixture exists for the public boundary.",
-      "result": "Construction/wiring sources found, but no executable reusable fixture proven.",
+      "result": "A read-only invocation of the current Production RPC on the previously captured canonical input produced one resolved predicate and clause; the full input/output, capture ID and function definition hashes are preserved in the R051 artifact.",
       "evidence_runs": [
         "A3.8F-R34",
-        "A3.8F-R35B"
+        "A3.8F-R35B",
+        "R051-CURRENT-PRODUCTION-STRUCTURAL-RPC-SMOKE"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+      ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "R35B heuristic classification was intentionally not promoted to PROVEN."
+      "notes": "This proves a source-backed fixture, not clause/phrase composition or activation."
     },
     {
       "proof_id": "CLAUSE_PRODUCER_EXECUTION",
-      "declared_status": "UNVERIFIED",
-      "effective_status": "UNVERIFIED",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "proved_at_head": null,
+      "proved_at_head": "1fe8ad16c9daf18ea330c05d8ed51afda1e58de4",
       "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
-      "result": "No executable call-site fixture/test proven yet.",
+      "result": "The public v1.43 projection passed on the R051 Production RPC fixture: resolved clause span maps to canonical token IDs, subject and predicate nodes/edges retain identity, and source_rule evidence/provenance attaches to the predicate edge.",
       "evidence_runs": [
         "A3.8F-R33",
         "A3.8F-R34",
-        "A3.8F-R35B"
+        "A3.8F-R35B",
+        "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-TEST"
       ],
       "dependencies": [
         "CLAUSE_PUBLIC_BOUNDARY_WIRING",
-        "CLAUSE_SOURCE_BACKED_FIXTURE"
+        "CLAUSE_SOURCE_BACKED_FIXTURE",
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts"
       ],
-      "blocked_by": [
-        "CLAUSE_SOURCE_BACKED_FIXTURE"
-      ],
+      "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Next concrete proof target."
+      "notes": "The test runs locally on a direct Production SQL output; deployed Edge v66 lacks the bounded dependency scheduler. This is not activation readiness."
     },
     {
       "proof_id": "R049_RELEASE_INVENTORY",
@@ -2767,6 +2820,46 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": null,
+      "claim": "The current subject_of_predicate manifest bindings resolve against the source-backed canonical clause, token and predicate/phrase occurrences with correct scopes and provenance.",
+      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. Runtime compatibility is not yet proven.",
+      "evidence_runs": [
+        "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT"
+      ],
+      "dependencies": [
+        "CLAUSE_PRODUCER_EXECUTION",
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+        "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
+      ],
+      "blocked_by": [
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
+      ],
+      "stale_reasons": [],
+      "notes": "Observed field/type differences are a compatibility question, not an activation grant."
+    },
+    {
+      "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "SOURCE_DEPLOYMENT_RECONCILIATION",
+      "proved_at_head": null,
+      "claim": "The reviewed current source, deployed canonical Edge and Production SQL capture objects have a reproducible, documented lineage without losing later R048R behavior.",
+      "result": "Production Edge v66 bundles R048R adapter evidence but lacks R048M capture and bounded scheduler entrypoint wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Current HEAD tracks R048P but not R048M capture source.",
+      "evidence_runs": [
+        "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-current-source-lineage.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not overwrite the later R048R adapter with the older branch snapshot; classify required source changes before deployment."
     }
   ],
   "policy": {

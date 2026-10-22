@@ -81,10 +81,21 @@
         "A3.8F-R27",
         "A3.8F-R28"
       ],
-      "result": "Not proven. Clause/phrase occurrence-domain execution remains an upstream compatibility boundary; add_trace execution is also not proven.",
-      "dependencies": [],
+      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
+      "dependencies": [
+        "CLAUSE_PRODUCER_EXECUTION",
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+        "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+        "R051_SOURCE_DEPLOYMENT_LINEAGE"
+      ],
       "invalidation": "N/A until proven.",
-      "notes": "Do not activate."
+      "notes": "Do not activate.",
+      "blocked_by": [
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+        "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+        "R051_SOURCE_DEPLOYMENT_LINEAGE"
+      ],
+      "next_action": "After blockers pass, prove one create_dependency admission, patch, graph transition and reevaluation with exact endpoints; decide the required add_trace behavior."
     },
     {
       "proof_id": "ONE_OR_MORE_CARDINALITY_RUNTIME",
@@ -146,7 +157,8 @@
         "CLAUSE_PRODUCER_EXECUTION"
       ],
       "invalidation": "N/A until proven.",
-      "notes": "Neutral span predicate proof does not promote this claim."
+      "notes": "Neutral span predicate proof does not promote this claim. The R051 SQL clause fixture and public projection are now proven separately.",
+      "next_action": "On the R051 source-backed fixture, prove a resolved phrase occurrence that can satisfy the target manifest predicate binding inside the resolved clause. Keep candidate phrase and resolved predicate distinct."
     },
     {
       "proof_id": "CLAUSE_PUBLIC_BOUNDARY_WIRING",
@@ -165,49 +177,47 @@
     },
     {
       "proof_id": "CLAUSE_SOURCE_BACKED_FIXTURE",
-      "status": "UNVERIFIED",
+      "status": "PROVEN",
       "proof_kind": "FIXTURE_AUTHORITY",
       "claim": "A reusable source-backed executable clause fixture exists for the public boundary.",
-      "proved_at_head": null,
+      "proved_at_head": "1fe8ad16c9daf18ea330c05d8ed51afda1e58de4",
       "evidence_runs": [
         "A3.8F-R34",
-        "A3.8F-R35B"
+        "A3.8F-R35B",
+        "R051-CURRENT-PRODUCTION-STRUCTURAL-RPC-SMOKE"
       ],
-      "result": "Construction/wiring sources found, but no executable reusable fixture proven.",
-      "dependencies": [],
-      "invalidation": "N/A until proven.",
-      "notes": "R35B heuristic classification was intentionally not promoted to PROVEN.",
+      "result": "A read-only invocation of the current Production RPC on the previously captured canonical input produced one resolved predicate and clause; the full input/output, capture ID and function definition hashes are preserved in the R051 artifact.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+      ],
+      "invalidation": "STALE if the source artifact changes; the DB definition hashes and timestamp scope this Production observation.",
+      "notes": "This proves a source-backed fixture, not clause/phrase composition or activation.",
       "blocked_by": [],
-      "next_action": "Design a governed source-backed capture at the existing production request-to-canonical-surface boundary; preserve canonical identities and do not synthesize a clause fixture. Invoke the target RPC only after capture input provenance is proven.",
-      "search_gate": {
-        "goal": "Capture real production-compatible pre-RPC input at the existing request-to-canonical-surface boundary.",
-        "mode": "GOVERNED_CAPTURE_REQUIRED",
-        "prohibition": "Do not continue repository fixture search; do not synthesize canonical identities or clause structure."
-      },
-      "narrow_blocker": "SOURCE_BACKED_SURFACE_CAPTURE_MISSING"
+      "next_action": ""
     },
     {
       "proof_id": "CLAUSE_PRODUCER_EXECUTION",
-      "status": "UNVERIFIED",
+      "status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
       "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
-      "proved_at_head": null,
+      "proved_at_head": "1fe8ad16c9daf18ea330c05d8ed51afda1e58de4",
       "evidence_runs": [
         "A3.8F-R33",
         "A3.8F-R34",
-        "A3.8F-R35B"
+        "A3.8F-R35B",
+        "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-TEST"
       ],
-      "result": "No executable call-site fixture/test proven yet.",
+      "result": "The public v1.43 projection passed on the R051 Production RPC fixture: resolved clause span maps to canonical token IDs, subject and predicate nodes/edges retain identity, and source_rule evidence/provenance attaches to the predicate edge.",
       "dependencies": [
         "CLAUSE_PUBLIC_BOUNDARY_WIRING",
-        "CLAUSE_SOURCE_BACKED_FIXTURE"
+        "CLAUSE_SOURCE_BACKED_FIXTURE",
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+        "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts"
       ],
-      "invalidation": "N/A until proven.",
-      "notes": "Next concrete proof target.",
-      "blocked_by": [
-        "CLAUSE_SOURCE_BACKED_FIXTURE"
-      ],
-      "next_action": "After a source-backed typed fixture is proven, execute the clause producer through the public v1.43 boundary outside the repo."
+      "invalidation": "STALE if the adapter, test or source fixture changes after proved_at_head.",
+      "notes": "The test runs locally on a direct Production SQL output; deployed Edge v66 lacks the bounded dependency scheduler. This is not activation readiness.",
+      "blocked_by": [],
+      "next_action": ""
     },
     {
       "proof_id": "R049_RELEASE_INVENTORY",
@@ -436,6 +446,45 @@
       "dependencies": [],
       "invalidation": "Source definition is a user-transcribed Production snapshot; re-inspect after function changes. No runtime claim.",
       "notes": "Architectural scope only. No readiness or activation promotion. User-transcribed source definitions."
+    },
+    {
+      "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "The current subject_of_predicate manifest bindings resolve against the source-backed canonical clause, token and predicate/phrase occurrences with correct scopes and provenance.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT"
+      ],
+      "result": "Current manifest requires clause.type, clause.subject_token_index, clause.predicate_phrase_id and a phrase predicate. The proven SQL clause uses clause_type, subject_token_index and predicate_id; public projection creates a predicate node. Runtime compatibility is not yet proven.",
+      "dependencies": [
+        "CLAUSE_PRODUCER_EXECUTION",
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+        "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
+      ],
+      "invalidation": "N/A until an executable manifest/runtime compatibility proof passes.",
+      "notes": "Observed field/type differences are a compatibility question, not an activation grant.",
+      "blocked_by": [
+        "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
+      ],
+      "next_action": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve the phrase/predicate and clause field mapping explicitly; verify both create_dependency and add_trace action requirements."
+    },
+    {
+      "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
+      "status": "UNVERIFIED",
+      "proof_kind": "SOURCE_DEPLOYMENT_RECONCILIATION",
+      "claim": "The reviewed current source, deployed canonical Edge and Production SQL capture objects have a reproducible, documented lineage without losing later R048R behavior.",
+      "proved_at_head": null,
+      "evidence_runs": [
+        "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
+      ],
+      "result": "Production Edge v66 bundles R048R adapter evidence but lacks R048M capture and bounded scheduler entrypoint wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Current HEAD tracks R048P but not R048M capture source.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-current-source-lineage.json"
+      ],
+      "invalidation": "Recheck after any Edge deploy, SQL definition change, migration reconciliation or source patch.",
+      "notes": "Do not overwrite the later R048R adapter with the older branch snapshot; classify required source changes before deployment.",
+      "next_action": "Classify R048M capture as historical or required, reconcile the SQL migration ledger, and prepare a minimal tested source patch that preserves R048R and matches the intended deployed Edge route."
     }
   ]
 }
