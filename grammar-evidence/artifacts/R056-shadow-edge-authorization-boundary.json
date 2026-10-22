@@ -1,0 +1,20 @@
+{
+  "evidence_id": "R056-SHADOW-EDGE-AUTH-2026-10-22",
+  "observed_at_utc": "2026-10-22T14:56:18Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "function": "canonical-graph-shadow-v1",
+  "deployed_version": 67,
+  "deployed_bundle_sha256": "d4dfa4efe9207955089796870fd6fff7eef0a06b02eef0fbd1854943ad4673bd",
+  "verify_jwt": false,
+  "authorization": "The handler checks the exact Bearer service-role credential before parsing the request body or running the graph pipeline. The existing shared authorization helper is used.",
+  "verification": {
+    "deployed_entrypoint_matches_local_patch": true,
+    "deployed_helper_present": true,
+    "helper_exact_credential_test": "1 PASS, 0 FAIL",
+    "unauthenticated_post_status": 401,
+    "unauthenticated_post_body_read": false,
+    "authorized_runtime_smoke": "not run; no service key was retrieved or exposed"
+  },
+  "scope": "The direct shadow Edge endpoint requires the internal credential despite verify_jwt=false. This does not yet prove every server-side consumer keeps graph output out of the application.",
+  "rule_activation": "unchanged"
+}

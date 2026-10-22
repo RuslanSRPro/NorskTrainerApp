@@ -694,19 +694,31 @@
       "notes": "The old PUBLIC, anon and authenticated EXECUTE grants were revoked. This closes these direct SQL endpoints; whole-app graph output isolation and rule activation remain separate proofs."
     },
     {
+      "proof_id": "R056_SHADOW_EDGE_AUTH_BOUNDARY",
+      "status": "PROVEN",
+      "proof_kind": "DEPLOYED_SOURCE_AND_HTTP_PROBE",
+      "claim": "The deployed canonical graph shadow Edge endpoint rejects unauthenticated requests before executing or returning graph data.",
+      "proved_at_head": "61bab16",
+      "evidence_runs": ["R056-SHADOW-EDGE-AUTH-2026-10-22"],
+      "result": "Production Edge v67 bundle matches the local guarded entrypoint and includes the shared exact-service-credential helper. An unauthenticated POST returned HTTP 401; the helper test passed 1/1. No authorized runtime request was made.",
+      "dependencies": ["supabase/functions/canonical-graph-shadow-v1/index.ts", "supabase/functions/_shared/authoritative-morphology-v2/internal-authorization.ts", "grammar-evidence/artifacts/R056-shadow-edge-authorization-boundary.json"],
+      "invalidation": "Refresh after Edge redeployment, authorization helper change, gateway configuration change or credential policy change.",
+      "notes": "verify_jwt remains false; authorization is enforced in the handler. This is a direct endpoint proof, not an audit of all downstream consumers."
+    },
+    {
       "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
       "status": "UNVERIFIED",
       "proof_kind": "END_TO_END_EXPOSURE",
       "claim": "No app-facing path exposes Grammar Graph output before the complete rule set is activated and approved for integration.",
       "proved_at_head": null,
       "evidence_runs": ["R055-RULE-PLANE-ACL-2026-10-22"],
-      "result": "Static repository search found no app call site for the canonical shadow Edge function or structural SQL RPC. Direct SQL rule-plane calls are now restricted. The deployed shadow Edge endpoint still returns language_graph to its caller; caller authorization and all external consumers have not yet been audited.",
-      "dependencies": ["R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY"],
+      "result": "Static repository search found no app call site for the canonical shadow Edge function or structural SQL RPC. Direct SQL rule-plane calls are restricted; Production Edge v67 now rejects unauthenticated calls. The endpoint still returns language_graph to authorized callers, and all server-side consumers have not yet been audited.",
+      "dependencies": ["R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R056_SHADOW_EDGE_AUTH_BOUNDARY"],
       "blocked_by": [],
       "invalidation": "N/A until current Edge authorization and app traffic are verified.",
       "notes": "Do not infer whole-app isolation from absence of a static app import or SQL ACLs alone.",
       "queue_priority": -2,
-      "next_action": "Inspect current deployed canonical-graph-shadow-v1 request authorization, exposure and response consumers; keep shadow diagnostics operator-only or explicitly out of the app path."
+      "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis."
     },
     {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
