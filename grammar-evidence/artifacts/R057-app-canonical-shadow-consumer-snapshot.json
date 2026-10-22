@@ -1,0 +1,14 @@
+{
+  "evidence_id": "R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22",
+  "observed_at_utc": "2026-10-22T14:59:37Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "method": "current repository source search, deployed Edge bundle source search and last-24-hour function-edge log aggregation",
+  "deployed_app_path_bundles": [
+    {"slug": "analyze-text", "version": 172, "canonical_shadow_reference": false, "structural_rpc_reference": false, "rule_plane_reference": false},
+    {"slug": "grammar-analysis-orchestrator", "version": 75, "canonical_shadow_reference": false, "structural_rpc_reference": false, "rule_plane_reference": false},
+    {"slug": "language-graph-engine", "version": 64, "canonical_shadow_reference": false, "structural_rpc_reference": false, "rule_plane_reference": false}
+  ],
+  "repository_search": "No non-test, non-migration app source references to canonical-graph-shadow-v1, run_canonical_legacy_compatibility_v140 or rule_execution_plane_v1 outside the canonical shadow function itself.",
+  "recent_shadow_function_requests": {"window": "last 24 hours", "status_401_count": 1, "other_status_count": 0, "note": "The sole observed 401 is the unauthenticated R056 verification probe."},
+  "interpretation": "The inspected current app analysis bundles do not call the canonical shadow graph. The direct SQL plane and Edge endpoint are access restricted. This bounded snapshot cannot prove absence of every external or future authorized caller."
+}

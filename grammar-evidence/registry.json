@@ -706,18 +706,31 @@
       "notes": "verify_jwt remains false; authorization is enforced in the handler. This is a direct endpoint proof, not an audit of all downstream consumers."
     },
     {
+      "proof_id": "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT",
+      "status": "PROVEN",
+      "proof_kind": "DEPLOYED_SOURCE_AND_LOG_SNAPSHOT",
+      "claim": "The inspected current app analysis entrypoints do not call the canonical shadow graph or structural SQL RPC.",
+      "proved_at_head": "949181e",
+      "evidence_runs": ["R057-APP-CANONICAL-SHADOW-CONSUMERS-2026-10-22"],
+      "result": "Deployed analyze-text v172, grammar-analysis-orchestrator v75 and language-graph-engine v64 bundles contain no canonical shadow, structural RPC or rule plane reference. Repository non-test source search agrees. Last-24-hour canonical shadow request log has only the R056 unauthenticated 401 probe.",
+      "dependencies": ["grammar-evidence/artifacts/R057-app-canonical-shadow-consumer-snapshot.json", "R056_SHADOW_EDGE_AUTH_BOUNDARY"],
+      "invalidation": "Refresh after any inspected Edge redeployment, application call-site change or log-window expiry.",
+      "notes": "Bounded app-path snapshot only; it does not prove every external or future authorized caller is absent.",
+      "freshness_max_age_hours": 24
+    },
+    {
       "proof_id": "R055_APP_GRAPH_OUTPUT_ISOLATION",
       "status": "UNVERIFIED",
       "proof_kind": "END_TO_END_EXPOSURE",
       "claim": "No app-facing path exposes Grammar Graph output before the complete rule set is activated and approved for integration.",
       "proved_at_head": null,
       "evidence_runs": ["R055-RULE-PLANE-ACL-2026-10-22"],
-      "result": "Static repository search found no app call site for the canonical shadow Edge function or structural SQL RPC. Direct SQL rule-plane calls are restricted; Production Edge v67 now rejects unauthenticated calls. The endpoint still returns language_graph to authorized callers, and all server-side consumers have not yet been audited.",
-      "dependencies": ["R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R056_SHADOW_EDGE_AUTH_BOUNDARY"],
+      "result": "Direct SQL rule-plane calls are restricted; Production Edge v67 rejects unauthenticated calls; the three inspected deployed app analysis bundles have no canonical shadow or structural RPC reference, and recent traffic contains only the R056 401 probe. The endpoint still returns language_graph to authorized callers; an exhaustive inventory of external and future authorized consumers is not proven.",
+      "dependencies": ["R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R056_SHADOW_EDGE_AUTH_BOUNDARY", "R057_APP_CANONICAL_SHADOW_CONSUMER_SNAPSHOT"],
       "blocked_by": [],
       "invalidation": "N/A until current Edge authorization and app traffic are verified.",
       "notes": "Do not infer whole-app isolation from absence of a static app import or SQL ACLs alone.",
-      "queue_priority": -2,
+      "queue_priority": 10,
       "next_action": "Inspect current server-side callers and response consumers of canonical-graph-shadow-v1, including deployed code and recent traffic; verify no authorized path forwards language_graph into app analysis."
     },
     {
