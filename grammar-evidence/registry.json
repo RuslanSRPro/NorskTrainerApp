@@ -200,7 +200,7 @@
       "status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
       "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
-      "proved_at_head": "1fe8ad16c9daf18ea330c05d8ed51afda1e58de4",
+      "proved_at_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
       "evidence_runs": [
         "A3.8F-R33",
         "A3.8F-R34",
@@ -333,19 +333,23 @@
     },
     {
       "proof_id": "R049_DEPENDENCY_SQL_SMOKE",
-      "status": "INFERRED",
-      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
+      "status": "PROVEN",
+      "proof_kind": "PRODUCTION_SQL_AND_EXECUTABLE_TEST",
       "claim": "Production SQL smoke for subject_of_predicate reported dependency_count=1, canonical_v2_parity=true and trace_action_materialized=true.",
-      "proved_at_head": null,
+      "proved_at_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
       "evidence_runs": [
         "R049-A01–A12",
-        "R049-P09"
+        "R049-P09",
+        "R051-CURRENT-PRODUCTION-SQL-SUBJECT-EXECUTION"
       ],
-      "result": "R049-P09; one rule SQL smoke, not proof of bulk activation or full legacy compatibility.",
-      "dependencies": [],
-      "invalidation": "Requires direct evidence capture and fresh Production validation before PROVEN.",
-      "notes": "User-reported evidence, not independent direct proof. No activation authorized.",
-      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority."
+      "result": "Direct current Production RPC output for Katten sover has one executed subject_of_predicate dependency, canonical_v2_parity=true, actions_fully_supported=true and trace_action_materialized=true; the R051 test passed against the saved full output.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+        "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts"
+      ],
+      "invalidation": "STALE if the fixture or test changes; recheck Production when SQL definitions change.",
+      "notes": "This proves the SQL shadow execution and R048R evidence path for one sentence, not canonical scheduler activation or user-facing output.",
+      "next_action": ""
     },
     {
       "proof_id": "R049_ACTIVATION_GATE",

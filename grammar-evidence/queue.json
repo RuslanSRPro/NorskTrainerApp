@@ -46,15 +46,6 @@
       "search_gate": null
     },
     {
-      "proof_id": "R049_DEPENDENCY_SQL_SMOKE",
-      "declared_status": "INFERRED",
-      "effective_status": "INFERRED",
-      "blocked_by": [],
-      "ready_for_next_action": true,
-      "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
-    },
-    {
       "proof_id": "R049_EXECUTION_PLANE_CONTRACT",
       "declared_status": "INFERRED",
       "effective_status": "INFERRED",

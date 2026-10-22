@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "6d7c28ef9f0a5899221c1e50aa60cb1d8fa9862e",
+  "head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "6d7c28ef9f0a5899221c1e50aa60cb1d8fa9862e",
-  "source_head": "6d7c28ef9f0a5899221c1e50aa60cb1d8fa9862e",
+  "archive_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
+  "source_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 192,
-  "history_event_count": 71,
-  "strict_history_event_count": 24,
+  "history_event_count": 73,
+  "strict_history_event_count": 26,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -80,7 +80,9 @@
     "R051-CURRENT-PRODUCTION-STRUCTURAL-RPC-SMOKE",
     "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-TEST",
     "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT",
-    "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
+    "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION",
+    "R051-CURRENT-PRODUCTION-SQL-SUBJECT-EXECUTION",
+    "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-REVALIDATION"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -178,7 +180,10 @@
     "R049_COMPILER_PLAN_INVENTORY": [],
     "R049_EXECUTION_PLANE_CONTRACT": [],
     "R049_27_RULE_DIAGNOSTICS": [],
-    "R049_DEPENDENCY_SQL_SMOKE": [],
+    "R049_DEPENDENCY_SQL_SMOKE": [
+      "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+      "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts"
+    ],
     "R049_ACTIVATION_GATE": [],
     "R050-A31": [],
     "R050-A32": [],
@@ -215,7 +220,7 @@
     "R049_COMPILER_PLAN_INVENTORY": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
     "R049_EXECUTION_PLANE_CONTRACT": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
     "R049_27_RULE_DIAGNOSTICS": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-    "R049_DEPENDENCY_SQL_SMOKE": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
+    "R049_DEPENDENCY_SQL_SMOKE": "",
     "R049_ACTIVATION_GATE": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
     "R050-A31": "",
     "R050-A32": "",
@@ -2319,7 +2324,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts",
-      "sha256": "c18b282e984fd0aa91f443cd6f95458aedd883da9dc2be89daa00d82fd5fee78",
+      "sha256": "208969a9819f89d66d80d376a802ba7de00ee449dd5236548c05eb708b308416",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2553,7 +2558,7 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "proved_at_head": "1fe8ad16c9daf18ea330c05d8ed51afda1e58de4",
+      "proved_at_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
       "claim": "clausePatchFromLegacyV11 executes on a source-backed canonical fixture and preserves canonical span/identity/provenance.",
       "result": "The public v1.43 projection passed on the R051 Production RPC fixture: resolved clause span maps to canonical token IDs, subject and predicate nodes/edges retain identity, and source_rule evidence/provenance attaches to the predicate edge.",
       "evidence_runs": [
@@ -2693,20 +2698,24 @@
     },
     {
       "proof_id": "R049_DEPENDENCY_SQL_SMOKE",
-      "declared_status": "INFERRED",
-      "effective_status": "INFERRED",
-      "proof_kind": "REPORTED_PRODUCTION_OBSERVATION",
-      "proved_at_head": null,
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "PRODUCTION_SQL_AND_EXECUTABLE_TEST",
+      "proved_at_head": "7fee7b046bb5f51fbe3d50a0dc0bae7498305166",
       "claim": "Production SQL smoke for subject_of_predicate reported dependency_count=1, canonical_v2_parity=true and trace_action_materialized=true.",
-      "result": "R049-P09; one rule SQL smoke, not proof of bulk activation or full legacy compatibility.",
+      "result": "Direct current Production RPC output for Katten sover has one executed subject_of_predicate dependency, canonical_v2_parity=true, actions_fully_supported=true and trace_action_materialized=true; the R051 test passed against the saved full output.",
       "evidence_runs": [
         "R049-A01–A12",
-        "R049-P09"
+        "R049-P09",
+        "R051-CURRENT-PRODUCTION-SQL-SUBJECT-EXECUTION"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+        "supabase/functions/_shared/nlp/test-r051-production-structural-projection-v1.ts"
+      ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "User-reported evidence, not independent direct proof. No activation authorized."
+      "notes": "This proves the SQL shadow execution and R048R evidence path for one sentence, not canonical scheduler activation or user-facing output."
     },
     {
       "proof_id": "R049_ACTIVATION_GATE",
