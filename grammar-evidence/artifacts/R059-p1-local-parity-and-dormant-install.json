@@ -1,0 +1,38 @@
+{
+  "evidence_id": "R059-P1-LOCAL-PARITY-AND-DORMANT-INSTALL-2026-10-22",
+  "observed_at_utc": "2026-10-22T16:21:16Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_fixture": "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+  "rule_snapshot": "grammar-evidence/artifacts/R059-production-subject-rule-snapshot.json",
+  "generator": "grammar-evidence/tools/build-r059-local-p1.py",
+  "generated_sql_sha256": "36cf7ed28629479896d11bc39273a43de9511e4c79ac99febd7d7ebafd0777c0",
+  "migration_file": "supabase/migrations/20261022162000_grammar_sql_one_rule_pilot_admission.sql",
+  "local_postgres_version": "17.11",
+  "local_harness": "Minimal isolated schema with actual executor and scalar-action function text from migration 20260831145026, Production rule row snapshot, and saved R051 sentence/output",
+  "local_tests": {
+    "no_grant_denied": "PASS",
+    "wrong_grant_hash_denied": "PASS",
+    "jsonb_result_equals_r051_full_plane_subject_item": "PASS",
+    "duplicate_live_grants_denied": "PASS",
+    "tampered_release_membership_hash_denied": "PASS",
+    "revoked_grant_denied": "PASS",
+    "anon_authenticated_acl_denied": "PASS"
+  },
+  "production_install": {
+    "ledger_version": "20261022162000",
+    "ledger_name": "grammar_sql_one_rule_pilot_admission",
+    "grant_count": 0,
+    "revocation_count": 0,
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "service_role_execute": true,
+    "service_role_can_insert_grant": false,
+    "no_grant_call_denied": true
+  },
+  "limits": [
+    "The local database was a minimal harness, not a full clone of Production",
+    "The saved R051 sentence came from an RPC invocation that had already executed the full Rule Execution Plane",
+    "No live end-to-end path that executes only one rule has been proven",
+    "No grant, rule activation, app integration, or graph output exposure was added"
+  ]
+}

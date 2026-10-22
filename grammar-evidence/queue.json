@@ -1,12 +1,12 @@
 {
   "queue": [
     {
-      "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
+      "proof_id": "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Run the SQL draft and seven P1 cases on a disposable PostgreSQL copy with the saved R051 sentence and matching rule/release data; record exact outputs and hashes.",
+      "next_action": "Find or add a pre-rule-plane capture boundary for the unchanged v1.37 structural sentence, then prove a live service-only call that invokes R059 without running the full plane first.",
       "search_gate": null,
       "queue_priority": -2
     },
@@ -16,7 +16,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Use the existing one-rule SQL executor behind a bounded grant check on the unchanged structural release; prove P1 parity and fail-closed behavior on a disposable database copy, then verify graph result, rollback and monitoring without app integration.",
+      "next_action": "Prove a live pre-rule-plane structural input route, then define the one-rule grant, monitoring and rollback procedure while graph output remains isolated from the app.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -181,6 +181,26 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R059_PRODUCTION_DORMANT_ADMISSION",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
@@ -215,12 +235,12 @@
     }
   ],
   "next": {
-    "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
+    "proof_id": "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Run the SQL draft and seven P1 cases on a disposable PostgreSQL copy with the saved R051 sentence and matching rule/release data; record exact outputs and hashes.",
+    "next_action": "Find or add a pre-rule-plane capture boundary for the unchanged v1.37 structural sentence, then prove a live service-only call that invokes R059 without running the full plane first.",
     "search_gate": null,
     "queue_priority": -2
   }

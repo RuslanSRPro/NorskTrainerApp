@@ -1,0 +1,14 @@
+{
+  "evidence_id": "R061-RELEASE-CONTROL-WRITE-BOUNDARY-2026-10-22",
+  "observed_at_utc": "2026-10-22T16:21:16Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "migration_file": "supabase/migrations/20261022161426_20261022161220_restrict_grammar_release_control_writes.sql",
+  "production_ledger_version": "20261022161426",
+  "production_ledger_name": "20261022161220_restrict_grammar_release_control_writes",
+  "tables": ["grammar_runtime_releases", "grammar_runtime_release_rules", "grammar_rule_triggers", "grammar_rule_sources"],
+  "before": "RLS disabled; anon and authenticated had SELECT, INSERT, UPDATE and DELETE on all four tables",
+  "after": "RLS enabled with one read policy per table; anon and authenticated retain SELECT but have no INSERT, UPDATE or DELETE; service_role retains SELECT and INSERT",
+  "local_postgres_test": "PostgreSQL 17.11: migration verification DO passed, anon SELECT returned one row, anon INSERT failed with permission denied",
+  "production_test": "Read-only pg_class/pg_policy/has_table_privilege query confirmed all four postconditions after migration",
+  "scope": "Write integrity of these four release-control tables. Public read access remains; no claim about all Grammar Graph tables or full app isolation."
+}

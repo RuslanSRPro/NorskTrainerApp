@@ -759,18 +759,55 @@
     },
     {
       "proof_id": "R059_SQL_ONE_RULE_PILOT_P1",
-      "status": "UNVERIFIED",
+      "status": "PROVEN",
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "claim": "A single admitted subject_of_predicate execution on unchanged upstream input equals the corresponding full-release result and fails closed without a valid grant.",
-      "proved_at_head": null,
-      "evidence_runs": ["R059-SQL-ONE-RULE-PILOT-DESIGN-2026-10-22"],
-      "result": "An existing one-rule executor and v1.37 pilot-code metadata are proven. A local admission guard and append-only grant/revocation draft exists. No database-copy execution or parity proof has been run.",
-      "dependencies": ["grammar-evidence/patches/R059-sql-one-rule-pilot-draft.sql", "grammar-evidence/artifacts/R059-sql-one-rule-pilot-design.json", "CLAUSE_SOURCE_BACKED_FIXTURE", "R059_EXISTING_SQL_PILOT_PATH"],
+      "proved_at_head": "7c6daed",
+      "evidence_runs": ["R059-SQL-ONE-RULE-PILOT-DESIGN-2026-10-22", "R059-P1-LOCAL-PARITY-AND-DORMANT-INSTALL-2026-10-22"],
+      "result": "On a minimal local PostgreSQL 17.11 harness using the saved R051 sentence, Production rule snapshot, and actual SQL executor source, the admitted JSONB output matched the subject_of_predicate item in the saved full-release output. Seven tests passed: no grant, wrong hash, parity, duplicate grants, membership tamper, revocation and app-role ACL. This does not prove a live one-rule upstream path.",
+      "dependencies": ["grammar-evidence/artifacts/R059-p1-local-parity-and-dormant-install.json", "grammar-evidence/artifacts/R059-production-subject-rule-snapshot.json", "grammar-evidence/tools/build-r059-local-p1.py", "supabase/migrations/20261022162000_grammar_sql_one_rule_pilot_admission.sql", "CLAUSE_SOURCE_BACKED_FIXTURE", "R059_EXISTING_SQL_PILOT_PATH"],
       "blocked_by": [],
       "invalidation": "Recheck after changes to release membership, rule compiler hash or dependency executor.",
-      "notes": "Do not apply to Production before P1. The selector calls one rule executor; full-release execution is comparison only.",
+      "notes": "P1 is a scoped local parity proof, not a full Production-clone or live end-to-end one-rule execution proof. Production installation has zero grants."
+    },
+    {
+      "proof_id": "R059_PRODUCTION_DORMANT_ADMISSION",
+      "status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "claim": "The one-rule SQL admission boundary is installed in Production with no grants and no app-role access.",
+      "proved_at_head": "7c6daed",
+      "evidence_runs": ["R059-PRODUCTION-DORMANT-INSTALL-2026-10-22"],
+      "result": "Production ledger 20261022162000 contains the migration. Grant and revocation tables are empty, anon/auth cannot use the schema or function, service_role can execute but cannot insert a grant, and a no-grant call is rejected.",
+      "dependencies": ["grammar-evidence/artifacts/R059-p1-local-parity-and-dormant-install.json", "supabase/migrations/20261022162000_grammar_sql_one_rule_pilot_admission.sql"],
+      "invalidation": "Refresh after a grant, ACL change, schema change or deployed function change.",
+      "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
+    },
+    {
+      "proof_id": "R061_RELEASE_CONTROL_WRITE_BOUNDARY",
+      "status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "claim": "Anon and authenticated can no longer write the four Grammar release-control tables in Production, while service_role retains access.",
+      "proved_at_head": "7c6daed",
+      "evidence_runs": ["R061-RELEASE-CONTROL-WRITE-BOUNDARY-2026-10-22"],
+      "result": "Production migration ledger 20261022161426 is present. All four tables have RLS and one read policy; anon/auth retain SELECT but have no INSERT, UPDATE or DELETE; service_role retains SELECT and INSERT. Local PostgreSQL migration and role test passed.",
+      "dependencies": ["grammar-evidence/artifacts/R061-release-control-write-boundary.json", "supabase/migrations/20261022161426_20261022161220_restrict_grammar_release_control_writes.sql"],
+      "invalidation": "Refresh after table privileges, policies or release-control migration changes.",
+      "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
+    },
+    {
+      "proof_id": "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "A live request can build the v1.37 structural sentence and invoke only the admitted subject_of_predicate rule without first executing other Rule Execution Plane members.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "R059 local parity uses a saved R051 sentence. The current run_canonical_legacy_compatibility_v140 invokes the full Rule Execution Plane before returning that sentence, so no live pre-plane producer boundary has been proven.",
+      "dependencies": ["R058_SQL_RELEASE_WIDE_RULE_EXECUTION", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION"],
+      "blocked_by": [],
+      "invalidation": "N/A until a live pre-plane input path is proven.",
+      "notes": "Do not claim end-to-end one-rule execution from the local replay. Existing full-plane shadow execution is a separate fact.",
       "queue_priority": -2,
-      "next_action": "Run the SQL draft and seven P1 cases on a disposable PostgreSQL copy with the saved R051 sentence and matching rule/release data; record exact outputs and hashes."
+      "next_action": "Find or add a pre-rule-plane capture boundary for the unchanged v1.37 structural sentence, then prove a live service-only call that invokes R059 without running the full plane first."
     },
     {
       "proof_id": "R059_PILOT_AUDIT_ACL_SNAPSHOT",
@@ -791,13 +828,13 @@
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Existing one-rule SQL executor and v1.37 pilot-code metadata are proven. Pilot audit functions retain broad ACLs. The pilot grant, same-input parity, complete output isolation, rollback and monitoring remain unproven.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R055_APP_GRAPH_OUTPUT_ISOLATION", "R059_EXISTING_SQL_PILOT_PATH", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PILOT_AUDIT_ACL_SNAPSHOT"],
+      "result": "Real shadow execution and local same-input one-rule parity are proven. The R059 admission boundary is installed in Production with zero grants. R061 closed anon/auth writes to four release-control tables. A live pre-plane one-rule route, complete app-output isolation, controlled grant, monitoring and rollback rehearsal remain unproven.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R055_APP_GRAPH_OUTPUT_ISOLATION", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE"],
       "blocked_by": [],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Use the existing one-rule SQL executor behind a bounded grant check on the unchanged structural release; prove P1 parity and fail-closed behavior on a disposable database copy, then verify graph result, rollback and monitoring without app integration."
+      "next_action": "Prove a live pre-rule-plane structural input route, then define the one-rule grant, monitoring and rollback procedure while graph output remains isolated from the app."
     }
   ]
 }

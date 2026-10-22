@@ -1,0 +1,105 @@
+{
+  "release_id": "676e3247-8553-4dc8-80fb-c0a33e2340e5",
+  "release_code": "runtime-structural-v1.37",
+  "status": "shadow",
+  "metadata": {
+    "pilot_rule_codes": [
+      "nrg_rt_v1.preposition.complementless_category.candidate_constraint",
+      "nrg_rt_v1.structural.noun_phrase.noun_head",
+      "nrg_rt_v1.structural.dependency.subject_of_predicate"
+    ]
+  },
+  "rule_id": "1786f164-c711-4abf-8a29-6c4dcd389142",
+  "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+  "pattern_type": "dependency_pattern",
+  "pattern": {
+    "bindings": {
+      "clause": {
+        "scope": "sentence",
+        "where": {
+          "op": "eq",
+          "left": {
+            "ref": "clause.type"
+          },
+          "right": "finite"
+        },
+        "entity": "clause",
+        "cardinality": "one_or_more"
+      },
+      "subject": {
+        "scope": "clause",
+        "where": {
+          "op": "exists",
+          "left": {
+            "ref": "clause.subject_token_index"
+          }
+        },
+        "entity": "token",
+        "cardinality": "one"
+      },
+      "predicate": {
+        "scope": "clause",
+        "where": {
+          "op": "exists",
+          "left": {
+            "ref": "clause.predicate_phrase_id"
+          }
+        },
+        "entity": "phrase",
+        "cardinality": "one"
+      }
+    },
+    "relation": "subject_of",
+    "condition": {
+      "all": [
+        {
+          "op": "exists",
+          "left": {
+            "ref": "clause.id"
+          }
+        },
+        {
+          "op": "exists",
+          "left": {
+            "ref": "clause.subject_token_index"
+          }
+        },
+        {
+          "op": "exists",
+          "left": {
+            "ref": "clause.predicate_phrase_id"
+          }
+        }
+      ]
+    },
+    "source_ref": "subject",
+    "target_ref": "predicate",
+    "manifest_code": "ir.structural.dependency.subject_of_predicate",
+    "runtime_ir_version": "1.0",
+    "dependency_operation": "create_relation"
+  },
+  "actions": [
+    {
+      "value": {
+        "source_ref": "subject",
+        "target_ref": "predicate"
+      },
+      "action": "create_dependency",
+      "target": "predicate",
+      "relation": "subject_of",
+      "reason_code": "nrg_subject_of_finite_predicate"
+    },
+    {
+      "value": {
+        "explanation_key": "subject_is_linked_to_finite_predicate"
+      },
+      "action": "add_trace",
+      "target": "clause",
+      "reason_code": "nrg_subject_definition"
+    }
+  ],
+  "compiler_version": "grammar-runtime-compiler-structural-v1.1",
+  "compile_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e",
+  "compiled_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e",
+  "is_enabled": true
+}
