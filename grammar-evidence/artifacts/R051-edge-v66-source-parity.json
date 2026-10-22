@@ -6,8 +6,40 @@
   "deployed_version": 66,
   "deployed_ezbr_sha256": "fdb110220b28e19ea5934d8419fa60d22ed5e5f536e41eb312e26bbfdfd597ca",
   "source_revision": "80bbf8d",
+  "all_bundled_files_match": true,
+  "bundled_file_count": 10,
   "comparison": "Exact text equality after CRLF-to-LF conversion and trailing newline removal; SHA-256 over normalized UTF-8 text",
   "files": [
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "93676ea1a1a6291955f679c957dc64fd657f83a127bed15479c3d90994496c5c"
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "2fab01df197ded2861249441b9cf6be50f55a3d9b377914edef40c2606131a28"
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "075b8a91e8278b2e3dd0a73f71c3f0db40e4b10b5dcb427003adc648be1e530a"
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "d577ae8141fd703fb35a3d3818fa18cc0dc9012dada167309e79dedd4de04d70"
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "f3feb942fb8d4c3d98219af6fc27a67ab0c923ce248b7cb32b84d0e15001f937"
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "64a4bf6de8c2866c8d44b894a0d0451c0eafbf015ff786c46df8a68dcb974e85"
+    },
     {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
       "deployed_equals_source": true,
@@ -17,7 +49,17 @@
       "path": "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
       "deployed_equals_source": true,
       "normalized_sha256": "909a1f6d0479e8ef2cdd4119ef3cb9e553143b8a0986ca91e0325b33ec83416c"
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "deployed_equals_source": true,
+      "normalized_sha256": "23c9e7c82331e9dce633a0d8e825ff55bb935801f23aac71964efc4611459de3"
+    },
+    {
+      "path": "supabase/functions/import_map.json",
+      "deployed_equals_source": true,
+      "normalized_sha256": "55f187f6834dd015b53884b2a10c481f82adb0ea3aa05aa88ac1b8e7e31b9c2b"
     }
   ],
-  "scope_limit": "This compares two bundled files only. It does not prove every bundled dependency, SQL migration lineage, action admission or user-facing activation."
+  "scope_limit": "This compares all ten files returned in the Edge v66 bundle. It does not prove SQL migration lineage, action admission or user-facing activation."
 }
