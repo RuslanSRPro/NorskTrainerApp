@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
+  "head": "cdf41b760a1cbad56d89b0504fa712f09e81c450",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
-  "source_head": "8da3691f46c310e5d7726b4b5e0e6e9fcbb33e33",
+  "archive_head": "cdf41b760a1cbad56d89b0504fa712f09e81c450",
+  "source_head": "cdf41b760a1cbad56d89b0504fa712f09e81c450",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 81,
-  "strict_history_event_count": 34,
+  "history_event_count": 82,
+  "strict_history_event_count": 35,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -90,7 +90,8 @@
     "R051-SUBJECT-TOKEN-VIEW-DISCOVERY",
     "R051-SUBJECT-MANIFEST-BOUNDARY-TEST",
     "R051-SUBJECT-MANIFEST-COMPATIBILITY-REVIEW",
-    "R051-SUBJECT-EDGE-COEXISTENCE-TEST"
+    "R051-SUBJECT-EDGE-COEXISTENCE-TEST",
+    "R051-FIRST-RULE-PHRASE-DEPENDENCY-REVIEW"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -117,7 +118,6 @@
     "D4_COMPLETE_PRECONDITION_FIXTURE": [],
     "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": [],
     "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [
-      "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
       "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
       "R051_SOURCE_DEPLOYMENT_LINEAGE"
     ],
@@ -143,9 +143,7 @@
     "R050-A34": [],
     "R050-A35": [],
     "R050-DECISION-01": [],
-    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": [
-      "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
-    ],
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": [],
     "R051_SOURCE_DEPLOYMENT_LINEAGE": [],
     "R051_R048M_IMPORT_CLOSURE": [],
     "R051_EDGE_V66_SOURCE_PARITY": [],
@@ -164,7 +162,6 @@
     "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY": [],
     "SUBJECT_OF_PREDICATE_ACTIVATION_READY": [
       "CLAUSE_PRODUCER_EXECUTION",
-      "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
       "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
       "R051_SOURCE_DEPLOYMENT_LINEAGE"
     ],
@@ -207,7 +204,6 @@
     "R050-DECISION-01": [],
     "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": [
       "CLAUSE_PRODUCER_EXECUTION",
-      "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
       "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
     ],
     "R051_SOURCE_DEPLOYMENT_LINEAGE": [
@@ -281,7 +277,7 @@
     "R050-A34": "",
     "R050-A35": "",
     "R050-DECISION-01": "",
-    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run the actual R048M binding evaluator on the source-backed graph with a reviewed manifest mapping. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify create_dependency and add_trace.",
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace.",
     "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
     "R051_R048M_IMPORT_CLOSURE": "",
     "R051_EDGE_V66_SOURCE_PARITY": "",
@@ -2515,12 +2511,10 @@
       ],
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
         "R051_SOURCE_DEPLOYMENT_LINEAGE"
       ],
       "blocked_by": [
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
         "R051_SOURCE_DEPLOYMENT_LINEAGE"
       ],
@@ -2595,7 +2589,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Neutral span predicate proof does not promote this claim. The R051 SQL clause fixture and public projection are now proven separately."
+      "notes": "Independent phrase route proof. It is required for first-rule activation only if the chosen manifest contract continues to target a phrase; the predicate-occurrence route does not depend on it."
     },
     {
       "proof_id": "CLAUSE_PUBLIC_BOUNDARY_WIRING",
@@ -2925,12 +2919,9 @@
       ],
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
       ],
-      "blocked_by": [
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
-      ],
+      "blocked_by": [],
       "stale_reasons": [],
       "notes": "The V32 phrase exists in raw SQL; absence is at the resolved canonical projection boundary. Do not silently alias V32 vp:2, phrase_build_v1 and predicate occurrence identities."
     },

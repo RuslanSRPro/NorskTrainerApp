@@ -59,5 +59,6 @@ V1.2 adds dependency-aware proof selection.
 - `next_action` records the next executable or discovery action.
 - `search_gate` defines a narrow search contract with goal, success condition and fail-closed condition.
 - `tools/build-proof-queue.py` writes `queue.json` and selects the next unblocked claim.
+- Optional numeric `queue_priority` orders eligible work (lower first); it changes work order, never proof status or dependencies.
 - Search/discovery may refine blockers and history, but never promotes a claim to `PROVEN`.
 - A failed search records the exact missing contract and leaves the claim unresolved.

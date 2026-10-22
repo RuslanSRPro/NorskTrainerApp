@@ -84,14 +84,12 @@
       "result": "The R051 SQL producer and public clause projection are proven on one sentence. Source contracts support subject token to predicate occurrence as the primary subject_of relation. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
         "R051_SOURCE_DEPLOYMENT_LINEAGE"
       ],
       "invalidation": "N/A until proven.",
       "notes": "Do not activate. A token-level finite/head view is a separate derived capability; it must not create a second authoritative subject_of fact.",
       "blocked_by": [
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
         "R051_SOURCE_DEPLOYMENT_LINEAGE"
       ],
@@ -144,6 +142,7 @@
     {
       "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
       "status": "UNVERIFIED",
+      "queue_priority": 200,
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "claim": "Real clause and phrase producers execute over one source-backed compatible fixture and yield containment-compatible canonical occurrences.",
       "proved_at_head": null,
@@ -157,7 +156,7 @@
         "CLAUSE_PRODUCER_EXECUTION"
       ],
       "invalidation": "N/A until proven.",
-      "notes": "Neutral span predicate proof does not promote this claim. The R051 SQL clause fixture and public projection are now proven separately.",
+      "notes": "Independent phrase route proof. It is required for first-rule activation only if the chosen manifest contract continues to target a phrase; the predicate-occurrence route does not depend on it.",
       "next_action": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding."
     },
     {
@@ -454,6 +453,7 @@
     {
       "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
       "status": "UNVERIFIED",
+      "queue_priority": 0,
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "claim": "The current subject_of_predicate manifest bindings resolve against the source-backed canonical clause, token and predicate/phrase occurrences with correct scopes and provenance.",
       "proved_at_head": null,
@@ -464,15 +464,12 @@
       "result": "Executable R051 boundary test confirms the V32 legacy clause has type=finite and predicate_phrase_id=vp:2, while resolved clause_build_v1 has clause_type and predicate_id, and public v1.43 projection creates a predicate node without projecting that V32 phrase. The current manifest asks for the V32-style fields and a phrase endpoint; R048M D7.14 requires token endpoints. Actual binding evaluator compatibility remains unproven.",
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
       ],
       "invalidation": "N/A until an executable manifest/runtime compatibility proof passes.",
       "notes": "The V32 phrase exists in raw SQL; absence is at the resolved canonical projection boundary. Do not silently alias V32 vp:2, phrase_build_v1 and predicate occurrence identities.",
-      "blocked_by": [
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
-      ],
-      "next_action": "Run the actual R048M binding evaluator on the source-backed graph with a reviewed manifest mapping. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify create_dependency and add_trace."
+      "blocked_by": [],
+      "next_action": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace."
     },
     {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",

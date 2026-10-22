@@ -1,13 +1,14 @@
 {
   "queue": [
     {
-      "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+      "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding.",
-      "search_gate": null
+      "next_action": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace.",
+      "search_gate": null,
+      "queue_priority": 0
     },
     {
       "proof_id": "PRODUCTION_ACTIVATION_AUTHORITY_EMPTY",
@@ -16,7 +17,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_27_RULE_DIAGNOSTICS",
@@ -25,7 +27,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_ACTIVATION_GATE",
@@ -34,7 +37,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_COMPILER_PLAN_INVENTORY",
@@ -43,7 +47,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_EXECUTION_PLANE_CONTRACT",
@@ -52,7 +57,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_KNOWLEDGE_ELIGIBILITY",
@@ -61,7 +67,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_RELEASE_INVENTORY",
@@ -70,7 +77,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_RULE_COMPILE_STATE",
@@ -79,7 +87,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R049_SHADOW_RELEASE_RULES",
@@ -88,7 +97,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Capture raw SQL result and verify the exact claim, then assess activation authority.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R050-DECISION-01",
@@ -97,7 +107,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
@@ -106,7 +117,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "R051_SUBJECT_TOKEN_VIEW_DERIVATION",
@@ -115,7 +127,8 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
@@ -124,40 +137,41 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
-      "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+      "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
-      "blocked_by": [
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
-      ],
-      "ready_for_next_action": false,
-      "next_action": "Run the actual R048M binding evaluator on the source-backed graph with a reviewed manifest mapping. Resolve phrase/predicate, clause fields and D7.14 token-only endpoints explicitly; verify create_dependency and add_trace.",
-      "search_gate": null
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding.",
+      "search_gate": null,
+      "queue_priority": 200
     },
     {
       "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "blocked_by": [
-        "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
         "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
         "R051_SOURCE_DEPLOYMENT_LINEAGE"
       ],
       "ready_for_next_action": false,
       "next_action": "After blockers pass, prove one create_dependency admission, patch, graph transition and reevaluation with exact endpoints; decide the required add_trace behavior.",
-      "search_gate": null
+      "search_gate": null,
+      "queue_priority": 100
     }
   ],
   "next": {
-    "proof_id": "CLAUSE_PHRASE_COMPOSITION_EXECUTION",
+    "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "On the R051 source-backed fixture, distinguish the V32 vp:2 phrase from phrase_build_v1 and native canonical phrase candidates; prove an exact resolved phrase occurrence and containment before using it for the manifest predicate binding.",
-    "search_gate": null
+    "next_action": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace.",
+    "search_gate": null,
+    "queue_priority": 0
   }
 }
