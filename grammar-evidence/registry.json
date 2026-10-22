@@ -81,7 +81,7 @@
         "A3.8F-R27",
         "A3.8F-R28"
       ],
-      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Source contracts support subject token to predicate occurrence as the primary subject_of relation. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
+      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Historical R048M S0 returns ready with zero seeds for the exact current manifest, so no scheduler candidate reaches admission. Structural seed coverage, manifest endpoint compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
         "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
@@ -459,9 +459,10 @@
       "proved_at_head": null,
       "evidence_runs": [
         "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT",
-        "R051-SUBJECT-MANIFEST-BOUNDARY-TEST"
+        "R051-SUBJECT-MANIFEST-BOUNDARY-TEST",
+        "R052-R048M-SUBJECT-S0-SEED-PROBE"
       ],
-      "result": "Executable R051 boundary test confirms the V32 legacy clause has type=finite and predicate_phrase_id=vp:2, while resolved clause_build_v1 has clause_type and predicate_id, and public v1.43 projection creates a predicate node without projecting that V32 phrase. The current manifest asks for the V32-style fields and a phrase endpoint; R048M D7.14 requires token endpoints. Actual binding evaluator compatibility remains unproven.",
+      "result": "R051 boundary test confirms V32 phrase fields diverge from resolved clause/predicate projection. The exact current Production manifest passes R048M dependency authority (1), binding definitions (3) and where shapes (3), but historical S0 returns ready with zero seeds and zero expected authorities. The structural where conditions are outside the token-POS expected-label seed path. No candidate reaches the scheduler; endpoint and action compatibility remain unproven.",
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
         "grammar-evidence/artifacts/R051-current-subject-manifest-snapshot.json"
@@ -469,7 +470,7 @@
       "invalidation": "N/A until an executable manifest/runtime compatibility proof passes.",
       "notes": "The V32 phrase exists in raw SQL; absence is at the resolved canonical projection boundary. Do not silently alias V32 vp:2, phrase_build_v1 and predicate occurrence identities.",
       "blocked_by": [],
-      "next_action": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace."
+      "next_action": "First design a source-backed S0 seed path for clause/predicate structural conditions; do not add a fake token.pos condition. Then choose predicate-occurrence mapping or prove a phrase bridge, and execute binding, D7.14 endpoint, create_dependency and add_trace checks."
     },
     {
       "proof_id": "R051_SOURCE_DEPLOYMENT_LINEAGE",
@@ -597,6 +598,23 @@
       ],
       "invalidation": "STALE if the graph patch primitive or test changes; rerun against the selected scheduler patch after integration.",
       "notes": "Do not add a global semantic deduper without defining relation ownership and evidence merge semantics."
+    },
+    {
+      "proof_id": "R052_SUBJECT_R048M_S0_SEED_ABSENT",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "The exact current subject_of_predicate Production manifest yields no S0 seed in historical R048M on the saved R051 source-backed case.",
+      "proved_at_head": "a08b0b52e8551e5427e3f48d83d492cba0f330b1",
+      "evidence_runs": ["R052-R048M-SUBJECT-S0-SEED-PROBE"],
+      "result": "Isolated R048M 7d964a3: dependency authority ready with 1 action, binding definitions ready with 3, where shapes ready with 3; S0 composer ready with 0 seeds and 0 expected authorities. No activation authority, scheduler or graph transition was invoked.",
+      "dependencies": [
+        "grammar-evidence/tools/probe-r048m-subject-seed.ts",
+        "grammar-evidence/artifacts/R052-current-subject-manifest-full-row.json",
+        "grammar-evidence/artifacts/R052-r048m-subject-seed-probe.json",
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+      ],
+      "invalidation": "Rerun after manifest changes, S0 seed composer changes or graph source changes; historical R048M source SHA is fixed in the artifact.",
+      "notes": "Ready with zero seeds is not execution. The historical S0 path specializes in token POS expected-label equality; do not infer a structural seed by relabeling the manifest."
     }
   ]
 }

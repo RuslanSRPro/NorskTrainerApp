@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "cdf41b760a1cbad56d89b0504fa712f09e81c450",
+  "head": "a08b0b52e8551e5427e3f48d83d492cba0f330b1",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "cdf41b760a1cbad56d89b0504fa712f09e81c450",
-  "source_head": "cdf41b760a1cbad56d89b0504fa712f09e81c450",
+  "archive_head": "a08b0b52e8551e5427e3f48d83d492cba0f330b1",
+  "source_head": "a08b0b52e8551e5427e3f48d83d492cba0f330b1",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 82,
-  "strict_history_event_count": 35,
+  "history_event_count": 84,
+  "strict_history_event_count": 37,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -91,7 +91,9 @@
     "R051-SUBJECT-MANIFEST-BOUNDARY-TEST",
     "R051-SUBJECT-MANIFEST-COMPATIBILITY-REVIEW",
     "R051-SUBJECT-EDGE-COEXISTENCE-TEST",
-    "R051-FIRST-RULE-PHRASE-DEPENDENCY-REVIEW"
+    "R051-FIRST-RULE-PHRASE-DEPENDENCY-REVIEW",
+    "R052-R048M-SUBJECT-S0-SEED-PROBE",
+    "R052-SUBJECT-MANIFEST-RUNTIME-COMPATIBILITY-REVIEW"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -150,7 +152,8 @@
     "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT": [],
     "R051_SUBJECT_TOKEN_VIEW_DERIVATION": [],
     "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH": [],
-    "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": []
+    "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": [],
+    "R052_SUBJECT_R048M_S0_SEED_ABSENT": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -247,6 +250,12 @@
     "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": [
       "supabase/functions/_shared/nlp/test-r051-subject-edge-coexistence-v1.ts",
       "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts"
+    ],
+    "R052_SUBJECT_R048M_S0_SEED_ABSENT": [
+      "grammar-evidence/tools/probe-r048m-subject-seed.ts",
+      "grammar-evidence/artifacts/R052-current-subject-manifest-full-row.json",
+      "grammar-evidence/artifacts/R052-r048m-subject-seed-probe.json",
+      "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
     ]
   },
   "proof_next_actions": {
@@ -277,14 +286,15 @@
     "R050-A34": "",
     "R050-A35": "",
     "R050-DECISION-01": "",
-    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace.",
+    "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "First design a source-backed S0 seed path for clause/predicate structural conditions; do not add a fake token.pos condition. Then choose predicate-occurrence mapping or prove a phrase bridge, and execute binding, D7.14 endpoint, create_dependency and add_trace checks.",
     "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
     "R051_R048M_IMPORT_CLOSURE": "",
     "R051_EDGE_V66_SOURCE_PARITY": "",
     "R051_SUBJECT_PREDICATE_PRIMARY_CONTRACT": "",
     "R051_SUBJECT_TOKEN_VIEW_DERIVATION": "On source-backed modal, auxiliary and copular fixtures, derive the finite/head token from the predicate with explicit reason and provenance; reject ambiguous or missing members and assert no new subject_of edge.",
     "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH": "",
-    "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": ""
+    "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": "",
+    "R052_SUBJECT_R048M_S0_SEED_ABSENT": ""
   },
   "files": [
     {
@@ -2504,7 +2514,7 @@
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "ir.structural.dependency.subject_of_predicate is activation-ready through the full runtime chain.",
-      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Source contracts support subject token to predicate occurrence as the primary subject_of relation. Manifest phrase/predicate compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
+      "result": "The R051 SQL producer and public clause projection are proven on one sentence. Historical R048M S0 returns ready with zero seeds for the exact current manifest, so no scheduler candidate reaches admission. Structural seed coverage, manifest endpoint compatibility, bounded action execution, deployed source lineage and add_trace remain unproven.",
       "evidence_runs": [
         "A3.8F-R27",
         "A3.8F-R28"
@@ -2912,10 +2922,11 @@
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "proved_at_head": null,
       "claim": "The current subject_of_predicate manifest bindings resolve against the source-backed canonical clause, token and predicate/phrase occurrences with correct scopes and provenance.",
-      "result": "Executable R051 boundary test confirms the V32 legacy clause has type=finite and predicate_phrase_id=vp:2, while resolved clause_build_v1 has clause_type and predicate_id, and public v1.43 projection creates a predicate node without projecting that V32 phrase. The current manifest asks for the V32-style fields and a phrase endpoint; R048M D7.14 requires token endpoints. Actual binding evaluator compatibility remains unproven.",
+      "result": "R051 boundary test confirms V32 phrase fields diverge from resolved clause/predicate projection. The exact current Production manifest passes R048M dependency authority (1), binding definitions (3) and where shapes (3), but historical S0 returns ready with zero seeds and zero expected authorities. The structural where conditions are outside the token-POS expected-label seed path. No candidate reaches the scheduler; endpoint and action compatibility remain unproven.",
       "evidence_runs": [
         "R051-CURRENT-SUBJECT-MANIFEST-SNAPSHOT",
-        "R051-SUBJECT-MANIFEST-BOUNDARY-TEST"
+        "R051-SUBJECT-MANIFEST-BOUNDARY-TEST",
+        "R052-R048M-SUBJECT-S0-SEED-PROBE"
       ],
       "dependencies": [
         "CLAUSE_PRODUCER_EXECUTION",
@@ -3072,6 +3083,27 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Do not add a global semantic deduper without defining relation ownership and evidence merge semantics."
+    },
+    {
+      "proof_id": "R052_SUBJECT_R048M_S0_SEED_ABSENT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "a08b0b52e8551e5427e3f48d83d492cba0f330b1",
+      "claim": "The exact current subject_of_predicate Production manifest yields no S0 seed in historical R048M on the saved R051 source-backed case.",
+      "result": "Isolated R048M 7d964a3: dependency authority ready with 1 action, binding definitions ready with 3, where shapes ready with 3; S0 composer ready with 0 seeds and 0 expected authorities. No activation authority, scheduler or graph transition was invoked.",
+      "evidence_runs": [
+        "R052-R048M-SUBJECT-S0-SEED-PROBE"
+      ],
+      "dependencies": [
+        "grammar-evidence/tools/probe-r048m-subject-seed.ts",
+        "grammar-evidence/artifacts/R052-current-subject-manifest-full-row.json",
+        "grammar-evidence/artifacts/R052-r048m-subject-seed-probe.json",
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Ready with zero seeds is not execution. The historical S0 path specializes in token POS expected-label equality; do not infer a structural seed by relabeling the manifest."
     }
   ],
   "policy": {

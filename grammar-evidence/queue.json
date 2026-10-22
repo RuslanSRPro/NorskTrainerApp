@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace.",
+      "next_action": "First design a source-backed S0 seed path for clause/predicate structural conditions; do not add a fake token.pos condition. Then choose predicate-occurrence mapping or prove a phrase bridge, and execute binding, D7.14 endpoint, create_dependency and add_trace checks.",
       "search_gate": null,
       "queue_priority": 0
     },
@@ -170,7 +170,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Choose a reviewed manifest mapping to the proven predicate occurrence or prove a resolved phrase bridge. Then run the actual R048M binding evaluator on the source-backed graph and resolve clause fields, D7.14 token-only endpoints, create_dependency and add_trace.",
+    "next_action": "First design a source-backed S0 seed path for clause/predicate structural conditions; do not add a fake token.pos condition. Then choose predicate-occurrence mapping or prove a phrase bridge, and execute binding, D7.14 endpoint, create_dependency and add_trace checks.",
     "search_gate": null,
     "queue_priority": 0
   }
