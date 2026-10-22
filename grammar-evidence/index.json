@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
+  "head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
-  "source_head": "1e070983e9eedd9ba563e74999bec648d646ea2c",
+  "archive_head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
+  "source_head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 192,
-  "history_event_count": 74,
-  "strict_history_event_count": 27,
+  "history_event_count": 75,
+  "strict_history_event_count": 28,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -83,7 +83,8 @@
     "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION",
     "R051-CURRENT-PRODUCTION-SQL-SUBJECT-EXECUTION",
     "R051-CURRENT-PRODUCTION-STRUCTURAL-PROJECTION-REVALIDATION",
-    "R051-R048M-STATIC-IMPORT-AUDIT"
+    "R051-R048M-STATIC-IMPORT-AUDIT",
+    "R051-EDGE-V66-SOURCE-PARITY"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -140,7 +141,8 @@
       "CLAUSE_PHRASE_COMPOSITION_EXECUTION"
     ],
     "R051_SOURCE_DEPLOYMENT_LINEAGE": [],
-    "R051_R048M_IMPORT_CLOSURE": []
+    "R051_R048M_IMPORT_CLOSURE": [],
+    "R051_EDGE_V66_SOURCE_PARITY": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -200,11 +202,17 @@
     ],
     "R051_SOURCE_DEPLOYMENT_LINEAGE": [
       "grammar-evidence/artifacts/R051-current-source-lineage.json",
-      "R051_R048M_IMPORT_CLOSURE"
+      "R051_R048M_IMPORT_CLOSURE",
+      "R051_EDGE_V66_SOURCE_PARITY"
     ],
     "R051_R048M_IMPORT_CLOSURE": [
       "grammar-evidence/tools/audit-r048m-imports.py",
       "grammar-evidence/artifacts/R051-r048m-static-import-audit.json"
+    ],
+    "R051_EDGE_V66_SOURCE_PARITY": [
+      "grammar-evidence/artifacts/R051-edge-v66-source-parity.json",
+      "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts"
     ]
   },
   "proof_next_actions": {
@@ -237,7 +245,8 @@
     "R050-DECISION-01": "",
     "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY": "Run an executable compatibility test with the R051 fixture and current manifest. Resolve the phrase/predicate and clause field mapping explicitly; verify both create_dependency and add_trace action requirements.",
     "R051_SOURCE_DEPLOYMENT_LINEAGE": "Classify the 41 absent static modules by capture versus dependency runtime and by actual need for the first rule. Reconcile SQL migration ledger and deployed Edge source without overwriting R048R.",
-    "R051_R048M_IMPORT_CLOSURE": ""
+    "R051_R048M_IMPORT_CLOSURE": "",
+    "R051_EDGE_V66_SOURCE_PARITY": ""
   },
   "files": [
     {
@@ -2867,13 +2876,14 @@
       "proof_kind": "SOURCE_DEPLOYMENT_RECONCILIATION",
       "proved_at_head": null,
       "claim": "The reviewed current source, deployed canonical Edge and Production SQL capture objects have a reproducible, documented lineage without losing later R048R behavior.",
-      "result": "Production Edge v66 bundles R048R adapter evidence but lacks R048M capture and bounded scheduler entrypoint wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Current HEAD tracks R048P but not R048M capture source. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
+      "result": "Production Edge v66 entrypoint and bundled R048R adapter match the current source text exactly after line-ending normalization. That deployed entrypoint lacks R048M capture and bounded scheduler wiring. SQL R048M writer and one capture exist, while 20261018 migration ledger rows are absent. Static import audit identifies 41 absent transitive modules; necessity is not inferred from absence.",
       "evidence_runs": [
         "R051-CURRENT-SOURCE-LINEAGE-OBSERVATION"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R051-current-source-lineage.json",
-        "R051_R048M_IMPORT_CLOSURE"
+        "R051_R048M_IMPORT_CLOSURE",
+        "R051_EDGE_V66_SOURCE_PARITY"
       ],
       "blocked_by": [],
       "stale_reasons": [],
@@ -2897,6 +2907,26 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Absent modules are not automatically required or safe to transplant. The deployed Edge v66 does not contain the R048M scheduler entrypoint."
+    },
+    {
+      "proof_id": "R051_EDGE_V66_SOURCE_PARITY",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DEPLOYED_SOURCE_COMPARISON",
+      "proved_at_head": "8f67727bdb4a035e0b13335158d2ee7f605e9404",
+      "claim": "The current tracked canonical-graph-shadow-v1 entrypoint and legacy adapter match their bundled files in deployed Edge version 66.",
+      "result": "Exact text equality for both files after CRLF-to-LF normalization and trailing newline removal; per-file normalized SHA-256 values and deployed version/package hash preserved.",
+      "evidence_runs": [
+        "R051-EDGE-V66-SOURCE-PARITY"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-edge-v66-source-parity.json",
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Two-file parity only; not all bundled dependencies, SQL lineage or activation."
     }
   ],
   "policy": {
