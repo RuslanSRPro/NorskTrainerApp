@@ -642,19 +642,32 @@
       "freshness_max_age_hours": 24
     },
     {
+      "proof_id": "R053_SUBJECT_SQL_READINESS_GATES",
+      "status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "claim": "The current SQL release integrity gate passes and both source candidates associated with subject_of_predicate report activation_ready.",
+      "proved_at_head": "262389f",
+      "evidence_runs": ["R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22"],
+      "result": "universal_activation_gate_v1 for runtime-structural-v1.37: gate_pass=true, missing sources=0, invalid patterns=0, globally active NRG rules=0. Two linked candidates return readiness_state=activation_ready with operator and canonical-integrated counts equal to materialized counts.",
+      "dependencies": ["grammar-evidence/artifacts/R053-subject-sql-readiness-gates.json"],
+      "invalidation": "Refresh Production snapshot before activation decision or after changes to release, candidates, gate definitions or source graph.",
+      "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant.",
+      "freshness_max_age_hours": 24
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. The exact SQL pilot grant/write contract, isolation from app output, rollback, and release or candidate gate results have not yet been proven.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS"],
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready, but the exact one-rule SQL grant/write contract, isolation from app output, rollback and monitoring have not yet been proven.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES"],
       "blocked_by": [],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet."
+      "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet."
     }
   ]
 }

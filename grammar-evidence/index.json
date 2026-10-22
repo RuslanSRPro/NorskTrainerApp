@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "ac0b205c0dea6c3cd2c16d6af8260f96b21d15b6",
+  "head": "262389f297479e019bb2d8df6c4e511302b85070",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "ac0b205c0dea6c3cd2c16d6af8260f96b21d15b6",
-  "source_head": "ac0b205c0dea6c3cd2c16d6af8260f96b21d15b6",
+  "archive_head": "262389f297479e019bb2d8df6c4e511302b85070",
+  "source_head": "262389f297479e019bb2d8df6c4e511302b85070",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 86,
-  "strict_history_event_count": 39,
+  "history_event_count": 87,
+  "strict_history_event_count": 40,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -95,7 +95,8 @@
     "R052-R048M-SUBJECT-S0-SEED-PROBE",
     "R052-SUBJECT-MANIFEST-RUNTIME-COMPATIBILITY-REVIEW",
     "R052-R048M-STRUCTURAL-S0-CONTRACT-AUDIT",
-    "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
+    "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22",
+    "R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -158,6 +159,7 @@
     "R052_SUBJECT_R048M_S0_SEED_ABSENT": [],
     "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": [],
     "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS": [],
+    "R053_SUBJECT_SQL_READINESS_GATES": [],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
   },
   "proof_source_dependencies": {
@@ -269,8 +271,12 @@
       "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
       "grammar-evidence/artifacts/R053-subject-sql-shadow-status.json"
     ],
+    "R053_SUBJECT_SQL_READINESS_GATES": [
+      "grammar-evidence/artifacts/R053-subject-sql-readiness-gates.json"
+    ],
     "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
-      "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS"
+      "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
+      "R053_SUBJECT_SQL_READINESS_GATES"
     ]
   },
   "proof_next_actions": {
@@ -312,7 +318,8 @@
     "R052_SUBJECT_R048M_S0_SEED_ABSENT": "",
     "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": "",
     "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS": "",
-    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet."
+    "R053_SUBJECT_SQL_READINESS_GATES": "",
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet."
   },
   "files": [
     {
@@ -3161,18 +3168,37 @@
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
     {
+      "proof_id": "R053_SUBJECT_SQL_READINESS_GATES",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "proved_at_head": "262389f",
+      "claim": "The current SQL release integrity gate passes and both source candidates associated with subject_of_predicate report activation_ready.",
+      "result": "universal_activation_gate_v1 for runtime-structural-v1.37: gate_pass=true, missing sources=0, invalid patterns=0, globally active NRG rules=0. Two linked candidates return readiness_state=activation_ready with operator and canonical-integrated counts equal to materialized counts.",
+      "evidence_runs": [
+        "R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R053-subject-sql-readiness-gates.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
+    },
+    {
       "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
-      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. The exact SQL pilot grant/write contract, isolation from app output, rollback, and release or candidate gate results have not yet been proven.",
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. Current integrity gate passes and linked candidates report activation_ready, but the exact one-rule SQL grant/write contract, isolation from app output, rollback and monitoring have not yet been proven.",
       "evidence_runs": [
         "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
       ],
       "dependencies": [
-        "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS"
+        "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
+        "R053_SUBJECT_SQL_READINESS_GATES"
       ],
       "blocked_by": [],
       "stale_reasons": [],

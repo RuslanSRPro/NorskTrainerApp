@@ -1,0 +1,35 @@
+{
+  "evidence_id": "R053-PRODUCTION-SQL-READINESS-GATES-2026-10-22",
+  "observed_date": "2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "method": "read-only calls to STABLE SQL gate and candidate readiness functions",
+  "release_code": "runtime-structural-v1.37",
+  "universal_activation_gate_v1": {
+    "gate_pass": true,
+    "missing_source_provenance_rules": 0,
+    "invalid_rule_patterns": 0,
+    "global_active_nrg_rules": 0,
+    "scope": "release integrity only; does not grant or activate a rule"
+  },
+  "candidate_readiness_v2": [
+    {
+      "candidate_id": "10463eb2-0f50-445a-80f3-5828b135f592",
+      "candidate_code": "sentence.subject.requirement.finite_clause",
+      "readiness_state": "activation_ready",
+      "materialized_rule_count": 1,
+      "operator_ready_rule_count": 1,
+      "canonical_integrated_rule_count": 1,
+      "validated_manifest_count": 2
+    },
+    {
+      "candidate_id": "21e73a5c-8a54-4d3a-98f7-52f2e9375512",
+      "candidate_code": "sentence.subject.definition.nominal_finite_predicate",
+      "readiness_state": "activation_ready",
+      "materialized_rule_count": 2,
+      "operator_ready_rule_count": 2,
+      "canonical_integrated_rule_count": 2,
+      "validated_manifest_count": 2
+    }
+  ],
+  "interpretation": "SQL candidate and release-integrity readiness is proven at this snapshot. It does not prove a one-rule grant, active release status, safe app isolation, or canonical R048M scheduler readiness."
+}

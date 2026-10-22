@@ -6,7 +6,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet.",
+      "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet.",
       "search_gate": null,
       "queue_priority": -1
     },
@@ -180,7 +180,7 @@
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet.",
+    "next_action": "Read-only identify the exact one-rule SQL grant and app exposure paths; prepare an isolated pilot patch with rollback and monitoring, while keeping graph output out of the app. Do not write Production yet.",
     "search_gate": null,
     "queue_priority": -1
   }
