@@ -1,0 +1,72 @@
+{
+  "evidence_id": "R067-V32-NOUN-OBJECT-PRODUCTION-PROOF-2026-10-22",
+  "observed_at_utc": "2026-10-22T20:21:36Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "migration_file": "supabase/migrations/20261022202018_grammar_v32_noun_subject_with_object.sql",
+  "migration_ledger_version": "20261022202018",
+  "migration_ledger_name": "grammar_v32_noun_subject_with_object",
+  "old_v32_definition_md5": "a373f16bdb95aa9e30bca3d9aa108f4f",
+  "new_v32_definition_md5": "13447a8763b15dbfbbf1ec65df7068fe",
+  "rpc_definition_md5": "968759622f01f1489b79b67f60cce775",
+  "change": "The R048P noun bootstrap still accepts the exact two-token pattern; it also accepts exactly three tokens when token 3 is one unambiguous noun candidate. The existing one-finite-verb, no-pre-finite-pronoun, one-pre-finite-noun, finite-index-2 and no-connector guards remain.",
+  "rehearsal": "Production transaction replaced V32 temporarily, ran seven read-only RPC probes and rolled back. Post-rollback V32 hash remained old.",
+  "production_post_migration_cases": [
+    {
+      "surface": "Katten sover",
+      "predicates": 1,
+      "clauses": 1,
+      "subject_of_edges": 1
+    },
+    {
+      "surface": "Jeg sover",
+      "predicates": 1,
+      "clauses": 1,
+      "subject_of_edges": 1
+    },
+    {
+      "surface": "Han er glad",
+      "predicates": 1,
+      "clauses": 1,
+      "subject_of_edges": 1
+    },
+    {
+      "surface": "Hunden spiser fisken",
+      "predicates": 1,
+      "clauses": 1,
+      "subject_of_edges": 1
+    },
+    {
+      "surface": "Hunden spiser raskt",
+      "predicates": 0,
+      "clauses": 0,
+      "subject_of_edges": 0
+    },
+    {
+      "surface": "Spiser hunden fisken",
+      "predicates": 0,
+      "clauses": 0,
+      "subject_of_edges": 0
+    },
+    {
+      "surface": "Hunden spiser fisken i dag",
+      "predicates": 0,
+      "clauses": 0,
+      "subject_of_edges": 0
+    }
+  ],
+  "access_after": {
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "service_role_execute": true
+  },
+  "release_after": {
+    "status": "shadow",
+    "subject_of_predicate_global_is_active": false
+  },
+  "limits": [
+    "Diagnostic inputs are manually assembled R051-shaped canonical token envelopes, not captured live canonical-surface requests.",
+    "Seven probes do not prove general grammatical correctness, object valency or full activation readiness.",
+    "No new pilot grant was issued and no application path was changed."
+  ],
+  "next_action": "Run a larger source-backed corpus and inspect overgeneration/undercoverage before the SQL rule activation transition; keep the new graph disconnected from the app."
+}

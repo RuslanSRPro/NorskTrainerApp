@@ -879,13 +879,13 @@
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "R065 committed one short-lived Production grant, executed one subject_of_predicate rule on fresh R051 input with exact saved-result parity, committed revocation in a separate transaction and verified subsequent denial plus zero active grants. Release remains shadow and global rule inactive. Full activation and repeated monitoring are not proven.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION", "R065_COMMITTED_ONE_RULE_SQL_PILOT"],
+      "result": "R065 proved one short-lived Production grant and revocation. R067 repaired the V32 three-token noun-verb-noun gap and passed seven Production probes. Release remains shadow and global rule inactive. Wider source-backed corpus and activation monitoring remain open.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION", "R065_COMMITTED_ONE_RULE_SQL_PILOT", "R067_V32_NOUN_OBJECT_PRODUCTION_FIX"],
       "blocked_by": [],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "R066 found a V32 clause-production gap for Hunden spiser fisken despite resolved noun-verb-noun POS. Inspect and fix that upstream gap, then rerun the corpus before a broader activation decision."
+      "next_action": "Expand to source-backed positive and negative sentences, check subject/predicate identity and overgeneration, then define monitored SQL activation transition. Keep new graph output out of app routes."
     },
     {
       "proof_id": "R065_COMMITTED_ONE_RULE_SQL_PILOT",
@@ -901,16 +901,29 @@
     },
     {
       "proof_id": "R066_SQL_SUBJECT_CORPUS_V32_GAP",
-      "status": "PROVEN",
+      "status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_READONLY",
-      "claim": "The current SQL pipeline produces subject_of for three simple probes but stops before predicate and clause for Hunden spiser fisken, despite resolved POS and verb morphology.",
+      "claim": "Before R067, the SQL pipeline produced subject_of for three simple probes but stopped before predicate and clause for Hunden spiser fisken despite resolved POS and verb morphology.",
       "proved_at_head": "e008928",
-      "evidence_runs": ["R066-SQL-SUBJECT-CORPUS-READONLY-2026-10-22"],
+      "evidence_runs": ["R066-SQL-SUBJECT-CORPUS-READONLY-2026-10-22", "R067-R066-INVALIDATION-2026-10-22"],
       "result": "Katten sover, Jeg sover and Han er glad each yielded one predicate, clause and subject_of edge. Hunden spiser fisken yielded zero of all three; V32 base clause count is zero although structural POS is noun-verb-noun and spiser has resolved verb morphology.",
       "dependencies": ["grammar-evidence/artifacts/R066-sql-subject-corpus-readonly.json", "R065_COMMITTED_ONE_RULE_SQL_PILOT"],
       "invalidation": "Refresh after V32 clause builder, POS resolver or current RPC changes.",
-      "notes": "Four diagnostic manually assembled RPC token envelopes; not live canonical-surface captures or evidence for broad activation.",
-      "next_action": "Inspect V32 base clause creation for noun subject plus finite verb plus object, then test a targeted fix against all four probes."
+      "notes": "Historical gap invalidated by R067 V32 migration. Four manually assembled RPC token envelopes were diagnostic, not live canonical-surface captures.",
+      "next_action": "See R067 for the repaired Production state."
+    },
+    {
+      "proof_id": "R067_V32_NOUN_OBJECT_PRODUCTION_FIX",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "The bounded V32 noun bootstrap now produces a resolved predicate, clause and subject_of edge for a three-token noun-verb-noun sentence while preserving the tested two-token and pronoun cases.",
+      "proved_at_head": "b684c38",
+      "evidence_runs": ["R067-V32-NOUN-OBJECT-PRODUCTION-PROOF-2026-10-22"],
+      "result": "Migration 20261022202018 is in the Production ledger; V32 definition md5 changed from a373f16bdb95aa9e30bca3d9aa108f4f to 13447a8763b15dbfbbf1ec65df7068fe. All four positive cases yielded one subject_of edge. Three negative controls yielded zero. ACL, shadow release and global rule state stayed unchanged.",
+      "dependencies": ["grammar-evidence/artifacts/R067-v32-noun-object-production-proof.json", "supabase/migrations/20261022202018_grammar_v32_noun_subject_with_object.sql"],
+      "invalidation": "Refresh after V32, structural token builder, public RPC or release membership changes.",
+      "notes": "Diagnostic seven-case corpus with manually assembled RPC inputs. Not general grammatical correctness or full activation.",
+      "next_action": "Run source-backed corpus across more syntactic forms and negative controls before global activation."
     }
   ]
 }
