@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "86b6e85edcc6625913a64f1c844901dd2a47c46a",
+  "head": "ac0b205c0dea6c3cd2c16d6af8260f96b21d15b6",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "86b6e85edcc6625913a64f1c844901dd2a47c46a",
-  "source_head": "86b6e85edcc6625913a64f1c844901dd2a47c46a",
+  "archive_head": "ac0b205c0dea6c3cd2c16d6af8260f96b21d15b6",
+  "source_head": "ac0b205c0dea6c3cd2c16d6af8260f96b21d15b6",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 85,
-  "strict_history_event_count": 38,
+  "history_event_count": 86,
+  "strict_history_event_count": 39,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -94,7 +94,8 @@
     "R051-FIRST-RULE-PHRASE-DEPENDENCY-REVIEW",
     "R052-R048M-SUBJECT-S0-SEED-PROBE",
     "R052-SUBJECT-MANIFEST-RUNTIME-COMPATIBILITY-REVIEW",
-    "R052-R048M-STRUCTURAL-S0-CONTRACT-AUDIT"
+    "R052-R048M-STRUCTURAL-S0-CONTRACT-AUDIT",
+    "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -155,7 +156,9 @@
     "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH": [],
     "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": [],
     "R052_SUBJECT_R048M_S0_SEED_ABSENT": [],
-    "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": []
+    "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": [],
+    "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS": [],
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -261,6 +264,13 @@
     ],
     "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": [
       "grammar-evidence/artifacts/R052-structural-s0-contract-audit.json"
+    ],
+    "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS": [
+      "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+      "grammar-evidence/artifacts/R053-subject-sql-shadow-status.json"
+    ],
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": [
+      "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS"
     ]
   },
   "proof_next_actions": {
@@ -300,7 +310,9 @@
     "R051_SUBJECT_MANIFEST_BOUNDARY_MISMATCH": "",
     "R051_SUBJECT_SEMANTIC_DUPLICATE_GAP": "",
     "R052_SUBJECT_R048M_S0_SEED_ABSENT": "",
-    "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": ""
+    "R052_R048M_TOKEN_ROOTED_S0_CONTRACT": "",
+    "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS": "",
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet."
   },
   "files": [
     {
@@ -3128,6 +3140,43 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Source architecture proof, not a deployed runtime proof. No structural S0 producer was found in the inspected Grammar Graph branch set."
+    },
+    {
+      "proof_id": "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "proved_at_head": "ac0b205",
+      "claim": "The subject_of_predicate SQL rule is enabled and executed in a shadow runtime release, while neither that release nor the global rule is active.",
+      "result": "Production release runtime-structural-v1.37 has status=shadow, activated_at=null, rule_count=27. Its subject_of_predicate membership has is_enabled=true, compile_role=primary and matching release/rule hash bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e; grammar_rules.is_active=false. Saved R051 RPC output separately proves one executed dependency. SQL readiness v2 says global is_active is not required for readiness; release membership plus operator readiness plus canonical integration are required.",
+      "evidence_runs": [
+        "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json",
+        "grammar-evidence/artifacts/R053-subject-sql-shadow-status.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
+    },
+    {
+      "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "proved_at_head": null,
+      "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. The exact SQL pilot grant/write contract, isolation from app output, rollback, and release or candidate gate results have not yet been proven.",
+      "evidence_runs": [
+        "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
+      ],
+      "dependencies": [
+        "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support."
     }
   ],
   "policy": {

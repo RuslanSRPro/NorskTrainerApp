@@ -1,0 +1,39 @@
+{
+  "evidence_id": "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22",
+  "observed_date": "2026-10-22",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "method": "read-only information_schema and pg_proc inspection plus release/rule SELECT",
+  "release": {
+    "code": "runtime-structural-v1.37",
+    "status": "shadow",
+    "rule_count": 27,
+    "manifest_count": 26,
+    "golden_passed_at": "2026-09-01 12:53:26.277799+00",
+    "activated_at": null
+  },
+  "rule": {
+    "code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+    "pattern_type": "dependency_pattern",
+    "is_active": false,
+    "release_membership_is_enabled": true,
+    "compile_role": "primary",
+    "release_metadata": {
+      "shadow": true,
+      "inherited_from": "runtime-structural-v1.6",
+      "structural_dependency_bridge": "v1"
+    },
+    "compiled_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e",
+    "rule_hash_matches_release_membership": true
+  },
+  "source_inspection": {
+    "assess_candidate_activation_readiness_v2": "Release membership, assess_runtime_rule_execution_v5 operator readiness and canonical integration govern candidate readiness; global grammar_rules.is_active is not required.",
+    "universal_activation_gate_v1": "Release integrity gate only; includes source graph hash, source provenance, pattern validity and active NRG count; bulk_activation_ready is false.",
+    "rule_activation_readiness_summary_v2": "Returns candidate status counts and bulk_activation_ready=false."
+  },
+  "interpretation": "The saved R051 RPC fixture proves one SQL shadow execution. The current release and rule row do not prove activation or a governed pilot grant. Historical R048M S0 seed absence belongs to a separate scheduler track.",
+  "remaining": [
+    "Identify the exact SQL pilot grant or release transition and its write permissions.",
+    "Prove fresh child release gate and one-rule readiness without changing Production.",
+    "Prove app output stays isolated, rollback is available, and monitoring is defined."
+  ]
+}

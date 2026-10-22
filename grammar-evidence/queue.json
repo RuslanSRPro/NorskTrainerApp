@@ -1,6 +1,16 @@
 {
   "queue": [
     {
+      "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet.",
+      "search_gate": null,
+      "queue_priority": -1
+    },
+    {
       "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -165,13 +175,13 @@
     }
   ],
   "next": {
-    "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
+    "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Design and test a source-backed structural initial-epoch seed and site contract for resolved clause/predicate occurrences; current R048M S0 is token-POS-site rooted. Do not add a fake token.pos condition. Then choose predicate mapping or prove a phrase bridge and execute binding, D7.14 endpoint, create_dependency and add_trace checks.",
+    "next_action": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet.",
     "search_gate": null,
-    "queue_priority": 0
+    "queue_priority": -1
   }
 }

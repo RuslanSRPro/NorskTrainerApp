@@ -627,6 +627,34 @@
       "dependencies": ["grammar-evidence/artifacts/R052-structural-s0-contract-audit.json"],
       "invalidation": "Historical source revision is fixed; re-audit any newly selected scheduler source or structural implementation.",
       "notes": "Source architecture proof, not a deployed runtime proof. No structural S0 producer was found in the inspected Grammar Graph branch set."
+    },
+    {
+      "proof_id": "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
+      "status": "PROVEN",
+      "proof_kind": "DB_SNAPSHOT",
+      "claim": "The subject_of_predicate SQL rule is enabled and executed in a shadow runtime release, while neither that release nor the global rule is active.",
+      "proved_at_head": "ac0b205",
+      "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
+      "result": "Production release runtime-structural-v1.37 has status=shadow, activated_at=null, rule_count=27. Its subject_of_predicate membership has is_enabled=true, compile_role=primary and matching release/rule hash bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e; grammar_rules.is_active=false. Saved R051 RPC output separately proves one executed dependency. SQL readiness v2 says global is_active is not required for readiness; release membership plus operator readiness plus canonical integration are required.",
+      "dependencies": ["grammar-evidence/artifacts/R051-current-production-structural-rpc-smoke.json", "grammar-evidence/artifacts/R053-subject-sql-shadow-status.json"],
+      "invalidation": "Production snapshot requires refresh before any activation decision; recheck release membership, rule hash and function definitions after deployment.",
+      "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker.",
+      "freshness_max_age_hours": 24
+    },
+    {
+      "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
+      "status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
+      "proved_at_head": null,
+      "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
+      "result": "One real shadow execution is proven. Current release is shadow and the global rule is inactive. The exact SQL pilot grant/write contract, isolation from app output, rollback, and release or candidate gate results have not yet been proven.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS"],
+      "blocked_by": [],
+      "invalidation": "N/A until a bounded SQL pilot is proven.",
+      "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
+      "queue_priority": -1,
+      "next_action": "Read-only inspect SQL release promotion and rule exposure paths; prove current gate and one-rule readiness on a fresh child release or isolated pilot fixture, with rollback and no app result consumption. Do not write Production yet."
     }
   ]
 }
