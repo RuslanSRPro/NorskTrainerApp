@@ -46,7 +46,7 @@ create or replace function grammar_pilot_private.run_one_rule_v1(
   p_release_code text,
   p_rule_code text
 ) returns jsonb
-language plpgsql stable security invoker
+language plpgsql volatile security invoker
 set search_path = ''
 as $function$
 declare
@@ -56,6 +56,7 @@ declare
   v_grant_hash text;
   v_grant_count integer;
   v_result jsonb;
+  v_now timestamptz := clock_timestamp();
 begin
   if p_sentence is null or p_sentence #> '{analysis,language_graph,clause_build_v1,clauses}' is null
      or p_sentence #> '{analysis,language_graph,predicate_build_v1,predicates}' is null
@@ -64,6 +65,9 @@ begin
   end if;
   if p_rule_code <> 'nrg_rt_v1.structural.dependency.subject_of_predicate' then
     raise exception 'PILOT_RULE_NOT_ALLOWED';
+  end if;
+  if p_release_code is distinct from 'runtime-structural-v1.37' then
+    raise exception 'PILOT_RELEASE_NOT_ALLOWED';
   end if;
 
   select count(*), (array_agg(gr.id))[1], min(rr.compiled_hash)
@@ -87,11 +91,11 @@ begin
   from grammar_pilot_private.rule_grants_v1 g
   where g.release_code = p_release_code
     and g.rule_code = p_rule_code
-    and g.granted_at <= now()
-    and g.expires_at > now()
+    and g.granted_at <= v_now
+    and g.expires_at > v_now
     and not exists (
       select 1 from grammar_pilot_private.rule_revocations_v1 x
-      where x.grant_id = g.grant_id and x.revoked_at <= now()
+      where x.grant_id = g.grant_id and x.revoked_at <= v_now
     );
   if v_grant_count <> 1 or v_grant_hash is distinct from v_compiled_hash then
     raise exception 'PILOT_GRANT_INVALID';
