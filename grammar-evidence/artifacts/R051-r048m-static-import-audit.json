@@ -1,0 +1,2887 @@
+{
+  "schema_version": "r048m-static-import-audit-v1",
+  "source_revision": "7d964a3fd0bf85c81ec410a8c8deda9e1928c41b",
+  "target_revision": "24604ca28c3deb51d0c19769ce830f7075dcaa08",
+  "entrypoint": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+  "scope": "static relative imports only; no runtime or equivalence conclusion",
+  "direct_nlp_import_count": 19,
+  "direct_nlp_absent_head_count": 10,
+  "reachable_source_module_count": 115,
+  "absent_head_modules": [
+    "supabase/functions/_shared/nlp/canonical-dependency-runtime-manifest-source-reader-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-action-execution-admission-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-db-reader-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-source-reader-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-result-envelope-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-multi-site-post-transition-reevaluation-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-multi-site-s0-initial-epoch-aggregation-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-sentence-scope-boundary-authority-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-node-type-authority-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-filtered-false-condition-evidence-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-readiness-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-value-projection-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-enforcement-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-semantics-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-control-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-envelope-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-structural-rpc-paired-evidence-v1.ts",
+    "supabase/functions/_shared/nlp/r048m-capture-auth-v1.ts"
+  ],
+  "edges": [
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-candidate-lattice-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-constraint-propagation-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-dependency-runtime-manifest-source-reader-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-manifest-source-reader-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-runtime-dependency-action-activation-db-reader-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-db-reader-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-runtime-multi-site-s0-initial-epoch-aggregation-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-multi-site-s0-initial-epoch-aggregation-boundary-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-structural-rpc-capture-control-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-control-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-structural-rpc-capture-envelope-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-envelope-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-structural-rpc-paired-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-structural-rpc-paired-evidence-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/legacy-compatibility-map-v1.ts",
+      "target": "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "target": "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/r048m-capture-auth-v1.ts",
+      "target": "supabase/functions/_shared/nlp/r048m-capture-auth-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "specifier": "../_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "target": "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "depth": "direct",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-dependency-runtime-manifest-source-reader-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-phrase-candidate-lattice-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-action-execution-admission-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-admission-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-result-envelope-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-result-envelope-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-multi-site-post-transition-reevaluation-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-multi-site-post-transition-reevaluation-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+      "specifier": "./canonical-runtime-execution-context-input-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-execution-context-input-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+      "specifier": "./canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-current-declaration-boundary-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-db-reader-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-activation-source-reader-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-source-reader-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-pos-fact-ownership-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-binding-entity-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-entity-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-sentence-scope-boundary-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-sentence-scope-boundary-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-set-role-action-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-set-role-action-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-token-node-type-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-node-type-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-s0-seed-composer-v1.ts",
+      "specifier": "./canonical-token-pos-property-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-multi-site-s0-initial-epoch-aggregation-boundary-v1.ts",
+      "specifier": "./canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-bounded-dependency-graph-scheduler-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-multi-site-s0-initial-epoch-aggregation-boundary-v1.ts",
+      "specifier": "./canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-envelope-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-structural-rpc-capture-envelope-v1.ts",
+      "specifier": "./sql-structural-compatibility-map-v1.ts",
+      "target": "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/legacy-compatibility-map-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/legacy-language-graph-adapter-v1.ts",
+      "specifier": "./sql-structural-compatibility-map-v1.ts",
+      "target": "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/sql-structural-compatibility-map-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-admission-boundary-v1.ts",
+      "specifier": "./canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-admission-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+      "specifier": "./canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-patch-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+      "specifier": "./canonical-runtime-action-execution-admission-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-admission-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-plan-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-result-envelope-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "specifier": "./canonical-current-runtime-sentence-context-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-execution-graph-transition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "specifier": "./canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-multi-site-post-transition-reevaluation-boundary-v1.ts",
+      "specifier": "./canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "specifier": "./canonical-runtime-set-role-action-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-set-role-action-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "specifier": "./canonical-sentence-occurrence-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-sentence-occurrence-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "specifier": "./canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-source-reader-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-activation-authority-resolution-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-entity-compatibility-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-entity-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "specifier": "./canonical-runtime-where-right-operand-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-where-right-operand-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "specifier": "./canonical-runtime-where-right-operand-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-where-right-operand-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-exact-eq-operator-source-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "specifier": "./canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-string-operand-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "specifier": "./canonical-token-pos-property-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-current-runtime-sentence-context-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts",
+      "specifier": "./canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-sentence-scope-boundary-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-node-type-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-entity-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-string-operand-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-binding-entity-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-entity-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-suffix-compatibility-v1.ts",
+      "specifier": "./canonical-token-pos-property-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "specifier": "./canonical-pos-fact-ownership-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-binding-value-projection-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-value-projection-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "specifier": "./canonical-runtime-execution-context-input-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-execution-context-input-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "specifier": "./canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-snapshot-sentence-occurrence-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-action-execution-precondition-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-action-binding-association-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-dependency-endpoint-resolution-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-epoch-current-context-transition-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-execution-readiness-evidence-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-action-candidate-bridge-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-post-transition-reevaluation-composition-boundary-v1.ts",
+      "specifier": "./canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-sentence-occurrence-identity-authority-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-where-right-operand-site-authority-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-suffix-property-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "specifier": "./canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "specifier": "./canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-composition-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "specifier": "./canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "specifier": "./canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "specifier": "./canonical-current-runtime-sentence-context-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "specifier": "./canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "specifier": "./canonical-current-runtime-sentence-context-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-current-runtime-sentence-context-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-context-site-occurrence-applicability-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-scope-compatibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-coherent-recursive-compound-truth-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "specifier": "./canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-final-runtime-binding-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-value-projection-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-value-projection-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-owner-binding-occurrence-provenance-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-final-root-truth-decision-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-aggregation-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-terminal-governed-result-envelope-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "specifier": "./canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-referenced-token-sentence-domain-snapshot-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-site-occurrence-applicability-evidence-v2.ts",
+      "specifier": "./canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "specifier": "./canonical-node-type-occurrence-inventory-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-node-type-occurrence-inventory-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-sentence-direct-token-occurrence-domain-capability-v1.ts",
+      "specifier": "./canonical-sentence-occurrence-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-sentence-occurrence-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-pos-fact-ownership-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-graph-provenance-binding-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-token-pos-hypothesis-set-read-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-token-pos-property-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "specifier": "./canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-token-pos-expected-normalized-label-eq-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "specifier": "./canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-comparison-evidence-v2.ts",
+      "specifier": "./canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-value-projection-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-binding-occurrence-set-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-occurrence-set-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-coherent-recursive-compound-truth-composer-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-context-bound-child-truth-adapter-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-value-projection-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-value-projection-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-readiness-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-readiness-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-node-type-occurrence-inventory-capability-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-token-pos-hypothesis-set-read-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v2.ts",
+      "specifier": "./canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-normalized-label-eq-semantic-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "specifier": "./canonical-pos-fact-ownership-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "specifier": "./canonical-token-pos-property-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-occurrence-set-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-truth-semantic-capability-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-context-bound-child-truth-evidence-interface-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-authority-bound-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-child-truth-evidence-interface-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-filtered-false-condition-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-filtered-false-condition-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-authority-bound-leaf-truth-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-binding-readiness-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-enforcement-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-enforcement-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-final-runtime-binding-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-bound-condition-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-filtered-false-condition-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-binding-eligibility-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-left-right-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-reference-root-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-right-operand-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-leaf-right-operand-site-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-expression-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-reference-root-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-enforcement-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-semantics-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-semantics-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-enforcement-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-leaf-condition-disposition-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-leaf-condition-disposition-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "specifier": "./canonical-dependency-runtime-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-dependency-runtime-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-compound-operator-shape-extension-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "specifier": "./canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-manifest-binding-where-shape-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-direct-all-occurrence-coherence-evidence-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-leaf-structural-bridge-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-graph-snapshot-identity-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-graph-snapshot-identity-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-pos-fact-ownership-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-binding-occurrence-domain-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-surface-boundary-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-surface-boundary-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "specifier": "./canonical-token-pos-property-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-semantics-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-cardinality-semantics-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-survivor-set-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": false
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
+      "specifier": "./canonical-runtime-binding-definition-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-binding-definition-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-cardinality-semantics-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-occurrence-filtering-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-leaf-condition-disposition-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-normalized-comparison-v2.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "specifier": "./canonical-language-graph-core-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-language-graph-core-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "specifier": "./canonical-pos-fact-ownership-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-pos-fact-ownership-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "specifier": "./canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "specifier": "./canonical-token-pos-hypothesis-set-read-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-graph-bound-normalized-label-projection-v1.ts",
+      "specifier": "./canonical-token-pos-property-capability-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-property-capability-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
+      "specifier": "./canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-runtime-token-pos-normalized-label-eq-authority-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    },
+    {
+      "importer": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-normalized-label-projection-v1.ts",
+      "specifier": "./canonical-token-pos-hypothesis-set-read-v1.ts",
+      "target": "supabase/functions/_shared/nlp/canonical-token-pos-hypothesis-set-read-v1.ts",
+      "depth": "transitive",
+      "source_exists": true,
+      "head_exists": true
+    }
+  ]
+}
