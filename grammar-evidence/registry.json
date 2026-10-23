@@ -1153,7 +1153,21 @@
       "blocked_by": [],
       "invalidation": "N/A until a production-compatible bridge and bounded execution tests pass.",
       "notes": "Do not promote the SVO/OVS-sensitive noun-verb-noun subject to resolved solely because V32 returns a clause.",
-      "next_action": "Inspect the existing graph transition and rule-admission contracts for a candidate-only bridge; then test in isolation before Production."
+      "next_action": "R078 proved a candidate-only span patch in isolation. Identify a source-backed Producer boundary and independent subject-role authority before live integration."
+    },
+    {
+      "proof_id": "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "An isolated candidate-only span patch for R077 is accepted by the existing canonical graph transition without grammar edges, while the legacy clause adapter would emit a candidate subject_of edge from the same hypothesis.",
+      "proved_at_head": "62b808f4b6571db21d17aa7115443c7f046323e8",
+      "evidence_runs": ["R078-CANONICAL-SCOPED-CORE-GRAPH-SEAM-2026-10-23"],
+      "result": "Deno test and type check passed. Fifty-seven checks across six source-backed inputs: canonical surface IDs match, graph invariants pass, candidate nodes retain status and evidence/provenance, graph patch is idempotent, and no grammar edge appears. A control invocation of clausePatchFromLegacyV11 on a candidate hypothesis emitted a candidate subject_of edge.",
+      "dependencies": ["grammar-evidence/artifacts/R078-canonical-scoped-core-graph-seam.json", "grammar-evidence/tools/verify-scoped-core-graph-seam.ts", "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE"],
+      "blocked_by": [],
+      "invalidation": "Refresh after canonical graph core, surface boundary, legacy clause adapter or scoped-core fixture changes.",
+      "notes": "Test-only graph patch. No Production runtime wiring, deployed Edge code, rule admission, or activation was changed. Candidate nodes do not establish subject identity.",
+      "next_action": "Find existing independent subject-role authority and a governed runtime producer seam; avoid feeding scoped candidates into the legacy clause adapter."
     }
   ]
 }

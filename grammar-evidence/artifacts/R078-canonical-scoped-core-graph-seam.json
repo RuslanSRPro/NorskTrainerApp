@@ -1,0 +1,48 @@
+{
+  "run": "R078-CANONICAL-SCOPED-CORE-GRAPH-SEAM-2026-10-23",
+  "timestamp_utc": "2026-10-23T09:03:39Z",
+  "source_head": "62b808f4b6571db21d17aa7115443c7f046323e8",
+  "harness": "grammar-evidence/tools/verify-scoped-core-graph-seam.ts",
+  "fixture": "grammar-evidence/artifacts/R077-scoped-core-contract-fixture.json",
+  "test_result": {
+    "status": "PASS",
+    "checks": 57,
+    "production_mutation": false,
+    "deployed": false,
+    "results": {
+      "Fisken spiser hunden": {
+        "candidate_nodes": 1,
+        "grammar_edges": 0,
+        "graph_invariants": "PASS"
+      },
+      "Hunden og fisken": {
+        "candidate_nodes": 0,
+        "grammar_edges": 0,
+        "graph_invariants": "PASS"
+      },
+      "Hunden spiser fisken i dag": {
+        "candidate_nodes": 2,
+        "grammar_edges": 0,
+        "graph_invariants": "PASS"
+      },
+      "Spiser hunden fisken?": {
+        "candidate_nodes": 0,
+        "grammar_edges": 0,
+        "graph_invariants": "PASS"
+      },
+      "Hunden spiser fisken dag i": {
+        "candidate_nodes": 1,
+        "grammar_edges": 0,
+        "graph_invariants": "PASS"
+      },
+      "Hunden spiser fisken i boken": {
+        "candidate_nodes": 1,
+        "grammar_edges": 0,
+        "graph_invariants": "PASS"
+      }
+    }
+  },
+  "legacy_clause_adapter_control": "Feeding the same prefix clause as a clause_hypothesis to clausePatchFromLegacyV11 emits a candidate subject_of edge. R078 span patch emits no grammar edge.",
+  "decision": "Candidate-only span node is compatible with applyGraphPatchV1 and graph invariants in an isolated test. Do not route R077 through existing legacy clause adapter before subject-role authority is proven.",
+  "remaining": "No deployed producer/consumer, no independent SVO/OVS resolution, no temporal adjunct resolution, no admission or app integration."
+}

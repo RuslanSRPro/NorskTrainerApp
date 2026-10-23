@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
+  "head": "62b808f4b6571db21d17aa7115443c7f046323e8",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
-  "source_head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
-  "source_revision": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
+  "archive_head": "62b808f4b6571db21d17aa7115443c7f046323e8",
+  "source_head": "62b808f4b6571db21d17aa7115443c7f046323e8",
+  "source_revision": "62b808f4b6571db21d17aa7115443c7f046323e8",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 120,
-  "strict_history_event_count": 73,
+  "history_event_count": 121,
+  "strict_history_event_count": 74,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -129,7 +129,8 @@
     "R075-EARLY-EXPRESSION-CONSUMER-CONTRACT-AUDIT-2026-10-23",
     "R076-SCOPED-CORE-COUNTEREXAMPLE-2026-10-23",
     "R077-SCOPED-CORE-CANDIDATE-CONTRACT-2026-10-23",
-    "R077-BASELINE-CORRECTION-2026-10-23"
+    "R077-BASELINE-CORRECTION-2026-10-23",
+    "R078-CANONICAL-SCOPED-CORE-GRAPH-SEAM-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -234,7 +235,8 @@
     "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT": [],
     "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE": [],
     "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE": [],
-    "R077_SCOPED_CORE_RUNTIME_INTEGRATION": []
+    "R077_SCOPED_CORE_RUNTIME_INTEGRATION": [],
+    "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -528,6 +530,11 @@
       "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE",
       "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT",
       "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"
+    ],
+    "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM": [
+      "grammar-evidence/artifacts/R078-canonical-scoped-core-graph-seam.json",
+      "grammar-evidence/tools/verify-scoped-core-graph-seam.ts",
+      "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE"
     ]
   },
   "proof_next_actions": {
@@ -607,7 +614,8 @@
     "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT": "Design the smallest bridge into an existing runtime occurrence contract and test it before Production migration.",
     "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE": "Specify a scoped-core output with explicit covered and deferred token ranges; test SVO/OVS ambiguity and tail non-erasure before graph transition.",
     "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE": "Review existing canonical graph consumer seam and independent subject-role authority before selecting a production bridge.",
-    "R077_SCOPED_CORE_RUNTIME_INTEGRATION": "Inspect the existing graph transition and rule-admission contracts for a candidate-only bridge; then test in isolation before Production."
+    "R077_SCOPED_CORE_RUNTIME_INTEGRATION": "R078 proved a candidate-only span patch in isolation. Identify a source-backed Producer boundary and independent subject-role authority before live integration.",
+    "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM": "Find existing independent subject-role authority and a governed runtime producer seam; avoid feeding scoped candidates into the legacy clause adapter."
   },
   "files": [
     {
@@ -4223,6 +4231,26 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Do not promote the SVO/OVS-sensitive noun-verb-noun subject to resolved solely because V32 returns a clause."
+    },
+    {
+      "proof_id": "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "62b808f4b6571db21d17aa7115443c7f046323e8",
+      "claim": "An isolated candidate-only span patch for R077 is accepted by the existing canonical graph transition without grammar edges, while the legacy clause adapter would emit a candidate subject_of edge from the same hypothesis.",
+      "result": "Deno test and type check passed. Fifty-seven checks across six source-backed inputs: canonical surface IDs match, graph invariants pass, candidate nodes retain status and evidence/provenance, graph patch is idempotent, and no grammar edge appears. A control invocation of clausePatchFromLegacyV11 on a candidate hypothesis emitted a candidate subject_of edge.",
+      "evidence_runs": [
+        "R078-CANONICAL-SCOPED-CORE-GRAPH-SEAM-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R078-canonical-scoped-core-graph-seam.json",
+        "grammar-evidence/tools/verify-scoped-core-graph-seam.ts",
+        "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Test-only graph patch. No Production runtime wiring, deployed Edge code, rule admission, or activation was changed. Candidate nodes do not establish subject identity."
     }
   ],
   "policy": {
