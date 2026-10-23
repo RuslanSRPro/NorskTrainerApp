@@ -1,0 +1,31 @@
+{
+  "schema_version": "grammar-evidence-production-audit-v1",
+  "run": "R098-FORM-RULE-SOURCE-GAP-AUDIT-2026-10-23",
+  "mode": "read_only_production_sql_plus_source_inspection",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "verified": {
+    "runtime_release": "runtime-structural-v1.37",
+    "morphological_inflection_rules_enabled_in_release": 12,
+    "morphology_manifests": 13,
+    "morphology_manifests_validated": 12,
+    "pronoun_manifest_draft": 1,
+    "lexeme_form_variants_rows": 0,
+    "adjective_forms_rows": 0,
+    "lexeme_form_display_v2_rows": 9469,
+    "source_key_mismatch": {"runtime":"positive_common","display":"positive_singular_indefinite_common"},
+    "neuter_key_mismatch": {"runtime":"positive_neuter","display":"positive_singular_indefinite_neuter"},
+    "display_examples": [
+      {"lemma":"blå","common":"blå","neuter":"blått","article_id":6678},
+      {"lemma":"ærlig","common":"ærlig","comparative":"ærligere","article_id":1270}
+    ],
+    "dispatcher_probes": [
+      {"surface":"blått","lemma":"blå","status":"no_match","evaluated_count":0},
+      {"surface":"ærligere","lemma":"ærlig","status":"no_match","evaluated_count":0}
+    ],
+    "source_code_path": "dispatch_morphological_rules_v3 and execute_morphological_inflection_rule_v1 read lexeme_form_variants; the current display surface uses lexeme_form_display_v2.",
+    "generation_semantics": "Current operator calculates an expected target but requires a source_verified source/target pair first and reports productive_generation=false."
+  },
+  "inference": "For the tested adjective dispatch path, existing rule membership cannot yield form evidence because its input relation is empty. A provenance-preserving adapter and form-key mapping are required before evaluating rule behavior on current source forms. This does not prove every morphology path is empty.",
+  "recommended_next_proof": "Build a read-only adapter prototype for one adjective rule using lexeme_form_display_v2 with article identity, map form keys, derive expected target from the rule, then compare with the source form without allowing the source target to choose the graph output. Test regular, irregular, alternative, compound and homograph cases before runtime changes.",
+  "scope": "Read-only Production snapshot and Git source inspection. No SQL write, migration, activation or app change."
+}

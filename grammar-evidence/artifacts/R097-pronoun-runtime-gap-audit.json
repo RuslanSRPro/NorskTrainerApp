@@ -1,0 +1,27 @@
+{
+  "schema_version": "grammar-evidence-production-audit-v1",
+  "run": "R097-PRONOUN-RUNTIME-GAP-AUDIT-2026-10-23",
+  "mode": "read_only_production_sql_plus_source_inspection",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "verified": {
+    "source_candidates": [
+      {"id":"d99c8781-1212-45ed-a490-df7cfa105ede","section":"4.1.1","role":"morphological_paradigm","status":"source_verified"},
+      {"id":"f7c256e7-efe7-4687-aadc-26ee831a35bc","section":"4.1.2","role":"case_selection","status":"source_verified","strength":"default_with_exceptions"}
+    ],
+    "producer_samples": {"meg":["jeg/Acc"],"han":["han/Nom"],"den":["den/Acc","den/Nom"]},
+    "operator_templates": [
+      {"code":"morphological_paradigm.personal_pronoun_case.v1","capability_status":"blocked","approval_status":"blocked"},
+      {"code":"case_selection.personal_pronoun_default.v1","capability_status":"blocked","approval_status":"blocked"}
+    ],
+    "manifest": {"code":"ir.pronoun.personal.forms.bokmal.paradigm","authoring_status":"draft","operator":"morphological_paradigm"},
+    "runtime_path": "The candidate producer is called by grammar_pilot_private.build_pre_rule_plane_v1 only. R087 keeps Meg ser han as soft subject evidence and does not create a clause. R090 keeps og/eller coordination as a candidate and blocks a single-conjunct subject.",
+    "object_rule_inventory": "No grammar_rules.code containing object was returned by the bounded read-only query; this does not prove absence of every possible object-role implementation."
+  },
+  "remaining_links": [
+    "Independent syntactic role evidence and exception-aware case_selection arbitration",
+    "Resolved coordinated nominal constituent for og/eller, preserving all conjunct identities",
+    "Object/complement role proof distinct from subject rejection",
+    "Validated manifest, approved operator mapping, canonical/public runtime integration and corpus proof before activation"
+  ],
+  "scope": "Snapshot and source audit. No Production mutation, activation, grant or app integration."
+}

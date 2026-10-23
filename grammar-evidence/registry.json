@@ -1324,6 +1324,48 @@
       "next_action": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately."
     },
     {
+      "proof_id": "R097_PRONOUN_RUNTIME_ROLE_GAP",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "The source-backed pronoun form producer exists, but Production operator approval, validated manifest and exception-aware subject/object role arbitration remain incomplete.",
+      "proved_at_head": "95d69d6",
+      "evidence_runs": ["R097-PRONOUN-RUNTIME-GAP-AUDIT-2026-10-23"],
+      "result": "Production has verified paradigm and case-selection candidates, blocked scoped templates for both roles and one draft pronoun manifest. The service-only producer returns case candidates; R087/R090 preserve soft or coordinated cases without a resolved subject. No object-coded grammar_rules row was returned by a bounded inventory query.",
+      "dependencies": ["grammar-evidence/artifacts/R097-pronoun-runtime-gap-audit.json", "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql", "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql", "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE"],
+      "blocked_by": [],
+      "invalidation": "Refresh after pronoun manifests, operator templates, case-selection arbitration, coordination or object-rule inventory changes.",
+      "notes": "Read-only snapshot and source inspection. No claim that all possible object-role implementations are absent.",
+      "next_action": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator."
+    },
+    {
+      "proof_id": "R098_FORM_RULE_SOURCE_GAP",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "The enabled v1.37 morphological_inflection rules read an empty legacy form relation, while current source forms live in lexeme_form_display_v2 with different adjective form keys.",
+      "proved_at_head": "95d69d6",
+      "evidence_runs": ["R098-FORM-RULE-SOURCE-GAP-AUDIT-2026-10-23"],
+      "result": "Production v1.37 has 12 enabled morphological_inflection members; lexeme_form_variants and adjective_forms each contain 0 rows, while lexeme_form_display_v2 has 9469. Current display uses positive_singular_indefinite_common/neuter, while rules request positive_common/neuter. Dispatcher probes for blått and ærligere returned no_match with zero evaluated rules. Existing operator verifies against stored target and marks productive_generation=false.",
+      "dependencies": ["grammar-evidence/artifacts/R098-form-rule-source-gap-audit.json", "supabase/migrations/20260831184935_universal_morphology_dispatcher_v3.sql", "supabase/migrations/20260831172419_morphological_inflection_operator_v1.sql"],
+      "blocked_by": [],
+      "invalidation": "Refresh after form imports, display schema, form-key registry, dispatcher, release membership or morphology operator changes.",
+      "notes": "Claim is limited to the tested morphological_inflection dispatch path; it does not declare all source morphology unavailable.",
+      "next_action": "R099 supersedes the adapter-first proposal: prove a graph-first adjective POS/rule/derivation path without target-form lookup, then use display forms only as independent comparison evidence."
+    },
+    {
+      "proof_id": "R099_GRAPH_FIRST_FORM_RULE_BOUNDARY",
+      "status": "UNVERIFIED",
+      "proof_kind": "USER_REQUIREMENT",
+      "claim": "Grammar Graph identifies an adjective reading from independent grammatical evidence and derives forms from rules before consulting stored forms for comparison or exception evidence.",
+      "proved_at_head": null,
+      "evidence_runs": ["R099-GRAPH-FIRST-FORM-RULE-BOUNDARY-2026-10-23"],
+      "result": "The user corrected the architecture: the existing pair-comparison executor does not satisfy graph-first form construction. A testable direction-of-evidence contract is recorded; no implementation proof exists.",
+      "dependencies": ["grammar-evidence/contracts/graph-first-form-rule-boundary-v1.md", "R098_FORM_RULE_SOURCE_GAP"],
+      "blocked_by": [],
+      "invalidation": "Review if the user changes the grammar-first authority rule, POS-evidence contract or dictionary comparison policy.",
+      "notes": "Stored forms can corroborate or challenge a derivation but cannot choose the rule, create the expected target, or alone prove adjective POS. Lexical/POS possibilities may enter as candidates, never as resolved grammar truth.",
+      "next_action": "Select one fully specified adjective rule and independently justified POS context; derive a regular form without reading target forms, then test ambiguity, exception, reverse analysis and post-derivation comparison."
+    },
+    {
       "proof_id": "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
       "status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",

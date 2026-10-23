@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "36eed4824f2600d24db419d4441455366c8df238",
+  "head": "95d69d6cf51ef7d9244e10d82bfb128ce47237dc",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "36eed4824f2600d24db419d4441455366c8df238",
-  "source_head": "36eed4824f2600d24db419d4441455366c8df238",
-  "source_revision": "36eed48",
+  "archive_head": "95d69d6cf51ef7d9244e10d82bfb128ce47237dc",
+  "source_head": "95d69d6cf51ef7d9244e10d82bfb128ce47237dc",
+  "source_revision": "95d69d6",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 195,
-  "history_event_count": 142,
-  "strict_history_event_count": 95,
+  "history_event_count": 145,
+  "strict_history_event_count": 98,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -151,7 +151,10 @@
     "R093-ANALYZE-TEXT-PRESELECTION-BOUNDARY-AUDIT-2026-10-23",
     "R094-EARLY-GRAPH-USE-GATE-CORRECTION-2026-10-23",
     "R095-PRONOUN-PRODUCER-ACCEPTANCE-2026-10-23",
-    "R096-FIRST-GRAPH-USE-READINESS-CONTRACT-2026-10-23"
+    "R096-FIRST-GRAPH-USE-READINESS-CONTRACT-2026-10-23",
+    "R097-PRONOUN-RUNTIME-GAP-AUDIT-2026-10-23",
+    "R098-FORM-RULE-SOURCE-GAP-AUDIT-2026-10-23",
+    "R099-GRAPH-FIRST-FORM-RULE-BOUNDARY-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -269,6 +272,9 @@
     "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": [],
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": [],
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": [],
+    "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
+    "R098_FORM_RULE_SOURCE_GAP": [],
+    "R099_GRAPH_FIRST_FORM_RULE_BOUNDARY": [],
     "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE": [],
     "R096_FIRST_GRAPH_USE_READINESS": [],
     "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT": [],
@@ -630,6 +636,21 @@
       "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql",
       "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"
     ],
+    "R097_PRONOUN_RUNTIME_ROLE_GAP": [
+      "grammar-evidence/artifacts/R097-pronoun-runtime-gap-audit.json",
+      "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
+      "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql",
+      "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE"
+    ],
+    "R098_FORM_RULE_SOURCE_GAP": [
+      "grammar-evidence/artifacts/R098-form-rule-source-gap-audit.json",
+      "supabase/migrations/20260831184935_universal_morphology_dispatcher_v3.sql",
+      "supabase/migrations/20260831172419_morphological_inflection_operator_v1.sql"
+    ],
+    "R099_GRAPH_FIRST_FORM_RULE_BOUNDARY": [
+      "grammar-evidence/contracts/graph-first-form-rule-boundary-v1.md",
+      "R098_FORM_RULE_SOURCE_GAP"
+    ],
     "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE": [
       "grammar-evidence/artifacts/R095-pronoun-producer-acceptance.json",
       "grammar-evidence/tools/verify-pronoun-producer-acceptance-v1.ts",
@@ -743,6 +764,9 @@
     "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": "R088 confirmed the early coordination signal is absent. Implement independent construction/coordination evidence and exception-aware case_selection before promoting OVS candidate to resolved clause. Separately address noun-noun V32 over-resolution.",
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": "R090 added bounded og/eller coordination candidate evidence and blocked single-conjunct subject selection in the private pilot. Build a resolved coordinated nominal constituent and verify exception scope before validating case_selection.",
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately.",
+    "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
+    "R098_FORM_RULE_SOURCE_GAP": "R099 supersedes the adapter-first proposal: prove a graph-first adjective POS/rule/derivation path without target-form lookup, then use display forms only as independent comparison evidence.",
+    "R099_GRAPH_FIRST_FORM_RULE_BOUNDARY": "Select one fully specified adjective rule and independently justified POS context; derive a regular form without reading target forms, then test ambiguity, exception, reverse analysis and post-derivation comparison.",
     "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE": "Build exception-aware case_selection and a resolved coordination constituent; test positive, negative and abstention cases before manifest promotion.",
     "R096_FIRST_GRAPH_USE_READINESS": "Complete exception-aware pronoun subject/object and coordination proofs, then build the joint noun/verb/adjective/article corpus and measure graph-to-analyze-text shadow results.",
     "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT": "Agree on a versioned preselection batch interface preserving candidate identities and provenance, plus separate gates for internal shadow observation and app-visible use.",
@@ -3605,7 +3629,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=30.42 max=24"
+        "DB snapshot expired: age_hours=30.57 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3625,7 +3649,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=30.37 max=24"
+        "DB snapshot expired: age_hours=30.52 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3830,7 +3854,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=28.54 max=24"
+        "DB snapshot expired: age_hours=28.69 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3851,7 +3875,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=28.54 max=24"
+        "DB snapshot expired: age_hours=28.69 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3952,7 +3976,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=29.27 max=24"
+        "DB snapshot expired: age_hours=29.42 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4626,6 +4650,66 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Private service-only candidate producer and safety guard. No resolved coordinated nominal phrase, case_selection activation, admission grant, public RPC change or app output."
+    },
+    {
+      "proof_id": "R097_PRONOUN_RUNTIME_ROLE_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "95d69d6",
+      "claim": "The source-backed pronoun form producer exists, but Production operator approval, validated manifest and exception-aware subject/object role arbitration remain incomplete.",
+      "result": "Production has verified paradigm and case-selection candidates, blocked scoped templates for both roles and one draft pronoun manifest. The service-only producer returns case candidates; R087/R090 preserve soft or coordinated cases without a resolved subject. No object-coded grammar_rules row was returned by a bounded inventory query.",
+      "evidence_runs": [
+        "R097-PRONOUN-RUNTIME-GAP-AUDIT-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R097-pronoun-runtime-gap-audit.json",
+        "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
+        "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql",
+        "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Read-only snapshot and source inspection. No claim that all possible object-role implementations are absent."
+    },
+    {
+      "proof_id": "R098_FORM_RULE_SOURCE_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "95d69d6",
+      "claim": "The enabled v1.37 morphological_inflection rules read an empty legacy form relation, while current source forms live in lexeme_form_display_v2 with different adjective form keys.",
+      "result": "Production v1.37 has 12 enabled morphological_inflection members; lexeme_form_variants and adjective_forms each contain 0 rows, while lexeme_form_display_v2 has 9469. Current display uses positive_singular_indefinite_common/neuter, while rules request positive_common/neuter. Dispatcher probes for blått and ærligere returned no_match with zero evaluated rules. Existing operator verifies against stored target and marks productive_generation=false.",
+      "evidence_runs": [
+        "R098-FORM-RULE-SOURCE-GAP-AUDIT-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R098-form-rule-source-gap-audit.json",
+        "supabase/migrations/20260831184935_universal_morphology_dispatcher_v3.sql",
+        "supabase/migrations/20260831172419_morphological_inflection_operator_v1.sql"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Claim is limited to the tested morphological_inflection dispatch path; it does not declare all source morphology unavailable."
+    },
+    {
+      "proof_id": "R099_GRAPH_FIRST_FORM_RULE_BOUNDARY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "USER_REQUIREMENT",
+      "proved_at_head": null,
+      "claim": "Grammar Graph identifies an adjective reading from independent grammatical evidence and derives forms from rules before consulting stored forms for comparison or exception evidence.",
+      "result": "The user corrected the architecture: the existing pair-comparison executor does not satisfy graph-first form construction. A testable direction-of-evidence contract is recorded; no implementation proof exists.",
+      "evidence_runs": [
+        "R099-GRAPH-FIRST-FORM-RULE-BOUNDARY-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/contracts/graph-first-form-rule-boundary-v1.md",
+        "R098_FORM_RULE_SOURCE_GAP"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Stored forms can corroborate or challenge a derivation but cannot choose the rule, create the expected target, or alone prove adjective POS. Lexical/POS possibilities may enter as candidates, never as resolved grammar truth."
     },
     {
       "proof_id": "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
