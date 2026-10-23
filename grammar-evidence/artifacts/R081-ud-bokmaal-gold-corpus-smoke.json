@@ -1,0 +1,180 @@
+{
+  "schema_version": "grammar-evidence-audit-v1",
+  "run": "R081-UD-BOKMAAL-GOLD-CORPUS-SMOKE-2026-10-23",
+  "mode": "read_only_production_rpc",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "release_code": "runtime-structural-v1.37",
+  "corpus": {
+    "source": "https://github.com/UniversalDependencies/UD_Norwegian-Bokmaal/blob/master/no_bokmaal-ud-test.conllu",
+    "license": "CC BY-SA 4.0",
+    "sha256": "b45e4809d38ea560f0b164023b0f4c6d8f0d7731f66c4df129917bb06d1676f8",
+    "sentences_in_test": 1939,
+    "selection": "Three content tokens in PRON-VERB-PRON or NOUN-VERB-NOUN pattern; four examples total, all included."
+  },
+  "cases": [
+    {
+      "text": "Det har hun",
+      "gold": [
+        {
+          "form": "Det",
+          "upos": "PRON",
+          "deprel": "obj",
+          "head": 2
+        },
+        {
+          "form": "har",
+          "upos": "VERB",
+          "features": {
+            "Mood": "Ind",
+            "Tense": "Pres",
+            "VerbForm": "Fin"
+          },
+          "deprel": "root",
+          "head": 0
+        },
+        {
+          "form": "hun",
+          "upos": "PRON",
+          "features": {
+            "Case": "Nom"
+          },
+          "deprel": "nsubj",
+          "head": 2
+        }
+      ],
+      "production": {
+        "pos": [
+          "pronoun",
+          "verb",
+          "pronoun"
+        ],
+        "case_features": [
+          null,
+          null,
+          null
+        ],
+        "v32_subject": null,
+        "resolved_clauses": 0
+      }
+    },
+    {
+      "text": "Det har jeg",
+      "gold": [
+        {
+          "form": "Det",
+          "upos": "PRON",
+          "deprel": "obj",
+          "head": 2
+        },
+        {
+          "form": "har",
+          "upos": "VERB",
+          "features": {
+            "Mood": "Ind",
+            "Tense": "Pres",
+            "VerbForm": "Fin"
+          },
+          "deprel": "root",
+          "head": 0
+        },
+        {
+          "form": "jeg",
+          "upos": "PRON",
+          "features": {
+            "Case": "Nom"
+          },
+          "deprel": "nsubj",
+          "head": 2
+        }
+      ],
+      "production": {
+        "pos": [
+          "pronoun",
+          "verb",
+          "pronoun"
+        ],
+        "case_features": [
+          null,
+          null,
+          null
+        ],
+        "v32_subject": null,
+        "resolved_clauses": 0
+      }
+    },
+    {
+      "text": "Moren anker dommen",
+      "gold": [
+        {
+          "form": "Moren",
+          "upos": "NOUN",
+          "deprel": "nsubj",
+          "head": 2
+        },
+        {
+          "form": "anker",
+          "upos": "VERB",
+          "features": {
+            "VerbForm": "Fin"
+          },
+          "deprel": "root",
+          "head": 0
+        },
+        {
+          "form": "dommen",
+          "upos": "NOUN",
+          "deprel": "obj",
+          "head": 2
+        }
+      ],
+      "production": {
+        "pos": [
+          "noun",
+          null,
+          null
+        ],
+        "v32_subject": null,
+        "resolved_clauses": 0
+      }
+    },
+    {
+      "text": "Far mister samværsretten",
+      "gold": [
+        {
+          "form": "Far",
+          "upos": "NOUN",
+          "deprel": "nsubj",
+          "head": 2
+        },
+        {
+          "form": "mister",
+          "upos": "VERB",
+          "features": {
+            "VerbForm": "Fin"
+          },
+          "deprel": "root",
+          "head": 0
+        },
+        {
+          "form": "samværsretten",
+          "upos": "NOUN",
+          "deprel": "obj",
+          "head": 2
+        }
+      ],
+      "production": {
+        "pos": [
+          "noun",
+          "verb",
+          null
+        ],
+        "v32_subject": null,
+        "resolved_clauses": 0
+      }
+    }
+  ],
+  "assessment": {
+    "result": "Four of four gold sentences received no resolved clause in current Production RPC. Two OVS pronoun cases have all three POS readings yet no case features and no clause. Two SVO noun cases have missing lexical candidates for one or more words. These represent distinct blockers; this tiny selected slice is diagnostic, not a corpus accuracy measure.",
+    "next": "Build a UD-to-graph label mapping; evaluate a larger stratified gold sample and keep errors separated by lexical coverage, morphology, clause role and dependency execution. Use pronoun paradigm source rule for case feature producer; do not infer all noun cases from these four."
+  }
+}

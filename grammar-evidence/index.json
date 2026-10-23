@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "1c67151787a893adca18bd2d2641d089a60dad8a",
+  "head": "08ec27f5f0768efce022b8ced1994419d9027a80",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "1c67151787a893adca18bd2d2641d089a60dad8a",
-  "source_head": "1c67151787a893adca18bd2d2641d089a60dad8a",
-  "source_revision": "1c67151787a893adca18bd2d2641d089a60dad8a",
+  "archive_head": "08ec27f5f0768efce022b8ced1994419d9027a80",
+  "source_head": "08ec27f5f0768efce022b8ced1994419d9027a80",
+  "source_revision": "08ec27f5f0768efce022b8ced1994419d9027a80",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 123,
-  "strict_history_event_count": 76,
+  "history_event_count": 124,
+  "strict_history_event_count": 77,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -132,7 +132,8 @@
     "R077-BASELINE-CORRECTION-2026-10-23",
     "R078-CANONICAL-SCOPED-CORE-GRAPH-SEAM-2026-10-23",
     "R079-INDEPENDENT-SUBJECT-AUTHORITY-2026-10-23",
-    "R080-PRONOUN-PARADIGM-RULE-LINK-2026-10-23"
+    "R080-PRONOUN-PARADIGM-RULE-LINK-2026-10-23",
+    "R081-UD-BOKMAAL-GOLD-CORPUS-SMOKE-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -240,7 +241,8 @@
     "R077_SCOPED_CORE_RUNTIME_INTEGRATION": [],
     "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM": [],
     "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT": [],
-    "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": []
+    "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": [],
+    "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -547,6 +549,11 @@
     "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": [
       "grammar-evidence/artifacts/R080-pronoun-paradigm-rule-link.json",
       "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT"
+    ],
+    "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": [
+      "grammar-evidence/artifacts/R081-ud-bokmaal-gold-corpus-smoke.json",
+      "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT",
+      "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP"
     ]
   },
   "proof_next_actions": {
@@ -629,7 +636,8 @@
     "R077_SCOPED_CORE_RUNTIME_INTEGRATION": "R078 proved a candidate-only span patch in isolation. Identify a source-backed Producer boundary and independent subject-role authority before live integration.",
     "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM": "R079 found no independent noun subject authority. Check the existing pronoun-case source-to-morphology mapping before selecting a runtime producer seam; avoid feeding scoped candidates into the legacy clause adapter.",
     "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT": "R080 corrected the source target: use the specific pronoun.personal.forms.bokmal.paradigm candidate for a case-feature producer contract, then run SVO/OVS positive and negative tests before resolving subject_of.",
-    "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": "Inspect manifest/compilation eligibility for the paradigm, build provenance-preserving recognition and generation tests, then produce case features before subject selection."
+    "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": "Inspect manifest/compilation eligibility for the paradigm, build provenance-preserving recognition and generation tests, then produce case features before subject selection. R081 adds two gold OVS controls.",
+    "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": "Create a UD-to-graph label mapping and a larger stratified gold sample, with error categories for lexical coverage, morphology, subject role and dependency execution."
   },
   "files": [
     {
@@ -3477,7 +3485,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.42 max=24"
+        "DB snapshot expired: age_hours=25.78 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3497,7 +3505,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.37 max=24"
+        "DB snapshot expired: age_hours=25.73 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3806,7 +3814,7 @@
     {
       "proof_id": "R059_PILOT_AUDIT_ACL_SNAPSHOT",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "DB_SNAPSHOT",
       "proved_at_head": "f828081",
       "claim": "Legacy pilot-audit functions are executable by anon and authenticated, while the comparator output tables have RLS enabled with no policies.",
@@ -3819,7 +3827,9 @@
         "supabase/migrations/20260831141802_rule_execution_plane_pilot_v1_foundation.sql"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "DB snapshot expired: age_hours=24.64 max=24"
+      ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
     {
@@ -4307,6 +4317,26 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "This is the specific source authority for the case-form mapping. It does not by itself prove runtime morphology, subject-role resolution, or rule activation."
+    },
+    {
+      "proof_id": "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
+      "proved_at_head": "08ec27f",
+      "claim": "A four-sentence slice of the manually annotated UD Norwegian Bokmaal test set can be aligned with current Production RPC inputs and reveals separate OVS role and lexical coverage gaps.",
+      "result": "The two gold OVS examples Det har hun and Det har jeg have PRON/VERB/PRON readings in Production but no case feature or resolved clause. Two gold SVO noun examples also have no clause, with one or more lexical candidates missing. All four examples were read-only Production RPC calls. This selected slice is diagnostic, not an accuracy estimate.",
+      "evidence_runs": [
+        "R081-UD-BOKMAAL-GOLD-CORPUS-SMOKE-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R081-ud-bokmaal-gold-corpus-smoke.json",
+        "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT",
+        "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "UD Norwegian Bokmaal test corpus is CC BY-SA 4.0. Alignment excludes punctuation in the three-token SQL structural RPC input and compares content-token roles only. No Production mutation or rule activation."
     }
   ],
   "policy": {

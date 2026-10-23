@@ -1195,7 +1195,21 @@
       "blocked_by": [],
       "invalidation": "Refresh after grammar knowledge candidates, execution contracts, rule compilation, or release membership changes.",
       "notes": "This is the specific source authority for the case-form mapping. It does not by itself prove runtime morphology, subject-role resolution, or rule activation.",
-      "next_action": "Inspect manifest/compilation eligibility for the paradigm, build provenance-preserving recognition and generation tests, then produce case features before subject selection."
+      "next_action": "Inspect manifest/compilation eligibility for the paradigm, build provenance-preserving recognition and generation tests, then produce case features before subject selection. R081 adds two gold OVS controls."
+    },
+    {
+      "proof_id": "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE",
+      "status": "PROVEN",
+      "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
+      "claim": "A four-sentence slice of the manually annotated UD Norwegian Bokmaal test set can be aligned with current Production RPC inputs and reveals separate OVS role and lexical coverage gaps.",
+      "proved_at_head": "08ec27f",
+      "evidence_runs": ["R081-UD-BOKMAAL-GOLD-CORPUS-SMOKE-2026-10-23"],
+      "result": "The two gold OVS examples Det har hun and Det har jeg have PRON/VERB/PRON readings in Production but no case feature or resolved clause. Two gold SVO noun examples also have no clause, with one or more lexical candidates missing. All four examples were read-only Production RPC calls. This selected slice is diagnostic, not an accuracy estimate.",
+      "dependencies": ["grammar-evidence/artifacts/R081-ud-bokmaal-gold-corpus-smoke.json", "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT", "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP"],
+      "blocked_by": [],
+      "invalidation": "Refresh after UD source revision, canonical token mapping, lexical resolver, morphology, V32, or clause builder changes.",
+      "notes": "UD Norwegian Bokmaal test corpus is CC BY-SA 4.0. Alignment excludes punctuation in the three-token SQL structural RPC input and compares content-token roles only. No Production mutation or rule activation.",
+      "next_action": "Create a UD-to-graph label mapping and a larger stratified gold sample, with error categories for lexical coverage, morphology, subject role and dependency execution."
     }
   ]
 }
