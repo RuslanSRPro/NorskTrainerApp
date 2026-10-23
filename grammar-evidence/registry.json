@@ -958,11 +958,11 @@
       "claim": "The graph distinguishes a subject-initial noun-verb-noun clause from a valid object-initial clause using independent syntax evidence before assigning subject_of.",
       "proved_at_head": null,
       "evidence_runs": [],
-      "result": "Open. The current V32 bounded bootstrap assumes the first noun is subject. Norwegian object-verb-subject order is possible; the R069 corpus does not prove a general subject assignment contract.",
+      "result": "Open. R079 read-only Production pairs show V32 resolves Fisken spiser hunden from initial noun position, while Meg ser han remains without a clause. No independent noun subject authority or runtime pronoun-case feature was observed.",
       "dependencies": ["grammar-evidence/artifacts/R069-ambiguous-object-syntax-guard.json"],
       "invalidation": "N/A until an executable positive/negative contrast proves subject resolution or hypothesis status.",
       "notes": "Do not infer a specific wrong edge from the current five control probes; this is an unproven generalization risk.",
-      "next_action": "Define evidence that makes subject identity resolved versus hypothesized, then test SVO and OVS minimal pairs without selecting from word order alone."
+      "next_action": "Trace the existing personal_case_inflection source candidate to a runtime morphology feature, then test nominative/object-form pairs; keep noun-noun subject identity hypothesized when evidence is insufficient."
     },
     {
       "proof_id": "R070_BOKEN_CANDIDATE_PROVENANCE",
@@ -1167,7 +1167,21 @@
       "blocked_by": [],
       "invalidation": "Refresh after canonical graph core, surface boundary, legacy clause adapter or scoped-core fixture changes.",
       "notes": "Test-only graph patch. No Production runtime wiring, deployed Edge code, rule admission, or activation was changed. Candidate nodes do not establish subject identity.",
-      "next_action": "Find existing independent subject-role authority and a governed runtime producer seam; avoid feeding scoped candidates into the legacy clause adapter."
+      "next_action": "R079 found no independent noun subject authority. Check the existing pronoun-case source-to-morphology mapping before selecting a runtime producer seam; avoid feeding scoped candidates into the legacy clause adapter."
+    },
+    {
+      "proof_id": "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT",
+      "status": "PROVEN",
+      "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
+      "claim": "Current Production exposes a subject_pronoun lexical signal but no observed case feature or independent noun role decision in the tested V32-to-clause-to-subject_of path.",
+      "proved_at_head": "bf7f2c08eed528802af7fcf318187a0aedfd3194",
+      "evidence_runs": ["R079-INDEPENDENT-SUBJECT-AUTHORITY-2026-10-23"],
+      "result": "Read-only minimal pairs: Han ser meg resolves subject token 1; Meg ser han produces no clause; Fisken spiser hunden resolves subject token 1 by positional V32 bootstrap. meg is tagged pronoun but has no morphology reading/case feature. Existing pronoun.general.classification.personal_case_inflection is source_verified yet not compiled into grammar_rules. This proves the bounded runtime observation, not general absence of other possible authorities.",
+      "dependencies": ["grammar-evidence/artifacts/R079-independent-subject-authority-audit.json", "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"],
+      "blocked_by": [],
+      "invalidation": "Refresh after V32, canonical RPC, lexical classes, pronoun morphology, clause builder, or dependency rule changes.",
+      "notes": "han can also be an object form; subject_pronoun class membership alone does not prove syntactic role. No Production write, deployment, or rule activation in this audit.",
+      "next_action": "Audit the existing personal_case_inflection source candidate and build a case-feature producer contract; run SVO/OVS positive and negative tests before resolving subject_of."
     }
   ]
 }

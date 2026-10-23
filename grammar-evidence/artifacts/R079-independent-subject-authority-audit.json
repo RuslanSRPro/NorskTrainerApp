@@ -1,0 +1,501 @@
+{
+  "schema_version": "grammar-evidence-audit-v1",
+  "run": "R079-INDEPENDENT-SUBJECT-AUTHORITY-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_rpc_and_source_audit",
+  "git_head": "bf7f2c08eed528802af7fcf318187a0aedfd3194",
+  "rpc": "public.run_canonical_legacy_compatibility_v140",
+  "source_review": {
+    "v32": "supabase/migrations/20261023080811_grammar_v32_postfinite_adverbial_core_guard.sql",
+    "representative_suite": "supabase/migrations/20260831151317_representative_rule_suite_v1_foundation.sql",
+    "finding": "V32 accepts prefinite subject_pronoun or positional initial noun bootstrap. Clause builder and subject_of_predicate inherit its subject index; neither independently resolves subject role. Representative suite lists pronoun.general.classification.personal_case_inflection with source_to_morphology_mapping_required."
+  },
+  "production_observations": {
+    "subject_pronoun_members": [
+      "de",
+      "dere",
+      "du",
+      "han",
+      "hen",
+      "hun",
+      "jeg",
+      "vi"
+    ],
+    "object_pronoun_class_observed": false,
+    "meg": {
+      "pos": "pronoun",
+      "morphology": "no_morph_reading",
+      "case_feature": null
+    },
+    "henne": {
+      "candidate_count": 0
+    },
+    "ham": {
+      "observed_pos": "noun",
+      "pronoun_candidate_observed": false
+    },
+    "personal_case_inflection": {
+      "source_status": "source_verified",
+      "grammar_rule_present": false
+    }
+  },
+  "minimal_pairs": [
+    {
+      "sentence": "Fisken spiser ham",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Fisken",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "morph_count": "1",
+          "selected_pos": null
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "ham",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": {
+        "relation": "subject_of",
+        "source_index": "1",
+        "target_index": null,
+        "source_entity": "token",
+        "target_entity": "predicate"
+      }
+    },
+    {
+      "sentence": "Fisken spiser han",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Fisken",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "morph_count": "1",
+          "selected_pos": null
+        },
+        {
+          "index": "3",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "han",
+          "morph_count": "0",
+          "selected_pos": "pronoun"
+        }
+      ],
+      "v32_subject_token_index": null,
+      "resolved_clause_count": 0,
+      "subject_edge": null
+    },
+    {
+      "sentence": "Fisken spiser hunden",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Fisken",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "morph_count": "1",
+          "selected_pos": null
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "hunden",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": {
+        "relation": "subject_of",
+        "source_index": "1",
+        "target_index": null,
+        "source_entity": "token",
+        "target_entity": "predicate"
+      }
+    },
+    {
+      "sentence": "Han spiser fisken",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "Han",
+          "morph_count": "0",
+          "selected_pos": "pronoun"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "morph_count": "1",
+          "selected_pos": null
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "fisken",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": {
+        "relation": "subject_of",
+        "source_index": "1",
+        "target_index": null,
+        "source_entity": "token",
+        "target_entity": "predicate"
+      }
+    },
+    {
+      "sentence": "Han spiser meg",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "Han",
+          "morph_count": "0",
+          "selected_pos": "pronoun"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "morph_count": "1",
+          "selected_pos": null
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "meg",
+          "morph_count": "0",
+          "selected_pos": "pronoun"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": {
+        "relation": "subject_of",
+        "source_index": "1",
+        "target_index": null,
+        "source_entity": "token",
+        "target_entity": "predicate"
+      }
+    },
+    {
+      "sentence": "Hunden spiser fisken",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Hunden",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "morph_count": "1",
+          "selected_pos": null
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "fisken",
+          "morph_count": "0",
+          "selected_pos": "noun"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": {
+        "relation": "subject_of",
+        "source_index": "1",
+        "target_index": null,
+        "source_entity": "token",
+        "target_entity": "predicate"
+      }
+    },
+    {
+      "sentence": "Meg spiser han",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Meg",
+          "morph_count": "0",
+          "selected_pos": "pronoun"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "morph_count": "1",
+          "selected_pos": null
+        },
+        {
+          "index": "3",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "han",
+          "morph_count": "0",
+          "selected_pos": "pronoun"
+        }
+      ],
+      "v32_subject_token_index": null,
+      "resolved_clause_count": 0,
+      "subject_edge": null
+    },
+    {
+      "sentence": "Han ser meg",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "Han",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "ser",
+          "selected_pos": "verb",
+          "finite_reading": true,
+          "candidate_count": "1"
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "meg",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": null
+    },
+    {
+      "sentence": "Han spiser meg",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "Han",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "selected_pos": null,
+          "finite_reading": true,
+          "candidate_count": "2"
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "meg",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": null
+    },
+    {
+      "sentence": "Henne ser jeg",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Henne",
+          "selected_pos": null,
+          "finite_reading": null,
+          "candidate_count": "0"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "ser",
+          "selected_pos": "verb",
+          "finite_reading": true,
+          "candidate_count": "1"
+        },
+        {
+          "index": "3",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "jeg",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        }
+      ],
+      "v32_subject_token_index": null,
+      "resolved_clause_count": 0,
+      "subject_edge": null
+    },
+    {
+      "sentence": "Jeg ser henne",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "Jeg",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "ser",
+          "selected_pos": "verb",
+          "finite_reading": true,
+          "candidate_count": "1"
+        },
+        {
+          "index": "3",
+          "classes": null,
+          "surface": "henne",
+          "selected_pos": null,
+          "finite_reading": null,
+          "candidate_count": "0"
+        }
+      ],
+      "v32_subject_token_index": 1,
+      "resolved_clause_count": 1,
+      "subject_edge": null
+    },
+    {
+      "sentence": "Meg ser han",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Meg",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "ser",
+          "selected_pos": "verb",
+          "finite_reading": true,
+          "candidate_count": "1"
+        },
+        {
+          "index": "3",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "han",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        }
+      ],
+      "v32_subject_token_index": null,
+      "resolved_clause_count": 0,
+      "subject_edge": null
+    },
+    {
+      "sentence": "Meg spiser han",
+      "tokens": [
+        {
+          "index": "1",
+          "classes": null,
+          "surface": "Meg",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        },
+        {
+          "index": "2",
+          "classes": null,
+          "surface": "spiser",
+          "selected_pos": null,
+          "finite_reading": true,
+          "candidate_count": "2"
+        },
+        {
+          "index": "3",
+          "classes": [
+            "subject_pronoun"
+          ],
+          "surface": "han",
+          "selected_pos": "pronoun",
+          "finite_reading": null,
+          "candidate_count": "1"
+        }
+      ],
+      "v32_subject_token_index": null,
+      "resolved_clause_count": 0,
+      "subject_edge": null
+    }
+  ],
+  "conclusion": {
+    "bounded_proven": "Current runtime has a subject_pronoun lexical signal, but no observed case feature or independent noun subject authority. V32 resolves Fisken spiser hunden with first noun as subject; Meg ser han remains without a clause.",
+    "unverified": "General SVO/OVS subject disambiguation and pronoun case to runtime mapping.",
+    "caveat": "han can be an object form in Bokmal; subject_pronoun membership is not sufficient alone."
+  },
+  "next_proof": "Trace source-backed personal pronoun case forms to canonical token morphology, then test nominative/object-form minimal pairs and keep noun-noun role unresolved when evidence cannot distinguish them.",
+  "references": [
+    "https://sprakradet.no/klarsprak/sprak-i-lover-og-forskrifter/skriverad/rad-om-setningsbygning-i-lover-og-forskrifter/setninger-med-omvendt-eller-vanskelig-ordstilling/",
+    "https://sprakradet.no/spraksporsmal-og-svar/?kategori=pronomen-jegmeg-hanham-og-saa-videre",
+    "https://ordbokene.no/bm/27578",
+    "https://ordbokene.no/nno/bm/22170"
+  ]
+}
