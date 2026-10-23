@@ -1251,7 +1251,21 @@
       "blocked_by": [],
       "invalidation": "Refresh after source candidate statement, execution role, contract semantics or test harness changes.",
       "notes": "Isolated tool only. No operator approval, manifest, materialized grammar rule, canonical token producer, Production mutation or activation. Case candidates do not themselves assign subject/object role.",
-      "next_action": "Specify a scoped morphological_paradigm operator and canonical token feature patch, then test SVO/OVS controls before registering a validated manifest."
+      "next_action": "R085 proved a test-only canonical candidate patch. Specify a scoped morphological_paradigm operator and actual runtime producer, then test SVO/OVS controls before registering a validated manifest."
+    },
+    {
+      "proof_id": "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "An isolated source-backed pronoun case producer can add nonexhaustive candidate lexical and morph readings to the canonical graph without changing token identity or creating subject/object edges.",
+      "proved_at_head": "0e20ecf",
+      "evidence_runs": ["R085-PRONOUN-CASE-CANONICAL-GRAPH-SEAM-2026-10-23"],
+      "result": "Deno execution and type check passed. Twenty-six checks across Meg ser han, Jeg ser meg and Den ser det confirm graph invariants, stable token IDs, idempotence, candidate-only readings, nonexhaustive case evidence, source provenance and no subject/object edges.",
+      "dependencies": ["grammar-evidence/artifacts/R085-pronoun-case-canonical-graph-seam.json", "grammar-evidence/tools/verify-pronoun-paradigm-graph-seam-v1.ts", "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT"],
+      "blocked_by": [],
+      "invalidation": "Refresh after canonical graph core, surface boundary, source paradigm, contract or graph seam test changes.",
+      "notes": "Test-only graph patch. No Production runtime wiring, approved operator, manifest, materialized rule, grant, activation or app output. The source statement does not establish objective han as impossible; absence of a reading cannot reject it.",
+      "next_action": "Define approved scoped morphological_paradigm operator and a provenance-preserving runtime producer, then test current canonical token feature flow before any Production migration."
     }
   ]
 }

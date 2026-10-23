@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "0eda2bebe554c5577b4ad3079e494d2bae82ca24",
+  "head": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "0eda2bebe554c5577b4ad3079e494d2bae82ca24",
-  "source_head": "0eda2bebe554c5577b4ad3079e494d2bae82ca24",
-  "source_revision": "0eda2bebe554c5577b4ad3079e494d2bae82ca24",
+  "archive_head": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
+  "source_head": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
+  "source_revision": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 127,
-  "strict_history_event_count": 80,
+  "history_event_count": 128,
+  "strict_history_event_count": 81,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -136,7 +136,8 @@
     "R081-UD-BOKMAAL-GOLD-CORPUS-SMOKE-2026-10-23",
     "R082-PRONOUN-PARADIGM-ACTIVATION-PREFLIGHT-2026-10-23",
     "R083-JEG-SOVER-ONE-RULE-EXECUTION-2026-10-23",
-    "R084-PRONOUN-PARADIGM-ISOLATED-CONTRACT-2026-10-23"
+    "R084-PRONOUN-PARADIGM-ISOLATED-CONTRACT-2026-10-23",
+    "R085-PRONOUN-CASE-CANONICAL-GRAPH-SEAM-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -248,7 +249,8 @@
     "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": [],
     "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT": [],
     "R083_JEG_SOVER_ONE_RULE_EXECUTION": [],
-    "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": []
+    "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": [],
+    "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -577,6 +579,11 @@
       "grammar-evidence/tools/pronoun-paradigm-contract-v1.mjs",
       "grammar-evidence/tools/verify-pronoun-paradigm-contract-v1.mjs",
       "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP"
+    ],
+    "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": [
+      "grammar-evidence/artifacts/R085-pronoun-case-canonical-graph-seam.json",
+      "grammar-evidence/tools/verify-pronoun-paradigm-graph-seam-v1.ts",
+      "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT"
     ]
   },
   "proof_next_actions": {
@@ -663,7 +670,8 @@
     "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": "Create a UD-to-graph label mapping and a larger stratified gold sample, with error categories for lexical coverage, morphology, subject role and dependency execution.",
     "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT": "R084 proved an isolated bidirectional contract from the source-backed paradigm. Design a scoped morphological_paradigm operator and canonical token producer before any manifest, release membership or activation. R083 separately extends the executed subject rule corpus.",
     "R083_JEG_SOVER_ONE_RULE_EXECUTION": "Choose the next source-backed input family and require independent subject evidence before expanding from simple two-token clauses to ambiguous SVO/OVS structures.",
-    "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": "Specify a scoped morphological_paradigm operator and canonical token feature patch, then test SVO/OVS controls before registering a validated manifest."
+    "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": "R085 proved a test-only canonical candidate patch. Specify a scoped morphological_paradigm operator and actual runtime producer, then test SVO/OVS controls before registering a validated manifest.",
+    "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": "Define approved scoped morphological_paradigm operator and a provenance-preserving runtime producer, then test current canonical token feature flow before any Production migration."
   },
   "files": [
     {
@@ -3511,7 +3519,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.08 max=24"
+        "DB snapshot expired: age_hours=26.12 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3531,7 +3539,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.03 max=24"
+        "DB snapshot expired: age_hours=26.07 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3736,7 +3744,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.20 max=24"
+        "DB snapshot expired: age_hours=24.24 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3757,7 +3765,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.20 max=24"
+        "DB snapshot expired: age_hours=24.24 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3858,7 +3866,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.93 max=24"
+        "DB snapshot expired: age_hours=24.98 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4429,6 +4437,26 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Isolated tool only. No operator approval, manifest, materialized grammar rule, canonical token producer, Production mutation or activation. Case candidates do not themselves assign subject/object role."
+    },
+    {
+      "proof_id": "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "0e20ecf",
+      "claim": "An isolated source-backed pronoun case producer can add nonexhaustive candidate lexical and morph readings to the canonical graph without changing token identity or creating subject/object edges.",
+      "result": "Deno execution and type check passed. Twenty-six checks across Meg ser han, Jeg ser meg and Den ser det confirm graph invariants, stable token IDs, idempotence, candidate-only readings, nonexhaustive case evidence, source provenance and no subject/object edges.",
+      "evidence_runs": [
+        "R085-PRONOUN-CASE-CANONICAL-GRAPH-SEAM-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R085-pronoun-case-canonical-graph-seam.json",
+        "grammar-evidence/tools/verify-pronoun-paradigm-graph-seam-v1.ts",
+        "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Test-only graph patch. No Production runtime wiring, approved operator, manifest, materialized rule, grant, activation or app output. The source statement does not establish objective han as impossible; absence of a reading cannot reject it."
     }
   ],
   "policy": {

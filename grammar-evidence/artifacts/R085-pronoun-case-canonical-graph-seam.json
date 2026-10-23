@@ -1,0 +1,27 @@
+{
+  "schema_version": "grammar-evidence-contract-proof-v1",
+  "run": "R085-PRONOUN-CASE-CANONICAL-GRAPH-SEAM-2026-10-23",
+  "source_candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+  "test_command": "deno run --allow-read grammar-evidence/tools/verify-pronoun-paradigm-graph-seam-v1.ts",
+  "typecheck_command": "deno check grammar-evidence/tools/verify-pronoun-paradigm-graph-seam-v1.ts",
+  "result": {
+    "status": "PASS",
+    "cases": 3,
+    "checks": 26,
+    "examples": [
+      "Meg ser han",
+      "Jeg ser meg",
+      "Den ser det"
+    ],
+    "canonical_token_ids_preserved": true,
+    "graph_invariants_pass": true,
+    "patch_idempotent": true,
+    "morph_readings_candidate_only": true,
+    "nonexhaustive_case_evidence": true,
+    "no_subject_or_object_edges": true,
+    "provenance_candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede"
+  },
+  "scope": "Isolated test-only patch into canonical graph core. No runtime producer wiring, no SQL morphology, manifest, rule materialization, activation or app output.",
+  "limitation": "The source paradigm lists han/ham but does not encode optional objective han. Candidate readings are nonexhaustive and cannot reject an unlisted alternative or establish subject role.",
+  "next": "Design scoped runtime producer using canonical graph's lexical_reading and morph_reading nodes; first establish an approved operator/manifest contract and negative/ambiguity controls."
+}
