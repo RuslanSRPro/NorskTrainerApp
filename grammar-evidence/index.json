@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
+  "head": "dbc8ac5b4110d10295335b42049d692500d30f00",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
-  "source_head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
-  "source_revision": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
+  "archive_head": "dbc8ac5b4110d10295335b42049d692500d30f00",
+  "source_head": "dbc8ac5b4110d10295335b42049d692500d30f00",
+  "source_revision": "dbc8ac5b4110d10295335b42049d692500d30f00",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 116,
-  "strict_history_event_count": 69,
+  "history_event_count": 117,
+  "strict_history_event_count": 70,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -125,7 +125,8 @@
     "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23",
     "R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23",
     "R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23",
-    "R074-EARLY-EXPRESSION-CANDIDATE-AND-ROADMAP-REUSE-2026-10-23"
+    "R074-EARLY-EXPRESSION-CANDIDATE-AND-ROADMAP-REUSE-2026-10-23",
+    "R075-EARLY-EXPRESSION-CONSUMER-CONTRACT-AUDIT-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -225,7 +226,9 @@
     "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT": [],
     "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": [],
     "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE": [],
-    "R074_V148_V150_REUSE_AUDIT": []
+    "R074_V148_V150_REUSE_AUDIT": [],
+    "R075_EARLY_EXPRESSION_CONSUMER_GAP": [],
+    "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -496,6 +499,14 @@
     ],
     "R074_V148_V150_REUSE_AUDIT": [
       "grammar-evidence/artifacts/R074-early-expression-roadmap-audit.json"
+    ],
+    "R075_EARLY_EXPRESSION_CONSUMER_GAP": [
+      "grammar-evidence/artifacts/R075-early-expression-consumer-audit.json",
+      "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE"
+    ],
+    "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT": [
+      "R075_EARLY_EXPRESSION_CONSUMER_GAP",
+      "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT"
     ]
   },
   "proof_next_actions": {
@@ -570,7 +581,9 @@
     "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT": "Specify and test the expression-to-runtime occurrence projection plus a pre-V32 or controlled second-pass bridge.",
     "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": "R074 proved a candidate-only early occurrence. Audit its consumer and resolved function contract before changing V32 or release membership.",
     "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE": "Identify the consumer contract that may turn source-backed expression candidates into resolved occurrences; reuse v1.50 punctuation surface for question-case investigation.",
-    "R074_V148_V150_REUSE_AUDIT": "Audit existing canonical punctuation and MWE consumers before any additional structural patch."
+    "R074_V148_V150_REUSE_AUDIT": "Audit existing canonical punctuation and MWE consumers before any additional structural patch.",
+    "R075_EARLY_EXPRESSION_CONSUMER_GAP": "Specify and prove one consumer contract with source identity, release authority and candidate/resolved separation before any V32 expansion.",
+    "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT": "Design the smallest bridge into an existing runtime occurrence contract and test it before Production migration."
   },
   "files": [
     {
@@ -4092,6 +4105,42 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Historical archive conclusions are architectural evidence, not a current Production behavior proof. The claim is limited to inspected sources and artifacts."
+    },
+    {
+      "proof_id": "R075_EARLY_EXPRESSION_CONSUMER_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_READONLY",
+      "proved_at_head": "dbc8ac5b4110d10295335b42049d692500d30f00",
+      "claim": "In the inspected current Production SQL and tracked canonical adapter, the R074 early source expression candidate has no downstream semantic or graph consumer.",
+      "result": "Production public pg_proc definitions reference the early field only in its producer and parent RPC. The checked MWE, clause, attachment and rule-plane functions do not reference it. The tracked legacy MWE adapter reads the separate late multiword layer. R074 remains candidate-only with no clause or subject edge for the long-tail case.",
+      "evidence_runs": [
+        "R075-EARLY-EXPRESSION-CONSUMER-CONTRACT-AUDIT-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R075-early-expression-consumer-audit.json",
+        "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The absence claim is limited to inspected public SQL definitions and tracked adapter source; it does not exclude external or dynamic consumers."
+    },
+    {
+      "proof_id": "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": null,
+      "claim": "A source-backed i dag candidate is mapped to a runtime occurrence that can be independently resolved and used for clause-core survival while retaining canonical span and avoiding false resolution of i boken or dag i.",
+      "result": "Open. R075 found no consumer for the existing early candidate; no resolved adjunct or clause-core survival has been demonstrated.",
+      "evidence_runs": [],
+      "dependencies": [
+        "R075_EARLY_EXPRESSION_CONSUMER_GAP",
+        "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not promote a lexical expression to a syntactic adverb merely because its surfaces match. Do not change immutable v1.37 membership."
     }
   ],
   "policy": {

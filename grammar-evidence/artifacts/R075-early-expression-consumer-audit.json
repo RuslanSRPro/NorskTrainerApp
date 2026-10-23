@@ -1,0 +1,45 @@
+{
+  "run": "R075-EARLY-EXPRESSION-CONSUMER-CONTRACT-AUDIT-2026-10-23",
+  "timestamp_utc": "2026-10-23T08:39:54Z",
+  "production_sql": {
+    "project_id": "kevpkawrbtovrgyjkkvu",
+    "scope": "public pg_proc definitions",
+    "early_reference_functions": [
+      {
+        "name": "build_early_source_expression_candidates_v1",
+        "md5": "0cef4684dccc811acf132dc0301c06ed"
+      },
+      {
+        "name": "run_canonical_legacy_compatibility_v140",
+        "md5": "81ae1453781a9ee00e67863086ec4bb9"
+      }
+    ],
+    "checked_non_consumers": [
+      {
+        "name": "build_multiword_function_expression_v1",
+        "md5": "3dd23ce5a1d1edd03ec75695fc960522"
+      },
+      {
+        "name": "build_clause_layer_v1",
+        "md5": "6c98f1a6030d7c531b5639d0f8347540"
+      },
+      {
+        "name": "build_clause_attachment_function_resolution_v1",
+        "md5": "15892d926c185cf5da7929f334ea5c07"
+      },
+      {
+        "name": "build_rule_execution_plane_v1",
+        "md5": "c655b166ee73c4715731d7f18f06a5f0"
+      }
+    ],
+    "pipeline_order": "early candidate -> V32 -> late MWE"
+  },
+  "source": {
+    "legacy_adapter": "legacy-language-graph-adapter-v1.ts mwePatchFromLegacyV11 reads multiword_function_expression_v1 resolved/candidate/blocked arrays; no early candidate projection",
+    "canonical_shadow": "canonical-graph-shadow-v1/index.ts summary reads late MWE layer; no early candidate consumer",
+    "mwe_resolution": "Only resolve_with_finite_clause_core can enter resolved_expressions; other surface matches remain candidates. A source lexeme entry is not release multiword fact."
+  },
+  "finding": "The early source-backed i dag candidate is currently diagnostic evidence only; it is not consumed by clause, attachment, MWE resolution or canonical graph adapter.",
+  "limits": "This is a read-only source/definition audit; it does not prove behavior of a proposed bridge or all dynamic SQL consumers.",
+  "next_contract": "Define a source-to-runtime occurrence mapping with canonical span, release authority, candidate/resolved distinction, and independent syntactic test. Execute positive and near-negative cases and full 14-case regression before altering V32 or activation."
+}

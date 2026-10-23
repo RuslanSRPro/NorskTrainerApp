@@ -1084,6 +1084,34 @@
       "invalidation": "Refresh if v1.49/v1.50 source artifacts or their current runtime wiring are found.",
       "notes": "Historical archive conclusions are architectural evidence, not a current Production behavior proof. The claim is limited to inspected sources and artifacts.",
       "next_action": "Audit existing canonical punctuation and MWE consumers before any additional structural patch."
+    },
+    {
+      "proof_id": "R075_EARLY_EXPRESSION_CONSUMER_GAP",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_READONLY",
+      "claim": "In the inspected current Production SQL and tracked canonical adapter, the R074 early source expression candidate has no downstream semantic or graph consumer.",
+      "proved_at_head": "dbc8ac5b4110d10295335b42049d692500d30f00",
+      "evidence_runs": ["R075-EARLY-EXPRESSION-CONSUMER-CONTRACT-AUDIT-2026-10-23"],
+      "result": "Production public pg_proc definitions reference the early field only in its producer and parent RPC. The checked MWE, clause, attachment and rule-plane functions do not reference it. The tracked legacy MWE adapter reads the separate late multiword layer. R074 remains candidate-only with no clause or subject edge for the long-tail case.",
+      "dependencies": ["grammar-evidence/artifacts/R075-early-expression-consumer-audit.json", "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE"],
+      "blocked_by": [],
+      "invalidation": "Refresh after changes to the public RPC, MWE, clause, attachment, rule-plane definitions or canonical adapter.",
+      "notes": "The absence claim is limited to inspected public SQL definitions and tracked adapter source; it does not exclude external or dynamic consumers.",
+      "next_action": "Specify and prove one consumer contract with source identity, release authority and candidate/resolved separation before any V32 expansion."
+    },
+    {
+      "proof_id": "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "A source-backed i dag candidate is mapped to a runtime occurrence that can be independently resolved and used for clause-core survival while retaining canonical span and avoiding false resolution of i boken or dag i.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "Open. R075 found no consumer for the existing early candidate; no resolved adjunct or clause-core survival has been demonstrated.",
+      "dependencies": ["R075_EARLY_EXPRESSION_CONSUMER_GAP", "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT"],
+      "blocked_by": [],
+      "invalidation": "N/A until an executable positive and near-negative bridge test plus unchanged 14-case corpus pass.",
+      "notes": "Do not promote a lexical expression to a syntactic adverb merely because its surfaces match. Do not change immutable v1.37 membership.",
+      "next_action": "Design the smallest bridge into an existing runtime occurrence contract and test it before Production migration."
     }
   ]
 }
