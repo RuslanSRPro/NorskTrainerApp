@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "ad2e5fb252f06c6c956b6e56650880393dd7a598",
+  "head": "9b46d24f9668c8569514cc7860638748474c2461",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "ad2e5fb252f06c6c956b6e56650880393dd7a598",
-  "source_head": "ad2e5fb252f06c6c956b6e56650880393dd7a598",
-  "source_revision": "ad2e5fb",
+  "archive_head": "9b46d24f9668c8569514cc7860638748474c2461",
+  "source_head": "9b46d24f9668c8569514cc7860638748474c2461",
+  "source_revision": "9b46d24",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 195,
-  "history_event_count": 139,
-  "strict_history_event_count": 92,
+  "history_event_count": 140,
+  "strict_history_event_count": 93,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -148,7 +148,8 @@
     "R090-R088-SUPERSEDED-2026-10-23",
     "R091-ANALYZE-TEXT-FUTURE-INTEGRATION-REQUIREMENT-2026-10-23",
     "R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23",
-    "R093-ANALYZE-TEXT-PRESELECTION-BOUNDARY-AUDIT-2026-10-23"
+    "R093-ANALYZE-TEXT-PRESELECTION-BOUNDARY-AUDIT-2026-10-23",
+    "R094-EARLY-GRAPH-USE-GATE-CORRECTION-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -632,7 +633,7 @@
       "supabase/functions/analyze-text/grammar-parser.ts"
     ],
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": [
-      "grammar-evidence/contracts/analyze-text-graph-integration-v2.md"
+      "grammar-evidence/contracts/analyze-text-graph-integration-v3.md"
     ]
   },
   "proof_next_actions": {
@@ -726,7 +727,7 @@
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": "R090 added bounded og/eller coordination candidate evidence and blocked single-conjunct subject selection in the private pilot. Build a resolved coordinated nominal constituent and verify exception scope before validating case_selection.",
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately.",
     "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT": "Agree on a versioned preselection batch interface preserving candidate identities and provenance, plus separate gates for internal shadow observation and app-visible use.",
-    "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": "Define a versioned batch API and run the homograph/POS/SVO corpus with latency, determinism, provenance, failure-containment and output-isolation checks. Only then consider an internal shadow call. Keep user-visible output and candidate reordering behind the separate activation gate."
+    "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": "Define a versioned batch input preserving all candidates. Select one narrow graph capability, prove its positive and abstention corpus, then run an isolated shadow comparison and a bounded user-facing rollout if it improves analyze-text."
   },
   "files": [
     {
@@ -3585,7 +3586,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=29.66 max=24"
+        "DB snapshot expired: age_hours=30.31 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3605,7 +3606,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=29.61 max=24"
+        "DB snapshot expired: age_hours=30.26 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3810,7 +3811,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=27.78 max=24"
+        "DB snapshot expired: age_hours=28.43 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3831,7 +3832,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=27.78 max=24"
+        "DB snapshot expired: age_hours=28.43 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3932,7 +3933,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=28.52 max=24"
+        "DB snapshot expired: age_hours=29.16 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4637,14 +4638,15 @@
       "claim": "A future deterministic batched analyze-text interface preserves all candidate identities and form provenance, returns per-candidate rule evidence without modifying candidates, and supports separate graph generation/verification capabilities.",
       "result": "Requirements supplied by the analyze-text chat are recorded for future integration; no callable API, shadow invocation, app output or acceptance-corpus result has been proved.",
       "evidence_runs": [
-        "R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23"
+        "R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23",
+        "R094-EARLY-GRAPH-USE-GATE-CORRECTION-2026-10-23"
       ],
       "dependencies": [
-        "grammar-evidence/contracts/analyze-text-graph-integration-v2.md"
+        "grammar-evidence/contracts/analyze-text-graph-integration-v3.md"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Future integration comment only. An internal, isolated shadow call may precede full activation; it must not change or appear in the app response. Graph-derived user-visible output and candidate reordering remain gated until the required rules are activated. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates. Soft rules cannot hard-filter. Graph generation is separate from analyze-text's source-observed form input."
+      "notes": "User correction: no blanket ban on graph output to the app and no requirement to activate all rules before first use. Ship only a bounded capability with proved evidence, explicit abstention, measured behavior and rollback. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates at this interface. Soft rules cannot hard-filter. Graph generation remains separate from analyze-text's source-observed form input."
     }
   ],
   "policy": {

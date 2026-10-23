@@ -1343,13 +1343,13 @@
       "proof_kind": "USER_REQUIREMENT",
       "claim": "A future deterministic batched analyze-text interface preserves all candidate identities and form provenance, returns per-candidate rule evidence without modifying candidates, and supports separate graph generation/verification capabilities.",
       "proved_at_head": null,
-      "evidence_runs": ["R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23"],
+      "evidence_runs": ["R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23", "R094-EARLY-GRAPH-USE-GATE-CORRECTION-2026-10-23"],
       "result": "Requirements supplied by the analyze-text chat are recorded for future integration; no callable API, shadow invocation, app output or acceptance-corpus result has been proved.",
-      "dependencies": ["grammar-evidence/contracts/analyze-text-graph-integration-v2.md"],
+      "dependencies": ["grammar-evidence/contracts/analyze-text-graph-integration-v3.md"],
       "blocked_by": [],
       "invalidation": "Review when the user changes app-output gating, analyze-text input schema, candidate identity/provenance, rule activation scope, or rollout order.",
-      "notes": "Future integration comment only. An internal, isolated shadow call may precede full activation; it must not change or appear in the app response. Graph-derived user-visible output and candidate reordering remain gated until the required rules are activated. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates. Soft rules cannot hard-filter. Graph generation is separate from analyze-text's source-observed form input.",
-      "next_action": "Define a versioned batch API and run the homograph/POS/SVO corpus with latency, determinism, provenance, failure-containment and output-isolation checks. Only then consider an internal shadow call. Keep user-visible output and candidate reordering behind the separate activation gate."
+      "notes": "User correction: no blanket ban on graph output to the app and no requirement to activate all rules before first use. Ship only a bounded capability with proved evidence, explicit abstention, measured behavior and rollback. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates at this interface. Soft rules cannot hard-filter. Graph generation remains separate from analyze-text's source-observed form input.",
+      "next_action": "Define a versioned batch input preserving all candidates. Select one narrow graph capability, prove its positive and abstention corpus, then run an isolated shadow comparison and a bounded user-facing rollout if it improves analyze-text."
     }
   ]
 }
