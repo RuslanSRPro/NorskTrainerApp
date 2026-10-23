@@ -221,12 +221,12 @@
       "queue_priority": 100
     },
     {
-      "proof_id": "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT",
+      "proof_id": "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Identify existing preposition/MWE/adjunct producer for i dag or define the missing occurrence contract, then test longer-tail minimal pairs and rerun the fourteen-case corpus.",
+      "next_action": "Implement a narrow candidate occurrence contract using the verified i dag source with canonical token span; test before integrating a new release or changing V32.",
       "search_gate": null,
       "queue_priority": 100
     },
@@ -261,6 +261,18 @@
       "next_action": "Address the three remaining corpus failures by structural family: longer tail, multiword subject and verb-initial inversion. Separately prove SVO/OVS subject disambiguation before broad activation; retain the bounded one-rule pilot as distinct evidence.",
       "search_gate": null,
       "queue_priority": -1
+    },
+    {
+      "proof_id": "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [
+        "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE"
+      ],
+      "ready_for_next_action": false,
+      "next_action": "Prove an early source-backed i dag occurrence bridge or a controlled second core pass, then test longer-tail minimal pairs and rerun the fourteen-case corpus.",
+      "search_gate": null,
+      "queue_priority": 100
     },
     {
       "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",

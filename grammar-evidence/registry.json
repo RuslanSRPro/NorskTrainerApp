@@ -1023,12 +1023,39 @@
       "claim": "The graph can preserve a verified subject/predicate core across an unresolved or resolved temporal tail without asserting correctness for the whole sentence or silently discarding the tail.",
       "proved_at_head": null,
       "evidence_runs": [],
-      "result": "Open. The present five-token execution yields no core; no resolved temporal MWE or attachment is available to license the tail. A length-only V32 relaxation would not prove tail syntax.",
-      "dependencies": ["R072_LONG_TAIL_PRODUCTION_OBSERVATION"],
-      "blocked_by": [],
+      "result": "Open. The present five-token execution yields no core; R073 found that a verified i dag expression is not projected to runtime MWE facts and the MWE builder runs after V32. A length-only V32 relaxation would not prove tail syntax.",
+      "dependencies": ["R072_LONG_TAIL_PRODUCTION_OBSERVATION", "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"],
+      "blocked_by": ["R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE"],
       "invalidation": "N/A until producer provenance, core-survival semantics and positive/negative executable tests pass.",
       "notes": "Keep tail status separate from clause-core status and do not select a lexical reading for dag from dictionary candidates alone.",
-      "next_action": "Identify existing preposition/MWE/adjunct producer for i dag or define the missing occurrence contract, then test longer-tail minimal pairs and rerun the fourteen-case corpus."
+      "next_action": "Prove an early source-backed i dag occurrence bridge or a controlled second core pass, then test longer-tail minimal pairs and rerun the fourteen-case corpus."
+    },
+    {
+      "proof_id": "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_READONLY",
+      "claim": "The verified i dag expression exists in the lexicon but has no runtime MWE fact, while the current RPC executes V32 before the MWE builder and the v1.37 PP rule is not enabled.",
+      "proved_at_head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
+      "evidence_runs": ["R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23"],
+      "result": "The i dag lexeme is an active multi-source verified expression. Runtime multiword facts have no [i,dag] entry in any release, and the current sentence has zero candidate and matched MWE occurrences. i is rejected only by a learning-dictionary admission rule; no grammar lexical class member for i exists. In the current RPC V32 precedes the MWE builder; compiled PP rule is absent from v1.37 membership.",
+      "dependencies": ["grammar-evidence/artifacts/R073-temporal-expression-runtime-bridge-audit.json", "R072_LONG_TAIL_PRODUCTION_OBSERVATION"],
+      "invalidation": "Refresh after lexicon import, MWE fact insertion, lexical class membership, release membership or RPC order changes.",
+      "notes": "Do not treat dictionary exclusion as evidence that i is ungrammatical. A lexical expression entry is not executable MWE evidence. Adding a late MWE fact alone cannot repair an earlier V32 zero-clause result.",
+      "next_action": "Specify and test the expression-to-runtime occurrence projection plus a pre-V32 or controlled second-pass bridge."
+    },
+    {
+      "proof_id": "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "A source-backed i dag occurrence can be resolved with canonical span identity before clause-core admission, or trigger a controlled re-evaluation, without asserting arbitrary i + noun expressions as temporal adverbs.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "Open. The source entry exists, but the runtime has no corresponding MWE fact and currently runs MWE recognition after V32.",
+      "dependencies": ["R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"],
+      "blocked_by": [],
+      "invalidation": "N/A until executable positive and near-negative occurrence tests plus unchanged-corpus regression pass.",
+      "notes": "Do not mutate immutable v1.37 release membership or classify a generic preposition phrase as the lexical adverb i dag merely from adjacent surfaces. Preserve candidate versus resolved status and source provenance.",
+      "next_action": "Implement a narrow candidate occurrence contract using the verified i dag source with canonical token span; test before integrating a new release or changing V32."
     }
   ]
 }

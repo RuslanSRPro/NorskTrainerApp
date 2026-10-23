@@ -1,0 +1,32 @@
+{
+  "evidence_id": "R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23",
+  "observed_at_utc": "2026-10-23T08:22:40Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
+  "test_input": "Hunden spiser fisken i dag",
+  "observed_inputs": {
+    "i_dictionary_admission": {"rule_type": "function_word", "action": "reject", "reason": "function_word_preposition", "is_active": true},
+    "i_grammar_lexical_class_members": 0,
+    "i_dag_expression_lexeme": {"id": "2b6977c9-1c52-4df4-8947-7d4a0ea988cd", "lemma": "i dag", "pos": "expression", "verification_status": "multi_source", "dictionary_status": "active"},
+    "i_dag_runtime_multiword_facts_all_releases": 0,
+    "v137_prepositional_phrase_rule": {"code": "nrg_rt_v1.structural.prepositional_phrase.preposition_head_pp_complement", "compiled_rule_exists": true, "is_active": false, "is_enabled_in_release": null},
+    "rpc_definition_md5": "968759622f01f1489b79b67f60cce775",
+    "rpc_source_positions": {"v32_base_structure": 3476, "phrase_build": 3796, "multiword_builder": 4262},
+    "current_sentence_mwe_candidate_fact_count": 0,
+    "current_sentence_mwe_matched_occurrence_count": 0
+  },
+  "conclusions": [
+    "The dictionary admission rejection of i prevents promotion as a learning lexeme; it is not itself a grammatical preposition reading or a prohibition on grammar use.",
+    "The verified lexical expression i dag is not projected into any current runtime multiword fact. A lexical entry alone cannot be treated as an executed graph rule.",
+    "The present RPC executes V32 before phrase and MWE builders. Adding a late MWE fact alone cannot restore a V32 core that has already returned zero clauses.",
+    "The compiled PP rule is not enabled in runtime-structural-v1.37, so it does not provide a current alternate path."
+  ],
+  "proposed_test_contract": [
+    "Use a source-backed i dag expression fact with exact occurrence span and canonical token IDs; keep it separate from arbitrary i + noun prepositional phrases.",
+    "Make the occurrence visible before V32 or perform a controlled second core pass after MWE recognition; prove that the five-token sentence preserves subject/predicate core and does not claim a full temporal attachment without its own rule.",
+    "Run positive i dag and near-negative i ... dag contrasts plus the unchanged fourteen-case corpus; verify release integrity, zero active grants and unchanged app isolation."
+  ],
+  "status": "SOURCE_AND_PRODUCTION_GAP_PROVEN_BRIDGE_UNVERIFIED",
+  "primary_dictionary_source": "https://ordbokene.no/bm/118063",
+  "scope": "Read-only source and Production audit. No migration, release membership change, grant or application integration."
+}

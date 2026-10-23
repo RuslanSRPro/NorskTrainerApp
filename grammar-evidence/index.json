@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
+  "head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
-  "source_head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
+  "archive_head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
+  "source_head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 114,
-  "strict_history_event_count": 67,
+  "history_event_count": 115,
+  "strict_history_event_count": 68,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -123,7 +123,8 @@
     "R070-BOKEN-HOMOGRAPH-INFLECTION-AUDIT-2026-10-23",
     "R071-R069-INVALIDATION-2026-10-23",
     "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23",
-    "R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23"
+    "R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23",
+    "R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -217,7 +218,11 @@
     "R070_NOUN_INFLECTION_GRAPH_EXECUTION": [],
     "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": [],
     "R072_LONG_TAIL_PRODUCTION_OBSERVATION": [],
-    "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": []
+    "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": [
+      "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE"
+    ],
+    "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT": [],
+    "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -471,7 +476,15 @@
       "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
     ],
     "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": [
+      "R072_LONG_TAIL_PRODUCTION_OBSERVATION",
+      "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"
+    ],
+    "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT": [
+      "grammar-evidence/artifacts/R073-temporal-expression-runtime-bridge-audit.json",
       "R072_LONG_TAIL_PRODUCTION_OBSERVATION"
+    ],
+    "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": [
+      "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"
     ]
   },
   "proof_next_actions": {
@@ -542,7 +555,9 @@
     "R070_NOUN_INFLECTION_GRAPH_EXECUTION": "Create a small corpus for bok I/II with boken, boka and each homograph's sourced plural forms; verify exact forms before test assertions, then execute bidirectional graph rules.",
     "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": "See R072 for the diagnosed longer-tail producer gap. Prove temporal-tail identity and core-survival contract before another V32 change.",
     "R072_LONG_TAIL_PRODUCTION_OBSERVATION": "Trace preposition and i dag occurrence producers, then establish a candidate/resolved adjunct contract.",
-    "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": "Identify existing preposition/MWE/adjunct producer for i dag or define the missing occurrence contract, then test longer-tail minimal pairs and rerun the fourteen-case corpus."
+    "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": "Prove an early source-backed i dag occurrence bridge or a controlled second core pass, then test longer-tail minimal pairs and rerun the fourteen-case corpus.",
+    "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT": "Specify and test the expression-to-runtime occurrence projection plus a pre-V32 or controlled second-pass bridge.",
+    "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": "Implement a narrow candidate occurrence contract using the verified i dag source with canonical token span; test before integrating a new release or changing V32."
   },
   "files": [
     {
@@ -3980,14 +3995,52 @@
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The graph can preserve a verified subject/predicate core across an unresolved or resolved temporal tail without asserting correctness for the whole sentence or silently discarding the tail.",
-      "result": "Open. The present five-token execution yields no core; no resolved temporal MWE or attachment is available to license the tail. A length-only V32 relaxation would not prove tail syntax.",
+      "result": "Open. The present five-token execution yields no core; R073 found that a verified i dag expression is not projected to runtime MWE facts and the MWE builder runs after V32. A length-only V32 relaxation would not prove tail syntax.",
       "evidence_runs": [],
       "dependencies": [
+        "R072_LONG_TAIL_PRODUCTION_OBSERVATION",
+        "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"
+      ],
+      "blocked_by": [
+        "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE"
+      ],
+      "stale_reasons": [],
+      "notes": "Keep tail status separate from clause-core status and do not select a lexical reading for dag from dictionary candidates alone."
+    },
+    {
+      "proof_id": "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_READONLY",
+      "proved_at_head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
+      "claim": "The verified i dag expression exists in the lexicon but has no runtime MWE fact, while the current RPC executes V32 before the MWE builder and the v1.37 PP rule is not enabled.",
+      "result": "The i dag lexeme is an active multi-source verified expression. Runtime multiword facts have no [i,dag] entry in any release, and the current sentence has zero candidate and matched MWE occurrences. i is rejected only by a learning-dictionary admission rule; no grammar lexical class member for i exists. In the current RPC V32 precedes the MWE builder; compiled PP rule is absent from v1.37 membership.",
+      "evidence_runs": [
+        "R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R073-temporal-expression-runtime-bridge-audit.json",
         "R072_LONG_TAIL_PRODUCTION_OBSERVATION"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Keep tail status separate from clause-core status and do not select a lexical reading for dag from dictionary candidates alone."
+      "notes": "Do not treat dictionary exclusion as evidence that i is ungrammatical. A lexical expression entry is not executable MWE evidence. Adding a late MWE fact alone cannot repair an earlier V32 zero-clause result."
+    },
+    {
+      "proof_id": "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": null,
+      "claim": "A source-backed i dag occurrence can be resolved with canonical span identity before clause-core admission, or trigger a controlled re-evaluation, without asserting arbitrary i + noun expressions as temporal adverbs.",
+      "result": "Open. The source entry exists, but the runtime has no corresponding MWE fact and currently runs MWE recognition after V32.",
+      "evidence_runs": [],
+      "dependencies": [
+        "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not mutate immutable v1.37 release membership or classify a generic preposition phrase as the lexical adverb i dag merely from adjacent surfaces. Preserve candidate versus resolved status and source provenance."
     }
   ],
   "policy": {
