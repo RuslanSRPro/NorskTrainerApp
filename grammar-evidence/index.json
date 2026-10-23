@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "880be219dd89e2fdefafad6568d0c4441727550e",
+  "head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "880be219dd89e2fdefafad6568d0c4441727550e",
-  "source_head": "880be219dd89e2fdefafad6568d0c4441727550e",
+  "archive_head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
+  "source_head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 113,
-  "strict_history_event_count": 66,
+  "history_event_count": 114,
+  "strict_history_event_count": 67,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -122,7 +122,8 @@
     "R069-AMBIGUOUS-OBJECT-SYNTAX-GUARD-2026-10-23",
     "R070-BOKEN-HOMOGRAPH-INFLECTION-AUDIT-2026-10-23",
     "R071-R069-INVALIDATION-2026-10-23",
-    "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23"
+    "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23",
+    "R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -214,7 +215,9 @@
     "R069_SVO_OVS_SUBJECT_DISAMBIGUATION": [],
     "R070_BOKEN_CANDIDATE_PROVENANCE": [],
     "R070_NOUN_INFLECTION_GRAPH_EXECUTION": [],
-    "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": []
+    "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": [],
+    "R072_LONG_TAIL_PRODUCTION_OBSERVATION": [],
+    "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -461,6 +464,14 @@
       "grammar-evidence/artifacts/R071-postfinite-adverbial-core-guard.json",
       "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
       "supabase/migrations/20261023080811_grammar_v32_postfinite_adverbial_core_guard.sql"
+    ],
+    "R072_LONG_TAIL_PRODUCTION_OBSERVATION": [
+      "grammar-evidence/artifacts/R072-long-tail-temporal-attachment-gap.json",
+      "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
+      "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
+    ],
+    "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": [
+      "R072_LONG_TAIL_PRODUCTION_OBSERVATION"
     ]
   },
   "proof_next_actions": {
@@ -529,7 +540,9 @@
     "R069_SVO_OVS_SUBJECT_DISAMBIGUATION": "Define evidence that makes subject identity resolved versus hypothesized, then test SVO and OVS minimal pairs without selecting from word order alone.",
     "R070_BOKEN_CANDIDATE_PROVENANCE": "Implement and prove rule-derived noun morphology in both analysis and generation directions, preserving distinct homograph identities.",
     "R070_NOUN_INFLECTION_GRAPH_EXECUTION": "Create a small corpus for bok I/II with boken, boka and each homograph's sourced plural forms; verify exact forms before test assertions, then execute bidirectional graph rules.",
-    "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": "Investigate the longer-tail failure Hunden spiser fisken i dag, then rerun the same corpus. Do not attach or classify tail tokens without a separate rule proof."
+    "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": "See R072 for the diagnosed longer-tail producer gap. Prove temporal-tail identity and core-survival contract before another V32 change.",
+    "R072_LONG_TAIL_PRODUCTION_OBSERVATION": "Trace preposition and i dag occurrence producers, then establish a candidate/resolved adjunct contract.",
+    "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": "Identify existing preposition/MWE/adjunct producer for i dag or define the missing occurrence contract, then test longer-tail minimal pairs and rerun the fourteen-case corpus."
   },
   "files": [
     {
@@ -3939,6 +3952,42 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Diagnostic corpus only. The adjective-neuter source form licenses a syntax-core path; it is not an adverb morphology reading or proof of tail correctness. Three longer/reordered structural cases and SVO/OVS ambiguity remain. Nine other grammar_rules rows were active at observation; the target subject rule was inactive."
+    },
+    {
+      "proof_id": "R072_LONG_TAIL_PRODUCTION_OBSERVATION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
+      "proved_at_head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
+      "claim": "On current Production and canonical-source input, Hunden spiser fisken i dag stops before predicate/clause; the i dag tail has no resolved MWE or attachment in this execution.",
+      "result": "V32 clause, predicate, resolved clause and subject_of counts are zero. Hunden and fisken each have a noun candidate; spiser has a finite verb reading. i has no lexical candidate, dag is noun/adverb ambiguous. Multiword expression and clause attachment resolved counts are zero; phrase builder has NP:1, VP:2, NP:3 and a hypothesis NP:5.",
+      "evidence_runs": [
+        "R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R072-long-tail-temporal-attachment-gap.json",
+        "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
+        "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This proves a bounded observed gap, not that a temporal-tail producer is absent from all code or data."
+    },
+    {
+      "proof_id": "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "proved_at_head": null,
+      "claim": "The graph can preserve a verified subject/predicate core across an unresolved or resolved temporal tail without asserting correctness for the whole sentence or silently discarding the tail.",
+      "result": "Open. The present five-token execution yields no core; no resolved temporal MWE or attachment is available to license the tail. A length-only V32 relaxation would not prove tail syntax.",
+      "evidence_runs": [],
+      "dependencies": [
+        "R072_LONG_TAIL_PRODUCTION_OBSERVATION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Keep tail status separate from clause-core status and do not select a lexical reading for dag from dictionary candidates alone."
     }
   ],
   "policy": {

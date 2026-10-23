@@ -1001,7 +1001,34 @@
       "dependencies": ["grammar-evidence/artifacts/R071-postfinite-adverbial-core-guard.json", "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json", "supabase/migrations/20261023080811_grammar_v32_postfinite_adverbial_core_guard.sql"],
       "invalidation": "Refresh after V32, structural token builder, public RPC, canonical input generation or release changes.",
       "notes": "Diagnostic corpus only. The adjective-neuter source form licenses a syntax-core path; it is not an adverb morphology reading or proof of tail correctness. Three longer/reordered structural cases and SVO/OVS ambiguity remain. Nine other grammar_rules rows were active at observation; the target subject rule was inactive.",
-      "next_action": "Investigate the longer-tail failure Hunden spiser fisken i dag, then rerun the same corpus. Do not attach or classify tail tokens without a separate rule proof."
+      "next_action": "See R072 for the diagnosed longer-tail producer gap. Prove temporal-tail identity and core-survival contract before another V32 change."
+    },
+    {
+      "proof_id": "R072_LONG_TAIL_PRODUCTION_OBSERVATION",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
+      "claim": "On current Production and canonical-source input, Hunden spiser fisken i dag stops before predicate/clause; the i dag tail has no resolved MWE or attachment in this execution.",
+      "proved_at_head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
+      "evidence_runs": ["R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23"],
+      "result": "V32 clause, predicate, resolved clause and subject_of counts are zero. Hunden and fisken each have a noun candidate; spiser has a finite verb reading. i has no lexical candidate, dag is noun/adverb ambiguous. Multiword expression and clause attachment resolved counts are zero; phrase builder has NP:1, VP:2, NP:3 and a hypothesis NP:5.",
+      "dependencies": ["grammar-evidence/artifacts/R072-long-tail-temporal-attachment-gap.json", "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json", "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"],
+      "invalidation": "Refresh after V32, token resolver, MWE, phrase builder, attachment producer or public RPC changes.",
+      "notes": "This proves a bounded observed gap, not that a temporal-tail producer is absent from all code or data.",
+      "next_action": "Trace preposition and i dag occurrence producers, then establish a candidate/resolved adjunct contract."
+    },
+    {
+      "proof_id": "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT",
+      "status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "claim": "The graph can preserve a verified subject/predicate core across an unresolved or resolved temporal tail without asserting correctness for the whole sentence or silently discarding the tail.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "Open. The present five-token execution yields no core; no resolved temporal MWE or attachment is available to license the tail. A length-only V32 relaxation would not prove tail syntax.",
+      "dependencies": ["R072_LONG_TAIL_PRODUCTION_OBSERVATION"],
+      "blocked_by": [],
+      "invalidation": "N/A until producer provenance, core-survival semantics and positive/negative executable tests pass.",
+      "notes": "Keep tail status separate from clause-core status and do not select a lexical reading for dag from dictionary candidates alone.",
+      "next_action": "Identify existing preposition/MWE/adjunct producer for i dag or define the missing occurrence contract, then test longer-tail minimal pairs and rerun the fourteen-case corpus."
     }
   ]
 }

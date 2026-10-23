@@ -1,0 +1,33 @@
+{
+  "evidence_id": "R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23",
+  "observed_at_utc": "2026-10-23T08:13:38Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_head": "096c2cc5bffc90724611675d3f1cb695c18cdde0",
+  "release_code": "runtime-structural-v1.37",
+  "input_source": "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
+  "sentence": "Hunden spiser fisken i dag",
+  "production_observation": {
+    "v32_clause_count": 0,
+    "predicate_count": 0,
+    "resolved_clause_count": 0,
+    "subject_of_count": 0,
+    "tokens": [
+      {"index": 1, "surface": "Hunden", "candidate_pos": ["noun"], "resolution": "single_candidate"},
+      {"index": 2, "surface": "spiser", "candidate_pos": ["noun", "verb"], "finite_verb_reading": true, "resolution": "ambiguous_unresolved"},
+      {"index": 3, "surface": "fisken", "candidate_pos": ["noun"], "resolution": "single_candidate"},
+      {"index": 4, "surface": "i", "candidate_pos": [], "resolution": "no_candidate"},
+      {"index": 5, "surface": "dag", "candidate_pos": ["noun", "adverb"], "resolution": "ambiguous_unresolved"}
+    ],
+    "multiword_function_expression_v1": {"matched_occurrence_count": 0, "resolved_expression_count": 0, "candidate_expression_count": 0},
+    "phrase_build_v1": {"resolved_phrases": ["NP:1", "VP:2", "NP:3"], "hypotheses": ["NP:5"], "resolved_temporal_tail_phrase": false},
+    "clause_attachment_function_v1": {"generated_candidate_count": 0, "resolved_attachment_count": 0}
+  },
+  "diagnosis": "The current V32 bootstrap admits only exact two- or three-token core shapes. The first three tokens provide a noun/finite-verb/noun candidate core, but the five-token input has no independent resolution of the i dag tail. Later phrase/MWE/attachment stages report no temporal-tail attachment; the missing V32 core prevents predicate/clause production.",
+  "contract_to_prove": [
+    "Identify the producer and authority for i as a preposition and for the i dag occurrence as a temporal adjunct or competing analysis, preserving candidate status.",
+    "Specify how a verified subject/predicate core may survive an unresolved tail without claiming that the whole sentence or tail is grammatically valid.",
+    "Test positive and negative longer-tail minimal pairs and rerun the same fourteen-case corpus before changing V32 or activating the target rule."
+  ],
+  "status": "OPEN_UNVERIFIED",
+  "scope": "Read-only Production diagnosis. No new SQL change, grant or application integration."
+}

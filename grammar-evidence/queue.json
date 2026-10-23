@@ -221,6 +221,16 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Identify existing preposition/MWE/adjunct producer for i dag or define the missing occurrence contract, then test longer-tail minimal pairs and rerun the fourteen-case corpus.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
