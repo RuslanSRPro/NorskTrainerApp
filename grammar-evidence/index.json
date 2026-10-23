@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "2ef4a874b74ab0cffa389f257c417842baffc4d6",
+  "head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "2ef4a874b74ab0cffa389f257c417842baffc4d6",
-  "source_head": "2ef4a874b74ab0cffa389f257c417842baffc4d6",
-  "source_revision": "2ef4a874b74ab0cffa389f257c417842baffc4d6",
+  "archive_head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
+  "source_head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
+  "source_revision": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 118,
-  "strict_history_event_count": 71,
+  "history_event_count": 120,
+  "strict_history_event_count": 73,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -127,7 +127,9 @@
     "R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23",
     "R074-EARLY-EXPRESSION-CANDIDATE-AND-ROADMAP-REUSE-2026-10-23",
     "R075-EARLY-EXPRESSION-CONSUMER-CONTRACT-AUDIT-2026-10-23",
-    "R076-SCOPED-CORE-COUNTEREXAMPLE-2026-10-23"
+    "R076-SCOPED-CORE-COUNTEREXAMPLE-2026-10-23",
+    "R077-SCOPED-CORE-CANDIDATE-CONTRACT-2026-10-23",
+    "R077-BASELINE-CORRECTION-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -230,7 +232,9 @@
     "R074_V148_V150_REUSE_AUDIT": [],
     "R075_EARLY_EXPRESSION_CONSUMER_GAP": [],
     "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT": [],
-    "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE": []
+    "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE": [],
+    "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE": [],
+    "R077_SCOPED_CORE_RUNTIME_INTEGRATION": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -513,6 +517,17 @@
     "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE": [
       "grammar-evidence/artifacts/R076-scoped-core-counterexample.json",
       "R075_EARLY_EXPRESSION_CONSUMER_GAP"
+    ],
+    "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE": [
+      "grammar-evidence/artifacts/R077-scoped-core-contract-fixture.json",
+      "grammar-evidence/artifacts/R077-scoped-core-contract-result.json",
+      "grammar-evidence/tools/verify-scoped-core-contract.mjs",
+      "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE"
+    ],
+    "R077_SCOPED_CORE_RUNTIME_INTEGRATION": [
+      "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE",
+      "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT",
+      "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"
     ]
   },
   "proof_next_actions": {
@@ -590,7 +605,9 @@
     "R074_V148_V150_REUSE_AUDIT": "Audit existing canonical punctuation and MWE consumers before any additional structural patch.",
     "R075_EARLY_EXPRESSION_CONSUMER_GAP": "Specify and prove one consumer contract with source identity, release authority and candidate/resolved separation before any V32 expansion.",
     "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT": "Design the smallest bridge into an existing runtime occurrence contract and test it before Production migration.",
-    "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE": "Specify a scoped-core output with explicit covered and deferred token ranges; test SVO/OVS ambiguity and tail non-erasure before graph transition."
+    "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE": "Specify a scoped-core output with explicit covered and deferred token ranges; test SVO/OVS ambiguity and tail non-erasure before graph transition.",
+    "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE": "Review existing canonical graph consumer seam and independent subject-role authority before selecting a production bridge.",
+    "R077_SCOPED_CORE_RUNTIME_INTEGRATION": "Inspect the existing graph transition and rule-admission contracts for a candidate-only bridge; then test in isolation before Production."
   },
   "files": [
     {
@@ -4167,6 +4184,45 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "This is diagnostic core recoverability, not a resolved adjunct, sentence parse, subject-rule activation or proof that the two near-negative sentences are ungrammatical."
+    },
+    {
+      "proof_id": "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
+      "claim": "An isolated scoped-core projection can retain canonical identities and deferred tokens while treating the V32 prefix clause as a candidate and emitting no graph edge.",
+      "result": "A read-only Production fixture with six inputs passed 57 executable checks. The long-tail input retains one separate source expression candidate and three deferred tokens. Two near-negative tails retain no expression candidate. Fisken spiser hunden remains a candidate despite a V32 clause. The question-order and nonfinite controls produce no candidate. No graph edge is emitted.",
+      "evidence_runs": [
+        "R077-SCOPED-CORE-CANDIDATE-CONTRACT-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R077-scoped-core-contract-fixture.json",
+        "grammar-evidence/artifacts/R077-scoped-core-contract-result.json",
+        "grammar-evidence/tools/verify-scoped-core-contract.mjs",
+        "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This proves a test-only representation and invariants, not a Production producer, syntactic truth, graph transition or activated rule."
+    },
+    {
+      "proof_id": "R077_SCOPED_CORE_RUNTIME_INTEGRATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": null,
+      "claim": "The scoped-core candidate is produced and consumed by the live grammar runtime without losing token identity, silently resolving a tail, or emitting an unauthorized subject edge.",
+      "result": "Open. R077 only exercised a standalone projection over saved Production data.",
+      "evidence_runs": [],
+      "dependencies": [
+        "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE",
+        "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT",
+        "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not promote the SVO/OVS-sensitive noun-verb-noun subject to resolved solely because V32 returns a clause."
     }
   ],
   "policy": {

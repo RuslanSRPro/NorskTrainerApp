@@ -1,0 +1,111 @@
+{
+  "run": "R077-SCOPED-CORE-CANDIDATE-CONTRACT-2026-10-23",
+  "timestamp_utc": "2026-10-23T08:55:58Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "fixture": "grammar-evidence/artifacts/R077-scoped-core-contract-fixture.json",
+  "harness": "grammar-evidence/tools/verify-scoped-core-contract.mjs",
+  "test_result": {
+    "status": "PASS",
+    "checks": 57,
+    "production_mutation": false,
+    "graph_transition": false,
+    "results": {
+      "Fisken spiser hunden": {
+        "status": "candidate",
+        "subject_role_status": "unverified",
+        "whole_sentence_status": "unverified",
+        "subject_token_id": "tok:0:0:6",
+        "finite_token_id": "tok:1:7:13",
+        "claimed_core_token_ids": [
+          "tok:0:0:6",
+          "tok:1:7:13"
+        ],
+        "deferred_token_ids": [
+          "tok:2:14:20"
+        ],
+        "expression_candidates": [],
+        "graph_edges": []
+      },
+      "Hunden og fisken": {
+        "status": "blocked",
+        "reason": "unique_prefix_core_absent",
+        "graph_edges": []
+      },
+      "Hunden spiser fisken i dag": {
+        "status": "candidate",
+        "subject_role_status": "unverified",
+        "whole_sentence_status": "unverified",
+        "subject_token_id": "tok:0:0:6",
+        "finite_token_id": "tok:1:7:13",
+        "claimed_core_token_ids": [
+          "tok:0:0:6",
+          "tok:1:7:13"
+        ],
+        "deferred_token_ids": [
+          "tok:2:14:20",
+          "tok:3:21:22",
+          "tok:4:23:26"
+        ],
+        "expression_candidates": [
+          {
+            "status": "candidate",
+            "source_lexeme_id": "2b6977c9-1c52-4df4-8947-7d4a0ea988cd",
+            "canonical_token_ids": [
+              "tok:3:21:22",
+              "tok:4:23:26"
+            ]
+          }
+        ],
+        "graph_edges": []
+      },
+      "Spiser hunden fisken?": {
+        "status": "blocked",
+        "reason": "unique_prefix_core_absent",
+        "graph_edges": []
+      },
+      "Hunden spiser fisken dag i": {
+        "status": "candidate",
+        "subject_role_status": "unverified",
+        "whole_sentence_status": "unverified",
+        "subject_token_id": "tok:0:0:6",
+        "finite_token_id": "tok:1:7:13",
+        "claimed_core_token_ids": [
+          "tok:0:0:6",
+          "tok:1:7:13"
+        ],
+        "deferred_token_ids": [
+          "tok:2:14:20",
+          "tok:3:21:24",
+          "tok:4:25:26"
+        ],
+        "expression_candidates": [],
+        "graph_edges": []
+      },
+      "Hunden spiser fisken i boken": {
+        "status": "candidate",
+        "subject_role_status": "unverified",
+        "whole_sentence_status": "unverified",
+        "subject_token_id": "tok:0:0:6",
+        "finite_token_id": "tok:1:7:13",
+        "claimed_core_token_ids": [
+          "tok:0:0:6",
+          "tok:1:7:13"
+        ],
+        "deferred_token_ids": [
+          "tok:2:14:20",
+          "tok:3:21:22",
+          "tok:4:23:28"
+        ],
+        "expression_candidates": [],
+        "graph_edges": []
+      }
+    }
+  },
+  "conclusion": "The test-only projection preserves canonical IDs, separates core token claims from deferred tokens, keeps source expression candidates unpromoted, downgrades an SVO/OVS-sensitive V32 clause to candidate, and emits no graph edge. It does not establish grammar correctness or runtime integration.",
+  "remaining": [
+    "No Production or canonical scheduler consumer for scoped core candidates.",
+    "No independent SVO/OVS subject disambiguation.",
+    "No resolved temporal adjunct for i dag.",
+    "No graph transition or activation."
+  ]
+}

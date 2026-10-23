@@ -1,0 +1,248 @@
+{
+  "run": "R077-SCOPED-CORE-CANDIDATE-CONTRACT-2026-10-23",
+  "source": "read-only Production RPC plus in-query V32 prefix projection",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "release_code": "runtime-structural-v1.37",
+  "rpc_md5": "81ae1453781a9ee00e67863086ec4bb9",
+  "cases": [
+    {
+      "text": "Fisken spiser hunden",
+      "tokens": [
+        {
+          "token_index": 1,
+          "canonical_token_id": "tok:0:0:6",
+          "surface": "Fisken"
+        },
+        {
+          "token_index": 2,
+          "canonical_token_id": "tok:1:7:13",
+          "surface": "spiser"
+        },
+        {
+          "token_index": 3,
+          "canonical_token_id": "tok:2:14:20",
+          "surface": "hunden"
+        }
+      ],
+      "full_clauses": [
+        {
+          "id": "clause:0",
+          "type": "finite",
+          "schema": "A",
+          "finite_surface": "spiser",
+          "subject_surface": "Fisken",
+          "finite_token_index": 2,
+          "predicate_phrase_id": "vp:2",
+          "subject_token_index": 1,
+          "compatibility_origin": "v32_sentence_core"
+        }
+      ],
+      "prefix_clauses": [
+        {
+          "id": "clause:0",
+          "type": "finite",
+          "schema": "A",
+          "finite_surface": "spiser",
+          "subject_surface": "Fisken",
+          "finite_token_index": 2,
+          "predicate_phrase_id": "vp:2",
+          "subject_token_index": 1,
+          "compatibility_origin": "v32_sentence_core"
+        }
+      ],
+      "early_expression_candidates": []
+    },
+    {
+      "text": "Hunden og fisken",
+      "tokens": [
+        {
+          "token_index": 1,
+          "canonical_token_id": "tok:0:0:6",
+          "surface": "Hunden"
+        },
+        {
+          "token_index": 2,
+          "canonical_token_id": "tok:1:7:9",
+          "surface": "og"
+        },
+        {
+          "token_index": 3,
+          "canonical_token_id": "tok:2:10:16",
+          "surface": "fisken"
+        }
+      ],
+      "full_clauses": [],
+      "prefix_clauses": [],
+      "early_expression_candidates": []
+    },
+    {
+      "text": "Hunden spiser fisken i dag",
+      "tokens": [
+        {
+          "token_index": 1,
+          "canonical_token_id": "tok:0:0:6",
+          "surface": "Hunden"
+        },
+        {
+          "token_index": 2,
+          "canonical_token_id": "tok:1:7:13",
+          "surface": "spiser"
+        },
+        {
+          "token_index": 3,
+          "canonical_token_id": "tok:2:14:20",
+          "surface": "fisken"
+        },
+        {
+          "token_index": 4,
+          "canonical_token_id": "tok:3:21:22",
+          "surface": "i"
+        },
+        {
+          "token_index": 5,
+          "canonical_token_id": "tok:4:23:26",
+          "surface": "dag"
+        }
+      ],
+      "full_clauses": [],
+      "prefix_clauses": [
+        {
+          "id": "clause:0",
+          "type": "finite",
+          "schema": "A",
+          "finite_surface": "spiser",
+          "subject_surface": "Hunden",
+          "finite_token_index": 2,
+          "predicate_phrase_id": "vp:2",
+          "subject_token_index": 1,
+          "compatibility_origin": "v32_sentence_core"
+        }
+      ],
+      "early_expression_candidates": [
+        {
+          "status": "candidate",
+          "source_lexeme_id": "2b6977c9-1c52-4df4-8947-7d4a0ea988cd",
+          "canonical_token_ids": [
+            "tok:3:21:22",
+            "tok:4:23:26"
+          ],
+          "start_token_index": 4,
+          "end_token_index": 5
+        }
+      ]
+    },
+    {
+      "text": "Spiser hunden fisken?",
+      "tokens": [
+        {
+          "token_index": 1,
+          "canonical_token_id": "tok:0:0:6",
+          "surface": "Spiser"
+        },
+        {
+          "token_index": 2,
+          "canonical_token_id": "tok:1:7:13",
+          "surface": "hunden"
+        },
+        {
+          "token_index": 3,
+          "canonical_token_id": "tok:2:14:20",
+          "surface": "fisken"
+        }
+      ],
+      "full_clauses": [],
+      "prefix_clauses": [],
+      "early_expression_candidates": []
+    },
+    {
+      "text": "Hunden spiser fisken dag i",
+      "tokens": [
+        {
+          "token_index": 1,
+          "canonical_token_id": "tok:0:0:6",
+          "surface": "Hunden"
+        },
+        {
+          "token_index": 2,
+          "canonical_token_id": "tok:1:7:13",
+          "surface": "spiser"
+        },
+        {
+          "token_index": 3,
+          "canonical_token_id": "tok:2:14:20",
+          "surface": "fisken"
+        },
+        {
+          "token_index": 4,
+          "canonical_token_id": "tok:3:21:24",
+          "surface": "dag"
+        },
+        {
+          "token_index": 5,
+          "canonical_token_id": "tok:4:25:26",
+          "surface": "i"
+        }
+      ],
+      "full_clauses": [],
+      "prefix_clauses": [
+        {
+          "id": "clause:0",
+          "type": "finite",
+          "schema": "A",
+          "finite_surface": "spiser",
+          "subject_surface": "Hunden",
+          "finite_token_index": 2,
+          "predicate_phrase_id": "vp:2",
+          "subject_token_index": 1,
+          "compatibility_origin": "v32_sentence_core"
+        }
+      ],
+      "early_expression_candidates": []
+    },
+    {
+      "text": "Hunden spiser fisken i boken",
+      "tokens": [
+        {
+          "token_index": 1,
+          "canonical_token_id": "tok:0:0:6",
+          "surface": "Hunden"
+        },
+        {
+          "token_index": 2,
+          "canonical_token_id": "tok:1:7:13",
+          "surface": "spiser"
+        },
+        {
+          "token_index": 3,
+          "canonical_token_id": "tok:2:14:20",
+          "surface": "fisken"
+        },
+        {
+          "token_index": 4,
+          "canonical_token_id": "tok:3:21:22",
+          "surface": "i"
+        },
+        {
+          "token_index": 5,
+          "canonical_token_id": "tok:4:23:28",
+          "surface": "boken"
+        }
+      ],
+      "full_clauses": [],
+      "prefix_clauses": [
+        {
+          "id": "clause:0",
+          "type": "finite",
+          "schema": "A",
+          "finite_surface": "spiser",
+          "subject_surface": "Hunden",
+          "finite_token_index": 2,
+          "predicate_phrase_id": "vp:2",
+          "subject_token_index": 1,
+          "compatibility_origin": "v32_sentence_core"
+        }
+      ],
+      "early_expression_candidates": []
+    }
+  ]
+}

@@ -1126,6 +1126,34 @@
       "invalidation": "Refresh after V32, public RPC, token projection or early source expression candidate changes.",
       "notes": "This is diagnostic core recoverability, not a resolved adjunct, sentence parse, subject-rule activation or proof that the two near-negative sentences are ungrammatical.",
       "next_action": "Specify a scoped-core output with explicit covered and deferred token ranges; test SVO/OVS ambiguity and tail non-erasure before graph transition."
+    },
+    {
+      "proof_id": "R077_SCOPED_CORE_CANDIDATE_PROTOTYPE",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "An isolated scoped-core projection can retain canonical identities and deferred tokens while treating the V32 prefix clause as a candidate and emitting no graph edge.",
+      "proved_at_head": "93a1d1b37135269395f8c6c8ec9e9637e8728b32",
+      "evidence_runs": ["R077-SCOPED-CORE-CANDIDATE-CONTRACT-2026-10-23"],
+      "result": "A read-only Production fixture with six inputs passed 57 executable checks. The long-tail input retains one separate source expression candidate and three deferred tokens. Two near-negative tails retain no expression candidate. Fisken spiser hunden remains a candidate despite a V32 clause. The question-order and nonfinite controls produce no candidate. No graph edge is emitted.",
+      "dependencies": ["grammar-evidence/artifacts/R077-scoped-core-contract-fixture.json", "grammar-evidence/artifacts/R077-scoped-core-contract-result.json", "grammar-evidence/tools/verify-scoped-core-contract.mjs", "R076_SCOPED_CORE_PREFIX_COUNTEREXAMPLE"],
+      "blocked_by": [],
+      "invalidation": "Refresh after fixture source, V32, public RPC, canonical token identity or prototype harness changes.",
+      "notes": "This proves a test-only representation and invariants, not a Production producer, syntactic truth, graph transition or activated rule.",
+      "next_action": "Review existing canonical graph consumer seam and independent subject-role authority before selecting a production bridge."
+    },
+    {
+      "proof_id": "R077_SCOPED_CORE_RUNTIME_INTEGRATION",
+      "status": "UNVERIFIED",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "The scoped-core candidate is produced and consumed by the live grammar runtime without losing token identity, silently resolving a tail, or emitting an unauthorized subject edge.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "Open. R077 only exercised a standalone projection over saved Production data.",
+      "dependencies": ["R077_SCOPED_CORE_CANDIDATE_PROTOTYPE", "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT", "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"],
+      "blocked_by": [],
+      "invalidation": "N/A until a production-compatible bridge and bounded execution tests pass.",
+      "notes": "Do not promote the SVO/OVS-sensitive noun-verb-noun subject to resolved solely because V32 returns a clause.",
+      "next_action": "Inspect the existing graph transition and rule-admission contracts for a candidate-only bridge; then test in isolation before Production."
     }
   ]
 }
