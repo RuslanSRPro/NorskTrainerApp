@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
+  "head": "522de401990b674951246c5193f59a93dbc00d97",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
-  "source_head": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
-  "source_revision": "0e20ecff6ce8c46434efcaec8c1d7a724bfbc73c",
+  "archive_head": "522de401990b674951246c5193f59a93dbc00d97",
+  "source_head": "522de401990b674951246c5193f59a93dbc00d97",
+  "source_revision": "522de401990b674951246c5193f59a93dbc00d97",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 128,
-  "strict_history_event_count": 81,
+  "history_event_count": 133,
+  "strict_history_event_count": 86,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -137,7 +137,12 @@
     "R082-PRONOUN-PARADIGM-ACTIVATION-PREFLIGHT-2026-10-23",
     "R083-JEG-SOVER-ONE-RULE-EXECUTION-2026-10-23",
     "R084-PRONOUN-PARADIGM-ISOLATED-CONTRACT-2026-10-23",
-    "R085-PRONOUN-CASE-CANONICAL-GRAPH-SEAM-2026-10-23"
+    "R085-PRONOUN-CASE-CANONICAL-GRAPH-SEAM-2026-10-23",
+    "R086-PRONOUN-CASE-SQL-PILOT-SVO-OVS-2026-10-23",
+    "R086-R082-SUPERSEDED-2026-10-23",
+    "R086-R083-SUPERSEDED-2026-10-23",
+    "R087-PRONOUN-CASE-SOFT-EVIDENCE-CORRECTION-2026-10-23",
+    "R087-R086-SUPERSEDED-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -250,7 +255,9 @@
     "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT": [],
     "R083_JEG_SOVER_ONE_RULE_EXECUTION": [],
     "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": [],
-    "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": []
+    "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": [],
+    "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS": [],
+    "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -584,6 +591,19 @@
       "grammar-evidence/artifacts/R085-pronoun-case-canonical-graph-seam.json",
       "grammar-evidence/tools/verify-pronoun-paradigm-graph-seam-v1.ts",
       "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT"
+    ],
+    "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS": [
+      "grammar-evidence/artifacts/R086-pronoun-case-sql-pilot-svo-ovs.json",
+      "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql",
+      "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+      "grammar-evidence/tools/verify-pronoun-paradigm-pipeline-v1.ts",
+      "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT"
+    ],
+    "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": [
+      "grammar-evidence/artifacts/R087-pronoun-case-soft-evidence-correction.json",
+      "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
+      "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql",
+      "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS"
     ]
   },
   "proof_next_actions": {
@@ -671,7 +691,9 @@
     "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT": "R084 proved an isolated bidirectional contract from the source-backed paradigm. Design a scoped morphological_paradigm operator and canonical token producer before any manifest, release membership or activation. R083 separately extends the executed subject rule corpus.",
     "R083_JEG_SOVER_ONE_RULE_EXECUTION": "Choose the next source-backed input family and require independent subject evidence before expanding from simple two-token clauses to ambiguous SVO/OVS structures.",
     "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": "R085 proved a test-only canonical candidate patch. Specify a scoped morphological_paradigm operator and actual runtime producer, then test SVO/OVS controls before registering a validated manifest.",
-    "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": "Define approved scoped morphological_paradigm operator and a provenance-preserving runtime producer, then test current canonical token feature flow before any Production migration."
+    "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": "R086 established a service-only SQL candidate producer and bounded SVO/OVS rule input. Preserve this graph seam proof while testing a larger gold corpus before validated manifest or activation.",
+    "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS": "R087 superseded the hard case-to-clause transition. Use the separate case_selection source and its exceptions before any subject resolution.",
+    "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": "Implement exception-aware case_selection and arbitration before promoting OVS candidate to resolved clause. Separately address noun-noun positional V32 over-resolution and test against annotated corpus."
   },
   "files": [
     {
@@ -3519,7 +3541,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.12 max=24"
+        "DB snapshot expired: age_hours=26.46 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3539,7 +3561,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.07 max=24"
+        "DB snapshot expired: age_hours=26.41 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3744,7 +3766,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.24 max=24"
+        "DB snapshot expired: age_hours=24.58 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3765,7 +3787,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.24 max=24"
+        "DB snapshot expired: age_hours=24.58 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3866,7 +3888,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.98 max=24"
+        "DB snapshot expired: age_hours=25.32 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4378,8 +4400,8 @@
     },
     {
       "proof_id": "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
-      "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
       "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
       "proved_at_head": "afa7565",
       "claim": "The source-backed Bokmal pronoun paradigm is runtime eligible but currently lacks an operator mapping, validated manifest, materialized rule and canonical integration.",
@@ -4398,8 +4420,8 @@
     },
     {
       "proof_id": "R083_JEG_SOVER_ONE_RULE_EXECUTION",
-      "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "proved_at_head": "ae700cb",
       "claim": "On a second source-backed input, Jeg sover, the existing subject_of_predicate executor produces one canonical token-to-predicate dependency with exact parity to its full shadow release result.",
@@ -4457,6 +4479,52 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Test-only graph patch. No Production runtime wiring, approved operator, manifest, materialized rule, grant, activation or app output. The source statement does not establish objective han as impossible; absence of a reading cannot reject it."
+    },
+    {
+      "proof_id": "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "proved_at_head": "522de40",
+      "claim": "A source-backed morphological_paradigm producer feeds case candidates into the service-only SQL pilot before predicate/clause building, allowing the existing subject rule to distinguish a bounded SVO/OVS pair while retaining ambiguous controls.",
+      "result": "Production migration applied. The private pilot built resolved clauses and one direct subject_of edge for Jeg ser meg (subject 1) and Meg ser han (subject 3). Det har jeg and Den ser det remained unresolved with no subject_of edge; Katten sover retained subject 1. Local manifest/operator contract passed 45 checks. The manifest is draft, template blocked, paradigm materialized rules zero, active grants zero, and public RPC hash unchanged.",
+      "evidence_runs": [
+        "R086-PRONOUN-CASE-SQL-PILOT-SVO-OVS-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R086-pronoun-case-sql-pilot-svo-ovs.json",
+        "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql",
+        "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+        "grammar-evidence/tools/verify-pronoun-paradigm-pipeline-v1.ts",
+        "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Bounded service-only pilot proof. Case candidates are nonexhaustive; the SQL clause is provisional under shadow. No public RPC wiring, validated manifest, global activation, admission grant or app output."
+    },
+    {
+      "proof_id": "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "proved_at_head": "522de40",
+      "claim": "The service-only pilot now keeps the source-backed pronoun case contrast as a soft subject candidate, without resolving an OVS clause or executing subject_of solely from case.",
+      "result": "Production correction applied. Meg ser han now has proposed subject token 3 with paradigm and separate case_selection provenance, zero resolved clauses and zero subject_of edges. Existing SVO controls still execute, ambiguous same-form cases and coordination remain unresolved. Fisken spiser hunden still resolves positionally through pre-existing V32 and remains an open defect.",
+      "evidence_runs": [
+        "R087-PRONOUN-CASE-SOFT-EVIDENCE-CORRECTION-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R087-pronoun-case-soft-evidence-correction.json",
+        "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
+        "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql",
+        "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
+        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql"
+      ],
+      "notes": "Corrective migration supersedes R086's hard subject resolution. The candidate's source says hovedregelen, with known exceptions. No validated case_selection manifest, grant or global activation."
     }
   ],
   "policy": {

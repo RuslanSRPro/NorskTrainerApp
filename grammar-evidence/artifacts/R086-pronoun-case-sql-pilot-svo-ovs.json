@@ -1,0 +1,43 @@
+{
+  "schema_version": "grammar-evidence-runtime-proof-v1",
+  "run": "R086-PRONOUN-CASE-SQL-PILOT-SVO-OVS-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "migration": "20261023190000_grammar_pronoun_case_pilot_operator_v1.sql",
+  "migration_result": "applied_successfully",
+  "release_code": "runtime-structural-v1.37",
+  "source_candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+  "sql_producer": "grammar_pilot_private.pronoun_case_candidates_v1",
+  "pilot_input": "grammar_pilot_private.build_pre_rule_plane_v1",
+  "one_rule_executor": "public.execute_dependency_pattern_rule_v2",
+  "subject_rule_id": "1786f164-c711-4abf-8a29-6c4dcd389142",
+  "cases": [
+    {"text":"Jeg ser meg","expected_subject_index":1,"actual_subject_index":1,"resolved_clause_count":1,"subject_of_count":1,"subject_of_source_index":1,"result":"PASS"},
+    {"text":"Meg ser han","expected_subject_index":3,"actual_subject_index":3,"resolved_clause_count":1,"subject_of_count":1,"subject_of_source_index":3,"result":"PASS"},
+    {"text":"Det har jeg","expected_subject_index":null,"actual_subject_index":null,"resolved_clause_count":0,"subject_of_count":0,"result":"PASS_AMBIGUITY_RETAINED"},
+    {"text":"Den ser det","expected_subject_index":null,"actual_subject_index":null,"resolved_clause_count":0,"subject_of_count":0,"result":"PASS_AMBIGUITY_RETAINED"},
+    {"text":"Katten sover","expected_subject_index":1,"actual_subject_index":1,"resolved_clause_count":1,"subject_of_count":1,"subject_of_source_index":1,"result":"PASS_REGRESSION"}
+  ],
+  "producer_spot_checks": {
+    "meg": ["jeg:Acc"],
+    "han": ["han:Nom"],
+    "det": ["det:Acc","det:Nom"],
+    "all_readings_candidate_only": true,
+    "all_readings_nonexhaustive": true
+  },
+  "postcheck": {
+    "manifest_status": "draft",
+    "operator_template_status": "blocked/blocked",
+    "materialized_paradigm_rules": 0,
+    "active_pilot_grants": 0,
+    "public_rpc_hash_before_and_after": "81ae1453781a9ee00e67863086ec4bb9",
+    "private_pilot_hash_after": "817820a2f26e9a27f86459ec8763a4da"
+  },
+  "local_test": {
+    "command": "deno check grammar-evidence/tools/verify-pronoun-paradigm-pipeline-v1.ts && deno run grammar-evidence/tools/verify-pronoun-paradigm-pipeline-v1.ts",
+    "cases": 5,
+    "checks": 45,
+    "status": "PASS"
+  },
+  "scope": "Service-only SQL pilot and read-only direct one-rule execution. The public RPC, app routes, release membership, rule active flag and admission grants were not changed.",
+  "limitations": "The source paradigm is not exhaustive (notably objective han). The bounded OVS pilot is not a general parser or validated manifest; Det har jeg remains unresolved. Direct executor testing does not grant admission or activate the rule globally."
+}

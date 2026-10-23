@@ -1213,7 +1213,7 @@
     },
     {
       "proof_id": "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
-      "status": "PROVEN",
+      "status": "STALE",
       "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
       "claim": "The source-backed Bokmal pronoun paradigm is runtime eligible but currently lacks an operator mapping, validated manifest, materialized rule and canonical integration.",
       "proved_at_head": "afa7565",
@@ -1227,7 +1227,7 @@
     },
     {
       "proof_id": "R083_JEG_SOVER_ONE_RULE_EXECUTION",
-      "status": "PROVEN",
+      "status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "claim": "On a second source-backed input, Jeg sover, the existing subject_of_predicate executor produces one canonical token-to-predicate dependency with exact parity to its full shadow release result.",
       "proved_at_head": "ae700cb",
@@ -1265,7 +1265,35 @@
       "blocked_by": [],
       "invalidation": "Refresh after canonical graph core, surface boundary, source paradigm, contract or graph seam test changes.",
       "notes": "Test-only graph patch. No Production runtime wiring, approved operator, manifest, materialized rule, grant, activation or app output. The source statement does not establish objective han as impossible; absence of a reading cannot reject it.",
-      "next_action": "Define approved scoped morphological_paradigm operator and a provenance-preserving runtime producer, then test current canonical token feature flow before any Production migration."
+      "next_action": "R086 established a service-only SQL candidate producer and bounded SVO/OVS rule input. Preserve this graph seam proof while testing a larger gold corpus before validated manifest or activation."
+    },
+    {
+      "proof_id": "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS",
+      "status": "STALE",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "A source-backed morphological_paradigm producer feeds case candidates into the service-only SQL pilot before predicate/clause building, allowing the existing subject rule to distinguish a bounded SVO/OVS pair while retaining ambiguous controls.",
+      "proved_at_head": "522de40",
+      "evidence_runs": ["R086-PRONOUN-CASE-SQL-PILOT-SVO-OVS-2026-10-23"],
+      "result": "Production migration applied. The private pilot built resolved clauses and one direct subject_of edge for Jeg ser meg (subject 1) and Meg ser han (subject 3). Det har jeg and Den ser det remained unresolved with no subject_of edge; Katten sover retained subject 1. Local manifest/operator contract passed 45 checks. The manifest is draft, template blocked, paradigm materialized rules zero, active grants zero, and public RPC hash unchanged.",
+      "dependencies": ["grammar-evidence/artifacts/R086-pronoun-case-sql-pilot-svo-ovs.json", "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql", "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts", "grammar-evidence/tools/verify-pronoun-paradigm-pipeline-v1.ts", "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT"],
+      "blocked_by": [],
+      "invalidation": "Refresh after pilot builder, case producer, paradigm source, subject rule, predicate/clause builders, or release state changes.",
+      "notes": "Bounded service-only pilot proof. Case candidates are nonexhaustive; the SQL clause is provisional under shadow. No public RPC wiring, validated manifest, global activation, admission grant or app output.",
+      "next_action": "R087 superseded the hard case-to-clause transition. Use the separate case_selection source and its exceptions before any subject resolution."
+    },
+    {
+      "proof_id": "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "The service-only pilot now keeps the source-backed pronoun case contrast as a soft subject candidate, without resolving an OVS clause or executing subject_of solely from case.",
+      "proved_at_head": "522de40",
+      "evidence_runs": ["R087-PRONOUN-CASE-SOFT-EVIDENCE-CORRECTION-2026-10-23"],
+      "result": "Production correction applied. Meg ser han now has proposed subject token 3 with paradigm and separate case_selection provenance, zero resolved clauses and zero subject_of edges. Existing SVO controls still execute, ambiguous same-form cases and coordination remain unresolved. Fisken spiser hunden still resolves positionally through pre-existing V32 and remains an open defect.",
+      "dependencies": ["grammar-evidence/artifacts/R087-pronoun-case-soft-evidence-correction.json", "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql", "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql", "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS"],
+      "blocked_by": [],
+      "invalidation": "Refresh after private case producer, case_selection source, exception handling, V32, or rule executor changes.",
+      "notes": "Corrective migration supersedes R086's hard subject resolution. The candidate's source says hovedregelen, with known exceptions. No validated case_selection manifest, grant or global activation.",
+      "next_action": "Implement exception-aware case_selection and arbitration before promoting OVS candidate to resolved clause. Separately address noun-noun positional V32 over-resolution and test against annotated corpus."
     }
   ]
 }

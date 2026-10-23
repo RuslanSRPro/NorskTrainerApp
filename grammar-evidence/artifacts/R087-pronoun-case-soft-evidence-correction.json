@@ -1,0 +1,26 @@
+{
+  "schema_version": "grammar-evidence-runtime-proof-v1",
+  "run": "R087-PRONOUN-CASE-SOFT-EVIDENCE-CORRECTION-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "migration": "20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
+  "migration_result": "applied_successfully",
+  "reason": "R086 used paradigm case readings to resolve a subject before the separate source-backed case_selection rule and its exceptions were modeled.",
+  "source_contracts": {
+    "morphological_paradigm": "d99c8781-1212-45ed-a490-df7cfa105ede",
+    "case_inventory": "70f3a378-f2b4-48ee-855a-651ae6f00059",
+    "case_selection_default": "f7c256e7-efe7-4687-aadc-26ee831a35bc"
+  },
+  "post_correction_cases": [
+    {"text":"Meg ser han","resolved_clause_count":0,"soft_subject_candidate_index":3,"subject_of_count":0,"result":"PASS_SOFT_EVIDENCE"},
+    {"text":"Jeg ser meg","resolved_clause_count":1,"subject_of_count":1,"result":"PASS_EXISTING_SVO"},
+    {"text":"Han ser meg","resolved_clause_count":1,"subject_of_count":1,"result":"PASS_EXISTING_SVO"},
+    {"text":"Det har jeg","resolved_clause_count":0,"subject_of_count":0,"result":"PASS_AMBIGUITY_RETAINED"},
+    {"text":"Den ser det","resolved_clause_count":0,"subject_of_count":0,"result":"PASS_AMBIGUITY_RETAINED"},
+    {"text":"Han og meg gikk","resolved_clause_count":0,"subject_of_count":0,"result":"PASS_COORDINATION_CONTROL"},
+    {"text":"Katten sover","resolved_clause_count":1,"subject_of_count":1,"result":"PASS_REGRESSION"},
+    {"text":"Fisken spiser hunden","resolved_clause_count":1,"subject_of_count":1,"result":"OPEN_PREEXISTING_NOUN_POSITIONAL_RESOLUTION"}
+  ],
+  "case_selection_template_status": "blocked_pending_exception_context",
+  "scope": "Private service-only pilot. The public RPC and app delivery were not changed. No new grant or global rule activation.",
+  "next": "Build exception-aware case_selection evidence and role arbitration from source-backed rules; independently revisit positional noun-noun V32 resolution."
+}
