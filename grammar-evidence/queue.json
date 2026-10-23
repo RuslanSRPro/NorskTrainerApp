@@ -191,6 +191,16 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Work the four remaining structural families separately and prove independent SVO/OVS disambiguation.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "R069_SVO_OVS_SUBJECT_DISAMBIGUATION",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -238,7 +248,7 @@
         "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"
       ],
       "ready_for_next_action": false,
-      "next_action": "Address the four remaining corpus failures by structural family: adverbial, longer tail, multiword subject and verb-initial inversion. Separately prove SVO/OVS subject disambiguation before broad activation; retain the bounded one-rule pilot as distinct evidence.",
+      "next_action": "Address the three remaining corpus failures by structural family: longer tail, multiword subject and verb-initial inversion. Separately prove SVO/OVS subject disambiguation before broad activation; retain the bounded one-rule pilot as distinct evidence.",
       "search_gate": null,
       "queue_priority": -1
     },

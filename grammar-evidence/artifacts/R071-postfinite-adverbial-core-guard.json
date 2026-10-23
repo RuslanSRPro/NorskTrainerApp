@@ -1,0 +1,261 @@
+{
+  "evidence_id": "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23",
+  "observed_at_utc": "2026-10-23T08:11:37Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_head": "880be219dd89e2fdefafad6568d0c4441727550e",
+  "migration_file": "supabase/migrations/20261023080811_grammar_v32_postfinite_adverbial_core_guard.sql",
+  "migration_ledger_version": "20261023080811",
+  "old_v32_definition_md5": "085d185eb036701eef8ce881a840f165",
+  "new_v32_definition_md5": "28301d551fa68a9cfe356d75ec35149f",
+  "rpc_definition_md5": "968759622f01f1489b79b67f60cce775",
+  "change": "For an exact three-token noun + finite verb + adjective-neuter surface, preserve the subject/predicate core without classifying or attaching the tail as an adverb. All R069 noun-tail and two-token paths remain.",
+  "input_source": "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
+  "summary": {
+    "positive_cases": 12,
+    "expected_subject_edges_matched": 9,
+    "expected_subject_edges_missing": 3,
+    "nonfinite_controls": 2,
+    "nonfinite_controls_without_edges": 2,
+    "prior_r069_matches": 8
+  },
+  "corpus": [
+    {
+      "id": 1,
+      "text": "Katten sover",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Katten",
+          "target": "sover",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Katten",
+      "predicate_count": 1,
+      "expectedPredicate": "sover"
+    },
+    {
+      "id": 2,
+      "text": "Jeg sover",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Jeg",
+          "target": "sover",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Jeg",
+      "predicate_count": 1,
+      "expectedPredicate": "sover"
+    },
+    {
+      "id": 3,
+      "text": "Han er glad",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Han",
+          "target": "er glad",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Han",
+      "predicate_count": 1,
+      "expectedPredicate": "er glad"
+    },
+    {
+      "id": 4,
+      "text": "Hunden spiser fisken",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Hunden",
+          "target": "spiser",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Hunden",
+      "predicate_count": 1,
+      "expectedPredicate": "spiser"
+    },
+    {
+      "id": 5,
+      "text": "Jenta leser boken",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Jenta",
+          "target": "leser",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Jenta",
+      "predicate_count": 1,
+      "expectedPredicate": "leser"
+    },
+    {
+      "id": 6,
+      "text": "Barnet drikker vann",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Barnet",
+          "target": "drikker",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Barnet",
+      "predicate_count": 1,
+      "expectedPredicate": "drikker"
+    },
+    {
+      "id": 7,
+      "text": "Fisken spiser hunden",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Fisken",
+          "target": "spiser",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Fisken",
+      "predicate_count": 1,
+      "expectedPredicate": "spiser"
+    },
+    {
+      "id": 8,
+      "text": "Jeg spiser fisken",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Jeg",
+          "target": "spiser",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Jeg",
+      "predicate_count": 1,
+      "expectedPredicate": "spiser"
+    },
+    {
+      "id": 9,
+      "text": "Hunden spiser raskt",
+      "v32_clauses": 1,
+      "clause_count": 1,
+      "subject_edges": [
+        {
+          "source": "Hunden",
+          "target": "spiser",
+          "source_index": "1",
+          "canonical_parity": true
+        }
+      ],
+      "expectedSubject": "Hunden",
+      "predicate_count": 1,
+      "expectedPredicate": "spiser"
+    },
+    {
+      "id": 10,
+      "text": "Hunden spiser fisken i dag",
+      "v32_clauses": 0,
+      "clause_count": 0,
+      "subject_edges": [],
+      "expectedSubject": "Hunden",
+      "predicate_count": 0,
+      "expectedPredicate": "spiser"
+    },
+    {
+      "id": 11,
+      "text": "Den store hunden spiser fisken",
+      "v32_clauses": 0,
+      "clause_count": 0,
+      "subject_edges": [],
+      "expectedSubject": "hunden",
+      "predicate_count": 0,
+      "expectedPredicate": "spiser"
+    },
+    {
+      "id": 12,
+      "text": "Spiser hunden fisken?",
+      "v32_clauses": 0,
+      "clause_count": 0,
+      "subject_edges": [],
+      "expectedSubject": "hunden",
+      "predicate_count": 0,
+      "expectedPredicate": "Spiser"
+    },
+    {
+      "id": 13,
+      "text": "Hunden og fisken",
+      "v32_clauses": 0,
+      "clause_count": 0,
+      "subject_edges": [],
+      "expectedSubject": null,
+      "predicate_count": 0,
+      "expectedPredicate": null
+    },
+    {
+      "id": 14,
+      "text": "Hunden",
+      "v32_clauses": 0,
+      "clause_count": 0,
+      "subject_edges": [],
+      "expectedSubject": null,
+      "predicate_count": 0,
+      "expectedPredicate": null
+    }
+  ],
+  "additional_source_generated_controls": [
+    {
+      "text": "Jenta leser raskt",
+      "tail_candidate_pos": "adjective",
+      "tail_candidate_form_type": "positive_singular_indefinite_neuter",
+      "v32_clause_count": 1,
+      "subject_of_count": 1,
+      "resolved_clause_span": "Jenta leser"
+    },
+    {
+      "text": "Hunden spiser stor",
+      "tail_candidate_pos": "adjective",
+      "tail_candidate_form_types": [
+        "base",
+        "positive_singular_indefinite_common"
+      ],
+      "v32_clause_count": 0,
+      "subject_of_count": 0
+    }
+  ],
+  "security_and_activation": {
+    "anon_v32_execute": false,
+    "authenticated_v32_execute": false,
+    "active_pilot_grants": 0,
+    "release_status": "shadow",
+    "subject_rule_is_active": false,
+    "all_active_grammar_rules_count_observed": 9
+  },
+  "limitations": [
+    "The third token has no morphological reading and is not assigned an adverbial role by the graph. The source form only permits the bounded subject/predicate core.",
+    "The resolved clause spans tokens 1-2; tail grammatical correctness is not established.",
+    "Three positive corpus cases still lack subject_of: longer tail, multiword subject and verb-initial inversion.",
+    "The noun-subject bootstrap retains the SVO/OVS subject ambiguity recorded in R069.",
+    "The observed nine active grammar_rules rows are not the target subject rule; do not describe the entire table as globally inactive."
+  ]
+}

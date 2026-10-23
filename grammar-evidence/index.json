@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "809db54b70897bc3e43ed8a594e87a91b6a170b5",
+  "head": "880be219dd89e2fdefafad6568d0c4441727550e",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "809db54b70897bc3e43ed8a594e87a91b6a170b5",
-  "source_head": "809db54b70897bc3e43ed8a594e87a91b6a170b5",
+  "archive_head": "880be219dd89e2fdefafad6568d0c4441727550e",
+  "source_head": "880be219dd89e2fdefafad6568d0c4441727550e",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 111,
-  "strict_history_event_count": 64,
+  "history_event_count": 113,
+  "strict_history_event_count": 66,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -120,7 +120,9 @@
     "R069-R067-INVALIDATION-2026-10-23",
     "R069-R068-INVALIDATION-2026-10-23",
     "R069-AMBIGUOUS-OBJECT-SYNTAX-GUARD-2026-10-23",
-    "R070-BOKEN-HOMOGRAPH-INFLECTION-AUDIT-2026-10-23"
+    "R070-BOKEN-HOMOGRAPH-INFLECTION-AUDIT-2026-10-23",
+    "R071-R069-INVALIDATION-2026-10-23",
+    "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -211,7 +213,8 @@
     "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD": [],
     "R069_SVO_OVS_SUBJECT_DISAMBIGUATION": [],
     "R070_BOKEN_CANDIDATE_PROVENANCE": [],
-    "R070_NOUN_INFLECTION_GRAPH_EXECUTION": []
+    "R070_NOUN_INFLECTION_GRAPH_EXECUTION": [],
+    "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -419,7 +422,7 @@
       "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE",
       "R064_NEW_GRAMMAR_APP_PATH_ISOLATION",
       "R065_COMMITTED_ONE_RULE_SQL_PILOT",
-      "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD"
+      "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
     ],
     "R065_COMMITTED_ONE_RULE_SQL_PILOT": [
       "grammar-evidence/artifacts/R065-committed-one-rule-sql-pilot.json",
@@ -453,6 +456,11 @@
     ],
     "R070_NOUN_INFLECTION_GRAPH_EXECUTION": [
       "R070_BOKEN_CANDIDATE_PROVENANCE"
+    ],
+    "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": [
+      "grammar-evidence/artifacts/R071-postfinite-adverbial-core-guard.json",
+      "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
+      "supabase/migrations/20261023080811_grammar_v32_postfinite_adverbial_core_guard.sql"
     ]
   },
   "proof_next_actions": {
@@ -512,7 +520,7 @@
     "R063_PILOT_APP_NONINTEGRATION_SNAPSHOT": "",
     "R059_PILOT_AUDIT_ACL_SNAPSHOT": "",
     "R064_NEW_GRAMMAR_APP_PATH_ISOLATION": "",
-    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Address the four remaining corpus failures by structural family: adverbial, longer tail, multiword subject and verb-initial inversion. Separately prove SVO/OVS subject disambiguation before broad activation; retain the bounded one-rule pilot as distinct evidence.",
+    "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY": "Address the three remaining corpus failures by structural family: longer tail, multiword subject and verb-initial inversion. Separately prove SVO/OVS subject disambiguation before broad activation; retain the bounded one-rule pilot as distinct evidence.",
     "R065_COMMITTED_ONE_RULE_SQL_PILOT": "",
     "R066_SQL_SUBJECT_CORPUS_V32_GAP": "See R067 for the repaired Production state.",
     "R067_V32_NOUN_OBJECT_PRODUCTION_FIX": "Use R068 corpus failure families to expand coverage without weakening the R067 guard.",
@@ -520,7 +528,8 @@
     "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD": "Work the four remaining structural families separately and prove independent SVO/OVS disambiguation.",
     "R069_SVO_OVS_SUBJECT_DISAMBIGUATION": "Define evidence that makes subject identity resolved versus hypothesized, then test SVO and OVS minimal pairs without selecting from word order alone.",
     "R070_BOKEN_CANDIDATE_PROVENANCE": "Implement and prove rule-derived noun morphology in both analysis and generation directions, preserving distinct homograph identities.",
-    "R070_NOUN_INFLECTION_GRAPH_EXECUTION": "Create a small corpus for bok I/II with boken, boka and each homograph's sourced plural forms; verify exact forms before test assertions, then execute bidirectional graph rules."
+    "R070_NOUN_INFLECTION_GRAPH_EXECUTION": "Create a small corpus for bok I/II with boken, boka and each homograph's sourced plural forms; verify exact forms before test assertions, then execute bidirectional graph rules.",
+    "R071_POSTFINITE_ADVERBIAL_CORE_GUARD": "Investigate the longer-tail failure Hunden spiser fisken i dag, then rerun the same corpus. Do not attach or classify tail tokens without a separate rule proof."
   },
   "files": [
     {
@@ -3735,7 +3744,7 @@
       "proof_kind": "RUNTIME_COMPATIBILITY",
       "proved_at_head": null,
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
-      "result": "R065 proved one short-lived Production grant and revocation. R069 current-source diagnostic corpus matched 8/12 expected subject relations, missed four and produced zero edges for two nonfinite controls. The global rule remains inactive, release shadow and active grants zero. Broader activation still needs structural coverage and independent subject disambiguation.",
+      "result": "R065 proved one short-lived Production grant and revocation. R071 current-source diagnostic corpus matched 9/12 expected subject relations, missed three and produced zero edges for two nonfinite controls. The target subject rule remains inactive, release shadow and active grants zero. Broader activation still needs structural coverage and independent subject disambiguation.",
       "evidence_runs": [
         "R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"
       ],
@@ -3750,7 +3759,7 @@
         "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE",
         "R064_NEW_GRAMMAR_APP_PATH_ISOLATION",
         "R065_COMMITTED_ONE_RULE_SQL_PILOT",
-        "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD"
+        "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
       ],
       "blocked_by": [
         "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"
@@ -3842,14 +3851,15 @@
     },
     {
       "proof_id": "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD",
-      "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
       "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
       "proved_at_head": "809db54b70897bc3e43ed8a594e87a91b6a170b5",
       "claim": "The R069 Production V32 definition preserves the subject/predicate core for two additional ambiguous postfinite noun surfaces in the selected canonical-source corpus, without assigning their object identity or inflection.",
       "result": "Production ledger 20261023073508 and V32 md5 085d185eb036701eef8ce881a840f165 confirmed. Eight of twelve expected subject edges matched, four absent, two nonfinite controls zero. New Jenta leser boken and Barnet drikker vann edges retain canonical subject identity. Release remains shadow, global rule inactive, zero active grants.",
       "evidence_runs": [
-        "R069-AMBIGUOUS-OBJECT-SYNTAX-GUARD-2026-10-23"
+        "R069-AMBIGUOUS-OBJECT-SYNTAX-GUARD-2026-10-23",
+        "R071-R069-INVALIDATION-2026-10-23"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R069-ambiguous-object-syntax-guard.json",
@@ -3858,7 +3868,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Diagnostic corpus only. The resolved clause covers the subject/predicate core, not the postfinite token. Noun candidate existence is not a validated object relation, sense, gender or inflection. Deployed Edge parity on all inputs remains open."
+      "notes": "Historical 8/12 Production snapshot superseded by R071 9/12. Diagnostic corpus only. The resolved clause covers the subject/predicate core, not the postfinite token. Noun candidate existence is not a validated object relation, sense, gender or inflection. Deployed Edge parity on all inputs remains open."
     },
     {
       "proof_id": "R069_SVO_OVS_SUBJECT_DISAMBIGUATION",
@@ -3909,6 +3919,26 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "This gap is separate from the bounded SQL subject_of_predicate pilot. Stored paradigms may be comparison evidence but must not silently become the graph's answer authority."
+    },
+    {
+      "proof_id": "R071_POSTFINITE_ADVERBIAL_CORE_GUARD",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
+      "proved_at_head": "880be219dd89e2fdefafad6568d0c4441727550e",
+      "claim": "The R071 Production V32 definition preserves the subject/predicate core for a bounded three-token noun + finite verb + adjective-neuter surface without asserting an adverbial analysis of the tail.",
+      "result": "Production ledger 20261023080811 and V32 md5 28301d551fa68a9cfe356d75ec35149f confirmed. Selected canonical-source corpus matched 9/12 expected subject edges, missed three and produced zero on two nonfinite controls. Jenta leser raskt produced one subject_of; Hunden spiser stor produced none. Target rule remains inactive, release shadow, active pilot grants zero.",
+      "evidence_runs": [
+        "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R071-postfinite-adverbial-core-guard.json",
+        "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
+        "supabase/migrations/20261023080811_grammar_v32_postfinite_adverbial_core_guard.sql"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Diagnostic corpus only. The adjective-neuter source form licenses a syntax-core path; it is not an adverb morphology reading or proof of tail correctness. Three longer/reordered structural cases and SVO/OVS ambiguity remain. Nine other grammar_rules rows were active at observation; the target subject rule was inactive."
     }
   ],
   "policy": {
