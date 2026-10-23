@@ -1,0 +1,35 @@
+{
+  "schema_version": "grammar-evidence-runtime-gap-v1",
+  "run": "R088-CASE-SELECTION-EXCEPTION-BOUNDARY-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_sql",
+  "release_code": "runtime-structural-v1.37",
+  "default_rule": {
+    "candidate_id": "f7c256e7-efe7-4687-aadc-26ee831a35bc",
+    "candidate_code": "pronoun.personal.case.subject_vs_complement",
+    "source_section": "4.1.2",
+    "execution_role": "case_selection",
+    "disposition": "KEEP_GRAMMAR_RUNTIME",
+    "strength_in_source": "Hovedregelen"
+  },
+  "reference_exceptions": [
+    {"candidate_code":"pronoun.personal.case.coordination_accusative_subject","candidate_id":"a0a84d73-e761-4aad-a52e-28d50ce4d34c","source_section":"4.1.2","disposition":"KEEP_REFERENCE_ONLY"},
+    {"candidate_code":"pronoun.personal.case.hun_non_subject_usage","candidate_id":"d9d84b18-5ff2-420a-ab19-c6e4c958e578","source_section":"4.1.2","disposition":"KEEP_REFERENCE_ONLY"},
+    {"candidate_code":"pronoun.personal.case.subject_predicative_variation","candidate_id":"48354e7e-365e-426b-b199-a23390bf4b3f","source_section":"4.1.2","disposition":"KEEP_REFERENCE_ONLY"},
+    {"candidate_code":"pronoun.personal.case.comparison_enn_som_analysis","candidate_id":"c409afc3-0b25-42cc-90b9-c62073e579c8","source_section":"4.1.2","disposition":"KEEP_REFERENCE_ONLY"},
+    {"candidate_code":"pronoun.personal.case.for_uten_unntatt_nominative","candidate_id":"ee225cc9-84ed-4593-824c-edfcb76a6590","source_section":"4.1.2","disposition":"KEEP_REFERENCE_ONLY"},
+    {"candidate_code":"pronoun.personal.case.detached_accusative_tendency","candidate_id":"3e8befc1-ce4b-4c0f-b7b1-97a5364a068d","source_section":"4.1.2","disposition":"KEEP_REFERENCE_ONLY"}
+  ],
+  "early_boundary_probe": {
+    "text": "Han og meg gikk",
+    "token_surfaces": ["Han","og","meg","gikk"],
+    "han_case_candidates": ["Nom"],
+    "meg_case_candidates": ["Acc"],
+    "og_lexical_classes": [],
+    "construction_recognition_count": 0,
+    "resolved_clause_count": 0,
+    "subject_of_count": 0
+  },
+  "decision": "No exception-aware case_selection operator approval or clause resolution yet. The early pilot can preserve case and soft role candidates but cannot claim to have checked coordination or the other exceptions.",
+  "next": "Specify an independent coordination/construction signal and exception scope, then test candidate arbitration on annotated SVO/OVS examples before any resolved subject transition."
+}

@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "a18d6f4b39c53dd365a3bb18994bc73c6bb3c04d",
+  "head": "c5014c74152cdc83635e0ca977cde471d7856c0e",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "a18d6f4b39c53dd365a3bb18994bc73c6bb3c04d",
-  "source_head": "a18d6f4b39c53dd365a3bb18994bc73c6bb3c04d",
-  "source_revision": "a18d6f4",
+  "archive_head": "c5014c74152cdc83635e0ca977cde471d7856c0e",
+  "source_head": "c5014c74152cdc83635e0ca977cde471d7856c0e",
+  "source_revision": "c5014c7",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 195,
-  "history_event_count": 133,
-  "strict_history_event_count": 86,
+  "history_event_count": 134,
+  "strict_history_event_count": 87,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -142,7 +142,8 @@
     "R086-R082-SUPERSEDED-2026-10-23",
     "R086-R083-SUPERSEDED-2026-10-23",
     "R087-PRONOUN-CASE-SOFT-EVIDENCE-CORRECTION-2026-10-23",
-    "R087-R086-SUPERSEDED-2026-10-23"
+    "R087-R086-SUPERSEDED-2026-10-23",
+    "R088-CASE-SELECTION-EXCEPTION-BOUNDARY-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -257,7 +258,8 @@
     "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": [],
     "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": [],
     "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS": [],
-    "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": []
+    "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": [],
+    "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -604,6 +606,10 @@
       "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
       "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql",
       "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS"
+    ],
+    "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": [
+      "grammar-evidence/artifacts/R088-case-selection-exception-boundary.json",
+      "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"
     ]
   },
   "proof_next_actions": {
@@ -693,7 +699,8 @@
     "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT": "R085 proved a test-only canonical candidate patch. Specify a scoped morphological_paradigm operator and actual runtime producer, then test SVO/OVS controls before registering a validated manifest.",
     "R085_PRONOUN_CASE_CANONICAL_GRAPH_SEAM": "R086 established a service-only SQL candidate producer and bounded SVO/OVS rule input. Preserve this graph seam proof while testing a larger gold corpus before validated manifest or activation.",
     "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS": "R087 superseded the hard case-to-clause transition. Use the separate case_selection source and its exceptions before any subject resolution.",
-    "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": "Implement exception-aware case_selection and arbitration before promoting OVS candidate to resolved clause. Separately address noun-noun positional V32 over-resolution and test against annotated corpus."
+    "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": "R088 confirmed the early coordination signal is absent. Implement independent construction/coordination evidence and exception-aware case_selection before promoting OVS candidate to resolved clause. Separately address noun-noun V32 over-resolution.",
+    "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": "Design source-backed coordination evidence available before subject arbitration; test Han og meg gikk and other exception contexts, then decide whether the case-selection template can be validated."
   },
   "files": [
     {
@@ -3552,7 +3559,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.49 max=24"
+        "DB snapshot expired: age_hours=26.56 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3572,7 +3579,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.44 max=24"
+        "DB snapshot expired: age_hours=26.51 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3777,7 +3784,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.61 max=24"
+        "DB snapshot expired: age_hours=24.68 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3798,7 +3805,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.61 max=24"
+        "DB snapshot expired: age_hours=24.68 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3899,7 +3906,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=25.35 max=24"
+        "DB snapshot expired: age_hours=25.42 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4533,6 +4540,25 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Corrective migration supersedes R086's hard subject resolution. The candidate's source says hovedregelen, with known exceptions. No validated case_selection manifest, grant or global activation."
+    },
+    {
+      "proof_id": "R088_CASE_SELECTION_EXCEPTION_BOUNDARY",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
+      "proved_at_head": "c5014c7",
+      "claim": "The source-backed case_selection default has documented exceptions, while the current early SQL pilot lacks a recognized coordination construction for Han og meg gikk.",
+      "result": "Production source inventory confirmed the case_selection default candidate and six reference-only exception candidates in section 4.1.2. On Han og meg gikk, the private pilot tokenized og, gave Han Nom and meg Acc case candidates, but produced zero recognized constructions, zero resolved clauses and zero subject_of edges. Exception-aware subject arbitration is therefore not established.",
+      "evidence_runs": [
+        "R088-CASE-SELECTION-EXCEPTION-BOUNDARY-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R088-case-selection-exception-boundary.json",
+        "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Read-only diagnosis. KEEP_REFERENCE_ONLY exceptions constrain runtime interpretation but are not automatically executable rules. No grant, activation or app output."
     }
   ],
   "policy": {

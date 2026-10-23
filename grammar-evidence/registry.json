@@ -1293,7 +1293,21 @@
       "blocked_by": [],
       "invalidation": "Refresh after private case producer, case_selection source, exception handling, V32, or rule executor changes.",
       "notes": "Corrective migration supersedes R086's hard subject resolution. The candidate's source says hovedregelen, with known exceptions. No validated case_selection manifest, grant or global activation.",
-      "next_action": "Implement exception-aware case_selection and arbitration before promoting OVS candidate to resolved clause. Separately address noun-noun positional V32 over-resolution and test against annotated corpus."
+      "next_action": "R088 confirmed the early coordination signal is absent. Implement independent construction/coordination evidence and exception-aware case_selection before promoting OVS candidate to resolved clause. Separately address noun-noun V32 over-resolution."
+    },
+    {
+      "proof_id": "R088_CASE_SELECTION_EXCEPTION_BOUNDARY",
+      "status": "PROVEN",
+      "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
+      "claim": "The source-backed case_selection default has documented exceptions, while the current early SQL pilot lacks a recognized coordination construction for Han og meg gikk.",
+      "proved_at_head": "c5014c7",
+      "evidence_runs": ["R088-CASE-SELECTION-EXCEPTION-BOUNDARY-2026-10-23"],
+      "result": "Production source inventory confirmed the case_selection default candidate and six reference-only exception candidates in section 4.1.2. On Han og meg gikk, the private pilot tokenized og, gave Han Nom and meg Acc case candidates, but produced zero recognized constructions, zero resolved clauses and zero subject_of edges. Exception-aware subject arbitration is therefore not established.",
+      "dependencies": ["grammar-evidence/artifacts/R088-case-selection-exception-boundary.json", "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"],
+      "blocked_by": [],
+      "invalidation": "Refresh after candidate import, coordination/construction recognizer, private pilot ordering, or case-selection operator changes.",
+      "notes": "Read-only diagnosis. KEEP_REFERENCE_ONLY exceptions constrain runtime interpretation but are not automatically executable rules. No grant, activation or app output.",
+      "next_action": "Design source-backed coordination evidence available before subject arbitration; test Han og meg gikk and other exception contexts, then decide whether the case-selection template can be validated."
     }
   ]
 }
