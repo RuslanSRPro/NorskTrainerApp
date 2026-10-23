@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
+  "head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
-  "source_head": "0fb32bbee2bc85f94040ca506008e2e3312b40cc",
-  "source_revision": "HEAD",
+  "archive_head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
+  "source_head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
+  "source_revision": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 115,
-  "strict_history_event_count": 68,
+  "history_event_count": 116,
+  "strict_history_event_count": 69,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -124,7 +124,8 @@
     "R071-R069-INVALIDATION-2026-10-23",
     "R071-POSTFINITE-ADVERBIAL-CORE-GUARD-2026-10-23",
     "R072-LONG-TAIL-TEMPORAL-ATTACHMENT-GAP-2026-10-23",
-    "R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23"
+    "R073-TEMPORAL-EXPRESSION-RUNTIME-BRIDGE-AUDIT-2026-10-23",
+    "R074-EARLY-EXPRESSION-CANDIDATE-AND-ROADMAP-REUSE-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -222,7 +223,9 @@
       "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE"
     ],
     "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT": [],
-    "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": []
+    "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": [],
+    "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE": [],
+    "R074_V148_V150_REUSE_AUDIT": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -485,6 +488,14 @@
     ],
     "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": [
       "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"
+    ],
+    "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE": [
+      "grammar-evidence/artifacts/R074-early-expression-roadmap-audit.json",
+      "supabase/migrations/20261023082759_grammar_early_source_expression_candidates_v1.sql",
+      "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"
+    ],
+    "R074_V148_V150_REUSE_AUDIT": [
+      "grammar-evidence/artifacts/R074-early-expression-roadmap-audit.json"
     ]
   },
   "proof_next_actions": {
@@ -557,7 +568,9 @@
     "R072_LONG_TAIL_PRODUCTION_OBSERVATION": "Trace preposition and i dag occurrence producers, then establish a candidate/resolved adjunct contract.",
     "R072_TEMPORAL_TAIL_CORE_SURVIVAL_CONTRACT": "Prove an early source-backed i dag occurrence bridge or a controlled second core pass, then test longer-tail minimal pairs and rerun the fourteen-case corpus.",
     "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT": "Specify and test the expression-to-runtime occurrence projection plus a pre-V32 or controlled second-pass bridge.",
-    "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": "Implement a narrow candidate occurrence contract using the verified i dag source with canonical token span; test before integrating a new release or changing V32."
+    "R073_EARLY_TEMPORAL_OCCURRENCE_BRIDGE": "R074 proved a candidate-only early occurrence. Audit its consumer and resolved function contract before changing V32 or release membership.",
+    "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE": "Identify the consumer contract that may turn source-backed expression candidates into resolved occurrences; reuse v1.50 punctuation surface for question-case investigation.",
+    "R074_V148_V150_REUSE_AUDIT": "Audit existing canonical punctuation and MWE consumers before any additional structural patch."
   },
   "files": [
     {
@@ -4041,6 +4054,44 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Do not mutate immutable v1.37 release membership or classify a generic preposition phrase as the lexical adverb i dag merely from adjacent surfaces. Preserve candidate versus resolved status and source provenance."
+    },
+    {
+      "proof_id": "R074_EARLY_SOURCE_EXPRESSION_CANDIDATE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
+      "proved_at_head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
+      "claim": "The current Production RPC emits a source-backed candidate for the exact i dag span before V32, preserving canonical token IDs, without granting a resolved syntactic function.",
+      "result": "Positive exact span one candidate; reversed dag i and i boken zero candidates. Resolved function, V32 clause and subject edge remain zero for the five-token case. Full diagnostic corpus unchanged at 9/12 positive subject edges and zero on two nonfinite controls. Production ledger 20261023082759; RPC md5 81ae1453781a9ee00e67863086ec4bb9.",
+      "evidence_runs": [
+        "R074-EARLY-EXPRESSION-CANDIDATE-AND-ROADMAP-REUSE-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R074-early-expression-roadmap-audit.json",
+        "supabase/migrations/20261023082759_grammar_early_source_expression_candidates_v1.sql",
+        "R073_TEMPORAL_EXPRESSION_RUNTIME_BRIDGE_AUDIT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Candidate only; does not prove a temporal adjunct, clause-core survival, subject relation, rule activation, or that v1.49/v1.50 current implementations are complete."
+    },
+    {
+      "proof_id": "R074_V148_V150_REUSE_AUDIT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "1c0942e70194ffd6f313356bb8e4cc3707f12f5a",
+      "claim": "Inspected historical v1.48/v1.49/v1.50 boundaries do not demonstrate an existing runtime fix for the observed i dag clause-core gap.",
+      "result": "v1.48 concerns TAM and has canonical TAM source modules. v1.49 historical status is complex/non-local source-data-blocked. v1.50 punctuation closure records surface projection PASS but grammar source payload absent, runtime wiring NO and activation NO. v1.50 surface evidence may be reused for the question-order case.",
+      "evidence_runs": [
+        "R074-EARLY-EXPRESSION-CANDIDATE-AND-ROADMAP-REUSE-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R074-early-expression-roadmap-audit.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Historical archive conclusions are architectural evidence, not a current Production behavior proof. The claim is limited to inspected sources and artifacts."
     }
   ],
   "policy": {
