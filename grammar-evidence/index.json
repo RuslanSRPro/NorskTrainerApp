@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "35c4761f0ae9e9c968018ef43e6681c887a361e9",
+  "head": "40007dd2701be46ae81dce0cd5a76aef9674ffc1",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "35c4761f0ae9e9c968018ef43e6681c887a361e9",
-  "source_head": "35c4761f0ae9e9c968018ef43e6681c887a361e9",
-  "source_revision": "35c4761",
+  "archive_head": "40007dd2701be46ae81dce0cd5a76aef9674ffc1",
+  "source_head": "40007dd2701be46ae81dce0cd5a76aef9674ffc1",
+  "source_revision": "40007dd",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 195,
-  "history_event_count": 146,
-  "strict_history_event_count": 99,
+  "history_event_count": 147,
+  "strict_history_event_count": 100,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -155,7 +155,8 @@
     "R097-PRONOUN-RUNTIME-GAP-AUDIT-2026-10-23",
     "R098-FORM-RULE-SOURCE-GAP-AUDIT-2026-10-23",
     "R099-GRAPH-FIRST-FORM-RULE-BOUNDARY-2026-10-23",
-    "R100-ADJECTIVE-RULE-FIRST-FORM-COMPARISON-2026-10-23"
+    "R100-ADJECTIVE-RULE-FIRST-FORM-COMPARISON-2026-10-23",
+    "R101-ADJECTIVE-DEGREE-RULE-ELIGIBILITY-GAP-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -273,6 +274,7 @@
     "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": [],
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": [],
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": [],
+    "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [],
     "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
     "R098_FORM_RULE_SOURCE_GAP": [],
@@ -638,6 +640,10 @@
       "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql",
       "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"
     ],
+    "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [
+      "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
+      "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"
+    ],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [
       "grammar-evidence/artifacts/R100-adjective-rule-first-form-comparison.json",
       "grammar-evidence/contracts/incoming-form-grammar-check-v1.md",
@@ -771,6 +777,7 @@
     "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": "R088 confirmed the early coordination signal is absent. Implement independent construction/coordination evidence and exception-aware case_selection before promoting OVS candidate to resolved clause. Separately address noun-noun V32 over-resolution.",
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": "R090 added bounded og/eller coordination candidate evidence and blocked single-conjunct subject selection in the private pilot. Build a resolved coordinated nominal constituent and verify exception scope before validating case_selection.",
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately.",
+    "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms.",
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules.",
     "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
     "R098_FORM_RULE_SOURCE_GAP": "R099 supersedes the adapter-first proposal: prove a graph-first adjective POS/rule/derivation path without target-form lookup, then use display forms only as independent comparison evidence.",
@@ -3637,7 +3644,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=30.64 max=24"
+        "DB snapshot expired: age_hours=31.07 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3657,7 +3664,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=30.59 max=24"
+        "DB snapshot expired: age_hours=31.02 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3862,7 +3869,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=28.76 max=24"
+        "DB snapshot expired: age_hours=29.19 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3883,7 +3890,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=28.76 max=24"
+        "DB snapshot expired: age_hours=29.19 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3984,7 +3991,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=29.49 max=24"
+        "DB snapshot expired: age_hours=29.92 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4658,6 +4665,25 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Private service-only candidate producer and safety guard. No resolved coordinated nominal phrase, case_selection activation, admission grant, public RPC change or app output."
+    },
+    {
+      "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "40007dd",
+      "claim": "Current comparative adjective manifests do not encode source-specific rule eligibility, and Production lacks the observed regularity/stress features needed to choose among regular, deletion and irregular strategies before target-form comparison.",
+      "result": "Three direct comparative manifests check only lexeme.id existence and require a verified source/target pair. All 139 adjective comparative display rows have regularity_marker=unknown; a bounded public-schema scan found no stress/accent/syllable column. Two source-verified irregular-degree candidates have neither manifests nor rule-source links.",
+      "evidence_runs": [
+        "R101-ADJECTIVE-DEGREE-RULE-ELIGIBILITY-GAP-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
+        "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This proves missing eligibility in the checked comparative path, not that every linguistic exception is absent. R100 source matches are retrospective and cannot select the rule."
     },
     {
       "proof_id": "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON",

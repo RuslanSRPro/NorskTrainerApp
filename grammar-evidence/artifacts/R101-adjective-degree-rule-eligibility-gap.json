@@ -1,0 +1,30 @@
+{
+  "schema_version": "grammar-evidence-rule-eligibility-audit-v1",
+  "run": "R101-ADJECTIVE-DEGREE-RULE-ELIGIBILITY-GAP-2026-10-23",
+  "mode": "read_only_production_sql",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "release": "runtime-structural-v1.37",
+  "verified": {
+    "comparative_rule_conditions": "The three direct comparative manifests use condition op=exists(ref=lexeme.id), bindings={}, and required_evidence=source_verified_lexeme_form_pair; source-specific eligibility is absent from their executable conditions.",
+    "source_conditions": [
+      {"rule":"regular_endings","source":"Typically suffixal -ere in Bokmal with lexical exceptions","source_candidate_id":"c73d8c29-fb54-4e4f-82b2-1e0cf5b272c8"},
+      {"rule":"el_en_er_vowel_deletion","source":"Normally drop unstressed e in -el/-en/-er before degree suffix","source_candidate_id":"8cd6ed7e-c27d-4283-bcf1-58af141f387c"},
+      {"rule":"unstressed_e_deletion","source":"Drop unstressed final e before suffix","source_candidate_id":"0ebf2762-4a47-4b8c-b7cd-b454dfe0f605"}
+    ],
+    "current_form_class_metadata": "All 139 adjective comparative display rows have regularity_marker=unknown.",
+    "stress_feature_inventory": "No public schema column name containing stress, accent or syllab was found in the bounded information_schema scan.",
+    "irregular_source_candidates": [
+      {"code":"adjective.degree.irregular.suppletive","id":"bad75edc-6254-4d0d-8654-eb3d7aaafa46","source_verified":true,"manifests":0,"rule_source_links":0},
+      {"code":"adjective.degree.irregular.root_vowel_and_stem","id":"f2cf765b-76db-4b90-a632-0c914e324a60","source_verified":true,"manifests":0,"rule_source_links":0}
+    ],
+    "r100_context": "R100 found 120/136 direct source-form matches after trying three rules; this is retrospective comparison, not independent rule selection."
+  },
+  "missing_contracts": [
+    "A producer of lexeme-specific regularity, stress and gradeability evidence independent of the observed target form",
+    "Executable eligibility conditions for each default rule and exception/irregular family",
+    "Decision states that preserve multiple rule candidates or abstain when class evidence is missing",
+    "A post-derivation source comparison that never promotes a matching rule by hindsight"
+  ],
+  "next_proof": "Select one bounded regular adjective class with independent class evidence, apply its rule without target lookup, and verify positive, exception and ambiguous controls before changing Production dispatch.",
+  "scope": "Read-only audit; no producer implementation, rule activation or Production mutation."
+}

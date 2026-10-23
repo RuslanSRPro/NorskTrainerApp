@@ -1324,6 +1324,20 @@
       "next_action": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately."
     },
     {
+      "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "Current comparative adjective manifests do not encode source-specific rule eligibility, and Production lacks the observed regularity/stress features needed to choose among regular, deletion and irregular strategies before target-form comparison.",
+      "proved_at_head": "40007dd",
+      "evidence_runs": ["R101-ADJECTIVE-DEGREE-RULE-ELIGIBILITY-GAP-2026-10-23"],
+      "result": "Three direct comparative manifests check only lexeme.id existence and require a verified source/target pair. All 139 adjective comparative display rows have regularity_marker=unknown; a bounded public-schema scan found no stress/accent/syllable column. Two source-verified irregular-degree candidates have neither manifests nor rule-source links.",
+      "dependencies": ["grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json", "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"],
+      "blocked_by": [],
+      "invalidation": "Refresh after adjective class/stress producers, manifest conditions, irregular candidate materialization or display-form metadata changes.",
+      "notes": "This proves missing eligibility in the checked comparative path, not that every linguistic exception is absent. R100 source matches are retrospective and cannot select the rule.",
+      "next_action": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms."
+    },
+    {
       "proof_id": "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
