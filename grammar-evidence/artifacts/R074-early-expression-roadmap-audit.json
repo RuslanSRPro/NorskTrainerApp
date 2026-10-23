@@ -1,0 +1,281 @@
+{
+  "run": "R074-EARLY-EXPRESSION-CANDIDATE-AND-ROADMAP-REUSE-2026-10-23",
+  "timestamp_utc": "2026-10-23T08:32:45Z",
+  "scope": "Production SQL RPC and historical v1.48/v1.49/v1.50 source/archive audit",
+  "production": {
+    "migration_ledger_version": "20261023082759",
+    "rpc_md5": "81ae1453781a9ee00e67863086ec4bb9",
+    "helper_md5": "0cef4684dccc811acf132dc0301c06ed",
+    "helper_acl": {
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    },
+    "pair_tests": [
+      {
+        "text": "Hunden spiser fisken i dag",
+        "early": {
+          "status": "candidate_only",
+          "version": "early-source-expression-candidates-v1",
+          "candidates": [
+            {
+              "status": "candidate",
+              "reason_code": "source_verified_expression_surface_match",
+              "source_lemma": "i dag",
+              "end_token_index": 5,
+              "source_lexeme_id": "2b6977c9-1c52-4df4-8947-7d4a0ea988cd",
+              "start_token_index": 4,
+              "canonical_token_ids": [
+                "tok:3:21:22",
+                "tok:4:23:26"
+              ],
+              "normalized_expression": "i dag",
+              "source_verification_status": "multi_source"
+            }
+          ],
+          "resolved_function_count": 0
+        },
+        "subject_of_count": "0",
+        "v32_clause_count": "0"
+      },
+      {
+        "text": "Hunden spiser fisken dag i",
+        "early": {
+          "status": "candidate_only",
+          "version": "early-source-expression-candidates-v1",
+          "candidates": [],
+          "resolved_function_count": 0
+        },
+        "subject_of_count": "0",
+        "v32_clause_count": "0"
+      },
+      {
+        "text": "Hunden spiser fisken i boken",
+        "early": {
+          "status": "candidate_only",
+          "version": "early-source-expression-candidates-v1",
+          "candidates": [],
+          "resolved_function_count": 0
+        },
+        "subject_of_count": "0",
+        "v32_clause_count": "0"
+      }
+    ],
+    "corpus": [
+      {
+        "id": 1,
+        "text": "Katten sover",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Katten",
+            "target": "sover",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Katten",
+        "early_candidates": [],
+        "expectedPredicate": "sover"
+      },
+      {
+        "id": 2,
+        "text": "Jeg sover",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Jeg",
+            "target": "sover",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Jeg",
+        "early_candidates": [],
+        "expectedPredicate": "sover"
+      },
+      {
+        "id": 3,
+        "text": "Han er glad",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Han",
+            "target": "er glad",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Han",
+        "early_candidates": [],
+        "expectedPredicate": "er glad"
+      },
+      {
+        "id": 4,
+        "text": "Hunden spiser fisken",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Hunden",
+            "target": "spiser",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Hunden",
+        "early_candidates": [],
+        "expectedPredicate": "spiser"
+      },
+      {
+        "id": 5,
+        "text": "Jenta leser boken",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Jenta",
+            "target": "leser",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Jenta",
+        "early_candidates": [],
+        "expectedPredicate": "leser"
+      },
+      {
+        "id": 6,
+        "text": "Barnet drikker vann",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Barnet",
+            "target": "drikker",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Barnet",
+        "early_candidates": [],
+        "expectedPredicate": "drikker"
+      },
+      {
+        "id": 7,
+        "text": "Fisken spiser hunden",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Fisken",
+            "target": "spiser",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Fisken",
+        "early_candidates": [],
+        "expectedPredicate": "spiser"
+      },
+      {
+        "id": 8,
+        "text": "Jeg spiser fisken",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Jeg",
+            "target": "spiser",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Jeg",
+        "early_candidates": [],
+        "expectedPredicate": "spiser"
+      },
+      {
+        "id": 9,
+        "text": "Hunden spiser raskt",
+        "v32_clauses": 1,
+        "subject_edges": [
+          {
+            "source": "Hunden",
+            "target": "spiser",
+            "canonical_parity": true
+          }
+        ],
+        "expectedSubject": "Hunden",
+        "early_candidates": [],
+        "expectedPredicate": "spiser"
+      },
+      {
+        "id": 10,
+        "text": "Hunden spiser fisken i dag",
+        "v32_clauses": 0,
+        "subject_edges": [],
+        "expectedSubject": "Hunden",
+        "early_candidates": [
+          {
+            "status": "candidate",
+            "reason_code": "source_verified_expression_surface_match",
+            "source_lemma": "i dag",
+            "end_token_index": 5,
+            "source_lexeme_id": "2b6977c9-1c52-4df4-8947-7d4a0ea988cd",
+            "start_token_index": 4,
+            "canonical_token_ids": [
+              "tok:3:21:22",
+              "tok:4:23:26"
+            ],
+            "normalized_expression": "i dag",
+            "source_verification_status": "multi_source"
+          }
+        ],
+        "expectedPredicate": "spiser"
+      },
+      {
+        "id": 11,
+        "text": "Den store hunden spiser fisken",
+        "v32_clauses": 0,
+        "subject_edges": [],
+        "expectedSubject": "hunden",
+        "early_candidates": [],
+        "expectedPredicate": "spiser"
+      },
+      {
+        "id": 12,
+        "text": "Spiser hunden fisken?",
+        "v32_clauses": 0,
+        "subject_edges": [],
+        "expectedSubject": "hunden",
+        "early_candidates": [],
+        "expectedPredicate": "Spiser"
+      },
+      {
+        "id": 13,
+        "text": "Hunden og fisken",
+        "v32_clauses": 0,
+        "subject_edges": [],
+        "expectedSubject": null,
+        "early_candidates": [],
+        "expectedPredicate": null
+      },
+      {
+        "id": 14,
+        "text": "Hunden",
+        "v32_clauses": 0,
+        "subject_edges": [],
+        "expectedSubject": null,
+        "early_candidates": [],
+        "expectedPredicate": null
+      }
+    ],
+    "positive_subject_edges": "9/12",
+    "nonfinite_controls_with_edges": 0,
+    "subject_of_predicate_activated": false
+  },
+  "roadmap": {
+    "v148": {
+      "goal": "TAM",
+      "evidence": "Historical timeline and canonical-tam source modules; not an i dag occurrence or long-tail clause producer"
+    },
+    "v149": {
+      "goal": "Complex/non-local",
+      "evidence": "Historical closure source-data-blocked; no demonstrated early i dag producer in inspected owner-branch sources"
+    },
+    "v150": {
+      "goal": "Punctuation",
+      "evidence": "Historical A3 summary: surface authority/projection pass, grammar punctuation payload absent, runtime wiring no, activation no. Useful for question surface, not shown to solve inversion or temporal tail."
+    }
+  },
+  "decision": "Keep early i dag as candidate-only source projection; do not extend V32 or activate subject rule. Reuse existing canonical surface punctuation for question-case follow-up. Audit actual consumer contract before resolved function or new structural patch.",
+  "limits": "Archive summaries are historical claims, not current Production execution. R074 candidate does not produce a resolved adjunct, clause, or subject edge."
+}
