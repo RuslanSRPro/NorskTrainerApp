@@ -1,16 +1,6 @@
 {
   "queue": [
     {
-      "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
-      "declared_status": "UNVERIFIED",
-      "effective_status": "UNVERIFIED",
-      "blocked_by": [],
-      "ready_for_next_action": true,
-      "next_action": "Address the six R068 missing relations by failure family. First prove syntax-based disambiguation of object candidates and finite-verb readings; then handle adverbial tails, longer subject phrases and verb-initial inversion with separate contracts. Repeat the same corpus before global activation.",
-      "search_gate": null,
-      "queue_priority": -1
-    },
-    {
       "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -181,6 +171,46 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R067_V32_NOUN_OBJECT_PRODUCTION_FIX",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Use R068 corpus failure families to expand coverage without weakening the R067 guard.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R068_CANONICAL_SOURCE_CORPUS_COVERAGE",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "See R069 for current Production corpus status.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R069_SVO_OVS_SUBJECT_DISAMBIGUATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Define evidence that makes subject identity resolved versus hypothesized, then test SVO and OVS minimal pairs without selecting from word order alone.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R070_NOUN_INFLECTION_GRAPH_EXECUTION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Create a small corpus for bok I/II with boken, boka and each homograph's sourced plural forms; verify exact forms before test assertions, then execute bidirectional graph rules.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
@@ -201,6 +231,18 @@
       "queue_priority": 200
     },
     {
+      "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [
+        "R069_SVO_OVS_SUBJECT_DISAMBIGUATION"
+      ],
+      "ready_for_next_action": false,
+      "next_action": "Address the four remaining corpus failures by structural family: adverbial, longer tail, multiword subject and verb-initial inversion. Separately prove SVO/OVS subject disambiguation before broad activation; retain the bounded one-rule pilot as distinct evidence.",
+      "search_gate": null,
+      "queue_priority": -1
+    },
+    {
       "proof_id": "SUBJECT_OF_PREDICATE_ACTIVATION_READY",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -215,13 +257,13 @@
     }
   ],
   "next": {
-    "proof_id": "R053_SUBJECT_SQL_PILOT_ACTIVATION_READY",
+    "proof_id": "R051_SUBJECT_MANIFEST_RUNTIME_COMPATIBILITY",
     "declared_status": "UNVERIFIED",
     "effective_status": "UNVERIFIED",
     "blocked_by": [],
     "ready_for_next_action": true,
-    "next_action": "Address the six R068 missing relations by failure family. First prove syntax-based disambiguation of object candidates and finite-verb readings; then handle adverbial tails, longer subject phrases and verb-initial inversion with separate contracts. Repeat the same corpus before global activation.",
+    "next_action": "Design and test a source-backed structural initial-epoch seed and site contract for resolved clause/predicate occurrences; current R048M S0 is token-POS-site rooted. Do not add a fake token.pos condition. Then choose predicate mapping or prove a phrase bridge and execute binding, D7.14 endpoint, create_dependency and add_trace checks.",
     "search_gate": null,
-    "queue_priority": -1
+    "queue_priority": 0
   }
 }

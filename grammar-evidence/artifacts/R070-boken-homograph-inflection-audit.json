@@ -1,0 +1,65 @@
+{
+  "evidence_id": "R070-BOKEN-HOMOGRAPH-INFLECTION-AUDIT-2026-10-23",
+  "observed_at_utc": "2026-10-23T07:41:26Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "input_context": "Jenta leser boken",
+  "surface": "boken",
+  "production_token_resolution": {
+    "status": "ambiguous_unresolved",
+    "candidate_count": 3,
+    "morphology_resolution_status": "no_morph_reading",
+    "morphology_reading_count": 0,
+    "candidates": [
+      {
+        "lexeme_id": "ec9da2b9-22d4-4292-81e3-05b26f4aa852",
+        "lemma": "bok",
+        "source_pos": "noun",
+        "source": "lexeme_form_display_v2",
+        "article_id": 6790,
+        "form_type": "noun_singular_definite",
+        "matched_form": "boken",
+        "alternative_form": "boka",
+        "accepted_articles": ["en", "ei"]
+      },
+      {
+        "lexeme_id": "ff26110c-7180-4ef4-92e9-372355e40a90",
+        "lemma": "bok",
+        "source_pos": "noun",
+        "source": "lexeme_form_display_v2",
+        "article_id": 106786,
+        "homograph_key": "II",
+        "form_type": "noun_singular_definite",
+        "matched_form": "boken",
+        "alternative_form": "boka",
+        "accepted_articles": ["en", "ei"]
+      },
+      {
+        "lexeme_id": "0d8d11d5-5868-4314-9962-d2fac4fb843d",
+        "lemma": "boken",
+        "source_pos": "unknown",
+        "source": "lexemes",
+        "form_type": "base",
+        "verification_status": null
+      }
+    ]
+  },
+  "interpretation": [
+    "The two source-backed bok candidates agree on noun POS and definite singular form, but have different lexical identities; the graph does not resolve which homograph is intended.",
+    "Both source entries allow masculine and feminine noun paradigms. The observed boken is the masculine definite singular surface; feminine definite singular is boka. Lexical gender allowance is distinct from the realized form in this sentence.",
+    "The third exact-base boken candidate has unknown POS and no verification status; do not promote it over the two supported noun candidates.",
+    "The canonical morphology layer has zero readings. Existing source forms are evidence for hypotheses, not proof that graph rules independently recognize, validate, explain or generate the inflection.",
+    "R069 uses only the existence of a noun candidate to preserve a subject/predicate core. It does not assign object identity, noun gender, lexical sense or inflection correctness to boken."
+  ],
+  "required_graph_contract": [
+    "Preserve each homograph as a separate lexical candidate with its source identity and paradigm.",
+    "Derive and validate noun POS, case-independent number, definiteness and realized gender from grammar rules, with provenance; keep unresolved sense as candidate state.",
+    "Generate boken and boka from the appropriate singular definite paradigms, and validate inverse analysis against the same rule set; use stored forms as secondary comparison evidence.",
+    "Do not claim a selected lemma sense, feminine realization of boken, or full grammatical correctness from a source-form lookup alone."
+  ],
+  "source_code_reference": "supabase/migrations/20261014180000_d10_homograph_key_v1.sql",
+  "primary_dictionary_sources": [
+    "https://ordbokene.no/nno/bm/6790",
+    "https://ordbokene.no/bm/106786"
+  ],
+  "scope": "Read-only Production observation and source comparison; no graph rule activation, grant or app integration."
+}

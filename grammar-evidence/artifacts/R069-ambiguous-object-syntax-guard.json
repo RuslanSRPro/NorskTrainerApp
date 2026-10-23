@@ -1,0 +1,355 @@
+{
+  "evidence_id": "R069-AMBIGUOUS-OBJECT-SYNTAX-GUARD-2026-10-23",
+  "observed_at_utc": "2026-10-23T07:36:21Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "migration_file": "supabase/migrations/20261023073508_grammar_v32_ambiguous_object_syntax_guard.sql",
+  "migration_ledger_version": "20261023073508",
+  "migration_ledger_name": "grammar_v32_ambiguous_object_syntax_guard",
+  "old_v32_definition_md5": "13447a8763b15dbfbbf1ec65df7068fe",
+  "new_v32_definition_md5": "085d185eb036701eef8ce881a840f165",
+  "rpc_definition_md5": "968759622f01f1489b79b67f60cce775",
+  "change": "In the exact three-token noun-subject + finite-predicate core, admit a postfinite token with a noun candidate even when lexical identity is unresolved. Count finite verb readings only through the selected predicate token; a competing finite reading of the third token does not veto the subject/predicate core. No object lexeme or grammatical object relation is selected.",
+  "rehearsal": "Temporary Production CREATE OR REPLACE inside a transaction, seventeen read-only RPC probes, then ROLLBACK; persisted function hash remained old before migration.",
+  "post_migration_corpus_summary": {
+    "positive_cases": 12,
+    "expected_subject_edges_matched": 8,
+    "expected_subject_edges_missing": 4,
+    "nonfinite_controls": 2,
+    "nonfinite_controls_without_edges": 2,
+    "previous_r068_matches": 6
+  },
+  "post_migration_corpus": [
+    {
+      "case_id": 1,
+      "text": "Katten sover",
+      "expected_subject": "Katten",
+      "expected_predicate": "sover",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Katten",
+          "target": "sover",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:6"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 2,
+      "text": "Jeg sover",
+      "expected_subject": "Jeg",
+      "expected_predicate": "sover",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Jeg",
+          "target": "sover",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:3"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 3,
+      "text": "Han er glad",
+      "expected_subject": "Han",
+      "expected_predicate": "er glad",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Han",
+          "target": "er glad",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:3"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 4,
+      "text": "Hunden spiser fisken",
+      "expected_subject": "Hunden",
+      "expected_predicate": "spiser",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Hunden",
+          "target": "spiser",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:6"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 5,
+      "text": "Jenta leser boken",
+      "expected_subject": "Jenta",
+      "expected_predicate": "leser",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Jenta",
+          "target": "leser",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:5"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 6,
+      "text": "Barnet drikker vann",
+      "expected_subject": "Barnet",
+      "expected_predicate": "drikker",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Barnet",
+          "target": "drikker",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:6"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 7,
+      "text": "Fisken spiser hunden",
+      "expected_subject": "Fisken",
+      "expected_predicate": "spiser",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Fisken",
+          "target": "spiser",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:6"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 8,
+      "text": "Jeg spiser fisken",
+      "expected_subject": "Jeg",
+      "expected_predicate": "spiser",
+      "predicates": 1,
+      "clauses": 1,
+      "observed_subject_edges": [
+        {
+          "source": "Jeg",
+          "target": "spiser",
+          "source_token_index": "1",
+          "canonical_v2_parity": "true",
+          "source_canonical_token_id": "tok:0:0:3"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "case_id": 9,
+      "text": "Hunden spiser raskt",
+      "expected_subject": "Hunden",
+      "expected_predicate": "spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false
+    },
+    {
+      "case_id": 10,
+      "text": "Hunden spiser fisken i dag",
+      "expected_subject": "Hunden",
+      "expected_predicate": "spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false
+    },
+    {
+      "case_id": 11,
+      "text": "Den store hunden spiser fisken",
+      "expected_subject": "hunden",
+      "expected_predicate": "spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false
+    },
+    {
+      "case_id": 12,
+      "text": "Spiser hunden fisken?",
+      "expected_subject": "hunden",
+      "expected_predicate": "Spiser",
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": false
+    },
+    {
+      "case_id": 13,
+      "text": "Hunden og fisken",
+      "expected_subject": null,
+      "expected_predicate": null,
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": true
+    },
+    {
+      "case_id": 14,
+      "text": "Hunden",
+      "expected_subject": null,
+      "expected_predicate": null,
+      "predicates": 0,
+      "clauses": 0,
+      "observed_subject_edges": [],
+      "expectation_met": true
+    }
+  ],
+  "new_cases_identity_proof": [
+    {
+      "id": 5,
+      "tokens": [
+        {
+          "id": "tok:0:0:5",
+          "index": "1",
+          "surface": "Jenta"
+        },
+        {
+          "id": "tok:1:6:11",
+          "index": "2",
+          "surface": "leser"
+        },
+        {
+          "id": "tok:2:12:17",
+          "index": "3",
+          "surface": "boken"
+        }
+      ],
+      "clauses": [
+        {
+          "span_end": "2",
+          "clause_id": "clb1:finite:pred1:simple:2",
+          "span_start": "1",
+          "predicate_id": "pred1:simple:2",
+          "subject_index": "1"
+        }
+      ],
+      "edges": [
+        {
+          "target_id": "pred1:simple:2",
+          "source_index": "1",
+          "source_surface": "Jenta",
+          "target_surface": "leser",
+          "canonical_v2_parity": "true"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "tokens": [
+        {
+          "id": "tok:0:0:6",
+          "index": "1",
+          "surface": "Barnet"
+        },
+        {
+          "id": "tok:1:7:14",
+          "index": "2",
+          "surface": "drikker"
+        },
+        {
+          "id": "tok:2:15:19",
+          "index": "3",
+          "surface": "vann"
+        }
+      ],
+      "clauses": [
+        {
+          "span_end": "2",
+          "clause_id": "clb1:finite:pred1:simple:2",
+          "span_start": "1",
+          "predicate_id": "pred1:simple:2",
+          "subject_index": "1"
+        }
+      ],
+      "edges": [
+        {
+          "target_id": "pred1:simple:2",
+          "source_index": "1",
+          "source_surface": "Barnet",
+          "target_surface": "drikker",
+          "canonical_v2_parity": "true"
+        }
+      ]
+    }
+  ],
+  "additional_post_migration_controls": [
+    {
+      "id": 1,
+      "surface": "Boken leser jenta",
+      "clauses": []
+    },
+    {
+      "id": 2,
+      "surface": "Vann drikker barnet",
+      "clauses": []
+    },
+    {
+      "id": 3,
+      "surface": "Jenta lese boken",
+      "clauses": []
+    },
+    {
+      "id": 4,
+      "surface": "Katten sover boken",
+      "clauses": [
+        {
+          "surface": "Katten sover",
+          "span_end": "2",
+          "span_start": "1",
+          "subject_surface": "Katten"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "surface": "Jenta leser raskt",
+      "clauses": []
+    }
+  ],
+  "access_and_activation_after": {
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "service_role_execute": true,
+    "release_status": "shadow",
+    "global_rule_active": false,
+    "active_grants": 0
+  },
+  "open_semantic_limitations": [
+    "The resolved clause spans only the subject/predicate core, not the third token; the putative object is not validated or attached.",
+    "Noun-verb-noun order in Norwegian can also represent object-verb-subject. Without independent disambiguating evidence the initial noun is not always a proven subject.",
+    "Four positive corpus cases remain without subject_of: adverbial, longer tail, multiword subject and verb-initial inversion.",
+    "Selected corpus is diagnostic and source-derived locally; deployed Edge bundle parity on every sentence is not claimed."
+  ],
+  "external_grammar_reference": "https://sprakradet.no/klarsprak/sprak-i-lover-og-forskrifter/skriverad/rad-om-setningsbygning-i-lover-og-forskrifter/setninger-med-omvendt-eller-vanskelig-ordstilling/",
+  "next_action": "Keep global activation on hold; add explicit SVO/OVS ambiguity handling or hypothesis status before declaring noun-verb-noun subject identities generally resolved. Then address the four remaining structural failure families separately."
+}

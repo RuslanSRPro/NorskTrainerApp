@@ -879,13 +879,13 @@
       "claim": "The existing SQL Rule Execution Plane can safely grant one controlled subject_of_predicate pilot without exposing graph output to the app.",
       "proved_at_head": null,
       "evidence_runs": ["R053-PRODUCTION-SQL-RELEASE-READ-2026-10-22"],
-      "result": "R065 proved one short-lived Production grant and revocation. R067 repaired one V32 noun-verb-noun gap. R068 current-source canonical input corpus matched 6/12 expected subject relations and missed 6, with no edges on two nonfinite controls. Release remains shadow and global rule inactive.",
-      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION", "R065_COMMITTED_ONE_RULE_SQL_PILOT", "R067_V32_NOUN_OBJECT_PRODUCTION_FIX", "R068_CANONICAL_SOURCE_CORPUS_COVERAGE"],
-      "blocked_by": [],
+      "result": "R065 proved one short-lived Production grant and revocation. R069 current-source diagnostic corpus matched 8/12 expected subject relations, missed four and produced zero edges for two nonfinite controls. The global rule remains inactive, release shadow and active grants zero. Broader activation still needs structural coverage and independent subject disambiguation.",
+      "dependencies": ["R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS", "R053_SUBJECT_SQL_READINESS_GATES", "R055_RULE_PLANE_SERVICE_ROLE_BOUNDARY", "R059_SQL_ONE_RULE_PILOT_P1", "R059_PRODUCTION_DORMANT_ADMISSION", "R061_RELEASE_CONTROL_WRITE_BOUNDARY", "R062_LIVE_ONE_RULE_UPSTREAM_ROUTE", "R063_TRANSACTIONAL_ADMIN_GRANT_REVOKE", "R064_NEW_GRAMMAR_APP_PATH_ISOLATION", "R065_COMMITTED_ONE_RULE_SQL_PILOT", "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD"],
+      "blocked_by": ["R069_SVO_OVS_SUBJECT_DISAMBIGUATION"],
       "invalidation": "N/A until a bounded SQL pilot is proven.",
       "notes": "Separate from SUBJECT_OF_PREDICATE_ACTIVATION_READY, which tracks canonical R048M scheduler admission and structural S0 support.",
       "queue_priority": -1,
-      "next_action": "Address the six R068 missing relations by failure family. First prove syntax-based disambiguation of object candidates and finite-verb readings; then handle adverbial tails, longer subject phrases and verb-initial inversion with separate contracts. Repeat the same corpus before global activation."
+      "next_action": "Address the four remaining corpus failures by structural family: adverbial, longer tail, multiword subject and verb-initial inversion. Separately prove SVO/OVS subject disambiguation before broad activation; retain the bounded one-rule pilot as distinct evidence."
     },
     {
       "proof_id": "R065_COMMITTED_ONE_RULE_SQL_PILOT",
@@ -914,29 +914,81 @@
     },
     {
       "proof_id": "R067_V32_NOUN_OBJECT_PRODUCTION_FIX",
-      "status": "PROVEN",
+      "status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "claim": "The bounded V32 noun bootstrap now produces a resolved predicate, clause and subject_of edge for a three-token noun-verb-noun sentence while preserving the tested two-token and pronoun cases.",
       "proved_at_head": "b684c38",
-      "evidence_runs": ["R067-V32-NOUN-OBJECT-PRODUCTION-PROOF-2026-10-22"],
+      "evidence_runs": ["R067-V32-NOUN-OBJECT-PRODUCTION-PROOF-2026-10-22", "R069-R067-INVALIDATION-2026-10-23"],
       "result": "Migration 20261022202018 is in the Production ledger; V32 definition md5 changed from a373f16bdb95aa9e30bca3d9aa108f4f to 13447a8763b15dbfbbf1ec65df7068fe. All four positive cases yielded one subject_of edge. Three negative controls yielded zero. ACL, shadow release and global rule state stayed unchanged.",
       "dependencies": ["grammar-evidence/artifacts/R067-v32-noun-object-production-proof.json", "supabase/migrations/20261022202018_grammar_v32_noun_subject_with_object.sql"],
       "invalidation": "Refresh after V32, structural token builder, public RPC or release membership changes.",
-      "notes": "Diagnostic seven-case corpus with manually assembled RPC inputs. Not general grammatical correctness or full activation.",
+      "notes": "Historical Production definition superseded by R069. Diagnostic seven-case corpus with manually assembled RPC inputs. Not general grammatical correctness or full activation.",
       "next_action": "Use R068 corpus failure families to expand coverage without weakening the R067 guard."
     },
     {
       "proof_id": "R068_CANONICAL_SOURCE_CORPUS_COVERAGE",
-      "status": "PROVEN",
+      "status": "STALE",
       "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
       "claim": "Current canonical source modules generate identity-preserving SQL inputs; on a selected fourteen-case read-only Production corpus, six of twelve expected subject relations are produced and six are absent, with zero edges on two nonfinite controls.",
       "proved_at_head": "e041bf8",
-      "evidence_runs": ["R068-CANONICAL-SOURCE-CORPUS-READONLY-2026-10-22"],
+      "evidence_runs": ["R068-CANONICAL-SOURCE-CORPUS-READONLY-2026-10-22", "R069-R068-INVALIDATION-2026-10-23"],
       "result": "R051 canonical projection test passed. Fourteen current-source canonical input envelopes were sent to the Production SQL RPC. Six positives matched subject and predicate surfaces with canonical parity; six valid positives lacked predicate/clause; two nonfinite controls produced no edge. Object ambiguity and additional finite reading explain two failures; longer or reordered structure explains four.",
       "dependencies": ["grammar-evidence/artifacts/R068-canonical-source-corpus-readonly.json", "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json", "grammar-evidence/tools/build-r068-canonical-corpus.ts", "R067_V32_NOUN_OBJECT_PRODUCTION_FIX"],
       "invalidation": "Refresh after canonical surface/token map, V32, public RPC or release changes.",
-      "notes": "Selected diagnostic corpus, not a representative accuracy rate. Local current-source input generation is proven; deployed canonical Edge bundle parity on all fourteen sentences is not claimed. No grant or application integration.",
-      "next_action": "Fix one failure family at a time using independent structural evidence, then rerun positive and negative canonical-input cases before considering activation."
+      "notes": "Historical 6/12 snapshot superseded by R069 8/12 after V32 migration. Selected diagnostic corpus, not a representative accuracy rate. Local source input generation is proven; deployed Edge bundle parity on all fourteen sentences is not claimed. No grant or application integration.",
+      "next_action": "See R069 for current Production corpus status."
+    },
+    {
+      "proof_id": "R069_AMBIGUOUS_OBJECT_SYNTAX_GUARD",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_BACKED_PRODUCTION_READONLY",
+      "claim": "The R069 Production V32 definition preserves the subject/predicate core for two additional ambiguous postfinite noun surfaces in the selected canonical-source corpus, without assigning their object identity or inflection.",
+      "proved_at_head": "809db54b70897bc3e43ed8a594e87a91b6a170b5",
+      "evidence_runs": ["R069-AMBIGUOUS-OBJECT-SYNTAX-GUARD-2026-10-23"],
+      "result": "Production ledger 20261023073508 and V32 md5 085d185eb036701eef8ce881a840f165 confirmed. Eight of twelve expected subject edges matched, four absent, two nonfinite controls zero. New Jenta leser boken and Barnet drikker vann edges retain canonical subject identity. Release remains shadow, global rule inactive, zero active grants.",
+      "dependencies": ["grammar-evidence/artifacts/R069-ambiguous-object-syntax-guard.json", "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json", "supabase/migrations/20261023073508_grammar_v32_ambiguous_object_syntax_guard.sql"],
+      "invalidation": "Refresh after V32, structural token builder, public RPC, canonical input generation or release changes.",
+      "notes": "Diagnostic corpus only. The resolved clause covers the subject/predicate core, not the postfinite token. Noun candidate existence is not a validated object relation, sense, gender or inflection. Deployed Edge parity on all inputs remains open.",
+      "next_action": "Work the four remaining structural families separately and prove independent SVO/OVS disambiguation."
+    },
+    {
+      "proof_id": "R069_SVO_OVS_SUBJECT_DISAMBIGUATION",
+      "status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "claim": "The graph distinguishes a subject-initial noun-verb-noun clause from a valid object-initial clause using independent syntax evidence before assigning subject_of.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "Open. The current V32 bounded bootstrap assumes the first noun is subject. Norwegian object-verb-subject order is possible; the R069 corpus does not prove a general subject assignment contract.",
+      "dependencies": ["grammar-evidence/artifacts/R069-ambiguous-object-syntax-guard.json"],
+      "invalidation": "N/A until an executable positive/negative contrast proves subject resolution or hypothesis status.",
+      "notes": "Do not infer a specific wrong edge from the current five control probes; this is an unproven generalization risk.",
+      "next_action": "Define evidence that makes subject identity resolved versus hypothesized, then test SVO and OVS minimal pairs without selecting from word order alone."
+    },
+    {
+      "proof_id": "R070_BOKEN_CANDIDATE_PROVENANCE",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_READONLY",
+      "claim": "The current Production token resolver retains two noun bok homographs and a third unknown-POS exact-base boken candidate, while morphology returns no reading for boken.",
+      "proved_at_head": "809db54b70897bc3e43ed8a594e87a91b6a170b5",
+      "evidence_runs": ["R070-BOKEN-HOMOGRAPH-INFLECTION-AUDIT-2026-10-23"],
+      "result": "Surface resolution ambiguous_unresolved with three candidates. The two source-backed bok noun candidates have distinct lexeme and dictionary article IDs 6790/106786; both source forms tag boken singular definite, accept en/ei and list boka as alternative. Third boken candidate has unknown POS and no verification status. Morphology is no_morph_reading with zero readings.",
+      "dependencies": ["grammar-evidence/artifacts/R070-boken-homograph-inflection-audit.json"],
+      "invalidation": "Refresh after lexeme source imports, token resolver, morphology producer or public RPC changes.",
+      "notes": "Source form candidates support noun/POS and form hypotheses, but do not prove native graph recognition, generation, explanation or selected homograph. The realized boken form is masculine definite singular; feminine counterpart is boka.",
+      "next_action": "Implement and prove rule-derived noun morphology in both analysis and generation directions, preserving distinct homograph identities."
+    },
+    {
+      "proof_id": "R070_NOUN_INFLECTION_GRAPH_EXECUTION",
+      "status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_COMPATIBILITY",
+      "claim": "The graph itself can analyze, validate, explain and generate bok I/II definite singular forms with provenance while retaining unresolved homograph and gender alternatives.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "Open. For boken, canonical morphology reports no_morph_reading and zero readings; dictionary form lookup alone is insufficient as graph-rule execution proof.",
+      "dependencies": ["R070_BOKEN_CANDIDATE_PROVENANCE"],
+      "invalidation": "N/A until forward and inverse executable corpus tests pass.",
+      "notes": "This gap is separate from the bounded SQL subject_of_predicate pilot. Stored paradigms may be comparison evidence but must not silently become the graph's answer authority.",
+      "next_action": "Create a small corpus for bok I/II with boken, boka and each homograph's sourced plural forms; verify exact forms before test assertions, then execute bidirectional graph rules."
     }
   ]
 }
