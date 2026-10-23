@@ -1,0 +1,27 @@
+{
+  "schema_version": "grammar-evidence-rule-first-form-comparison-v1",
+  "run": "R100-ADJECTIVE-RULE-FIRST-FORM-COMPARISON-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_sql",
+  "release": "runtime-structural-v1.37",
+  "input_authority": "lexeme_form_display_v2 supplied source common form, adjective lexeme identity and article provenance; source target form was withheld until after each rule derivation",
+  "rules": [
+    {"code":"nrg_rt_v1.adjective.degree.suffix.regular_endings.comparative","source_candidate_id":"c73d8c29-fb54-4e4f-82b2-1e0cf5b272c8","source_section":"5.1.2.1.1","source_strength":"default_with_lexical_exceptions","operation":"append_suffix","suffix":"ere","direct_source_matches":113},
+    {"code":"nrg_rt_v1.adjective.degree.suffix.el_en_er_vowel_deletion.comparative","direct_source_matches":5},
+    {"code":"nrg_rt_v1.adjective.degree.suffix.unstressed_e_deletion.comparative","direct_source_matches":2}
+  ],
+  "comparison": {"lexemes_with_common_and_comparative_source_forms":136,"at_least_one_direct_rule_matches_source":120,"no_direct_rule_matches_source":16},
+  "examples": [
+    {"lemma":"ærlig","pos":"adjective","source_common":"ærlig","rule_derived_comparative":"ærligere","source_comparative":"ærligere","article_id":1270,"comparison":"match"},
+    {"lemma":"bra","pos":"adjective","source_common":"bra","regular_rule_derived_comparative":"braere","source_comparative":"bedre","article_id":7217,"comparison":"divergence_requires_exception_or_rule_applicability_check"},
+    {"lemma":"blå","pos":"adjective","source_common":"blå","conditional_rule_derived_neuter":"blått","source_neuter":"blått","article_id":6678,"comparison":"form_match_only; stressed-vowel applicability not independently proved"}
+  ],
+  "unmatched_direct_rule_examples": ["bra","gammel","god","hjelpsom","lang","liten","morsom","mye","sikker","skitten","slem","slitsom","stor","tung","ung","vakker"],
+  "limits": [
+    "This is an isolated derivation-then-comparison audit, not proof of adjective POS in a sentence.",
+    "The 120 matches do not prove that the matching rule applies to each lexeme; the source default has exceptions and independent rule conditions were not checked.",
+    "The 16 direct-rule divergences are not automatically bad source forms; composed rules, irregular classes and exceptions were not exhausted.",
+    "The current Production dispatcher still reads the empty lexeme_form_variants relation and did not execute this audit path in normal sentence analysis."
+  ],
+  "result": "PASS for the rule-first comparison method; runtime integration and rule eligibility remain OPEN."
+}

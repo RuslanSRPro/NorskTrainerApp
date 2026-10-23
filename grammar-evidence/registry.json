@@ -1324,6 +1324,20 @@
       "next_action": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately."
     },
     {
+      "proof_id": "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "A read-only rule-first audit can derive comparative adjective forms from the rule and input common form, then independently compare the derived result with current source forms without using the stored target to compute it.",
+      "proved_at_head": "35c4761",
+      "evidence_runs": ["R100-ADJECTIVE-RULE-FIRST-FORM-COMPARISON-2026-10-23"],
+      "result": "For 136 adjective common/comparative source pairs, three direct comparative rules produced a source-matching form for 120 lexemes; 16 had no direct match. The regular -ere rule matched 113. ærlig→ærligere matched; bra→braere diverged from stored bedre. A conditional blå→blått derivation matched the source, but stress applicability was not independently proved.",
+      "dependencies": ["grammar-evidence/artifacts/R100-adjective-rule-first-form-comparison.json", "grammar-evidence/contracts/incoming-form-grammar-check-v1.md", "R099_GRAPH_FIRST_FORM_RULE_BOUNDARY"],
+      "blocked_by": [],
+      "invalidation": "Refresh after adjective rule patterns, lexeme_form_display_v2 contents, source provenance or release membership changes.",
+      "notes": "Proof covers comparison order in isolated read-only queries only. A match is not rule applicability or sentence POS proof; unmatched forms may be irregular, lexical exceptions or composed derivations. Normal Production dispatcher still lacks this path.",
+      "next_action": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules."
+    },
+    {
       "proof_id": "R097_PRONOUN_RUNTIME_ROLE_GAP",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
