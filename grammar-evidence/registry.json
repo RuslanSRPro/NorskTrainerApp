@@ -1195,7 +1195,7 @@
       "blocked_by": [],
       "invalidation": "Refresh after grammar knowledge candidates, execution contracts, rule compilation, or release membership changes.",
       "notes": "This is the specific source authority for the case-form mapping. It does not by itself prove runtime morphology, subject-role resolution, or rule activation.",
-      "next_action": "Inspect manifest/compilation eligibility for the paradigm, build provenance-preserving recognition and generation tests, then produce case features before subject selection. R081 adds two gold OVS controls."
+      "next_action": "R082 found operator_mapping_missing and needs_manifest for morphological_paradigm. Define the operator/manifest contract, then build provenance-preserving recognition and generation tests before producing case features. R081 adds two gold OVS controls."
     },
     {
       "proof_id": "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE",
@@ -1210,6 +1210,20 @@
       "invalidation": "Refresh after UD source revision, canonical token mapping, lexical resolver, morphology, V32, or clause builder changes.",
       "notes": "UD Norwegian Bokmaal test corpus is CC BY-SA 4.0. Alignment excludes punctuation in the three-token SQL structural RPC input and compares content-token roles only. No Production mutation or rule activation.",
       "next_action": "Create a UD-to-graph label mapping and a larger stratified gold sample, with error categories for lexical coverage, morphology, subject role and dependency execution."
+    },
+    {
+      "proof_id": "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
+      "status": "PROVEN",
+      "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
+      "claim": "The source-backed Bokmal pronoun paradigm is runtime eligible but currently lacks an operator mapping, validated manifest, materialized rule and canonical integration.",
+      "proved_at_head": "afa7565",
+      "evidence_runs": ["R082-PRONOUN-PARADIGM-ACTIVATION-PREFLIGHT-2026-10-23"],
+      "result": "Production assess_candidate_operator_capability_v1 returned operator_mapping_missing with zero mappings for execution role morphological_paradigm. assess_candidate_activation_readiness_v2 returned needs_manifest, activation_ready=false, and zero materialized, validated-manifest, operator-ready and canonical-integrated rules. The bounded SQL subject_of_predicate grant was already executed and revoked in R065; current active grants remain zero.",
+      "dependencies": ["grammar-evidence/artifacts/R082-pronoun-paradigm-activation-preflight.json", "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP", "R065_COMMITTED_ONE_RULE_SQL_PILOT"],
+      "blocked_by": [],
+      "invalidation": "Refresh after operator mappings, manifest registration, rule materialization, release membership, or pilot grant changes.",
+      "notes": "Read-only preflight. Runtime eligible is not activation ready. No Production mutation or new pilot grant.",
+      "next_action": "Review operator templates and manifest schema for morphological_paradigm; first specify and test bidirectional case-form behavior for the source-backed paradigm."
     }
   ]
 }

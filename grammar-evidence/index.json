@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "08ec27f5f0768efce022b8ced1994419d9027a80",
+  "head": "afa756580d9e307582d79ae81ef94396f0c849dd",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "08ec27f5f0768efce022b8ced1994419d9027a80",
-  "source_head": "08ec27f5f0768efce022b8ced1994419d9027a80",
-  "source_revision": "08ec27f5f0768efce022b8ced1994419d9027a80",
+  "archive_head": "afa756580d9e307582d79ae81ef94396f0c849dd",
+  "source_head": "afa756580d9e307582d79ae81ef94396f0c849dd",
+  "source_revision": "afa756580d9e307582d79ae81ef94396f0c849dd",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 194,
-  "history_event_count": 124,
-  "strict_history_event_count": 77,
+  "history_event_count": 125,
+  "strict_history_event_count": 78,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -133,7 +133,8 @@
     "R078-CANONICAL-SCOPED-CORE-GRAPH-SEAM-2026-10-23",
     "R079-INDEPENDENT-SUBJECT-AUTHORITY-2026-10-23",
     "R080-PRONOUN-PARADIGM-RULE-LINK-2026-10-23",
-    "R081-UD-BOKMAAL-GOLD-CORPUS-SMOKE-2026-10-23"
+    "R081-UD-BOKMAAL-GOLD-CORPUS-SMOKE-2026-10-23",
+    "R082-PRONOUN-PARADIGM-ACTIVATION-PREFLIGHT-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -242,7 +243,8 @@
     "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM": [],
     "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT": [],
     "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": [],
-    "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": []
+    "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": [],
+    "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT": []
   },
   "proof_source_dependencies": {
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
@@ -554,6 +556,11 @@
       "grammar-evidence/artifacts/R081-ud-bokmaal-gold-corpus-smoke.json",
       "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT",
       "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP"
+    ],
+    "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT": [
+      "grammar-evidence/artifacts/R082-pronoun-paradigm-activation-preflight.json",
+      "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP",
+      "R065_COMMITTED_ONE_RULE_SQL_PILOT"
     ]
   },
   "proof_next_actions": {
@@ -636,8 +643,9 @@
     "R077_SCOPED_CORE_RUNTIME_INTEGRATION": "R078 proved a candidate-only span patch in isolation. Identify a source-backed Producer boundary and independent subject-role authority before live integration.",
     "R078_CANONICAL_SCOPED_CORE_GRAPH_SEAM": "R079 found no independent noun subject authority. Check the existing pronoun-case source-to-morphology mapping before selecting a runtime producer seam; avoid feeding scoped candidates into the legacy clause adapter.",
     "R079_INDEPENDENT_SUBJECT_AUTHORITY_AUDIT": "R080 corrected the source target: use the specific pronoun.personal.forms.bokmal.paradigm candidate for a case-feature producer contract, then run SVO/OVS positive and negative tests before resolving subject_of.",
-    "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": "Inspect manifest/compilation eligibility for the paradigm, build provenance-preserving recognition and generation tests, then produce case features before subject selection. R081 adds two gold OVS controls.",
-    "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": "Create a UD-to-graph label mapping and a larger stratified gold sample, with error categories for lexical coverage, morphology, subject role and dependency execution."
+    "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP": "R082 found operator_mapping_missing and needs_manifest for morphological_paradigm. Define the operator/manifest contract, then build provenance-preserving recognition and generation tests before producing case features. R081 adds two gold OVS controls.",
+    "R081_UD_BOKMAAL_GOLD_CORPUS_SMOKE": "Create a UD-to-graph label mapping and a larger stratified gold sample, with error categories for lexical coverage, morphology, subject role and dependency execution.",
+    "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT": "Review operator templates and manifest schema for morphological_paradigm; first specify and test bidirectional case-form behavior for the source-backed paradigm."
   },
   "files": [
     {
@@ -3485,7 +3493,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=25.78 max=24"
+        "DB snapshot expired: age_hours=25.97 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3505,7 +3513,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=25.73 max=24"
+        "DB snapshot expired: age_hours=25.92 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3696,7 +3704,7 @@
     {
       "proof_id": "R059_PRODUCTION_DORMANT_ADMISSION",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "DB_SNAPSHOT",
       "proved_at_head": "912541f",
       "claim": "The one-rule SQL admission boundary is installed in Production with no grants and no app-role access.",
@@ -3709,13 +3717,15 @@
         "supabase/migrations/20261022162000_grammar_sql_one_rule_pilot_admission.sql"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "DB snapshot expired: age_hours=24.09 max=24"
+      ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
     {
       "proof_id": "R061_RELEASE_CONTROL_WRITE_BOUNDARY",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "DB_SNAPSHOT",
       "proved_at_head": "7c6daed",
       "claim": "Anon and authenticated can no longer write the four Grammar release-control tables in Production, while service_role retains access.",
@@ -3728,7 +3738,9 @@
         "supabase/migrations/20261022161426_20261022161220_restrict_grammar_release_control_writes.sql"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "DB snapshot expired: age_hours=24.09 max=24"
+      ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
     {
@@ -3828,7 +3840,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.64 max=24"
+        "DB snapshot expired: age_hours=24.82 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4337,6 +4349,26 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "UD Norwegian Bokmaal test corpus is CC BY-SA 4.0. Alignment excludes punctuation in the three-token SQL structural RPC input and compares content-token roles only. No Production mutation or rule activation."
+    },
+    {
+      "proof_id": "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
+      "proved_at_head": "afa7565",
+      "claim": "The source-backed Bokmal pronoun paradigm is runtime eligible but currently lacks an operator mapping, validated manifest, materialized rule and canonical integration.",
+      "result": "Production assess_candidate_operator_capability_v1 returned operator_mapping_missing with zero mappings for execution role morphological_paradigm. assess_candidate_activation_readiness_v2 returned needs_manifest, activation_ready=false, and zero materialized, validated-manifest, operator-ready and canonical-integrated rules. The bounded SQL subject_of_predicate grant was already executed and revoked in R065; current active grants remain zero.",
+      "evidence_runs": [
+        "R082-PRONOUN-PARADIGM-ACTIVATION-PREFLIGHT-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R082-pronoun-paradigm-activation-preflight.json",
+        "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Read-only preflight. Runtime eligible is not activation ready. No Production mutation or new pilot grant."
     }
   ],
   "policy": {

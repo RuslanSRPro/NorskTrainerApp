@@ -1,0 +1,32 @@
+{
+  "schema_version": "grammar-evidence-audit-v1",
+  "run": "R082-PRONOUN-PARADIGM-ACTIVATION-PREFLIGHT-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_db",
+  "release_code": "runtime-structural-v1.37",
+  "candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+  "candidate_code": "pronoun.personal.forms.bokmal.paradigm",
+  "snapshot": {
+    "runtime_eligible": true,
+    "execution_role": "morphological_paradigm",
+    "operator_capability_state": "operator_mapping_missing",
+    "operator_mappings": [],
+    "readiness_state": "needs_manifest",
+    "activation_ready": false,
+    "materialized_rule_count": 0,
+    "validated_manifest_count": 0,
+    "operator_ready_rule_count": 0,
+    "canonical_integrated_rule_count": 0
+  },
+  "existing_sql_pilot": {
+    "proof": "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+    "result": "one short-lived committed grant executed subject_of_predicate on Katten sover, then was revoked",
+    "current_state": {
+      "active_grants": 0,
+      "release_status": "shadow",
+      "subject_rule_global_active": false
+    }
+  },
+  "conclusion": "Pronoun paradigm cannot be activated by toggling an existing rule. It requires an operator mapping for morphological_paradigm, a validated manifest, a materialized rule, and canonical integration. The subject_of_predicate one-rule SQL pilot has already been completed; repeating it would not resolve this gap.",
+  "next": "Review existing operator templates and manifest schema for morphological_paradigm, then make an isolated recognition/generation test contract for the source-backed paradigm before writing runtime changes."
+}
