@@ -1,0 +1,15 @@
+{
+  "schema_version": "grammar-evidence-producer-acceptance-v1",
+  "run": "R095-PRONOUN-PRODUCER-ACCEPTANCE-2026-10-23",
+  "command": "deno run --allow-read grammar-evidence/tools/verify-pronoun-producer-acceptance-v1.ts",
+  "status": "PASS",
+  "accepted_scope": "candidate_form_producer_only",
+  "source_candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+  "source_pairs": 9,
+  "checked_case_surfaces": 18,
+  "checks": 48,
+  "ambiguous_surfaces": ["den", "det", "dere"],
+  "parity": "Source statement, TypeScript producer and SQL candidate producer contain the same nine ordered pairs.",
+  "not_accepted": ["exhaustive_paradigm", "case_selection", "resolved_subject_or_object", "validated_manifest", "global_rule_activation", "analyze_text_integration"],
+  "runtime_context": "R090 separately proved service-only SQL candidate production and blocking premature single-conjunct subjects. This acceptance does not change Production."
+}

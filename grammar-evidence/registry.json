@@ -1324,6 +1324,34 @@
       "next_action": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately."
     },
     {
+      "proof_id": "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "The existing morphological_paradigm pronoun producer recognizes and generates candidate forms for all nine source-backed pairs and matches its SQL pilot counterpart without collapsing ambiguous case surfaces.",
+      "proved_at_head": "36eed48",
+      "evidence_runs": ["R095-PRONOUN-PRODUCER-ACCEPTANCE-2026-10-23"],
+      "result": "48 checks PASS. Nine ordered source pairs matched the TypeScript and SQL producers; 18 case surfaces were recognized and generated; den, det and dere retained two readings; unlisted forms abstained.",
+      "dependencies": ["grammar-evidence/artifacts/R095-pronoun-producer-acceptance.json", "grammar-evidence/tools/verify-pronoun-producer-acceptance-v1.ts", "grammar-evidence/artifacts/R084-pronoun-paradigm-source-fixture.json", "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts", "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql", "R090_PRONOUN_COORDINATION_PILOT_GUARD"],
+      "blocked_by": [],
+      "invalidation": "Refresh after the source paradigm, TypeScript or SQL producer, or case-candidate schema changes.",
+      "notes": "Acceptance is limited to candidate form production. It does not validate the draft manifest, case_selection, subject/object assignment, global activation or analyze-text integration.",
+      "next_action": "Build exception-aware case_selection and a resolved coordination constituent; test positive, negative and abstention cases before manifest promotion."
+    },
+    {
+      "proof_id": "R096_FIRST_GRAPH_USE_READINESS",
+      "status": "UNVERIFIED",
+      "proof_kind": "USER_REQUIREMENT",
+      "claim": "A bounded graph capability can support analyze-text and app use when subject, object, predicate, noun, verb, adjective and relevant article/function-word readings are correct or explicitly abstain on a joint corpus.",
+      "proved_at_head": null,
+      "evidence_runs": ["R096-FIRST-GRAPH-USE-READINESS-CONTRACT-2026-10-23"],
+      "result": "A capability-specific readiness contract is recorded. The pronoun form candidate producer passes R095, but pronoun role selection, adjective/article coverage and analyze-text integration remain open.",
+      "dependencies": ["grammar-evidence/contracts/first-graph-use-readiness-v1.md", "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE", "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT"],
+      "blocked_by": [],
+      "invalidation": "Review when the joint acceptance corpus, graph output contract, role-selection rules or analyze-text parser interface changes.",
+      "notes": "All-rules activation and exhaustive article coverage are not prerequisites. A candidate producer alone is not a resolved grammar reading; ambiguous cases must abstain.",
+      "next_action": "Complete exception-aware pronoun subject/object and coordination proofs, then build the joint noun/verb/adjective/article corpus and measure graph-to-analyze-text shadow results."
+    },
+    {
       "proof_id": "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT",
       "status": "PROVEN",
       "proof_kind": "SOURCE_INSPECTION",
