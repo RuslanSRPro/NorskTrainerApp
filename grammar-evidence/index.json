@@ -1,12 +1,12 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "522de401990b674951246c5193f59a93dbc00d97",
+  "head": "a18d6f4b39c53dd365a3bb18994bc73c6bb3c04d",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "522de401990b674951246c5193f59a93dbc00d97",
-  "source_head": "522de401990b674951246c5193f59a93dbc00d97",
-  "source_revision": "522de401990b674951246c5193f59a93dbc00d97",
+  "archive_head": "a18d6f4b39c53dd365a3bb18994bc73c6bb3c04d",
+  "source_head": "a18d6f4b39c53dd365a3bb18994bc73c6bb3c04d",
+  "source_revision": "a18d6f4",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 194,
+  "file_count": 195,
   "history_event_count": 133,
   "strict_history_event_count": 86,
   "history_runs": [
@@ -1733,6 +1733,17 @@
     {
       "path": "supabase/functions/_shared/nlp/normalize.ts",
       "sha256": "a8874305fe1010375109e65a45f578d1dba454daf02bac2f2758167db12753c3",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+      "sha256": "74a37769a30788c5db82997fcfc5fe368829947b01cf6de11dd4861b929d6d65",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3541,7 +3552,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.46 max=24"
+        "DB snapshot expired: age_hours=26.49 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3561,7 +3572,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.41 max=24"
+        "DB snapshot expired: age_hours=26.44 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3766,7 +3777,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.58 max=24"
+        "DB snapshot expired: age_hours=24.61 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3787,7 +3798,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.58 max=24"
+        "DB snapshot expired: age_hours=24.61 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3888,7 +3899,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=25.32 max=24"
+        "DB snapshot expired: age_hours=25.35 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4505,9 +4516,9 @@
     {
       "proof_id": "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION",
       "declared_status": "PROVEN",
-      "effective_status": "STALE",
+      "effective_status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
-      "proved_at_head": "522de40",
+      "proved_at_head": "37de18b",
       "claim": "The service-only pilot now keeps the source-backed pronoun case contrast as a soft subject candidate, without resolving an OVS clause or executing subject_of solely from case.",
       "result": "Production correction applied. Meg ser han now has proposed subject token 3 with paradigm and separate case_selection provenance, zero resolved clauses and zero subject_of edges. Existing SVO controls still execute, ambiguous same-form cases and coordination remain unresolved. Fisken spiser hunden still resolves positionally through pre-existing V32 and remains an open defect.",
       "evidence_runs": [
@@ -4520,10 +4531,7 @@
         "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS"
       ],
       "blocked_by": [],
-      "stale_reasons": [
-        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql",
-        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql"
-      ],
+      "stale_reasons": [],
       "notes": "Corrective migration supersedes R086's hard subject resolution. The candidate's source says hovedregelen, with known exceptions. No validated case_selection manifest, grant or global activation."
     }
   ],
