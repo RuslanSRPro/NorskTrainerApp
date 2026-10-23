@@ -1,0 +1,11 @@
+{
+  "candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+  "candidate_code": "pronoun.personal.forms.bokmal.paradigm",
+  "status": "source_verified",
+  "source_section": "4.1.1",
+  "statement": "Bokmål har paradigmet jeg/meg, du/deg, han/ham, hun/henne, den/den, det/det, vi/oss, dere/dere, de/dem med nominativ og akkusativ der formene skiller seg.",
+  "model_type": "grammar_rule",
+  "execution_role": "morphological_paradigm",
+  "disposition": "KEEP_GRAMMAR_RUNTIME",
+  "provenance": "Read-only Production grammar_knowledge_candidates snapshot from R080. This fixture contains only the source-backed paradigm, not dictionary forms."
+}

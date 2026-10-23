@@ -1,0 +1,29 @@
+{
+  "schema_version": "grammar-evidence-contract-proof-v1",
+  "run": "R084-PRONOUN-PARADIGM-ISOLATED-CONTRACT-2026-10-23",
+  "source_candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+  "source_code": "pronoun.personal.forms.bokmal.paradigm",
+  "files": [
+    "grammar-evidence/artifacts/R084-pronoun-paradigm-source-fixture.json",
+    "grammar-evidence/tools/pronoun-paradigm-contract-v1.mjs",
+    "grammar-evidence/tools/verify-pronoun-paradigm-contract-v1.mjs"
+  ],
+  "test_command": "node grammar-evidence/tools/verify-pronoun-paradigm-contract-v1.mjs",
+  "result": {
+    "status": "PASS",
+    "source_pairs": 9,
+    "generation_recognition_pairs": 11,
+    "checks": 42,
+    "negative_controls": [
+      "fisken has no pronoun reading",
+      "unsupported Dat generation returns null",
+      "unverified source rejected",
+      "wrong execution role rejected",
+      "missing form list rejected"
+    ],
+    "ambiguity": "den and det retain both Nom and Acc candidate readings",
+    "provenance": "Each output carries source candidate ID and section"
+  },
+  "scope": "Isolated contract only; no approved operator template, validated manifest, materialized rule, canonical token producer, release membership, Production mutation or activation.",
+  "next": "Use this contract to design a scoped morphological_paradigm operator; then test actual canonical token case features and only afterward consider manifest and child release."
+}

@@ -1223,7 +1223,7 @@
       "blocked_by": [],
       "invalidation": "Refresh after operator mappings, manifest registration, rule materialization, release membership, or pilot grant changes.",
       "notes": "Read-only preflight. Runtime eligible is not activation ready. No Production mutation or new pilot grant.",
-      "next_action": "Review operator templates and manifest schema for morphological_paradigm; first specify and test bidirectional case-form behavior for the source-backed paradigm. R083 separately extends the executed subject rule corpus."
+      "next_action": "R084 proved an isolated bidirectional contract from the source-backed paradigm. Design a scoped morphological_paradigm operator and canonical token producer before any manifest, release membership or activation. R083 separately extends the executed subject rule corpus."
     },
     {
       "proof_id": "R083_JEG_SOVER_ONE_RULE_EXECUTION",
@@ -1238,6 +1238,20 @@
       "invalidation": "Refresh after private producer, public RPC, V32, clause/predicate builders, rule code, release hash or canonical token mapping changes.",
       "notes": "Direct read-only executor call on one additional input. No admission grant, persistent write, app delivery or global activation. R065 separately proved admitted execution on Katten sover. This does not prove general subject disambiguation.",
       "next_action": "Choose the next source-backed input family and require independent subject evidence before expanding from simple two-token clauses to ambiguous SVO/OVS structures."
+    },
+    {
+      "proof_id": "R084_PRONOUN_PARADIGM_ISOLATED_CONTRACT",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "A source-backed isolated operator contract can generate and recognize Bokmal personal-pronoun case forms in both directions while retaining ambiguous identical forms and candidate provenance.",
+      "proved_at_head": "0eda2be",
+      "evidence_runs": ["R084-PRONOUN-PARADIGM-ISOLATED-CONTRACT-2026-10-23"],
+      "result": "Forty-two checks passed over nine source pairs and eleven generation-recognition paths. meg resolves as candidate Acc form of jeg; den and det retain Nom and Acc candidates; unknown words, unsupported case, unverified source, wrong execution role and malformed source are rejected. Outputs retain source candidate ID and section.",
+      "dependencies": ["grammar-evidence/artifacts/R084-pronoun-paradigm-source-fixture.json", "grammar-evidence/artifacts/R084-pronoun-paradigm-contract-result.json", "grammar-evidence/tools/pronoun-paradigm-contract-v1.mjs", "grammar-evidence/tools/verify-pronoun-paradigm-contract-v1.mjs", "R080_PRONOUN_PARADIGM_SOURCE_RUNTIME_GAP"],
+      "blocked_by": [],
+      "invalidation": "Refresh after source candidate statement, execution role, contract semantics or test harness changes.",
+      "notes": "Isolated tool only. No operator approval, manifest, materialized grammar rule, canonical token producer, Production mutation or activation. Case candidates do not themselves assign subject/object role.",
+      "next_action": "Specify a scoped morphological_paradigm operator and canonical token feature patch, then test SVO/OVS controls before registering a validated manifest."
     }
   ]
 }
