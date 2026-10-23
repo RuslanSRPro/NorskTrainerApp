@@ -1,0 +1,30 @@
+{
+  "schema_version": "grammar-evidence-audit-v1",
+  "run": "R080-PRONOUN-PARADIGM-RULE-LINK-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_db",
+  "git_head": "1c67151",
+  "findings": [
+    {
+      "candidate_code": "pronoun.general.classification.personal_case_inflection",
+      "candidate_id": "3a76b978-1d77-46ac-8d4f-95c16be77987",
+      "status": "source_verified",
+      "model_type": "reference_knowledge",
+      "execution_disposition": "KEEP_REFERENCE_ONLY",
+      "meaning": "Generic statement that personal pronouns exhibit case inflection; not the form mapping."
+    },
+    {
+      "candidate_code": "pronoun.personal.forms.bokmal.paradigm",
+      "candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+      "status": "source_verified",
+      "model_type": "grammar_rule",
+      "execution_disposition": "KEEP_GRAMMAR_RUNTIME",
+      "source_section": "4.1.1",
+      "statement": "Bokmal nominative/accusative paradigm includes jeg/meg, du/deg, han/ham, hun/henne, den/den, det/det, vi/oss, dere/dere, de/dem.",
+      "runtime_grammar_rule_count": 0,
+      "grammar_rule_sources_links": 0
+    }
+  ],
+  "conclusion": "The specific form paradigm exists in source-backed grammar knowledge, but has no observed compiled grammar_rules row or rule-source link in Production. R079 correctly observed missing runtime case features but identified the generic classification entry rather than this specific runtime-intended paradigm as the closest source. The form mapping must be derived from this paradigm with provenance and tested bidirectionally; do not treat existing lexeme forms as the rule authority.",
+  "next_proof": "Inspect compilation eligibility and manifest/binding contract for pronoun.personal.forms.bokmal.paradigm; produce case features in canonical tokens, test recognition and generation for jeg/meg, du/deg, hun/henne and ambiguous han, then retest subject selection without silently resolving noun-noun ambiguity."
+}
