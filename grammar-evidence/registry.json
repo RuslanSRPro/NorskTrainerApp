@@ -1286,7 +1286,7 @@
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "claim": "The service-only pilot now keeps the source-backed pronoun case contrast as a soft subject candidate, without resolving an OVS clause or executing subject_of solely from case.",
-      "proved_at_head": "522de40",
+      "proved_at_head": "37de18b",
       "evidence_runs": ["R087-PRONOUN-CASE-SOFT-EVIDENCE-CORRECTION-2026-10-23"],
       "result": "Production correction applied. Meg ser han now has proposed subject token 3 with paradigm and separate case_selection provenance, zero resolved clauses and zero subject_of edges. Existing SVO controls still execute, ambiguous same-form cases and coordination remain unresolved. Fisken spiser hunden still resolves positionally through pre-existing V32 and remains an open defect.",
       "dependencies": ["grammar-evidence/artifacts/R087-pronoun-case-soft-evidence-correction.json", "supabase/migrations/20261023193000_grammar_pronoun_case_soft_evidence_guard_v1.sql", "supabase/migrations/20261023190000_grammar_pronoun_case_pilot_operator_v1.sql", "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS"],
