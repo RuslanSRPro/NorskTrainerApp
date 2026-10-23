@@ -1,0 +1,36 @@
+{
+  "schema_version": "grammar-evidence-source-and-db-audit-v1",
+  "run": "R093-ANALYZE-TEXT-PRESELECTION-BOUNDARY-AUDIT-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "source_inspection_plus_read_only_production_sql",
+  "current_source": {
+    "raw_surface_candidates": "supabase/functions/analyze-text/index.ts:575-606,614-640",
+    "context_selection": "supabase/functions/analyze-text/surface-resolver-v2.ts:117-178",
+    "parser_input": "supabase/functions/analyze-text/grammar-parser.ts:473-519",
+    "app_response": "services/api.ts:1347-1350",
+    "facts": [
+      "resolve_surface_form_v2 returns raw SurfaceCandidateV2 rows before selectByContext",
+      "selectByContext keeps only the first lexeme in each core POS, and one row when only one core POS remains",
+      "grammar-parser receives the already selected SurfaceResolution list",
+      "SurfaceCandidateV2 has no explicit homograph_key or article_ids fields",
+      "toSurfaceResolution reads only the first evidence item for form_type and source",
+      "analyze-text currently has no canonical-graph-shadow call"
+    ]
+  },
+  "production_bok_probe": {
+    "query_kind": "resolve_surface_form_v2('bok') plus lexemes identity lookup",
+    "raw_candidate_count": 2,
+    "candidates": [
+      {"lexeme_id":"ec9da2b9-22d4-4292-81e3-05b26f4aa852","pos":"noun","homograph_key":"","article_ids":[6790]},
+      {"lexeme_id":"ff26110c-7180-4ef4-92e9-372355e40a90","pos":"noun","homograph_key":"II","article_ids":[106786]}
+    ],
+    "current_selectByContext_behavior": "one noun survives; the other same-POS card is dropped before grammar-parser"
+  },
+  "design_inference": {
+    "shadow_input_seam": "raw candidate rows plus homograph/article identity before selectByContext, grouped by sentence",
+    "internal_shadow_gate": "service-only call, fail-open for analyze-text, bounded latency, no response mutation, no graph evidence in app payload",
+    "user_visible_gate": "separate rule-activation and corpus proof before candidate reordering or graph explanation reaches the app",
+    "unknown_word_hook_conflict": "surface-resolver-v2.ts proposes graph-generated candidates for unknown words; the new analyze-text contract instead requests no candidate insertion at this interface. Resolve with the analyze-text team before implementation."
+  },
+  "scope": "The code and Production source facts are verified; the proposed seam and two-gate interpretation are architecture recommendations pending cross-chat agreement. No code integration or app output was changed."
+}

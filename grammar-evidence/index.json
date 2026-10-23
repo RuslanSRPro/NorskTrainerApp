@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "513b6b579ead78d1efe84c04511bf23917b2c0ca",
+  "head": "ad2e5fb252f06c6c956b6e56650880393dd7a598",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "513b6b579ead78d1efe84c04511bf23917b2c0ca",
-  "source_head": "513b6b579ead78d1efe84c04511bf23917b2c0ca",
-  "source_revision": "513b6b5",
+  "archive_head": "ad2e5fb252f06c6c956b6e56650880393dd7a598",
+  "source_head": "ad2e5fb252f06c6c956b6e56650880393dd7a598",
+  "source_revision": "ad2e5fb",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 195,
-  "history_event_count": 137,
-  "strict_history_event_count": 90,
+  "history_event_count": 139,
+  "strict_history_event_count": 92,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -146,7 +146,9 @@
     "R088-CASE-SELECTION-EXCEPTION-BOUNDARY-2026-10-23",
     "R090-PRONOUN-COORDINATION-PILOT-GUARD-2026-10-23",
     "R090-R088-SUPERSEDED-2026-10-23",
-    "R091-ANALYZE-TEXT-FUTURE-INTEGRATION-REQUIREMENT-2026-10-23"
+    "R091-ANALYZE-TEXT-FUTURE-INTEGRATION-REQUIREMENT-2026-10-23",
+    "R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23",
+    "R093-ANALYZE-TEXT-PRESELECTION-BOUNDARY-AUDIT-2026-10-23"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -264,6 +266,7 @@
     "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": [],
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": [],
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": [],
+    "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT": [],
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
@@ -622,8 +625,14 @@
       "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql",
       "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"
     ],
+    "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT": [
+      "grammar-evidence/artifacts/R093-analyze-text-preselection-boundary-audit.json",
+      "supabase/functions/analyze-text/index.ts",
+      "supabase/functions/analyze-text/surface-resolver-v2.ts",
+      "supabase/functions/analyze-text/grammar-parser.ts"
+    ],
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": [
-      "grammar-evidence/contracts/analyze-text-graph-integration-v1.md"
+      "grammar-evidence/contracts/analyze-text-graph-integration-v2.md"
     ]
   },
   "proof_next_actions": {
@@ -716,7 +725,8 @@
     "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION": "R088 confirmed the early coordination signal is absent. Implement independent construction/coordination evidence and exception-aware case_selection before promoting OVS candidate to resolved clause. Separately address noun-noun V32 over-resolution.",
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": "R090 added bounded og/eller coordination candidate evidence and blocked single-conjunct subject selection in the private pilot. Build a resolved coordinated nominal constituent and verify exception scope before validating case_selection.",
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately.",
-    "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": "After grammar runtime and rule coverage are proven, define a versioned batch API and run the listed homograph/POS/SVO corpus with latency, determinism and provenance checks. Resolve the app-output gate before any shadow call from analyze-text."
+    "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT": "Agree on a versioned preselection batch interface preserving candidate identities and provenance, plus separate gates for internal shadow observation and app-visible use.",
+    "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": "Define a versioned batch API and run the homograph/POS/SVO corpus with latency, determinism, provenance, failure-containment and output-isolation checks. Only then consider an internal shadow call. Keep user-visible output and candidate reordering behind the separate activation gate."
   },
   "files": [
     {
@@ -3575,7 +3585,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.77 max=24"
+        "DB snapshot expired: age_hours=29.66 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3595,7 +3605,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=26.72 max=24"
+        "DB snapshot expired: age_hours=29.61 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3800,7 +3810,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.89 max=24"
+        "DB snapshot expired: age_hours=27.78 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3821,7 +3831,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=24.89 max=24"
+        "DB snapshot expired: age_hours=27.78 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -3922,7 +3932,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=25.62 max=24"
+        "DB snapshot expired: age_hours=28.52 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4579,9 +4589,9 @@
     {
       "proof_id": "R090_PRONOUN_COORDINATION_PILOT_GUARD",
       "declared_status": "PROVEN",
-      "effective_status": "STALE",
+      "effective_status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
-      "proved_at_head": "513b6b5",
+      "proved_at_head": "ad2e5fb",
       "claim": "A source-backed og/eller coordination candidate producer in the service-only SQL pilot blocks premature single-pronoun subject resolution while preserving ordinary SVO results.",
       "result": "Two Production migrations applied. Meg og han ser, Meg eller han ser and Han eller meg ser each yielded one coordination candidate, zero resolved clauses and zero subject_of edges after blocking the former V32 single-conjunct subject. Han og meg gikk remained candidate-only; Jeg ser meg and Katten sover retained one resolved clause and subject edge. Meg ser han remained soft/unresolved. Fisken spiser hunden still resolved positionally by existing V32 and is a separate gap.",
       "evidence_runs": [
@@ -4594,11 +4604,29 @@
         "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"
       ],
       "blocked_by": [],
-      "stale_reasons": [
-        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261023195000_grammar_pronoun_coordination_candidate_guard_v1.sql",
-        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql"
-      ],
+      "stale_reasons": [],
       "notes": "Private service-only candidate producer and safety guard. No resolved coordinated nominal phrase, case_selection activation, admission grant, public RPC change or app output."
+    },
+    {
+      "proof_id": "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "proved_at_head": "ad2e5fb",
+      "claim": "Current analyze-text selects a first lexeme per POS before grammar-parser; a source-backed graph shadow input retaining all same-POS candidates must be captured before selectByContext.",
+      "result": "Source inspection found raw resolve_surface_form_v2 candidates before selectByContext, which collapses same-POS lexemes. Read-only Production probe for bok returned two noun lexeme IDs with distinct article IDs. The raw candidate type lacks explicit homograph_key and article_ids; form evidence is also reduced on conversion.",
+      "evidence_runs": [
+        "R093-ANALYZE-TEXT-PRESELECTION-BOUNDARY-AUDIT-2026-10-23"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R093-analyze-text-preselection-boundary-audit.json",
+        "supabase/functions/analyze-text/index.ts",
+        "supabase/functions/analyze-text/surface-resolver-v2.ts",
+        "supabase/functions/analyze-text/grammar-parser.ts"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Source facts and the read-only bok snapshot are evidenced. Preselection shadow seam, isolation gates and unknown-word behavior are recommendations pending agreement with the analyze-text team; no integration or app output was changed."
     },
     {
       "proof_id": "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT",
@@ -4608,13 +4636,15 @@
       "proved_at_head": null,
       "claim": "A future deterministic batched analyze-text interface preserves all candidate identities and form provenance, returns per-candidate rule evidence without modifying candidates, and supports separate graph generation/verification capabilities.",
       "result": "Requirements supplied by the analyze-text chat are recorded for future integration; no callable API, shadow invocation, app output or acceptance-corpus result has been proved.",
-      "evidence_runs": [],
+      "evidence_runs": [
+        "R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23"
+      ],
       "dependencies": [
-        "grammar-evidence/contracts/analyze-text-graph-integration-v1.md"
+        "grammar-evidence/contracts/analyze-text-graph-integration-v2.md"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Future integration comment only. Current user gate keeps all graph output away from the app until the required rules are activated. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates. Soft source rules cannot hard-filter. The graph may generate forms in its separate bidirectional capability, while current analyze-text passes only source-observed forms."
+      "notes": "Future integration comment only. An internal, isolated shadow call may precede full activation; it must not change or appear in the app response. Graph-derived user-visible output and candidate reordering remain gated until the required rules are activated. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates. Soft rules cannot hard-filter. Graph generation is separate from analyze-text's source-observed form input."
     }
   ],
   "policy": {

@@ -1314,7 +1314,7 @@
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "claim": "A source-backed og/eller coordination candidate producer in the service-only SQL pilot blocks premature single-pronoun subject resolution while preserving ordinary SVO results.",
-      "proved_at_head": "513b6b5",
+      "proved_at_head": "ad2e5fb",
       "evidence_runs": ["R090-PRONOUN-COORDINATION-PILOT-GUARD-2026-10-23"],
       "result": "Two Production migrations applied. Meg og han ser, Meg eller han ser and Han eller meg ser each yielded one coordination candidate, zero resolved clauses and zero subject_of edges after blocking the former V32 single-conjunct subject. Han og meg gikk remained candidate-only; Jeg ser meg and Katten sover retained one resolved clause and subject edge. Meg ser han remained soft/unresolved. Fisken spiser hunden still resolved positionally by existing V32 and is a separate gap.",
       "dependencies": ["grammar-evidence/artifacts/R090-pronoun-coordination-pilot-guard.json", "supabase/migrations/20261023195000_grammar_pronoun_coordination_candidate_guard_v1.sql", "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql", "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"],
@@ -1324,18 +1324,32 @@
       "next_action": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately."
     },
     {
+      "proof_id": "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "Current analyze-text selects a first lexeme per POS before grammar-parser; a source-backed graph shadow input retaining all same-POS candidates must be captured before selectByContext.",
+      "proved_at_head": "ad2e5fb",
+      "evidence_runs": ["R093-ANALYZE-TEXT-PRESELECTION-BOUNDARY-AUDIT-2026-10-23"],
+      "result": "Source inspection found raw resolve_surface_form_v2 candidates before selectByContext, which collapses same-POS lexemes. Read-only Production probe for bok returned two noun lexeme IDs with distinct article IDs. The raw candidate type lacks explicit homograph_key and article_ids; form evidence is also reduced on conversion.",
+      "dependencies": ["grammar-evidence/artifacts/R093-analyze-text-preselection-boundary-audit.json", "supabase/functions/analyze-text/index.ts", "supabase/functions/analyze-text/surface-resolver-v2.ts", "supabase/functions/analyze-text/grammar-parser.ts"],
+      "blocked_by": [],
+      "invalidation": "Refresh after surface resolver, analyze-text candidate selection, grammar-parser input or raw candidate RPC changes.",
+      "notes": "Source facts and the read-only bok snapshot are evidenced. Preselection shadow seam, isolation gates and unknown-word behavior are recommendations pending agreement with the analyze-text team; no integration or app output was changed.",
+      "next_action": "Agree on a versioned preselection batch interface preserving candidate identities and provenance, plus separate gates for internal shadow observation and app-visible use."
+    },
+    {
       "proof_id": "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT",
       "status": "UNVERIFIED",
       "proof_kind": "USER_REQUIREMENT",
       "claim": "A future deterministic batched analyze-text interface preserves all candidate identities and form provenance, returns per-candidate rule evidence without modifying candidates, and supports separate graph generation/verification capabilities.",
       "proved_at_head": null,
-      "evidence_runs": [],
+      "evidence_runs": ["R092-ANALYZE-TEXT-SHADOW-BOUNDARY-CLARIFICATION-2026-10-23"],
       "result": "Requirements supplied by the analyze-text chat are recorded for future integration; no callable API, shadow invocation, app output or acceptance-corpus result has been proved.",
-      "dependencies": ["grammar-evidence/contracts/analyze-text-graph-integration-v1.md"],
+      "dependencies": ["grammar-evidence/contracts/analyze-text-graph-integration-v2.md"],
       "blocked_by": [],
       "invalidation": "Review when the user changes app-output gating, analyze-text input schema, candidate identity/provenance, rule activation scope, or rollout order.",
-      "notes": "Future integration comment only. Current user gate keeps all graph output away from the app until the required rules are activated. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates. Soft source rules cannot hard-filter. The graph may generate forms in its separate bidirectional capability, while current analyze-text passes only source-observed forms.",
-      "next_action": "After grammar runtime and rule coverage are proven, define a versioned batch API and run the listed homograph/POS/SVO corpus with latency, determinism and provenance checks. Resolve the app-output gate before any shadow call from analyze-text."
+      "notes": "Future integration comment only. An internal, isolated shadow call may precede full activation; it must not change or appear in the app response. Graph-derived user-visible output and candidate reordering remain gated until the required rules are activated. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates. Soft rules cannot hard-filter. Graph generation is separate from analyze-text's source-observed form input.",
+      "next_action": "Define a versioned batch API and run the homograph/POS/SVO corpus with latency, determinism, provenance, failure-containment and output-isolation checks. Only then consider an internal shadow call. Keep user-visible output and candidate reordering behind the separate activation gate."
     }
   ]
 }
