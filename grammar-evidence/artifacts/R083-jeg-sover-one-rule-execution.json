@@ -1,0 +1,48 @@
+{
+  "schema_version": "grammar-evidence-runtime-proof-v1",
+  "run": "R083-JEG-SOVER-ONE-RULE-EXECUTION-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_sql",
+  "release_code": "runtime-structural-v1.37",
+  "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+  "input": {
+    "source": "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json",
+    "text": "Jeg sover",
+    "canonical_token_ids": [
+      "tok:0:0:3",
+      "tok:1:4:9"
+    ]
+  },
+  "pre_rule_plane": {
+    "producer": "grammar_pilot_private.build_pre_rule_plane_v1",
+    "v32_subject_token_index": 1,
+    "resolved_clause_count": 1,
+    "predicate_id": "pred1:simple:2",
+    "canonical_subject_token_id": "tok:0:0:3"
+  },
+  "one_rule": {
+    "executor": "public.execute_dependency_pattern_rule_v2",
+    "status": "executed",
+    "dependency_count": 1,
+    "relation": "subject_of",
+    "source_surface": "Jeg",
+    "target_surface": "sover",
+    "source_entity": "token",
+    "target_entity": "predicate",
+    "canonical_v2_parity": true,
+    "actions_fully_supported": true,
+    "trace_action_materialized": true,
+    "hardcoded_rule_code": false,
+    "compile_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e"
+  },
+  "parity": {
+    "full_shadow_path": "public.run_canonical_legacy_compatibility_v140 -> rule_execution_plane_v1.dependency_pattern_executions[0]",
+    "jsonb_equal": true,
+    "direct_md5": "2ae8aacc33495e4237a4baaaf7ea42c7",
+    "full_md5": "2ae8aacc33495e4237a4baaaf7ea42c7"
+  },
+  "postcheck": {
+    "active_grants": 0
+  },
+  "scope": "Direct read-only one-rule executor comparison on a second source-backed input. No admission grant was issued. R065 separately proved admitted short-lived execution on Katten sover. Neither proof establishes general SVO/OVS disambiguation or global activation."
+}

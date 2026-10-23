@@ -1223,7 +1223,21 @@
       "blocked_by": [],
       "invalidation": "Refresh after operator mappings, manifest registration, rule materialization, release membership, or pilot grant changes.",
       "notes": "Read-only preflight. Runtime eligible is not activation ready. No Production mutation or new pilot grant.",
-      "next_action": "Review operator templates and manifest schema for morphological_paradigm; first specify and test bidirectional case-form behavior for the source-backed paradigm."
+      "next_action": "Review operator templates and manifest schema for morphological_paradigm; first specify and test bidirectional case-form behavior for the source-backed paradigm. R083 separately extends the executed subject rule corpus."
+    },
+    {
+      "proof_id": "R083_JEG_SOVER_ONE_RULE_EXECUTION",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "On a second source-backed input, Jeg sover, the existing subject_of_predicate executor produces one canonical token-to-predicate dependency with exact parity to its full shadow release result.",
+      "proved_at_head": "ae700cb",
+      "evidence_runs": ["R083-JEG-SOVER-ONE-RULE-EXECUTION-2026-10-23"],
+      "result": "The private pre-rule-plane builder yielded resolved clause and predicate, subject token index 1 and canonical token ID tok:0:0:3. Direct execute_dependency_pattern_rule_v2 produced one Jeg-to-sover subject_of dependency with supported actions, materialized trace and canonical parity. Its JSONB equaled the subject rule result in the full shadow release; both md5 values were 2ae8aacc33495e4237a4baaaf7ea42c7. Active grants remained zero.",
+      "dependencies": ["grammar-evidence/artifacts/R083-jeg-sover-one-rule-execution.json", "grammar-evidence/artifacts/R068-canonical-corpus-inputs.json", "R065_COMMITTED_ONE_RULE_SQL_PILOT"],
+      "blocked_by": [],
+      "invalidation": "Refresh after private producer, public RPC, V32, clause/predicate builders, rule code, release hash or canonical token mapping changes.",
+      "notes": "Direct read-only executor call on one additional input. No admission grant, persistent write, app delivery or global activation. R065 separately proved admitted execution on Katten sover. This does not prove general subject disambiguation.",
+      "next_action": "Choose the next source-backed input family and require independent subject evidence before expanding from simple two-token clauses to ambiguous SVO/OVS structures."
     }
   ]
 }
