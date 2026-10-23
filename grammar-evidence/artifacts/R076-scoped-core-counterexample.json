@@ -1,0 +1,41 @@
+{
+  "run": "R076-SCOPED-CORE-COUNTEREXAMPLE-2026-10-23",
+  "timestamp_utc": "2026-10-23T08:44:38Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "method": "Read-only Production RPC on three canonical-token five-word inputs; rerun V32 against a temporary in-query projection of first three tokens from each result. No persistent SQL objects or data writes.",
+  "cases": [
+    {
+      "tail": "i dag",
+      "full_clause_count": 0,
+      "prefix_clause_count": 1,
+      "early_candidate_count": 1
+    },
+    {
+      "tail": "i boken",
+      "full_clause_count": 0,
+      "prefix_clause_count": 1,
+      "early_candidate_count": 0
+    },
+    {
+      "tail": "dag i",
+      "full_clause_count": 0,
+      "prefix_clause_count": 1,
+      "early_candidate_count": 0
+    }
+  ],
+  "common_prefix": "Hunden spiser fisken",
+  "positive_core": {
+    "subject_token_index": 1,
+    "finite_token_index": 2,
+    "canonical_subject_token_id": "tok:0:0:6",
+    "canonical_finite_token_id": "tok:1:7:13"
+  },
+  "finding": "A bounded prefix core can be recovered by existing V32 in all three cases, but prefix recovery cannot validate the unexamined tail or establish whole-sentence syntax. The source expression candidate distinguishes only exact i dag from near negatives, not its syntactic function.",
+  "contract_implications": [
+    "Maintain separate core_candidate and tail_status with token coverage and canonical identities.",
+    "Never label a full-sentence parse or resolved adjunct merely because prefix V32 succeeds.",
+    "Do not promote R072 temporal-tail core-survival or R073 bridge to PROVEN from this test.",
+    "Before a graph patch, prove scoped-core invariants plus SVO/OVS subject disambiguation and a release-authorized tail consumer."
+  ],
+  "limits": "Two near negatives test lexical expression selectivity, not whether the entire Norwegian sentences are ungrammatical. This is a diagnostic proof, not an activated rule or implementation."
+}
