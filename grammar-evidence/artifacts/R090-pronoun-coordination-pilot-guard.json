@@ -1,0 +1,35 @@
+{
+  "schema_version": "grammar-evidence-runtime-proof-v1",
+  "run": "R090-PRONOUN-COORDINATION-PILOT-GUARD-2026-10-23",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "release_code": "runtime-structural-v1.37",
+  "migrations_applied": [
+    "20261023195000_grammar_pronoun_coordination_candidate_guard_v1.sql",
+    "20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql"
+  ],
+  "producer": "grammar_pilot_private.apply_pronoun_coordination_candidate_v1",
+  "input": "grammar_pilot_private.build_pre_rule_plane_v1",
+  "direct_rule_executor": "public.execute_dependency_pattern_rule_v2",
+  "source_candidates": {
+    "og_eller_all_levels": "c706857b-6666-450d-9597-60c215ad8615",
+    "flat_coordination_structure": "62bdf946-f145-4a01-8f95-dae670c62563",
+    "accusative_subject_exception_reference": "a0a84d73-e761-4aad-a52e-28d50ce4d34c"
+  },
+  "cases": [
+    {"text":"Meg og han ser","coordinator":"og","candidate_count":1,"guard":"blocked_premature_single_subject","former_subject_index":3,"resolved_clause_count":0,"subject_of_count":0,"result":"PASS"},
+    {"text":"Meg eller han ser","coordinator":"eller","candidate_count":1,"guard":"blocked_premature_single_subject","former_subject_index":3,"resolved_clause_count":0,"subject_of_count":0,"result":"PASS"},
+    {"text":"Han eller meg ser","coordinator":"eller","candidate_count":1,"guard":"blocked_premature_single_subject","former_subject_index":1,"resolved_clause_count":0,"subject_of_count":0,"result":"PASS"},
+    {"text":"Han og meg gikk","coordinator":"og","candidate_count":1,"resolved_clause_count":0,"subject_of_count":0,"result":"PASS_CANDIDATE_ONLY"},
+    {"text":"Jeg ser meg","candidate_count":0,"resolved_clause_count":1,"subject_of_count":1,"result":"PASS_SVO_REGRESSION"},
+    {"text":"Katten sover","candidate_count":0,"resolved_clause_count":1,"subject_of_count":1,"result":"PASS_NOUN_REGRESSION"},
+    {"text":"Meg ser han","candidate_count":0,"resolved_clause_count":0,"subject_of_count":0,"result":"PASS_SOFT_OVS"},
+    {"text":"Fisken spiser hunden","candidate_count":0,"resolved_clause_count":1,"subject_of_count":1,"result":"OPEN_PREEXISTING_NOUN_POSITIONAL_RESOLUTION"}
+  ],
+  "postcheck": {
+    "public_rpc_hash": "81ae1453781a9ee00e67863086ec4bb9",
+    "paradigm_manifest_status": "draft",
+    "active_pilot_grants": 0
+  },
+  "scope": "Service-only SQL pilot. The producer adds candidate coordination and blocks a single-conjunct subject chosen by V32 in the bounded four-token pattern. It does not resolve a coordinated phrase, validate the case_selection manifest, change the public RPC, activate a rule, or deliver graph output to the app.",
+  "next": "Build a resolved coordinated nominal constituent with independent evidence and test exceptions before promoting a subject role. Separately correct noun-noun positional resolution in V32."
+}

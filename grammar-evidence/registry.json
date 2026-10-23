@@ -1297,7 +1297,7 @@
     },
     {
       "proof_id": "R088_CASE_SELECTION_EXCEPTION_BOUNDARY",
-      "status": "PROVEN",
+      "status": "STALE",
       "proof_kind": "PRODUCTION_READ_ONLY_SNAPSHOT",
       "claim": "The source-backed case_selection default has documented exceptions, while the current early SQL pilot lacks a recognized coordination construction for Han og meg gikk.",
       "proved_at_head": "c5014c7",
@@ -1307,7 +1307,35 @@
       "blocked_by": [],
       "invalidation": "Refresh after candidate import, coordination/construction recognizer, private pilot ordering, or case-selection operator changes.",
       "notes": "Read-only diagnosis. KEEP_REFERENCE_ONLY exceptions constrain runtime interpretation but are not automatically executable rules. No grant, activation or app output.",
-      "next_action": "Design source-backed coordination evidence available before subject arbitration; test Han og meg gikk and other exception contexts, then decide whether the case-selection template can be validated."
+      "next_action": "R090 added bounded og/eller coordination candidate evidence and blocked single-conjunct subject selection in the private pilot. Build a resolved coordinated nominal constituent and verify exception scope before validating case_selection."
+    },
+    {
+      "proof_id": "R090_PRONOUN_COORDINATION_PILOT_GUARD",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "A source-backed og/eller coordination candidate producer in the service-only SQL pilot blocks premature single-pronoun subject resolution while preserving ordinary SVO results.",
+      "proved_at_head": "513b6b5",
+      "evidence_runs": ["R090-PRONOUN-COORDINATION-PILOT-GUARD-2026-10-23"],
+      "result": "Two Production migrations applied. Meg og han ser, Meg eller han ser and Han eller meg ser each yielded one coordination candidate, zero resolved clauses and zero subject_of edges after blocking the former V32 single-conjunct subject. Han og meg gikk remained candidate-only; Jeg ser meg and Katten sover retained one resolved clause and subject edge. Meg ser han remained soft/unresolved. Fisken spiser hunden still resolved positionally by existing V32 and is a separate gap.",
+      "dependencies": ["grammar-evidence/artifacts/R090-pronoun-coordination-pilot-guard.json", "supabase/migrations/20261023195000_grammar_pronoun_coordination_candidate_guard_v1.sql", "supabase/migrations/20261023201000_grammar_pronoun_coordination_og_eller_guard_v1.sql", "R087_PRONOUN_CASE_SOFT_EVIDENCE_CORRECTION"],
+      "blocked_by": [],
+      "invalidation": "Refresh after coordination source, private pilot builder, case producer, V32, clause builder or subject rule changes.",
+      "notes": "Private service-only candidate producer and safety guard. No resolved coordinated nominal phrase, case_selection activation, admission grant, public RPC change or app output.",
+      "next_action": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately."
+    },
+    {
+      "proof_id": "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT",
+      "status": "UNVERIFIED",
+      "proof_kind": "USER_REQUIREMENT",
+      "claim": "A future deterministic batched analyze-text interface preserves all candidate identities and form provenance, returns per-candidate rule evidence without modifying candidates, and supports separate graph generation/verification capabilities.",
+      "proved_at_head": null,
+      "evidence_runs": [],
+      "result": "Requirements supplied by the analyze-text chat are recorded for future integration; no callable API, shadow invocation, app output or acceptance-corpus result has been proved.",
+      "dependencies": ["grammar-evidence/contracts/analyze-text-graph-integration-v1.md"],
+      "blocked_by": [],
+      "invalidation": "Review when the user changes app-output gating, analyze-text input schema, candidate identity/provenance, rule activation scope, or rollout order.",
+      "notes": "Future integration comment only. Current user gate keeps all graph output away from the app until the required rules are activated. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates. Soft source rules cannot hard-filter. The graph may generate forms in its separate bidirectional capability, while current analyze-text passes only source-observed forms.",
+      "next_action": "After grammar runtime and rule coverage are proven, define a versioned batch API and run the listed homograph/POS/SVO corpus with latency, determinism and provenance checks. Resolve the app-output gate before any shadow call from analyze-text."
     }
   ]
 }
