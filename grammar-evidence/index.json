@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "992d2d29ab78f247913af234d3799af5f0024afc",
+  "head": "d48d62405dadd065ea31d30b95a57db408582cfb",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "992d2d29ab78f247913af234d3799af5f0024afc",
-  "source_head": "101311766eba1f0efbad3f79642f0d0428da49ec",
-  "source_revision": "1013117",
+  "archive_head": "d48d62405dadd065ea31d30b95a57db408582cfb",
+  "source_head": "d48d62405dadd065ea31d30b95a57db408582cfb",
+  "source_revision": "d48d624",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 200,
-  "history_event_count": 163,
-  "strict_history_event_count": 116,
+  "file_count": 201,
+  "history_event_count": 164,
+  "strict_history_event_count": 117,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -172,7 +172,8 @@
     "R107-ADJECTIVE-AUTHORIZED-SHADOW-CANDIDATE-2026-10-24",
     "R108-ADJECTIVE-EXCEPTION-CONTRACT-DRAFT-2026-10-24",
     "R107-ADJECTIVE-NUMERIC-ARTICLE-ADAPTER-REGRESSION-2026-10-24",
-    "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24"
+    "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24",
+    "R109-APEN-EXACT-LEXEME-CLASS-DECISION-2026-10-24"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -299,6 +300,7 @@
     "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": [],
     "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": [],
     "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT": [],
+    "R109_APEN_SUFFIX_CLASS_ATTESTATION": [],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [],
     "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
@@ -718,6 +720,13 @@
       "grammar-evidence/artifacts/R107-adjective-authorized-shadow-response.json",
       "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP"
     ],
+    "R109_APEN_SUFFIX_CLASS_ATTESTATION": [
+      "grammar-evidence/artifacts/R109-apen-exception-class-evidence.json",
+      "grammar-evidence/contracts/adjective-degree-lexeme-exception-v1.md",
+      "grammar-evidence/tools/verify-adjective-lexeme-exception-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts",
+      "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION"
+    ],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [
       "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
       "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"
@@ -863,7 +872,8 @@
     "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP": "Define and populate a source-backed per-lexeme exception/class contract before any rule admission.",
     "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": "Prove per-lexeme exception class and separately evaluate broader source ingestion and write isolation.",
     "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": "Attach independent exception-class evidence to the exact lexeme and article before admission.",
-    "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT": "Find an independent source passage for the exact åpen article, record its decision and test regular, irregular, unknown and conflict outcomes.",
+    "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT": "Connect the reviewed attestation to a scoped source producer, preserve revision and identity checks, then repeat the trusted shadow call.",
+    "R109_APEN_SUFFIX_CLASS_ATTESTATION": "Review a scoped producer binding this attestation to the deployed shadow and repeat the authorized call with the class decision shown separately.",
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms.",
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules.",
     "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
@@ -900,6 +910,17 @@
     {
       "path": "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
       "sha256": "69aa71a2757f3bad792750368ea92cefcef4b04eb87a44e26a78b98a9261b005",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts",
+      "sha256": "9f6eb7bd2e826868b9379b1932e04b3d22b7d76a2e0745662fa95718f0d2a200",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3786,7 +3807,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=51.15 max=24"
+        "DB snapshot expired: age_hours=51.26 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3806,7 +3827,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=51.10 max=24"
+        "DB snapshot expired: age_hours=51.21 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4011,7 +4032,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=49.27 max=24"
+        "DB snapshot expired: age_hours=49.38 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4032,7 +4053,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=49.27 max=24"
+        "DB snapshot expired: age_hours=49.38 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4133,7 +4154,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=50.00 max=24"
+        "DB snapshot expired: age_hours=50.11 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4990,7 +5011,7 @@
       "proof_kind": "RUNTIME_REQUIREMENT",
       "proved_at_head": null,
       "claim": "A source-backed exception decision for one adjective lexeme and article can clear or block the comparative default without using the stored comparative form as its own evidence.",
-      "result": "A fail-closed per-lexeme contract is documented; Production has not yet supplied a qualifying decision for åpen. Its class remains unknown and the candidate remains unadmitted.",
+      "result": "R109 found a bounded independent class attestation for åpen and an isolated evaluator passes 17 checks. The deployed shadow still has no per-lexeme exception producer and returns exceptionCheckRequired=true; Production admission remains unverified.",
       "evidence_runs": [
         "R108-ADJECTIVE-EXCEPTION-CONTRACT-DRAFT-2026-10-24"
       ],
@@ -5001,7 +5022,29 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "The documented contract is not an implemented Production producer or an exception clearance."
+      "notes": "R109 clears class applicability only in an isolated test for the exact lexeme, article and snapshot. It does not clear the deployed shadow response or activate the rule."
+    },
+    {
+      "proof_id": "R109_APEN_SUFFIX_CLASS_ATTESTATION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "d48d624",
+      "claim": "An independent NDLA rule-class passage, joined to official Bokmålsordboka article 1033 and the current Production positive-row identity, licenses the -en suffix comparison rule for åpen in an isolated decision without reading the stored comparative target.",
+      "result": "NDLA section 3 explicitly lists åpen in the -er/-el/-en contracted comparison class. Official article 1033 identifies åpen as an adjective; the checked Production positive row matches lexeme, dictionary, article and snapshot. The isolated evaluator returns regular_confirmed and clears the exception flag for this one rule; 17 checks PASS, including wrong identity, source drift, missing evidence, irregular and conflict cases.",
+      "evidence_runs": [
+        "R109-APEN-EXACT-LEXEME-CLASS-DECISION-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R109-apen-exception-class-evidence.json",
+        "grammar-evidence/contracts/adjective-degree-lexeme-exception-v1.md",
+        "grammar-evidence/tools/verify-adjective-lexeme-exception-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts",
+        "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The source page also displays example forms, but its stored comparative output is never passed to the evaluator. This proves rule applicability, not exclusivity against analytic mer + adjective, Production admission, or activation."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",

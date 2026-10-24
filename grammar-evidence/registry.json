@@ -1442,12 +1442,26 @@
       "claim": "A source-backed exception decision for one adjective lexeme and article can clear or block the comparative default without using the stored comparative form as its own evidence.",
       "proved_at_head": null,
       "evidence_runs": ["R108-ADJECTIVE-EXCEPTION-CONTRACT-DRAFT-2026-10-24"],
-      "result": "A fail-closed per-lexeme contract is documented; Production has not yet supplied a qualifying decision for åpen. Its class remains unknown and the candidate remains unadmitted.",
+      "result": "R109 found a bounded independent class attestation for åpen and an isolated evaluator passes 17 checks. The deployed shadow still has no per-lexeme exception producer and returns exceptionCheckRequired=true; Production admission remains unverified.",
       "dependencies": ["grammar-evidence/contracts/adjective-degree-lexeme-exception-v1.md", "grammar-evidence/artifacts/R107-adjective-authorized-shadow-response.json", "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP"],
       "blocked_by": [],
       "invalidation": "Review if source identity, rule applicability, exception evidence or admission semantics change.",
-      "notes": "The documented contract is not an implemented Production producer or an exception clearance.",
-      "next_action": "Find an independent source passage for the exact åpen article, record its decision and test regular, irregular, unknown and conflict outcomes."
+      "notes": "R109 clears class applicability only in an isolated test for the exact lexeme, article and snapshot. It does not clear the deployed shadow response or activate the rule.",
+      "next_action": "Connect the reviewed attestation to a scoped source producer, preserve revision and identity checks, then repeat the trusted shadow call."
+    },
+    {
+      "proof_id": "R109_APEN_SUFFIX_CLASS_ATTESTATION",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "An independent NDLA rule-class passage, joined to official Bokmålsordboka article 1033 and the current Production positive-row identity, licenses the -en suffix comparison rule for åpen in an isolated decision without reading the stored comparative target.",
+      "proved_at_head": "d48d624",
+      "evidence_runs": ["R109-APEN-EXACT-LEXEME-CLASS-DECISION-2026-10-24"],
+      "result": "NDLA section 3 explicitly lists åpen in the -er/-el/-en contracted comparison class. Official article 1033 identifies åpen as an adjective; the checked Production positive row matches lexeme, dictionary, article and snapshot. The isolated evaluator returns regular_confirmed and clears the exception flag for this one rule; 17 checks PASS, including wrong identity, source drift, missing evidence, irregular and conflict cases.",
+      "dependencies": ["grammar-evidence/artifacts/R109-apen-exception-class-evidence.json", "grammar-evidence/contracts/adjective-degree-lexeme-exception-v1.md", "grammar-evidence/tools/verify-adjective-lexeme-exception-v1.ts", "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts", "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION"],
+      "blocked_by": [],
+      "invalidation": "Refresh if NDLA class text, official article identity, positive-row snapshot, source revision or decision evaluator changes.",
+      "notes": "The source page also displays example forms, but its stored comparative output is never passed to the evaluator. This proves rule applicability, not exclusivity against analytic mer + adjective, Production admission, or activation.",
+      "next_action": "Review a scoped producer binding this attestation to the deployed shadow and repeat the authorized call with the class decision shown separately."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
