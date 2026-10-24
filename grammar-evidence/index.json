@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "83f12851be42adef3512b6e4e41c32f3185c6656",
+  "head": "cad60726f08dff397dda0fb792c7815f8dfb03ce",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "83f12851be42adef3512b6e4e41c32f3185c6656",
-  "source_head": "83f12851be42adef3512b6e4e41c32f3185c6656",
-  "source_revision": "83f1285",
+  "archive_head": "cad60726f08dff397dda0fb792c7815f8dfb03ce",
+  "source_head": "899bcabc5b60fa46c1614fb3cecfac463265350a",
+  "source_revision": "899bcab",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 202,
-  "history_event_count": 166,
-  "strict_history_event_count": 119,
+  "file_count": 203,
+  "history_event_count": 170,
+  "strict_history_event_count": 123,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -175,7 +175,11 @@
     "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24",
     "R109-APEN-EXACT-LEXEME-CLASS-DECISION-2026-10-24",
     "R110-ADJECTIVE-SHADOW-V5-DEPLOYMENT-2026-10-24",
-    "R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24"
+    "R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24",
+    "R111-LEGACY-ADJECTIVE-SQL-MANIFEST-AUDIT-2026-10-24",
+    "R111-ADJECTIVE-SHADOW-V6-DEPLOYMENT-2026-10-24",
+    "R111-APEN-SHADOW-MANIFEST-POSITIVE-CONTROL-2026-10-24",
+    "R111-RULE-FIRST-SHADOW-MANIFEST-ADMISSION-2026-10-24"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -304,6 +308,8 @@
     "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT": [],
     "R109_APEN_SUFFIX_CLASS_ATTESTATION": [],
     "R110_APEN_SOURCE_CLASS_SHADOW_EXECUTION": [],
+    "R111_LEGACY_SQL_MANIFEST_SEMANTIC_GAP": [],
+    "R111_RULE_FIRST_SHADOW_MANIFEST_ADMISSION": [],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [],
     "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
@@ -707,17 +713,18 @@
       "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER"
     ],
     "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": [
-      "grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json",
+      "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
       "grammar-evidence/tools/verify-adjective-degree-shadow-handler-v1.ts",
       "supabase/functions/adjective-degree-rule-shadow-v1/index.ts",
       "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
       "supabase/functions/_shared/nlp/adjective-degree-curated-class-v1.ts",
       "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
       "supabase/config.toml",
       "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"
     ],
     "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": [
-      "grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json",
+      "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
       "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"
     ],
     "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT": [
@@ -733,11 +740,23 @@
       "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION"
     ],
     "R110_APEN_SOURCE_CLASS_SHADOW_EXECUTION": [
-      "grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json",
+      "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
       "supabase/functions/_shared/nlp/adjective-degree-curated-class-v1.ts",
       "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
       "R109_APEN_SUFFIX_CLASS_ATTESTATION",
       "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"
+    ],
+    "R111_LEGACY_SQL_MANIFEST_SEMANTIC_GAP": [
+      "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
+      "grammar-evidence/contracts/adjective-rule-first-manifest-admission-v1.md"
+    ],
+    "R111_RULE_FIRST_SHADOW_MANIFEST_ADMISSION": [
+      "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
+      "grammar-evidence/contracts/adjective-rule-first-manifest-admission-v1.md",
+      "grammar-evidence/tools/verify-adjective-rule-first-shadow-manifest-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
+      "R110_APEN_SOURCE_CLASS_SHADOW_EXECUTION"
     ],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [
       "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
@@ -882,11 +901,13 @@
     "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": "Prove exception/class evidence and bind source stress to the normal runtime input before a scoped activation test.",
     "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER": "Obtain independent per-lexeme exception/class evidence before any admission or activation.",
     "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP": "Design general source ingestion and article-bound class evidence for further lexemes.",
-    "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": "Evaluate broader source ingestion, write isolation and manifest admission separately.",
-    "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": "Check manifest compatibility and scoped admission for this rule before any activation.",
+    "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": "Evaluate SQL rule-first operator, release admission and broader source ingestion separately.",
+    "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": "Build a separate SQL rule-first operator and release manifest after reviewing this shadow contract.",
     "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT": "Build source ingestion and a reviewed irregular case, then test both classes in the closed shadow.",
     "R109_APEN_SUFFIX_CLASS_ATTESTATION": "Retain exact article and snapshot checks when generalizing the source producer.",
-    "R110_APEN_SOURCE_CLASS_SHADOW_EXECUTION": "Check manifest eligibility and an admission path for this single rule while keeping the output candidate-only.",
+    "R110_APEN_SOURCE_CLASS_SHADOW_EXECUTION": "Implement an explicit SQL rule-first operator and independent release gate if this path is selected for activation.",
+    "R111_LEGACY_SQL_MANIFEST_SEMANTIC_GAP": "Create a separately named rule-first SQL operator and manifest if a SQL release is chosen for activation.",
+    "R111_RULE_FIRST_SHADOW_MANIFEST_ADMISSION": "Define a separately compiled SQL rule-first operator/manifest and verify one-rule release admission if SQL activation is still the target.",
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms.",
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules.",
     "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
@@ -954,8 +975,19 @@
       }
     },
     {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
+      "sha256": "bf6c86d3f7a9ccdb00127d4fba19b2bfc59323adc2ae01e5cc17e5f129874eb3",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
       "path": "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
-      "sha256": "5a3e6faebfef25fdb0c02db1c2ef4cdb46d2849e8b440a235b280ed7c237afec",
+      "sha256": "9706ec06544ed2763f17946b2f0c91ef4f3047fb3592016429b69613938559d4",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3831,7 +3863,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=52.15 max=24"
+        "DB snapshot expired: age_hours=52.31 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3851,7 +3883,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=52.10 max=24"
+        "DB snapshot expired: age_hours=52.26 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4056,7 +4088,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=50.27 max=24"
+        "DB snapshot expired: age_hours=50.43 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4077,7 +4109,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=50.27 max=24"
+        "DB snapshot expired: age_hours=50.43 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4178,7 +4210,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=51.01 max=24"
+        "DB snapshot expired: age_hours=51.17 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4989,48 +5021,51 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
-      "proved_at_head": "83f1285",
+      "proved_at_head": "d16f7dd",
       "claim": "A separate adjective-degree-rule-shadow-v1 Edge Function is active, checks the trusted secret apikey in code and returns candidate-only shadow output without writes or activation authority.",
-      "result": "Function v5 ACTIVE, verify_jwt=false with in-code secret apikey authorization, bundle hash c1b7161292bb49300a2c40853087bba9e2514acbf430346558cc110648c221fb. Controlled backend call 146205 returned scoped candidate-only output; handler 27 checks, exception evaluator 17 checks and typecheck PASS.",
+      "result": "Function v6 ACTIVE, verify_jwt=false with in-code secret apikey authorization, bundle hash 619aa87c81258f147661cf8cff5ad65837cb669be27332b4d4128e8bf3c3f753. Trusted positive and negative controls returned admitted/withheld shadow responses; handler 29 checks, manifest 14 checks and typecheck PASS.",
       "evidence_runs": [
         "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24",
         "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24",
-        "R110-ADJECTIVE-SHADOW-V5-DEPLOYMENT-2026-10-24"
+        "R110-ADJECTIVE-SHADOW-V5-DEPLOYMENT-2026-10-24",
+        "R111-ADJECTIVE-SHADOW-V6-DEPLOYMENT-2026-10-24"
       ],
       "dependencies": [
-        "grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json",
+        "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
         "grammar-evidence/tools/verify-adjective-degree-shadow-handler-v1.ts",
         "supabase/functions/adjective-degree-rule-shadow-v1/index.ts",
         "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
         "supabase/functions/_shared/nlp/adjective-degree-curated-class-v1.ts",
         "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
         "supabase/config.toml",
         "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "R110 records the v5 authorized call. No automatic caller from analyze-text or canonical graph was added. Response flags are not an independent database zero-write audit."
+      "notes": "R111 records v6 admission controls. No automatic caller from analyze-text or canonical graph was added. Response flags are not an independent database zero-write audit."
     },
     {
       "proof_id": "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "RUNTIME_REQUIREMENT",
-      "proved_at_head": "83f1285",
+      "proved_at_head": "d16f7dd",
       "claim": "An authorized Production call to the closed adjective shadow reads the current positive row and returns a rule-derived candidate with an explicit exception-class decision, no activation authority and no graph mutation.",
-      "result": "Controlled pg_net call 146205 used a Vault-backed secret apikey without exposing it. Edge v5 returned HTTP 200; åpen → åpnere remains a candidate, with regular_confirmed and exceptionCheckRequired=false for the exact article/snapshot. activationAuthority=false and graphMutation=false.",
+      "result": "Controlled pg_net calls 146219 and 146220 used a Vault-backed secret apikey. Edge v6 returned HTTP 200: åpen remained a candidate and was shadow-admitted; sikker was withheld with candidate=null. Both responses reported activationAuthority=false and graphMutation=false.",
       "evidence_runs": [
         "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24",
         "R107-ADJECTIVE-AUTHORIZED-SHADOW-CANDIDATE-2026-10-24",
-        "R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24"
+        "R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24",
+        "R111-RULE-FIRST-SHADOW-MANIFEST-ADMISSION-2026-10-24"
       ],
       "dependencies": [
-        "grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json",
+        "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
         "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "R107 preserves the earlier response with exceptionCheckRequired=true. R110 covers one åpen request and its returned flags; it does not prove a zero-write database audit or activate the rule."
+      "notes": "R111 covers one positive and one negative manifest control; it does not prove a zero-write database audit or activate the SQL rule."
     },
     {
       "proof_id": "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT",
@@ -5079,22 +5114,65 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
-      "proved_at_head": "83f1285",
+      "proved_at_head": "d16f7dd",
       "claim": "The closed Production adjective shadow applies the R109 class attestation only to exact åpen/article 1033/snapshot identity and returns a rule-derived candidate with the exception check cleared, without activation authority or graph mutation.",
-      "result": "Trusted pg_net request 146205 to Edge v5 returned HTTP 200, candidate åpnere, exceptionClass regular_confirmed, exceptionCheckRequired=false, reason one_rule_derived_class_confirmed, activationAuthority=false and graphMutation=false. Handler tests 27 PASS, decision tests 17 PASS, Deno typecheck PASS.",
+      "result": "Trusted pg_net request 146219 to Edge v6 returned HTTP 200, candidate åpnere, exceptionClass regular_confirmed, exceptionCheckRequired=false, shadowManifestStatus admitted, activationAuthority=false and graphMutation=false. Handler 29 PASS, manifest 14 PASS, decision 17 PASS, Deno typecheck PASS.",
       "evidence_runs": [
-        "R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24"
+        "R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24",
+        "R111-APEN-SHADOW-MANIFEST-POSITIVE-CONTROL-2026-10-24"
       ],
       "dependencies": [
-        "grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json",
+        "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
         "supabase/functions/_shared/nlp/adjective-degree-curated-class-v1.ts",
         "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
         "R109_APEN_SUFFIX_CLASS_ATTESTATION",
         "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "One curated regular class in a closed shadow. This does not authorize the rule, prove a general exception producer, or expose output to analyze-text."
+      "notes": "One curated regular class and one code-level manifest in a closed shadow. This does not authorize the SQL rule, prove a general exception producer, or expose output to analyze-text."
+    },
+    {
+      "proof_id": "R111_LEGACY_SQL_MANIFEST_SEMANTIC_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "899bcab",
+      "claim": "The validated SQL adjective comparative manifest and activation_ready assessment cover an attested source/target pair executor, not the rule-first shadow producer.",
+      "result": "Production manifest a802a50e has condition exists lexeme.id, required_evidence source_verified_lexeme_form_pair, generation disabled and attested_pair_only. Its compiled rule is enabled in shadow release v1.37, but execute_morphological_inflection_rule_v1 for åpen returned no_evidence/source_verified_form_pair_missing; lexeme_form_variants has zero rows. Readiness_v2 activation_ready is therefore not proof of rule-first readiness.",
+      "evidence_runs": [
+        "R111-LEGACY-ADJECTIVE-SQL-MANIFEST-AUDIT-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
+        "grammar-evidence/contracts/adjective-rule-first-manifest-admission-v1.md"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Existing SQL rule and release were read only; no migration or activation was applied."
+    },
+    {
+      "proof_id": "R111_RULE_FIRST_SHADOW_MANIFEST_ADMISSION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "d16f7dd",
+      "claim": "A separate exact rule-first shadow manifest admits only åpen/article 1033/snapshot and the one comparative deletion rule when positive provenance, stress and class evidence are present, while withholding output for another lexeme.",
+      "result": "Edge v6 bundle 619aa87c... is ACTIVE. Trusted request 146219 returned åpen candidate åpnere with shadowManifestStatus admitted and no activation authority. Trusted request 146220 returned sikker status not_admitted, candidate null and shadowManifestStatus withheld. Local manifest 14 PASS, handler 29 PASS and typecheck PASS.",
+      "evidence_runs": [
+        "R111-RULE-FIRST-SHADOW-MANIFEST-ADMISSION-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R111-adjective-rule-first-shadow-manifest.json",
+        "grammar-evidence/contracts/adjective-rule-first-manifest-admission-v1.md",
+        "grammar-evidence/tools/verify-adjective-rule-first-shadow-manifest-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
+        "R110_APEN_SOURCE_CLASS_SHADOW_EXECUTION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This is a code-level shadow manifest, not a public.grammar_runtime_manifests row, a release grant or global grammar rule activation."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
