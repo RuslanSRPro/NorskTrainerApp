@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "cad60726f08dff397dda0fb792c7815f8dfb03ce",
+  "head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "cad60726f08dff397dda0fb792c7815f8dfb03ce",
-  "source_head": "899bcabc5b60fa46c1614fb3cecfac463265350a",
-  "source_revision": "899bcab",
+  "archive_head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
+  "source_head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
+  "source_revision": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 203,
-  "history_event_count": 170,
-  "strict_history_event_count": 123,
+  "history_event_count": 171,
+  "strict_history_event_count": 124,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -179,7 +179,8 @@
     "R111-LEGACY-ADJECTIVE-SQL-MANIFEST-AUDIT-2026-10-24",
     "R111-ADJECTIVE-SHADOW-V6-DEPLOYMENT-2026-10-24",
     "R111-APEN-SHADOW-MANIFEST-POSITIVE-CONTROL-2026-10-24",
-    "R111-RULE-FIRST-SHADOW-MANIFEST-ADMISSION-2026-10-24"
+    "R111-RULE-FIRST-SHADOW-MANIFEST-ADMISSION-2026-10-24",
+    "R112-ADJECTIVE-SQL-RULE-FIRST-SHADOW-2026-10-24"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -201,6 +202,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": [],
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [],
     "S0_FOCUSED_REGRESSION_SUITE": [],
     "D4_COMPLETE_PRECONDITION_FIXTURE": [],
@@ -321,6 +323,11 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": [
+      "grammar-evidence/artifacts/R112-adjective-sql-rule-first-shadow.json",
+      "supabase/migrations/20261024185032_grammar_adjective_rule_first_shadow_v1.sql",
+      "R111_RULE_FIRST_SHADOW_MANIFEST_ADMISSION"
+    ],
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [
       "supabase/functions/_shared/nlp/canonical-runtime-token-pos-current-snapshot-bound-where-post-owner-bound-condition-evidence-v1.ts",
       "supabase/functions/_shared/nlp/canonical-runtime-s0-initial-epoch-composition-boundary-v1.ts"
@@ -806,6 +813,7 @@
     ]
   },
   "proof_next_actions": {
+    "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": "Test a genuine service_role backend invocation and expanded positive/abstention corpus; then define a separate reviewed activation grant and sentence-level rule path.",
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": "",
     "S0_FOCUSED_REGRESSION_SUITE": "",
     "D4_COMPLETE_PRECONDITION_FIXTURE": "",
@@ -3155,6 +3163,26 @@
   ],
   "proofs": [
     {
+      "proof_id": "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
+      "claim": "A private SQL rule-first shadow operator derives the comparative candidate for exact åpen from its positive form and curated rule applicability evidence, while withholding an unlisted lexeme and excluding public execution.",
+      "result": "Production migration applied. åpen positive source produced candidate åpnere; sikker was withheld. anon/authenticated EXECUTE false, service_role true; one private manifest row. No activation authority or graph mutation.",
+      "evidence_runs": [
+        "R112-ADJECTIVE-SQL-RULE-FIRST-SHADOW-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R112-adjective-sql-rule-first-shadow.json",
+        "supabase/migrations/20261024185032_grammar_adjective_rule_first_shadow_v1.sql",
+        "R111_RULE_FIRST_SHADOW_MANIFEST_ADMISSION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "One positive and one negative lexical control. SQL is shadow-only and separate from the attested-pair morphology executor and runtime release. Production verification does not prove a sentence reading or rule activation."
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
@@ -3863,7 +3891,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=52.31 max=24"
+        "DB snapshot expired: age_hours=52.49 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3883,7 +3911,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=52.26 max=24"
+        "DB snapshot expired: age_hours=52.44 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4088,7 +4116,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=50.43 max=24"
+        "DB snapshot expired: age_hours=50.61 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4109,7 +4137,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=50.43 max=24"
+        "DB snapshot expired: age_hours=50.61 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4210,7 +4238,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=51.17 max=24"
+        "DB snapshot expired: age_hours=51.34 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },

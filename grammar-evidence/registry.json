@@ -10,6 +10,20 @@
   ],
   "proofs": [
     {
+      "proof_id": "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "A private SQL rule-first shadow operator derives the comparative candidate for exact åpen from its positive form and curated rule applicability evidence, while withholding an unlisted lexeme and excluding public execution.",
+      "proved_at_head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
+      "evidence_runs": ["R112-ADJECTIVE-SQL-RULE-FIRST-SHADOW-2026-10-24"],
+      "result": "Production migration applied. åpen positive source produced candidate åpnere; sikker was withheld. anon/authenticated EXECUTE false, service_role true; one private manifest row. No activation authority or graph mutation.",
+      "dependencies": ["grammar-evidence/artifacts/R112-adjective-sql-rule-first-shadow.json", "supabase/migrations/20261024185032_grammar_adjective_rule_first_shadow_v1.sql", "R111_RULE_FIRST_SHADOW_MANIFEST_ADMISSION"],
+      "blocked_by": [],
+      "invalidation": "Recheck after source positive-row snapshot, private manifest, function definition, ACL or curated class/stress evidence changes.",
+      "notes": "One positive and one negative lexical control. SQL is shadow-only and separate from the attested-pair morphology executor and runtime release. Production verification does not prove a sentence reading or rule activation.",
+      "next_action": "Test a genuine service_role backend invocation and expanded positive/abstention corpus; then define a separate reviewed activation grant and sentence-level rule path."
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",

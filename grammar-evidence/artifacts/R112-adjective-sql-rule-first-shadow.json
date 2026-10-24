@@ -1,0 +1,30 @@
+{
+  "run": "R112-ADJECTIVE-SQL-RULE-FIRST-SHADOW-2026-10-24",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "migration": "20261024185032_grammar_adjective_rule_first_shadow_v1.sql",
+  "migration_commit": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
+  "migration_sha256": "ce42a84c71845a7e96c73f996a55d1863dd55cabb2904b76485528f42b76cc35",
+  "production_migration_applied": true,
+  "positive": {
+    "lexeme_id": "81a6cba3-26d1-4bf1-9cb3-41997911dd50",
+    "status": "candidate",
+    "positive_form": "åpen",
+    "derived_candidate": "åpnere",
+    "activation_authority": false,
+    "graph_mutation": false
+  },
+  "negative": {
+    "lexeme_id": "41a02dd7-544a-43cf-b186-61275a4d39d9",
+    "status": "withheld",
+    "reason": "manifest_not_admitted"
+  },
+  "access": {
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "service_role_execute": true,
+    "anon_schema_usage": false,
+    "manifest_rows": 1
+  },
+  "method": "The SQL function reads only the positive form from lexeme_form_display_v2. It does not read a comparative target form. Its one-row private manifest carries the exact source class and stress attestations. The observed comparative was checked after derivation.",
+  "limitations": "One lexeme and one negative control; shadow candidate only. No rule release membership, activation grant, sentence POS proof, bidirectional derivation, exception generalization or app integration is established. Local Docker was unavailable; verification used the applied Production migration."
+}
