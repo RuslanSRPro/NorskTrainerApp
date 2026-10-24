@@ -60,7 +60,9 @@ export function produceElEnErComparativeEligibilityV1(input: AdjectiveDegreeInpu
   }
   // Derive from the positive form and rule. No comparative source form is read.
   const expected = source.slice(0, -2) + ending.slice(-1) + "ere";
-  if (/(.)\1(?=[bcdfghjklmnpqrstvwxz])/u.test(expected)) {
+  // Only a doubled consonant directly at the deletion boundary qualifies.
+  // An unrelated doubled consonant elsewhere in the adjective does not.
+  if (/([bcdfghjklmnpqrstvwxz])\1(?=[lnr]ere$)/u.test(expected)) {
     return { ...base, status: "needs_post_transform", reason: "double_consonant_before_new_consonant",
       matchedEnding: ending, intermediateComparativeCandidate: expected,
       requiredAdjustmentRuleCode: "nrg_rt_v1.adjective.degree.suffix.post_deletion_consonant_simplification",
