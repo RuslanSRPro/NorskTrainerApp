@@ -1,8 +1,8 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "101311766eba1f0efbad3f79642f0d0428da49ec",
+  "head": "992d2d29ab78f247913af234d3799af5f0024afc",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "101311766eba1f0efbad3f79642f0d0428da49ec",
+  "archive_head": "992d2d29ab78f247913af234d3799af5f0024afc",
   "source_head": "101311766eba1f0efbad3f79642f0d0428da49ec",
   "source_revision": "1013117",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
@@ -3786,7 +3786,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=51.13 max=24"
+        "DB snapshot expired: age_hours=51.15 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3806,7 +3806,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=51.08 max=24"
+        "DB snapshot expired: age_hours=51.10 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4011,7 +4011,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=49.25 max=24"
+        "DB snapshot expired: age_hours=49.27 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4032,7 +4032,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=49.25 max=24"
+        "DB snapshot expired: age_hours=49.27 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4133,7 +4133,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=49.99 max=24"
+        "DB snapshot expired: age_hours=50.00 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4925,12 +4925,11 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
-      "proved_at_head": "1013117",
+      "proved_at_head": "806261f",
       "claim": "The checked Production sources do not currently provide a per-lexeme exception clearance for the narrow comparative -el/-en/-er rule.",
       "result": "Read-only Production check: lexeme_form_variants has 0 rows; all 139 adjective comparative display rows have regularity_marker unknown. A source-verified irregular-degree candidate exists but has 0 manifest source links. This does not prove which specific lexemes are exceptions.",
       "evidence_runs": [
-        "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24",
-        "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24"
+        "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json",
@@ -4943,13 +4942,14 @@
     {
       "proof_id": "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT",
       "declared_status": "PROVEN",
-      "effective_status": "STALE",
+      "effective_status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
-      "proved_at_head": "806261f",
+      "proved_at_head": "1013117",
       "claim": "A separate adjective-degree-rule-shadow-v1 Edge Function is active, checks the trusted secret apikey in code and returns candidate-only shadow output without writes or activation authority.",
       "result": "Function v3 ACTIVE, verify_jwt=false with in-code secret apikey authorization, bundle hash 296ee8bea4e6a4c752ff693ed6528cd560833703b38297918cf4187e3fecae42. Controlled backend call returned candidate-only output; handler 20 checks, adapter 18 checks and typecheck PASS.",
       "evidence_runs": [
-        "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24"
+        "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24",
+        "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json",
@@ -4960,11 +4960,7 @@
         "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"
       ],
       "blocked_by": [],
-      "stale_reasons": [
-        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/adjective-degree-rule-shadow-v1/index.ts",
-        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
-        "SOURCE_DEPENDENCY_CHANGED: supabase/config.toml"
-      ],
+      "stale_reasons": [],
       "notes": "R107 records the v3 authorized call. No automatic caller from analyze-text or canonical graph was added. Response flags are not an independent database zero-write audit."
     },
     {
