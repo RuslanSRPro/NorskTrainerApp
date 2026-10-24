@@ -25,7 +25,8 @@ entrypoint = "./functions/analyze-text/index.ts"
 
 [functions.adjective-degree-rule-shadow-v1]
 enabled = true
-verify_jwt = true
+# sb_secret_ keys are verified inside the handler on the apikey header.
+verify_jwt = false
 entrypoint = "./functions/adjective-degree-rule-shadow-v1/index.ts"
 
 [functions.get-job-status]

@@ -1,4 +1,4 @@
-import { hasInternalServiceAuthorization } from "../authoritative-morphology-v2/internal-authorization.ts";
+import { hasInternalSecretApiKey, hasInternalServiceAuthorization } from "../authoritative-morphology-v2/internal-authorization.ts";
 import { deriveComparativeFromPositiveDisplayRowV1, type PositiveDisplayRowV1 } from "./adjective-degree-display-row-adapter-v1.ts";
 
 const PILOT_LEXEME_IDS = new Set([
@@ -16,8 +16,11 @@ export async function handleAdjectiveDegreeShadowV1(
   request: Request,
   serviceRoleKey: string,
   readPositiveRows: PositiveRowReaderV1,
+  secretKeysJson?: string,
 ): Promise<Response> {
-  if (!hasInternalServiceAuthorization(request.headers.get("authorization"), serviceRoleKey)) {
+  const legacyService = hasInternalServiceAuthorization(request.headers.get("authorization"), serviceRoleKey);
+  const namedSecret = hasInternalSecretApiKey(request.headers.get("apikey"), secretKeysJson);
+  if (!legacyService && !namedSecret) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
   if (request.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);

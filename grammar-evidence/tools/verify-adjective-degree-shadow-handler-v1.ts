@@ -21,6 +21,18 @@ const outOfScope = await handleAdjectiveDegreeShadowV1(request("00000000-0000-00
 check(outOfScope.status === 400 && reads === 0, "out-of-scope lexeme blocks before DB read");
 const wrongMethod = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`, "GET"), key, reader);
 check(wrongMethod.status === 405 && reads === 0, "only POST accepted");
+const secret = "sb_secret_test_key";
+const secretRequest = (apiKey: string) => new Request(url, { method: "POST",
+  headers: { apikey: apiKey, "content-type": "application/json" },
+  body: JSON.stringify({ lexemeId: fixture.rows[0].lexeme_id }) });
+const validSecret = await handleAdjectiveDegreeShadowV1(secretRequest(secret), key, reader,
+  JSON.stringify({ default: secret }));
+check(validSecret.status === 200 && (await validSecret.json()).status === "candidate",
+  "named secret key authorizes read-only candidate");
+const readsAfterSecret = reads;
+const invalidSecret = await handleAdjectiveDegreeShadowV1(secretRequest("sb_secret_wrong"), key, reader,
+  JSON.stringify({ default: secret }));
+check(invalidSecret.status === 401 && reads === readsAfterSecret, "wrong secret blocks before DB read");
 for (const row of fixture.rows) {
   const response = await handleAdjectiveDegreeShadowV1(request(row.lexeme_id, `Bearer ${key}`), key, reader);
   const result = await response.json();

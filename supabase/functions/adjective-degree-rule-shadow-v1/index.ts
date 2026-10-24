@@ -4,6 +4,7 @@ import type { PositiveDisplayRowV1 } from "../_shared/nlp/adjective-degree-displ
 Deno.serve(async (request) => {
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const secretKeysJson = Deno.env.get("SUPABASE_SECRET_KEYS");
   if (!url || !key) return Response.json({ ok: false, error: "runtime_configuration_missing" }, { status: 503 });
   return handleAdjectiveDegreeShadowV1(request, key, async (lexemeId) => {
     const query = new URL(`${url}/rest/v1/lexeme_form_display_v2`);
@@ -17,5 +18,5 @@ Deno.serve(async (request) => {
     const rows: unknown = await response.json();
     if (!Array.isArray(rows)) throw new Error("positive_source_shape_invalid");
     return rows as PositiveDisplayRowV1[];
-  });
+  }, secretKeysJson);
 });
