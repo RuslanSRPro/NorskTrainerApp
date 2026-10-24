@@ -56,7 +56,8 @@ export async function handleAdjectiveDegreeShadowV1(
     ok: true,
     mode: "shadow",
     status: result.status === "derived_candidate" ? "candidate" : result.status,
-    reason: result.reason,
+    reason: exceptionDecision?.class === "regular_confirmed"
+      ? "one_rule_derived_class_confirmed" : result.reason,
     lexemeId,
     candidate: composition?.candidate ?? null,
     intermediate: composition?.intermediate ?? null,

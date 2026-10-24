@@ -42,6 +42,9 @@ for (const row of fixture.rows) {
   check(result.exceptionCheckRequired === (row.lemma !== "åpen"), `${row.lemma}: scoped exception decision`);
   check(result.exceptionClass === (row.lemma === "åpen" ? "regular_confirmed" : "unknown"),
     `${row.lemma}: class kept separate from candidate`);
+  check(result.reason === (row.lemma === "åpen"
+    ? "one_rule_derived_class_confirmed" : "two_rules_derived_exception_open"),
+    `${row.lemma}: reason matches exception state`);
   check(row.lemma !== "åpen" ||
     (result.exceptionDecisionIds.includes("r109-apen-suffix-rule-article-1033") &&
       result.exceptionEvidenceIds.some((id: string) => id.startsWith("ndla:adjective-degree:section-3:"))),
