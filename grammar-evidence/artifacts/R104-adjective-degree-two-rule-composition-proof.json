@@ -1,0 +1,22 @@
+{
+  "schema_version": "grammar-evidence-producer-proof-v1",
+  "run": "R104-ADJECTIVE-DEGREE-TWO-RULE-COMPOSITION-2026-10-24",
+  "source_code_commit": "1984932",
+  "source_rule_candidates": [
+    {"id":"8cd6ed7e-c27d-4283-bcf1-58af141f387c","section":"5.1.2.1.1","operation":"unstressed -el/-en/-er e-deletion"},
+    {"id":"80715a38-b21e-44a8-a68c-a5514da57c04","section":"5.1.2.1.1","operation":"consonant simplification after deletion"}
+  ],
+  "commands": [
+    "deno run --allow-read grammar-evidence/tools/verify-adjective-degree-composition-v1.ts",
+    "deno run --allow-read grammar-evidence/tools/verify-adjective-degree-eligibility-v1.ts",
+    "deno check grammar-evidence/tools/verify-adjective-degree-composition-v1.ts"
+  ],
+  "result": {"composition_checks":22,"prior_eligibility_checks":24,"typecheck":"PASS"},
+  "rule_first_paths": [
+    {"positive":"åpen","rules":1,"candidate":"åpnere"},
+    {"positive":"sikker","rules":2,"intermediate":"sikkrere","candidate":"sikrere"}
+  ],
+  "controls": ["observed comparative target withheld until post-derivation comparison", "wrong target cannot alter output", "missing stress yields no candidate", "unrelated doubled consonant does not trigger adjustment"],
+  "not_proved": ["lexical exception exclusion", "general stress ingestion", "Production runtime wiring", "manifest approval", "rule activation"],
+  "production_mutation": false
+}

@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "7799edbc464175682568935a31a37295001a05eb",
+  "head": "198493288a552ae5139622ec4bf01f64e0e92a85",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "7799edbc464175682568935a31a37295001a05eb",
-  "source_head": "bbfbbb600bb49e5fe4d4651a6f666c69f36bf02f",
-  "source_revision": "bbfbbb6",
+  "archive_head": "198493288a552ae5139622ec4bf01f64e0e92a85",
+  "source_head": "198493288a552ae5139622ec4bf01f64e0e92a85",
+  "source_revision": "1984932",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 197,
-  "history_event_count": 150,
-  "strict_history_event_count": 103,
+  "file_count": 198,
+  "history_event_count": 152,
+  "strict_history_event_count": 105,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -159,7 +159,9 @@
     "R101-ADJECTIVE-DEGREE-RULE-ELIGIBILITY-GAP-2026-10-23",
     "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24",
     "R103-ADJECTIVE-STRESS-EXCEPTION-EVIDENCE-GAP-2026-10-24",
-    "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24"
+    "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24",
+    "R104-ADJECTIVE-DEGREE-TWO-RULE-COMPOSITION-2026-10-24",
+    "R104-EL-EN-ER-ELIGIBILITY-BOUNDARY-RECHECK-2026-10-24"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -280,6 +282,7 @@
     "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER": [],
     "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": [],
     "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": [],
+    "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": [],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [],
     "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
@@ -663,6 +666,13 @@
       "supabase/functions/_shared/nlp/adjective-stress-evidence-v1.ts",
       "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"
     ],
+    "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": [
+      "grammar-evidence/artifacts/R104-adjective-degree-two-rule-composition-proof.json",
+      "grammar-evidence/tools/verify-adjective-degree-composition-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-composition-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
+      "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER"
+    ],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [
       "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
       "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"
@@ -803,6 +813,7 @@
     "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER": "Find or create independently verified stress/class evidence and exception handling, then test actual source inputs and only afterward connect the producer to a scoped runtime path.",
     "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": "Resolve adjective article identity for enkel, build a general source ingestion path and exception feature; validate before connecting to runtime.",
     "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": "Bind adjective article identity and bring pronunciation and exception evidence into the normal source pipeline.",
+    "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": "Prove exception/class evidence and bind source stress to the normal runtime input before a scoped activation test.",
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms.",
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules.",
     "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
@@ -815,8 +826,19 @@
   },
   "files": [
     {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-composition-v1.ts",
+      "sha256": "66421e334ed5121181f74e285e3b4a7c714338075f5a7884c37cbcc782ff466d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
       "path": "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
-      "sha256": "f71b23ec053cec1448e09626c9cf7b57fda5688a8394291172f652399150fbc9",
+      "sha256": "69aa71a2757f3bad792750368ea92cefcef4b04eb87a44e26a78b98a9261b005",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3692,7 +3714,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.69 max=24"
+        "DB snapshot expired: age_hours=45.15 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3712,7 +3734,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.64 max=24"
+        "DB snapshot expired: age_hours=45.10 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3917,7 +3939,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.81 max=24"
+        "DB snapshot expired: age_hours=43.27 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3938,7 +3960,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.81 max=24"
+        "DB snapshot expired: age_hours=43.27 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4039,7 +4061,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.54 max=24"
+        "DB snapshot expired: age_hours=44.00 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4719,11 +4741,12 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "proved_at_head": "19ac7bc",
+      "proved_at_head": "1984932",
       "claim": "An isolated source-backed producer identifies the -el/-en/-er comparative rule's orthographic condition without reading the target form, fails closed when stress evidence is missing and flags required post-transform composition.",
-      "result": "24 checks PASS and Deno typecheck PASS. With explicit synthetic stress evidence, enkel and åpen yield candidate derivations. sikker yields an intermediate candidate requiring a second rule. Actual Production source fixtures for all three lack stress evidence and therefore return missing_stress_evidence; changing the stored target does not change producer output.",
+      "result": "24 eligibility checks PASS after deletion-boundary guard tightened; Deno composition typecheck PASS. With explicit stress evidence, enkel and åpen yield candidate derivations. sikker yields an intermediate candidate for the now separately tested second rule. Current Production source fixtures still lack stress evidence; stored target changes cannot affect derivation.",
       "evidence_runs": [
-        "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"
+        "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24",
+        "R104-EL-EN-ER-ELIGIBILITY-BOUNDARY-RECHECK-2026-10-24"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R102-adjective-eligibility-producer-proof.json",
@@ -4774,7 +4797,29 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Rule condition is source-verified candidate 8cd6ed7e (NRG 5.1.2.1.1); NAOB supplies only the independent stress input, never the target form. Source-verified candidate 80715a38 covers the separate consonant simplification but is not yet executable here. No general source ingestion, exception proof, Production wiring or activation."
+      "notes": "Rule condition is source-verified candidate 8cd6ed7e (NRG 5.1.2.1.1); NAOB supplies only the independent stress input, never the target form. Candidate 80715a38 is now composed in isolated R104. No general source ingestion, exception proof, Production wiring or activation."
+    },
+    {
+      "proof_id": "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": "1984932",
+      "claim": "On bounded adjective fixtures with independently attested stress, the graph-first comparator composes NRG e-deletion and post-deletion consonant simplification in order, deriving sikker → sikkrere → sikrere without using the stored comparative target as input.",
+      "result": "22 composition checks PASS, 24 predecessor eligibility checks PASS and Deno typecheck PASS. åpen derives with one rule; sikker with two. Missing stress fails closed, changing the stored target does not change output, and an unrelated double consonant does not trigger adjustment. The stored target is read only for post-derivation comparison.",
+      "evidence_runs": [
+        "R104-ADJECTIVE-DEGREE-TWO-RULE-COMPOSITION-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R104-adjective-degree-two-rule-composition-proof.json",
+        "grammar-evidence/tools/verify-adjective-degree-composition-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-composition-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
+        "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This is an isolated derived candidate, not exception clearance, an approved manifest, a Production execution or an activated rule."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
