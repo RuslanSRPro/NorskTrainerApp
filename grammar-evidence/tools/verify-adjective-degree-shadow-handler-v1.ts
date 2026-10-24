@@ -36,14 +36,17 @@ check(invalidSecret.status === 401 && reads === readsAfterSecret, "wrong secret 
 for (const row of fixture.rows) {
   const response = await handleAdjectiveDegreeShadowV1(request(row.lexeme_id, `Bearer ${key}`), key, reader);
   const result = await response.json();
-  check(response.status === 200 && result.status === "candidate", `${row.lemma}: candidate only`);
+  check(response.status === 200 && result.status === (row.lemma === "åpen" ? "candidate" : "not_admitted"),
+    `${row.lemma}: exact manifest scope`);
   check(result.mode === "shadow" && result.activationAuthority === false && result.graphMutation === false,
     `${row.lemma}: no activation or graph mutation`);
+  check(result.shadowManifestStatus === (row.lemma === "åpen" ? "admitted" : "withheld"),
+    `${row.lemma}: manifest admission reported`);
   check(result.exceptionCheckRequired === (row.lemma !== "åpen"), `${row.lemma}: scoped exception decision`);
   check(result.exceptionClass === (row.lemma === "åpen" ? "regular_confirmed" : "unknown"),
     `${row.lemma}: class kept separate from candidate`);
   check(result.reason === (row.lemma === "åpen"
-    ? "one_rule_derived_class_confirmed" : "two_rules_derived_exception_open"),
+    ? "one_rule_derived_class_confirmed" : "exact_source_identity_mismatch"),
     `${row.lemma}: reason matches exception state`);
   check(row.lemma !== "åpen" ||
     (result.exceptionDecisionIds.includes("r109-apen-suffix-rule-article-1033") &&
@@ -51,8 +54,8 @@ for (const row of fixture.rows) {
     `${row.lemma}: independent class evidence returned`);
   check(result.sourceSnapshotId === row.snapshot_id && result.sourceArticleId === String(row.article_id),
     `${row.lemma}: source identity preserved`);
-  check(result.candidate === (row.lemma === "åpen" ? "åpnere" : "sikrere"),
-    `${row.lemma}: graph-first candidate`);
+  check(result.candidate === (row.lemma === "åpen" ? "åpnere" : null),
+    `${row.lemma}: unadmitted output withheld`);
 }
 const missing = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key, async () => []);
 check((await missing.json()).status === "not_observed", "missing source abstains");
@@ -68,6 +71,7 @@ check((await malformed.json()).status === "not_applicable", "malformed source ro
 const changedSnapshot = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key,
   async () => [{ ...fixture.rows[0], snapshot_id: "changed-snapshot" }]);
 const changedResult = await changedSnapshot.json();
-check(changedResult.status === "candidate" && changedResult.exceptionClass === "unknown" &&
-  changedResult.exceptionCheckRequired === true, "source snapshot drift keeps candidate unadmitted");
+check(changedResult.status === "not_admitted" && changedResult.candidate === null &&
+  changedResult.exceptionClass === "unknown" && changedResult.exceptionCheckRequired === true,
+  "source snapshot drift withholds candidate");
 console.log(JSON.stringify({ status: "PASS", checks, dbReadsBeforeAuthorization: 0 }));

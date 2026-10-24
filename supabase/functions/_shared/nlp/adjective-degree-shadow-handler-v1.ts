@@ -1,6 +1,7 @@
 import { hasInternalSecretApiKey, hasInternalServiceAuthorization } from "../authoritative-morphology-v2/internal-authorization.ts";
 import { deriveComparativeFromPositiveDisplayRowV1, type PositiveDisplayRowV1 } from "./adjective-degree-display-row-adapter-v1.ts";
 import { evaluateCuratedAdjectiveClassV1 } from "./adjective-degree-curated-class-v1.ts";
+import { assessAdjectiveDegreeShadowManifestV1 } from "./adjective-degree-rule-first-shadow-manifest-v1.ts";
 
 const PILOT_LEXEME_IDS = new Set([
   "81a6cba3-26d1-4bf1-9cb3-41997911dd50", // åpen
@@ -52,24 +53,28 @@ export async function handleAdjectiveDegreeShadowV1(
       rule_source_candidate_id: composition.sourceCandidateIds[0],
     })
     : null;
+  const manifestAdmission = assessAdjectiveDegreeShadowManifestV1(rows[0], composition, exceptionDecision);
+  const admitted = manifestAdmission.status === "admitted";
   return json({
     ok: true,
     mode: "shadow",
-    status: result.status === "derived_candidate" ? "candidate" : result.status,
-    reason: exceptionDecision?.class === "regular_confirmed"
-      ? "one_rule_derived_class_confirmed" : result.reason,
+    status: admitted ? "candidate" : result.status === "derived_candidate" ? "not_admitted" : result.status,
+    reason: admitted ? "one_rule_derived_class_confirmed" :
+      result.status === "derived_candidate" ? manifestAdmission.reason : result.reason,
     lexemeId,
-    candidate: composition?.candidate ?? null,
-    intermediate: composition?.intermediate ?? null,
-    appliedRuleCodes: composition?.appliedRuleCodes ?? [],
-    sourceCandidateIds: composition?.sourceCandidateIds ?? [],
-    evidenceIds: composition?.evidenceIds ?? [],
+    candidate: admitted ? composition?.candidate ?? null : null,
+    intermediate: admitted ? composition?.intermediate ?? null : null,
+    appliedRuleCodes: admitted ? composition?.appliedRuleCodes ?? [] : [],
+    sourceCandidateIds: admitted ? composition?.sourceCandidateIds ?? [] : [],
+    evidenceIds: admitted ? composition?.evidenceIds ?? [] : [],
     sourceSnapshotId: result.sourceSnapshotId ?? null,
     sourceArticleId: result.sourceArticleId ?? null,
     exceptionCheckRequired: exceptionDecision?.exceptionCheckRequired ?? true,
     exceptionClass: exceptionDecision?.class ?? "unknown",
     exceptionDecisionIds: exceptionDecision?.decisionIds ?? [],
     exceptionEvidenceIds: exceptionDecision?.sourceEvidenceIds ?? [],
+    shadowManifestCode: manifestAdmission.manifestCode,
+    shadowManifestStatus: manifestAdmission.status,
     activationAuthority: false,
     graphMutation: false,
   });
