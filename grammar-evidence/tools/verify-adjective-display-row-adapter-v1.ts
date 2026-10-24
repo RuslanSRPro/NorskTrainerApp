@@ -15,6 +15,8 @@ for (const row of fixture.rows) {
     `${row.lemma}: comparative row cannot be an input`);
   check(deriveComparativeFromPositiveDisplayRowV1({ ...row, article_id: 999 }).status === "not_applicable",
     `${row.lemma}: wrong article blocked`);
+  check(deriveComparativeFromPositiveDisplayRowV1({ ...row, article_ids: [row.article_id] }).status === "derived_candidate",
+    `${row.lemma}: PostgREST numeric article ID accepted when identity matches`);
   check(deriveComparativeFromPositiveDisplayRowV1({ ...row, primary_values: [row.lemma, "alternative"] }).status === "not_applicable",
     `${row.lemma}: multiple positive forms require separate handling`);
   check(deriveComparativeFromPositiveDisplayRowV1({ ...row, evidence_ids: [] }).status === "not_applicable",
