@@ -1,0 +1,20 @@
+{
+  "schema_version": "grammar-evidence-producer-proof-v1",
+  "run": "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24",
+  "command": "deno run --allow-read grammar-evidence/tools/verify-adjective-degree-eligibility-v1.ts",
+  "typecheck": "deno check grammar-evidence/tools/verify-adjective-degree-eligibility-v1.ts",
+  "result": {"status":"PASS","checks":24},
+  "source_candidate_id": "8cd6ed7e-c27d-4283-bcf1-58af141f387c",
+  "source_section": "5.1.2.1.1",
+  "scope": "isolated candidate-only eligibility producer for comparative -el/-en/-er vowel deletion",
+  "positive_with_explicit_synthetic_stress_evidence": ["enkel->enklere", "åpen->åpnere"],
+  "composition_guard": "sikker produces intermediate sikkrere and needs_post_transform; it does not emit a final form",
+  "negative_controls": ["wrong POS", "wrong ending", "stressed ending", "missing article provenance", "stored comparative target cannot change output"],
+  "current_production_source_inputs": {
+    "lexemes": ["åpen", "enkel", "sikker"],
+    "result": "missing_stress_evidence for each; no final comparative candidate",
+    "reason": "lexeme_form_display_v2 supplies source identity and positive form but no independent stress evidence"
+  },
+  "not_proved": ["Production stress-feature producer", "lexical exception exclusion", "normal SQL/Edge runtime wiring", "manifest approval", "rule activation", "sentence POS resolution"],
+  "production_mutation": false
+}

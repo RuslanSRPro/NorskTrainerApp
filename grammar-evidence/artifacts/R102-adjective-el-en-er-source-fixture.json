@@ -1,0 +1,11 @@
+{
+  "schema_version": "grammar-evidence-source-form-fixture-v1",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source": "read-only Production lexeme_form_display_v2 snapshot",
+  "items": [
+    {"lexemeId":"81a6cba3-26d1-4bf1-9cb3-41997911dd50","pos":"adjective","positiveCommon":"åpen","positiveSourceId":"ordbokene:official-form","articleIds":["1033"],"observedComparative":"åpnere"},
+    {"lexemeId":"c43135c2-3b8c-49a7-b2d3-194a5e28666e","pos":"adjective","positiveCommon":"enkel","positiveSourceId":"ordbokene:official-form","articleIds":["12766"],"observedComparative":"enklere"},
+    {"lexemeId":"41a02dd7-544a-43cf-b186-61275a4d39d9","pos":"adjective","positiveCommon":"sikker","positiveSourceId":"ordbokene:official-form","articleIds":["51413"],"observedComparative":"sikrere"}
+  ],
+  "stress_evidence": "not present in this source snapshot; observed comparative is excluded from producer input"
+}

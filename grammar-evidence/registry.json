@@ -1324,6 +1324,34 @@
       "next_action": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately."
     },
     {
+      "proof_id": "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "An isolated source-backed producer identifies the -el/-en/-er comparative rule's orthographic condition without reading the target form, fails closed when stress evidence is missing and flags required post-transform composition.",
+      "proved_at_head": "ad2f2bf",
+      "evidence_runs": ["R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"],
+      "result": "24 checks PASS and Deno typecheck PASS. With explicit synthetic stress evidence, enkel and åpen yield candidate derivations. sikker yields an intermediate candidate requiring a second rule. Actual Production source fixtures for all three lack stress evidence and therefore return missing_stress_evidence; changing the stored target does not change producer output.",
+      "dependencies": ["grammar-evidence/artifacts/R102-adjective-eligibility-producer-proof.json", "grammar-evidence/artifacts/R102-adjective-el-en-er-source-fixture.json", "grammar-evidence/tools/verify-adjective-degree-eligibility-v1.ts", "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts", "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP"],
+      "blocked_by": [],
+      "invalidation": "Refresh after the source rule, eligibility feature contract, stress evidence source, post-transform rule or form provenance changes.",
+      "notes": "Candidate-only isolated code; synthetic stress evidence is test input, not Production proof. No runtime wiring, exception exclusion, final rule selection or activation.",
+      "next_action": "Find or create independently verified stress/class evidence and exception handling, then test actual source inputs and only afterward connect the producer to a scoped runtime path."
+    },
+    {
+      "proof_id": "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER",
+      "status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_REQUIREMENT",
+      "claim": "Production supplies independently verified ending-stress and lexical-exception evidence sufficient to decide whether the -el/-en/-er default may apply to a specific adjective without reading its comparative target.",
+      "proved_at_head": null,
+      "evidence_runs": ["R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"],
+      "result": "The three current source fixtures provide adjective identity and positive forms but no independent stress feature. The isolated producer therefore abstains on all three.",
+      "dependencies": ["R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"],
+      "blocked_by": [],
+      "invalidation": "Review after source phonology/stress import, exception-class evidence, lexeme identity or eligibility contract changes.",
+      "notes": "A source target match must not be used to infer stress or exception class. This is the next missing producer, not a failed form derivation.",
+      "next_action": "Trace authoritative stress and exception sources; if unavailable, keep this narrow rule candidate-only and choose a rule whose applicability can be proven from existing source features."
+    },
+    {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
