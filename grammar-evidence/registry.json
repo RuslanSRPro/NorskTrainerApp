@@ -1344,12 +1344,26 @@
       "claim": "Production supplies independently verified ending-stress and lexical-exception evidence sufficient to decide whether the -el/-en/-er default may apply to a specific adjective without reading its comparative target.",
       "proved_at_head": null,
       "evidence_runs": ["R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"],
-      "result": "The three current source fixtures provide adjective identity and positive forms but no independent stress feature. The isolated producer therefore abstains on all three.",
+      "result": "A curated offline NAOB pronunciation producer now supplies independent ending-stress evidence for åpen and sikker. Current Production source fixtures still lack this feature; general ingestion, lexical exceptions and runtime wiring remain unproved.",
       "dependencies": ["R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"],
       "blocked_by": [],
       "invalidation": "Review after source phonology/stress import, exception-class evidence, lexeme identity or eligibility contract changes.",
-      "notes": "A source target match must not be used to infer stress or exception class. This is the next missing producer, not a failed form derivation.",
-      "next_action": "Trace authoritative stress and exception sources; if unavailable, keep this narrow rule candidate-only and choose a rule whose applicability can be proven from existing source features."
+      "notes": "R103A proves a bounded offline source attestation, not this full Production requirement. Target comparative forms cannot infer stress or exception class.",
+      "next_action": "Resolve adjective article identity for enkel, build a general source ingestion path and exception feature; validate before connecting to runtime."
+    },
+    {
+      "proof_id": "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "claim": "An isolated exact-attestation producer supplies independent unstressed-ending evidence for the adjective lexemes åpen and sikker from NAOB pronunciation, without reading comparative target forms.",
+      "proved_at_head": "bbfbbb6",
+      "evidence_runs": ["R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24"],
+      "result": "13 executable checks and Deno typecheck PASS. åpen becomes a comparative candidate; sikker needs a separate consonant post-transform. Wrong identity, POS and pronunciation are rejected. enkel stays excluded because adjective article identity is unresolved.",
+      "dependencies": ["grammar-evidence/artifacts/R103-naob-adjective-stress-proof.json", "grammar-evidence/artifacts/R103-naob-adjective-stress-fixture.json", "grammar-evidence/tools/verify-adjective-stress-evidence-v1.ts", "supabase/functions/_shared/nlp/adjective-stress-evidence-v1.ts", "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"],
+      "blocked_by": [],
+      "invalidation": "Refresh when NAOB pronunciation, article identity, lexeme identity, source notation semantics or the producer changes.",
+      "notes": "Offline curated evidence only; no general source ingestion, exception proof, Production wiring or activation.",
+      "next_action": "Bind adjective article identity and bring pronunciation and exception evidence into the normal source pipeline."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",

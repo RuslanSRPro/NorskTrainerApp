@@ -1,0 +1,15 @@
+{
+  "schema_version": "grammar-evidence-producer-proof-v1",
+  "run": "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24",
+  "source_code_commit": "bbfbbb6",
+  "source_guide": "https://naob.no/uttale-veiledning",
+  "source_articles": ["https://naob.no/ordbok/%C3%A5pen", "https://naob.no/ordbok/sikker"],
+  "command": "deno run --allow-read grammar-evidence/tools/verify-adjective-stress-evidence-v1.ts",
+  "typecheck": "deno check grammar-evidence/tools/verify-adjective-stress-evidence-v1.ts",
+  "result": {"status":"PASS","checks":13,"typecheck":"PASS"},
+  "scope": "offline curated exact-source attestations for two adjective lexemes",
+  "derived_without_comparative_target": {"åpen":"candidate", "sikker":"needs_post_transform"},
+  "fail_closed": ["changed pronunciation", "wrong lexeme", "wrong POS", "unbound enkel homograph"],
+  "not_proved": ["general NAOB ingestion", "enkel adjective article binding", "lexical exceptions", "consonant post-transform", "Production runtime wiring", "rule activation"],
+  "production_mutation": false
+}

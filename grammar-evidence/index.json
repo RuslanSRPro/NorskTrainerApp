@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "19ac7bce9956b204b100c33b34315cd04ec508d2",
+  "head": "bbfbbb600bb49e5fe4d4651a6f666c69f36bf02f",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "19ac7bce9956b204b100c33b34315cd04ec508d2",
-  "source_head": "19ac7bce9956b204b100c33b34315cd04ec508d2",
-  "source_revision": "19ac7bc",
+  "archive_head": "bbfbbb600bb49e5fe4d4651a6f666c69f36bf02f",
+  "source_head": "bbfbbb600bb49e5fe4d4651a6f666c69f36bf02f",
+  "source_revision": "bbfbbb6",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 196,
-  "history_event_count": 149,
-  "strict_history_event_count": 102,
+  "file_count": 197,
+  "history_event_count": 150,
+  "strict_history_event_count": 103,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -158,7 +158,8 @@
     "R100-ADJECTIVE-RULE-FIRST-FORM-COMPARISON-2026-10-23",
     "R101-ADJECTIVE-DEGREE-RULE-ELIGIBILITY-GAP-2026-10-23",
     "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24",
-    "R103-ADJECTIVE-STRESS-EXCEPTION-EVIDENCE-GAP-2026-10-24"
+    "R103-ADJECTIVE-STRESS-EXCEPTION-EVIDENCE-GAP-2026-10-24",
+    "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -278,6 +279,7 @@
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": [],
     "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER": [],
     "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": [],
+    "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": [],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [],
     "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
@@ -654,6 +656,13 @@
     "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": [
       "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"
     ],
+    "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": [
+      "grammar-evidence/artifacts/R103-naob-adjective-stress-proof.json",
+      "grammar-evidence/artifacts/R103-naob-adjective-stress-fixture.json",
+      "grammar-evidence/tools/verify-adjective-stress-evidence-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-stress-evidence-v1.ts",
+      "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"
+    ],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [
       "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
       "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"
@@ -792,7 +801,8 @@
     "R088_CASE_SELECTION_EXCEPTION_BOUNDARY": "R090 added bounded og/eller coordination candidate evidence and blocked single-conjunct subject selection in the private pilot. Build a resolved coordinated nominal constituent and verify exception scope before validating case_selection.",
     "R090_PRONOUN_COORDINATION_PILOT_GUARD": "Resolve coordinated nominal constituents with independent evidence and exception scope; then test case_selection arbitration. Track noun-noun V32 positional over-resolution separately.",
     "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER": "Find or create independently verified stress/class evidence and exception handling, then test actual source inputs and only afterward connect the producer to a scoped runtime path.",
-    "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": "Trace authoritative stress and exception sources; if unavailable, keep this narrow rule candidate-only and choose a rule whose applicability can be proven from existing source features.",
+    "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": "Resolve adjective article identity for enkel, build a general source ingestion path and exception feature; validate before connecting to runtime.",
+    "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": "Bind adjective article identity and bring pronunciation and exception evidence into the normal source pipeline.",
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms.",
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules.",
     "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
@@ -807,6 +817,17 @@
     {
       "path": "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
       "sha256": "f71b23ec053cec1448e09626c9cf7b57fda5688a8394291172f652399150fbc9",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/adjective-stress-evidence-v1.ts",
+      "sha256": "9f259ea43b9b351baf3d0b8563e873de679e3ac11705492a2f2066a83ae6eebe",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3671,7 +3692,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.37 max=24"
+        "DB snapshot expired: age_hours=44.67 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3691,7 +3712,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.31 max=24"
+        "DB snapshot expired: age_hours=44.62 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3896,7 +3917,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.49 max=24"
+        "DB snapshot expired: age_hours=42.79 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3917,7 +3938,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.49 max=24"
+        "DB snapshot expired: age_hours=42.79 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4018,7 +4039,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.22 max=24"
+        "DB snapshot expired: age_hours=43.52 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4722,7 +4743,7 @@
       "proof_kind": "RUNTIME_REQUIREMENT",
       "proved_at_head": null,
       "claim": "Production supplies independently verified ending-stress and lexical-exception evidence sufficient to decide whether the -el/-en/-er default may apply to a specific adjective without reading its comparative target.",
-      "result": "The three current source fixtures provide adjective identity and positive forms but no independent stress feature. The isolated producer therefore abstains on all three.",
+      "result": "A curated offline NAOB pronunciation producer now supplies independent ending-stress evidence for åpen and sikker. Current Production source fixtures still lack this feature; general ingestion, lexical exceptions and runtime wiring remain unproved.",
       "evidence_runs": [
         "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"
       ],
@@ -4731,7 +4752,29 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "A source target match must not be used to infer stress or exception class. This is the next missing producer, not a failed form derivation."
+      "notes": "R103A proves a bounded offline source attestation, not this full Production requirement. Target comparative forms cannot infer stress or exception class."
+    },
+    {
+      "proof_id": "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_TEST",
+      "proved_at_head": "bbfbbb6",
+      "claim": "An isolated exact-attestation producer supplies independent unstressed-ending evidence for the adjective lexemes åpen and sikker from NAOB pronunciation, without reading comparative target forms.",
+      "result": "13 executable checks and Deno typecheck PASS. åpen becomes a comparative candidate; sikker needs a separate consonant post-transform. Wrong identity, POS and pronunciation are rejected. enkel stays excluded because adjective article identity is unresolved.",
+      "evidence_runs": [
+        "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R103-naob-adjective-stress-proof.json",
+        "grammar-evidence/artifacts/R103-naob-adjective-stress-fixture.json",
+        "grammar-evidence/tools/verify-adjective-stress-evidence-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-stress-evidence-v1.ts",
+        "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Offline curated evidence only; no general source ingestion, exception proof, Production wiring or activation."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
