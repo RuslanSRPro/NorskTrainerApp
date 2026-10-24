@@ -1,5 +1,6 @@
 import { hasInternalSecretApiKey, hasInternalServiceAuthorization } from "../authoritative-morphology-v2/internal-authorization.ts";
 import { deriveComparativeFromPositiveDisplayRowV1, type PositiveDisplayRowV1 } from "./adjective-degree-display-row-adapter-v1.ts";
+import { evaluateCuratedAdjectiveClassV1 } from "./adjective-degree-curated-class-v1.ts";
 
 const PILOT_LEXEME_IDS = new Set([
   "81a6cba3-26d1-4bf1-9cb3-41997911dd50", // åpen
@@ -40,6 +41,17 @@ export async function handleAdjectiveDegreeShadowV1(
   }
   const result = deriveComparativeFromPositiveDisplayRowV1(rows[0]);
   const composition = result.composition;
+  const exceptionDecision = result.status === "derived_candidate" && composition?.sourceCandidateIds.length === 1
+    ? evaluateCuratedAdjectiveClassV1({
+      lexeme_id: rows[0].lexeme_id,
+      lemma: rows[0].lemma,
+      pos: rows[0].pos,
+      dictionary_code: rows[0].dictionary_code,
+      article_id: rows[0].article_id,
+      snapshot_id: rows[0].snapshot_id,
+      rule_source_candidate_id: composition.sourceCandidateIds[0],
+    })
+    : null;
   return json({
     ok: true,
     mode: "shadow",
@@ -53,7 +65,10 @@ export async function handleAdjectiveDegreeShadowV1(
     evidenceIds: composition?.evidenceIds ?? [],
     sourceSnapshotId: result.sourceSnapshotId ?? null,
     sourceArticleId: result.sourceArticleId ?? null,
-    exceptionCheckRequired: composition?.exceptionCheckRequired ?? true,
+    exceptionCheckRequired: exceptionDecision?.exceptionCheckRequired ?? true,
+    exceptionClass: exceptionDecision?.class ?? "unknown",
+    exceptionDecisionIds: exceptionDecision?.decisionIds ?? [],
+    exceptionEvidenceIds: exceptionDecision?.sourceEvidenceIds ?? [],
     activationAuthority: false,
     graphMutation: false,
   });

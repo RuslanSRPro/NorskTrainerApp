@@ -39,7 +39,13 @@ for (const row of fixture.rows) {
   check(response.status === 200 && result.status === "candidate", `${row.lemma}: candidate only`);
   check(result.mode === "shadow" && result.activationAuthority === false && result.graphMutation === false,
     `${row.lemma}: no activation or graph mutation`);
-  check(result.exceptionCheckRequired === true, `${row.lemma}: exceptions unresolved`);
+  check(result.exceptionCheckRequired === (row.lemma !== "åpen"), `${row.lemma}: scoped exception decision`);
+  check(result.exceptionClass === (row.lemma === "åpen" ? "regular_confirmed" : "unknown"),
+    `${row.lemma}: class kept separate from candidate`);
+  check(row.lemma !== "åpen" ||
+    (result.exceptionDecisionIds.includes("r109-apen-suffix-rule-article-1033") &&
+      result.exceptionEvidenceIds.some((id: string) => id.startsWith("ndla:adjective-degree:section-3:"))),
+    `${row.lemma}: independent class evidence returned`);
   check(result.sourceSnapshotId === row.snapshot_id && result.sourceArticleId === String(row.article_id),
     `${row.lemma}: source identity preserved`);
   check(result.candidate === (row.lemma === "åpen" ? "åpnere" : "sikrere"),
@@ -56,4 +62,9 @@ check(broken.status === 503, "DB read failure is closed");
 const malformed = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key,
   async () => [null as never]);
 check((await malformed.json()).status === "not_applicable", "malformed source row cannot derive");
+const changedSnapshot = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key,
+  async () => [{ ...fixture.rows[0], snapshot_id: "changed-snapshot" }]);
+const changedResult = await changedSnapshot.json();
+check(changedResult.status === "candidate" && changedResult.exceptionClass === "unknown" &&
+  changedResult.exceptionCheckRequired === true, "source snapshot drift keeps candidate unadmitted");
 console.log(JSON.stringify({ status: "PASS", checks, dbReadsBeforeAuthorization: 0 }));
