@@ -1,0 +1,40 @@
+{
+  "schema_version": "grammar-evidence-authorized-shadow-response-v1",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "observed_at_utc": "2026-10-24T17:32:31Z",
+  "request_id": 146113,
+  "request": {
+    "transport": "pg_net from trusted database backend",
+    "credential": "Vault service_role_key supplied as apikey header; secret omitted",
+    "lexemeId": "81a6cba3-26d1-4bf1-9cb3-41997911dd50"
+  },
+  "edge": {
+    "slug": "adjective-degree-rule-shadow-v1",
+    "version": 3,
+    "verify_jwt": false,
+    "bundle_sha256": "296ee8bea4e6a4c752ff693ed6528cd560833703b38297918cf4187e3fecae42"
+  },
+  "http_status": 200,
+  "response": {
+    "ok": true,
+    "mode": "shadow",
+    "status": "candidate",
+    "reason": "one_rule_derived_exception_open",
+    "lexemeId": "81a6cba3-26d1-4bf1-9cb3-41997911dd50",
+    "candidate": "åpnere",
+    "intermediate": null,
+    "appliedRuleCodes": ["nrg_rt_v1.adjective.degree.suffix.el_en_er_vowel_deletion.comparative"],
+    "sourceCandidateIds": ["8cd6ed7e-c27d-4283-bcf1-58af141f387c"],
+    "evidenceIds": ["ordbokene:official-form:965f0a1a-9f22-446a-b36c-f573c9a002d8:1033", "naob:pronunciation:81a6cba3-26d1-4bf1-9cb3-41997911dd50:https://naob.no/ordbok/%C3%A5pen"],
+    "sourceSnapshotId": "965f0a1a-9f22-446a-b36c-f573c9a002d8",
+    "sourceArticleId": "1033",
+    "exceptionCheckRequired": true,
+    "activationAuthority": false,
+    "graphMutation": false
+  },
+  "diagnostic_predecessors": [
+    {"request_id": 146089, "http_status": 401, "reason": "legacy bearer authorization incompatible with Vault sb_secret_ key"},
+    {"request_id": 146097, "http_status": 200, "status": "not_applicable", "reason": "numeric article_ids from PostgREST differed from saved string fixture"}
+  ],
+  "scope": "One authorized positive candidate only; no exception clearance, activation, or application integration"
+}
