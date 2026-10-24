@@ -1,0 +1,41 @@
+{
+  "schema_version": "grammar-evidence-source-class-shadow-response-v1",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "observed_at_utc": "2026-10-24T18:36:04Z",
+  "request_id": 146205,
+  "request": {
+    "transport": "pg_net from trusted database backend",
+    "credential": "Vault service_role_key supplied as apikey header; secret omitted",
+    "lexemeId": "81a6cba3-26d1-4bf1-9cb3-41997911dd50"
+  },
+  "edge": {
+    "slug": "adjective-degree-rule-shadow-v1",
+    "version": 5,
+    "verify_jwt": false,
+    "bundle_sha256": "c1b7161292bb49300a2c40853087bba9e2514acbf430346558cc110648c221fb",
+    "source_code_commit": "83f1285"
+  },
+  "http_status": 200,
+  "response": {
+    "ok": true,
+    "mode": "shadow",
+    "status": "candidate",
+    "reason": "one_rule_derived_class_confirmed",
+    "lexemeId": "81a6cba3-26d1-4bf1-9cb3-41997911dd50",
+    "candidate": "åpnere",
+    "intermediate": null,
+    "appliedRuleCodes": ["nrg_rt_v1.adjective.degree.suffix.el_en_er_vowel_deletion.comparative"],
+    "sourceCandidateIds": ["8cd6ed7e-c27d-4283-bcf1-58af141f387c"],
+    "evidenceIds": ["ordbokene:official-form:965f0a1a-9f22-446a-b36c-f573c9a002d8:1033", "naob:pronunciation:81a6cba3-26d1-4bf1-9cb3-41997911dd50:https://naob.no/ordbok/%C3%A5pen"],
+    "sourceSnapshotId": "965f0a1a-9f22-446a-b36c-f573c9a002d8",
+    "sourceArticleId": "1033",
+    "exceptionCheckRequired": false,
+    "exceptionClass": "regular_confirmed",
+    "exceptionDecisionIds": ["r109-apen-suffix-rule-article-1033"],
+    "exceptionEvidenceIds": ["ndla:adjective-degree:section-3:apen-class-member:2026-04-23", "ordbokene:bm:article:1033:lemma-pos-identity", "production:positive-row:965f0a1a-9f22-446a-b36c-f573c9a002d8:1033"],
+    "activationAuthority": false,
+    "graphMutation": false
+  },
+  "local_checks": {"shadow_handler": 27, "exception_evaluator": 17, "edge_typecheck": "PASS"},
+  "scope": "One curated class decision for åpen/article 1033/snapshot 965f0a1a; candidate only, no manifest admission or rule activation"
+}

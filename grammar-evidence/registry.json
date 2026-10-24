@@ -1397,43 +1397,43 @@
       "proof_id": "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
-      "claim": "The checked Production sources do not currently provide a per-lexeme exception clearance for the narrow comparative -el/-en/-er rule.",
+      "claim": "The checked Production database tables do not carry a per-lexeme exception class for the narrow comparative -el/-en/-er rule.",
       "proved_at_head": "806261f",
       "evidence_runs": ["R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24"],
       "result": "Read-only Production check: lexeme_form_variants has 0 rows; all 139 adjective comparative display rows have regularity_marker unknown. A source-verified irregular-degree candidate exists but has 0 manifest source links. This does not prove which specific lexemes are exceptions.",
       "dependencies": ["grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json", "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER"],
       "blocked_by": [],
       "invalidation": "Refresh after exception source ingestion, regularity markers, manifest links or lexeme identity changes.",
-      "notes": "Absence of an exception row cannot be treated as proof that åpen or sikker is regular.",
-      "next_action": "Define and populate a source-backed per-lexeme exception/class contract before any rule admission."
+      "notes": "Absence of an exception row cannot prove regularity. R110 adds one reviewed åpen class attestation inside the closed Edge shadow, not a general database source.",
+      "next_action": "Design general source ingestion and article-bound class evidence for further lexemes."
     },
     {
       "proof_id": "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
       "claim": "A separate adjective-degree-rule-shadow-v1 Edge Function is active, checks the trusted secret apikey in code and returns candidate-only shadow output without writes or activation authority.",
-      "proved_at_head": "1013117",
-      "evidence_runs": ["R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24", "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24"],
-      "result": "Function v3 ACTIVE, verify_jwt=false with in-code secret apikey authorization, bundle hash 296ee8bea4e6a4c752ff693ed6528cd560833703b38297918cf4187e3fecae42. Controlled backend call returned candidate-only output; handler 20 checks, adapter 18 checks and typecheck PASS.",
-      "dependencies": ["grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json", "grammar-evidence/tools/verify-adjective-degree-shadow-handler-v1.ts", "supabase/functions/adjective-degree-rule-shadow-v1/index.ts", "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts", "supabase/config.toml", "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"],
+      "proved_at_head": "83f1285",
+      "evidence_runs": ["R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24", "R107-ADJECTIVE-SHADOW-V3-DEPLOYMENT-2026-10-24", "R110-ADJECTIVE-SHADOW-V5-DEPLOYMENT-2026-10-24"],
+      "result": "Function v5 ACTIVE, verify_jwt=false with in-code secret apikey authorization, bundle hash c1b7161292bb49300a2c40853087bba9e2514acbf430346558cc110648c221fb. Controlled backend call 146205 returned scoped candidate-only output; handler 27 checks, exception evaluator 17 checks and typecheck PASS.",
+      "dependencies": ["grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json", "grammar-evidence/tools/verify-adjective-degree-shadow-handler-v1.ts", "supabase/functions/adjective-degree-rule-shadow-v1/index.ts", "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts", "supabase/functions/_shared/nlp/adjective-degree-curated-class-v1.ts", "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts", "supabase/config.toml", "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"],
       "blocked_by": [],
       "invalidation": "Refresh after Edge redeploy, auth/config change, source view change or bundle drift.",
-      "notes": "R107 records the v3 authorized call. No automatic caller from analyze-text or canonical graph was added. Response flags are not an independent database zero-write audit.",
-      "next_action": "Prove per-lexeme exception class and separately evaluate broader source ingestion and write isolation."
+      "notes": "R110 records the v5 authorized call. No automatic caller from analyze-text or canonical graph was added. Response flags are not an independent database zero-write audit.",
+      "next_action": "Evaluate broader source ingestion, write isolation and manifest admission separately."
     },
     {
       "proof_id": "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION",
       "status": "PROVEN",
       "proof_kind": "RUNTIME_REQUIREMENT",
-      "claim": "An authorized Production call to the closed adjective shadow reads the current positive row and returns a candidate with exceptionCheckRequired=true, no activation authority and no graph mutation.",
-      "proved_at_head": "1013117",
-      "evidence_runs": ["R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24", "R107-ADJECTIVE-AUTHORIZED-SHADOW-CANDIDATE-2026-10-24"],
-      "result": "Controlled pg_net call 146113 used a Vault-backed secret apikey without exposing it. Edge v3 returned HTTP 200 and åpen → åpnere as a rule-derived shadow candidate with exceptionCheckRequired=true, activationAuthority=false and graphMutation=false.",
-      "dependencies": ["grammar-evidence/artifacts/R107-adjective-authorized-shadow-response.json", "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"],
+      "claim": "An authorized Production call to the closed adjective shadow reads the current positive row and returns a rule-derived candidate with an explicit exception-class decision, no activation authority and no graph mutation.",
+      "proved_at_head": "83f1285",
+      "evidence_runs": ["R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24", "R107-ADJECTIVE-AUTHORIZED-SHADOW-CANDIDATE-2026-10-24", "R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24"],
+      "result": "Controlled pg_net call 146205 used a Vault-backed secret apikey without exposing it. Edge v5 returned HTTP 200; åpen → åpnere remains a candidate, with regular_confirmed and exceptionCheckRequired=false for the exact article/snapshot. activationAuthority=false and graphMutation=false.",
+      "dependencies": ["grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json", "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"],
       "blocked_by": [],
       "invalidation": "Refresh after authorized controlled invocation or Edge bundle change.",
-      "notes": "This proof covers one åpen request and the returned flags; it does not clear lexical exceptions, prove a zero-write database audit, or activate the rule.",
-      "next_action": "Attach independent exception-class evidence to the exact lexeme and article before admission."
+      "notes": "R107 preserves the earlier response with exceptionCheckRequired=true. R110 covers one åpen request and its returned flags; it does not prove a zero-write database audit or activate the rule.",
+      "next_action": "Check manifest compatibility and scoped admission for this rule before any activation."
     },
     {
       "proof_id": "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT",
@@ -1442,12 +1442,12 @@
       "claim": "A source-backed exception decision for one adjective lexeme and article can clear or block the comparative default without using the stored comparative form as its own evidence.",
       "proved_at_head": null,
       "evidence_runs": ["R108-ADJECTIVE-EXCEPTION-CONTRACT-DRAFT-2026-10-24"],
-      "result": "R109 found a bounded independent class attestation for åpen and an isolated evaluator passes 17 checks. The deployed shadow still has no per-lexeme exception producer and returns exceptionCheckRequired=true; Production admission remains unverified.",
+      "result": "R110 wires one curated source-backed åpen decision into the closed Production shadow and returns regular_confirmed. A general source-backed producer and a Production irregular blocking case remain unverified.",
       "dependencies": ["grammar-evidence/contracts/adjective-degree-lexeme-exception-v1.md", "grammar-evidence/artifacts/R107-adjective-authorized-shadow-response.json", "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP"],
       "blocked_by": [],
       "invalidation": "Review if source identity, rule applicability, exception evidence or admission semantics change.",
-      "notes": "R109 clears class applicability only in an isolated test for the exact lexeme, article and snapshot. It does not clear the deployed shadow response or activate the rule.",
-      "next_action": "Connect the reviewed attestation to a scoped source producer, preserve revision and identity checks, then repeat the trusted shadow call."
+      "notes": "R109 and R110 prove one exact regular class decision; this broader contract remains UNVERIFIED for further lexemes and irregular blocking. No activation follows from clearing this exception check.",
+      "next_action": "Build source ingestion and a reviewed irregular case, then test both classes in the closed shadow."
     },
     {
       "proof_id": "R109_APEN_SUFFIX_CLASS_ATTESTATION",
@@ -1461,7 +1461,21 @@
       "blocked_by": [],
       "invalidation": "Refresh if NDLA class text, official article identity, positive-row snapshot, source revision or decision evaluator changes.",
       "notes": "The source page also displays example forms, but its stored comparative output is never passed to the evaluator. This proves rule applicability, not exclusivity against analytic mer + adjective, Production admission, or activation.",
-      "next_action": "Review a scoped producer binding this attestation to the deployed shadow and repeat the authorized call with the class decision shown separately."
+      "next_action": "Retain exact article and snapshot checks when generalizing the source producer."
+    },
+    {
+      "proof_id": "R110_APEN_SOURCE_CLASS_SHADOW_EXECUTION",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "The closed Production adjective shadow applies the R109 class attestation only to exact åpen/article 1033/snapshot identity and returns a rule-derived candidate with the exception check cleared, without activation authority or graph mutation.",
+      "proved_at_head": "83f1285",
+      "evidence_runs": ["R110-APEN-CLASS-CONFIRMED-SHADOW-EXECUTION-2026-10-24"],
+      "result": "Trusted pg_net request 146205 to Edge v5 returned HTTP 200, candidate åpnere, exceptionClass regular_confirmed, exceptionCheckRequired=false, reason one_rule_derived_class_confirmed, activationAuthority=false and graphMutation=false. Handler tests 27 PASS, decision tests 17 PASS, Deno typecheck PASS.",
+      "dependencies": ["grammar-evidence/artifacts/R110-apen-source-class-shadow-response.json", "supabase/functions/_shared/nlp/adjective-degree-curated-class-v1.ts", "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts", "R109_APEN_SUFFIX_CLASS_ATTESTATION", "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"],
+      "blocked_by": [],
+      "invalidation": "Refresh after Edge redeploy, NDLA source revision, official article identity, positive-row snapshot or shadow logic changes.",
+      "notes": "One curated regular class in a closed shadow. This does not authorize the rule, prove a general exception producer, or expose output to analyze-text.",
+      "next_action": "Check manifest eligibility and an admission path for this single rule while keeping the output candidate-only."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
