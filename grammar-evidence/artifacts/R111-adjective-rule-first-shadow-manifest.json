@@ -1,0 +1,55 @@
+{
+  "schema_version": "grammar-evidence-rule-first-shadow-manifest-proof-v1",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "observed_at_utc": "2026-10-24T18:45:18Z",
+  "legacy_sql_manifest_audit": {
+    "source_candidate_id": "8cd6ed7e-c27d-4283-bcf1-58af141f387c",
+    "manifest_id": "a802a50e-93c8-46c4-994e-fe14009fb79b",
+    "manifest_code": "ir.adjective.degree.suffix.el_en_er_vowel_deletion.comparative",
+    "authoring_status": "validated",
+    "condition": {"op":"exists","left":{"ref":"lexeme.id"}},
+    "required_evidence": ["source_verified_lexeme_form_pair"],
+    "generation": {"enabled":false,"strategy":"attested_pair_only"},
+    "rule_id": "3330b3c6-e84d-4a66-a4b4-fd1f6af414b6",
+    "compiled_hash": "355ef6d273290c0b1fe5d754c9c7b07683ec15db8fc54788e487aaa7b91ddefd",
+    "release_code": "runtime-structural-v1.37",
+    "release_status": "shadow",
+    "release_member_enabled": true,
+    "global_rule_is_active": false,
+    "candidate_readiness_v2": "activation_ready",
+    "lexeme_form_variants_for_apen": 0,
+    "old_executor_for_apen": {"status":"no_evidence","reason":"source_verified_form_pair_missing","source_form":null,"target_form":null},
+    "conclusion": "Existing validated SQL manifest and readiness describe an attested-pair executor. They do not admit the new rule-first producer and cannot be reused as its proof."
+  },
+  "rule_first_shadow_manifest": {
+    "code": "shadow.adjective.degree.apen.en_deletion.v1",
+    "implementation": "supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts",
+    "execution_mode": "shadow_only",
+    "scope": "one rule, one lexeme, exact article 1033 and positive-row snapshot",
+    "requires": ["positive-form provenance", "independent NAOB stress", "R109 NDLA class decision", "exact rule source candidate"],
+    "stored_comparative_input": false,
+    "activation_authority": false,
+    "local_checks": {"manifest":14,"handler":29,"exception_evaluator":17,"edge_typecheck":"PASS"}
+  },
+  "edge": {
+    "slug":"adjective-degree-rule-shadow-v1",
+    "version":6,
+    "status":"ACTIVE",
+    "verify_jwt":false,
+    "bundle_sha256":"619aa87c81258f147661cf8cff5ad65837cb669be27332b4d4128e8bf3c3f753",
+    "source_code_commit":"d16f7dd"
+  },
+  "positive_control": {
+    "request_id":146219,
+    "http_status":200,
+    "lexeme_id":"81a6cba3-26d1-4bf1-9cb3-41997911dd50",
+    "response":{"status":"candidate","reason":"one_rule_derived_class_confirmed","candidate":"åpnere","sourceSnapshotId":"965f0a1a-9f22-446a-b36c-f573c9a002d8","sourceArticleId":"1033","exceptionCheckRequired":false,"exceptionClass":"regular_confirmed","exceptionDecisionIds":["r109-apen-suffix-rule-article-1033"],"shadowManifestCode":"shadow.adjective.degree.apen.en_deletion.v1","shadowManifestStatus":"admitted","activationAuthority":false,"graphMutation":false}
+  },
+  "negative_control": {
+    "request_id":146220,
+    "http_status":200,
+    "lexeme_id":"41a02dd7-544a-43cf-b186-61275a4d39d9",
+    "response":{"status":"not_admitted","reason":"exact_source_identity_mismatch","candidate":null,"exceptionCheckRequired":true,"exceptionClass":"unknown","shadowManifestCode":"shadow.adjective.degree.apen.en_deletion.v1","shadowManifestStatus":"withheld","activationAuthority":false,"graphMutation":false}
+  },
+  "remaining": ["This shadow manifest is not a public.grammar_runtime_manifests row", "No SQL release or grammar_rules activation changed", "No general source-ingestion producer", "No application integration"]
+}
