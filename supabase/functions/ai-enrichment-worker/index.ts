@@ -285,6 +285,22 @@ async function loadLexemeContext(
       candidate.selectedContext = boundContext;
       return missing;
     }
+    // D10 24.10.2026: a card bound to its own NAOB article (noun without an
+    // Ordbøkene article, divided by NAOB): ONLY that article's explanation is
+    // the context, so "ved til brensel" never mixes with "avsvidd skoggrunn".
+    // The homograph-group blockers do not apply: the article tells the cards
+    // apart. Translations only (no example, no notes), as for any no-article word.
+    const naob = await naobBindingOf(supabase, candidate);
+    if (naob?.definition) {
+      const naobBlocker = noArticleBlocker(candidate.verificationEvidence, candidate.pos, null, false);
+      if (naobBlocker) throw new Error(`${message}; NAOB-bound path: ${naobBlocker}`);
+      const requestedNaob = missing.filter((field) => field === 'translation_ua' || field === 'translation_en');
+      if (!requestedNaob.length) throw new Error(`${message}; NAOB-bound path: NO_ARTICLE_NOTHING_TO_TRANSLATE`);
+      candidate.selectedContext = noArticleContext(candidate.lemma, candidate.pos, {
+        NAOB: `NAOB ${naob.slug} (${candidate.lemma}, ${candidate.pos}): ${naob.definition}`,
+      });
+      return requestedNaob;
+    }
     let hasSibling = false;
     if (!candidate.homographKey) {
       const { data: siblings, error: siblingError } = await supabase.from('lexemes')
@@ -307,6 +323,21 @@ async function loadLexemeContext(
     }
     return requested;
   }
+}
+
+// D10 24.10.2026: the NAOB article a card is bound to (division of a noun
+// without an Ordbøkene article). Read once per candidate; a missing function
+// (migration not applied) or an error = no binding, the old behaviour.
+async function naobBindingOf(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+): Promise<{ slug: string; definition: string | null } | null> {
+  if (candidate.kind !== 'lexeme') return null;
+  if (candidate.naobBinding !== undefined) return candidate.naobBinding;
+  const { data, error } = await supabase.rpc('d10_naob_card_binding_v1', { p_lexeme_id: candidate.id });
+  const row = !error && Array.isArray(data) ? data[0] : null;
+  candidate.naobBinding = row?.slug ? { slug: String(row.slug), definition: row.definition ?? null } : null;
+  return candidate.naobBinding;
 }
 
 // D10 15.10.2026: evidence of a card whose check found several articles,
@@ -378,6 +409,12 @@ async function scopeMissingForNoArticle(
 ): Promise<string[]> {
   if (candidate.kind !== 'lexeme' || missing.length === 0) return missing;
   if (missing.every((field) => field === 'translation_ua' || field === 'translation_en')) return missing;
+  // D10 24.10.2026: a card bound to its own NAOB article is scoped like a
+  // single no-article word (its siblings are told apart by the article).
+  const naob = await naobBindingOf(supabase, candidate);
+  if (naob?.definition) {
+    return noArticleFieldScope(missing, candidate.verificationEvidence, candidate.pos, null, false);
+  }
   let hasSibling = false;
   if (!candidate.homographKey) {
     const { data: siblings, error } = await supabase.from('lexemes')
@@ -805,6 +842,8 @@ type EntityCandidate = {
   // Wiktionary excerpt, used only by the no-article path.
   homographKey?: string | null;
   wiktionaryContext?: string | null;
+  // D10 24.10.2026: own NAOB article (undefined = not read yet)
+  naobBinding?: { slug: string; definition: string | null } | null;
   selectedContext?: string;
   revalidateAi?: boolean;
   qualityReview?: Record<string, unknown>;

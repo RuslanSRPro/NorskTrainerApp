@@ -653,6 +653,45 @@ serve(async (req) => {
           }
         }
 
+        // D10 24.10.2026 (agreed): a noun WITHOUT an Ordbøkene article is
+        // divided by its NAOB articles with the same rule (naob-forms-worker,
+        // mode "split"): the lowest article -> the main card, own forms + own
+        // meaning -> own card II, III added to this job (so it follows checks,
+        // translations and all enrichment chains). Up to 2 words per call;
+        // the rest on the next tick. A failure never fails the job.
+        if (!skipHomographCards) {
+          let naobSplit: { added?: number; has_more?: boolean; results?: unknown } | null = null;
+          try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/naob-forms-worker`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ mode: 'split', jobId }),
+              signal: AbortSignal.timeout(25000),
+            });
+            naobSplit = await safeJson(response);
+            if (!response.ok) {
+              console.error('job-orchestrator: NAOB division failed for job', jobId, safeStringify(naobSplit));
+              naobSplit = null;
+            }
+          } catch (naobError) {
+            console.error('job-orchestrator: NAOB division failed for job', jobId, safeStringify(naobError));
+          }
+          if (naobSplit && (Number(naobSplit.added ?? 0) > 0 || naobSplit.has_more === true)) {
+            processedJobs.push({
+              job_id: jobId,
+              promoted_count: promotedCount,
+              naob_cards_added: Number(naobSplit.added ?? 0),
+              naob_division_has_more: naobSplit.has_more === true,
+              orchestrator_incomplete: true,
+              enrichment_pending: false,
+            });
+            continue;
+          }
+        }
+
         const { count: pendingEnrichmentCount } = await supabase
           .from('lexeme_processing_items')
           .select('id', { count: 'exact', head: true })

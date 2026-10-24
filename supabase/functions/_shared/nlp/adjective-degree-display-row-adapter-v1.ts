@@ -10,7 +10,7 @@ export type PositiveDisplayRowV1 = {
   lemma: string;
   form_key: string;
   primary_values: string[];
-  article_ids: string[];
+  article_ids: Array<string | number>;
   evidence_ids: string[];
 };
 
@@ -30,7 +30,7 @@ export function deriveComparativeFromPositiveDisplayRowV1(row: PositiveDisplayRo
       row.form_key !== "positive_singular_indefinite_common" || !row.lexeme_id ||
       !row.snapshot_id || !Number.isInteger(row.article_id) ||
       row.primary_values.length !== 1 || row.primary_values[0] !== row.lemma ||
-      !row.article_ids.includes(String(row.article_id)) ||
+      !row.article_ids.some((articleId) => String(articleId) === String(row.article_id)) ||
       !row.evidence_ids.includes("ordbokene:official-form")) {
     return { status: "not_applicable", reason: "positive_source_identity_not_verified" };
   }
@@ -42,7 +42,7 @@ export function deriveComparativeFromPositiveDisplayRowV1(row: PositiveDisplayRo
   const composition = composeElEnErComparativeV1({
     lexemeId: row.lexeme_id, pos: row.pos, positiveCommon: row.primary_values[0],
     positiveSourceId: `ordbokene:official-form:${row.snapshot_id}:${sourceArticleId}`,
-    articleIds: row.article_ids, endingStress,
+    articleIds: row.article_ids.map(String), endingStress,
   });
   return {
     status: composition.status,

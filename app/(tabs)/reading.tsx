@@ -15,7 +15,7 @@ import {
   addExpressionCandidateToSupabase, analyzeTextViaAppsScript,
   boostReadingLexemeHitsInSupabase, getReadingLexemesFromSupabase, getFunctionWordKeysFromSupabase,
   getLexemesByIdsFromSupabase,
-  inspectWordViaAppsScript, searchLexemeInSupabase, translateSentenceWithAI,
+  inspectWordViaAppsScript, searchLexemeInSupabase, searchLexemesByFormInSupabase, translateSentenceWithAI,
   getJobProgress, getJobChainProgress, getJobStatus,
   saveSelectedWordsToDatabase, type TextAnalysisMode,
 } from "@/services/api";
@@ -667,13 +667,25 @@ export default function ReadingScreen() {
   function selectAllUnknownCandidates(){setAnalyzerCandidates(prev=>prev.map(item=>({...item,selected:item.status==="unknown"&&!item.added})));}
   function unselectAllCandidates(){setAnalyzerCandidates(prev=>prev.map(item=>({...item,selected:false})));}
 
+  // D10 23.10.2026: a checked word is found by its lemma/headword AND as a
+  // form of other cards (tok -> ta, er -> være, var -> være). Lemma matches
+  // first; a form lookup that fails only adds nothing.
+  async function searchWordWithForms(query:string):Promise<any[]>{
+    const r=await searchLexemeInSupabase(query);
+    const byLemma:any[]=r?.found&&Array.isArray(r.items)?r.items:[];
+    let byForm:any[]=[];
+    try{byForm=await searchLexemesByFormInSupabase(query);}catch(e){console.warn("Form lookup failed:",e);}
+    const seen=new Set(byLemma.map((item:any)=>String(item?.id||"")));
+    return [...byLemma,...byForm.filter((item:any)=>!seen.has(String(item?.id||"")))];
+  }
+
   // D10: re-reads the checked words after their audit job (same mapping as checkWord).
   async function refreshWordMatches(queries:string[]){
     const found:any[]=[];
     for(const query of queries){
-      const r=await searchLexemeInSupabase(query);
-      if(r?.found&&Array.isArray(r.items)&&r.items.length){
-        found.push(...r.items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:query})));
+      const items=await searchWordWithForms(query);
+      if(items.length){
+        found.push(...items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:query})));
       }
     }
     if(textRef.current.trim()!==wordCheckTextRef.current)return;
@@ -691,9 +703,9 @@ export default function ReadingScreen() {
       setWordLoading(true);setWordSearchMessage("");setSelectedWord(null);setWordMatches([]);setPreviewWord(null);
       const found:any[]=[];let firstUnknown:string|null=null;
       for(const query of queries){
-        const r=await searchLexemeInSupabase(query);
-        if(r?.found&&Array.isArray(r.items)&&r.items.length){
-          found.push(...r.items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:query})));
+        const items=await searchWordWithForms(query);
+        if(items.length){
+          found.push(...items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:query})));
         }else if(!firstUnknown){firstUnknown=query;}
       }
       setWordMatches(found);
@@ -723,9 +735,9 @@ export default function ReadingScreen() {
     const q=normalizeToken(value);if(!q)return;
     setWordQuery(q);setPreviewWord(null);setSelectedWord(null);setWordMatches([]);setWordSearchMessage("");
     try{
-      setWordLoading(true);const lookup=await searchLexemeInSupabase(q);
-      if(lookup?.found&&lookup?.items?.length){
-        const items=lookup.items.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:q}));
+      setWordLoading(true);const lookupItems=await searchWordWithForms(q);
+      if(lookupItems.length){
+        const items=lookupItems.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:q}));
         setWordMatches(items);setWordSearchMessage(tr("word_found"));return;
       }
       const r=await inspectWordViaAppsScript(q);
@@ -959,7 +971,7 @@ export default function ReadingScreen() {
             <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>{CHOOSE_POS_UI[lang]}</Text>
             {wordMatches.map((item:any,index:number)=>(
               <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:selectedWord?.id===item.id?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>setSelectedWord(item)}>
-                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.lemma||item.word} — {posUi(item.pos||item.category||item.type||"",lang)}{pickTranslation(item,lang)?` · ${pickTranslation(item,lang)}`:""}</Text>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.matchedForm&&normalizeToken(String(item.matchedForm))!==normalizeToken(String(item.lemma||item.word||""))?`${item.matchedForm} → `:""}{item.lemma||item.word} — {posUi(item.pos||item.category||item.type||"",lang)}{pickTranslation(item,lang)?` · ${pickTranslation(item,lang)}`:""}</Text>
               </Pressable>
             ))}
           </View>):null}

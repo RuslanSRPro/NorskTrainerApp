@@ -44,7 +44,11 @@ function fakeDb(tables: Record<string, Row[]>, rpcImpl: (name: string, args: any
     calls,
     client: {
       from,
-      rpc: async (name: string, args: any) => { calls.push({ name, args }); return rpcImpl(name, args); },
+      // D10 24.10.2026: the NAOB-binding lookup (no binding here) is not counted
+      rpc: async (name: string, args: any) => {
+        if (name !== 'd10_naob_card_binding_v1') calls.push({ name, args });
+        return rpcImpl(name, args);
+      },
     } as any,
   };
 }

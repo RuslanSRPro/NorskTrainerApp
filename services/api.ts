@@ -1209,6 +1209,59 @@ export async function searchLexemeInSupabase(query: string): Promise<any> {
 }
 
 // ============================================================
+// Public: searchLexemesByFormInSupabase
+// D10 23.10.2026: a word form typed in "Check" (tok, er, brennen) -> the
+// learning cards it is a form of. Same form tables as the text analysis:
+// Ordbøkene forms (lexeme_form_display_v2, Bokmål), forms of a compound by
+// its head and NAOB noun forms. The cards come through the same read model
+// (mapLexemeRows), so list, preview and card show the same data.
+// ============================================================
+
+const FORM_TABLES: Array<{ table: string; bokmalOnly: boolean }> = [
+  { table: 'lexeme_form_display_v2', bokmalOnly: true },
+  { table: 'lexeme_compound_head_forms_v1', bokmalOnly: false },
+  { table: 'lexeme_naob_forms_v1', bokmalOnly: false },
+];
+
+export async function searchLexemesByFormInSupabase(query: string): Promise<any[]> {
+  const form = normalizeLexemeSearchKey(String(query || '').replace(/^å\s+/i, ''));
+  if (!form || /[\s"{},]/.test(form)) return [];
+  const formKeys = new Map<string, string[]>();
+  // D10 24.10.2026 (v2): one query per column with .contains() instead of an
+  // .or() string: the quoted array literal inside .or() was not matched.
+  for (const { table, bokmalOnly } of FORM_TABLES) {
+    for (const column of ['primary_values', 'alternative_values']) {
+      let q = supabase.from(table).select('lexeme_id, form_key').contains(column, [form]).limit(50);
+      if (bokmalOnly) q = q.eq('dictionary_code', 'bm');
+      const { data, error } = await q;
+      if (error) {
+        // an addition: a table that cannot be read gives no form matches
+        console.warn(`[search] form lookup in ${table}.${column} failed`, error.message);
+        continue;
+      }
+      for (const row of (data ?? []) as any[]) {
+        const id = String(row?.lexeme_id ?? '');
+        if (!id) continue;
+        formKeys.set(id, [...new Set([...(formKeys.get(id) ?? []), String(row?.form_key ?? '')])].filter(Boolean));
+      }
+    }
+  }
+  const ids = [...formKeys.keys()];
+  if (!ids.length) return [];
+  const rows: any[] = [];
+  for (let start = 0; start < ids.length; start += 100) {
+    const { data, error } = await supabase.from('lexemes')
+      .select(LEXEME_SELECT)
+      .in('id', ids.slice(start, start + 100))
+      .eq('is_learning_lexeme', true);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+  }
+  const items = await mapLexemeRows(rows);
+  return items.map((item: any) => ({ ...item, matchedForm: form, matchedFormKeys: formKeys.get(String(item.id)) ?? [] }));
+}
+
+// ============================================================
 // Public: addExpressionCandidateToSupabase
 // ============================================================
 

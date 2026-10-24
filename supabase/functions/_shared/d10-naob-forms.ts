@@ -15,6 +15,8 @@
 // Only what NAOB shows is taken. A form NAOB does not list (brenne: no
 // "bestemt form flertall") is not built.
 
+import { decideHomographs, type HomographDecision, type ParsedArticle } from './d10-homograph-cards.ts';
+
 export const NAOB_NOUN_FORM_KEYS = [
   'noun_singular_indefinite',
   'noun_singular_definite',
@@ -46,6 +48,10 @@ export type NaobArticle = {
   forms: NaobForm[];
   unknown_labels: string[];
   invalid_values: string[];
+  // D10 24.10.2026: the article's own explanations ("avsvidd skoggrunn;
+  // rydningsplass etter skogbrann"), quotes and examples left out. Empty =
+  // no own meaning (proof needed for a separate card, rule R9).
+  definitions: string[];
 };
 
 const ROW_LABELS: Record<string, NaobNounFormKey> = {
@@ -142,7 +148,7 @@ function splitValues(cell: string): { primary: string[]; alternative: string[]; 
 export function parseNaobArticle(html: string): NaobArticle {
   const empty: NaobArticle = {
     status: 'no_article', headword: null, pos: null, genus: null, articles: [],
-    forms: [], unknown_labels: [], invalid_values: [],
+    forms: [], unknown_labels: [], invalid_values: [], definitions: [],
   };
   const page = renderedHtml(html);
   const start = page.indexOf('class="oppslagsord"');
@@ -220,7 +226,32 @@ export function parseNaobArticle(html: string): NaobArticle {
     alternative_values: byKey.get(k)!.alternative,
   }));
   if (result.invalid_values.length) result.status = 'invalid_value';
+  result.definitions = parseNaobDefinitions(page, start);
   return result;
+}
+
+// Own explanations of the first article: the "inline-eske" texts of each
+// "betydning", up to its first section (quotes, examples, expressions).
+export function parseNaobDefinitions(page: string, start = 0): string[] {
+  const from = page.indexOf('BETYDNING OG BRUK', start);
+  if (from < 0) return [];
+  const next = page.indexOf('class="oppslagsord"', from);
+  const endArticle = page.indexOf('</article>', from);
+  let end = page.length;
+  if (next > 0) end = Math.min(end, next);
+  if (endArticle > 0) end = Math.min(end, endArticle);
+  const body = page.slice(from, end);
+  const out: string[] = [];
+  for (const chunk of body.split('class="betydning"').slice(1)) {
+    const cut = chunk.search(/class="[^"]*(?:seksjon|underartikkel|uttrykk)[^"]*"/);
+    const own = cut >= 0 ? chunk.slice(0, cut) : chunk;
+    const parts = [...own.matchAll(/<div class="inline-eske">([\s\S]*?)<\/div>/g)]
+      .map((m) => plain(m[1]).replace(/^[;,:\s]+/, '').trim())
+      .filter(Boolean);
+    const text = parts.join('; ').toLocaleLowerCase('nb-NO').replace(/\s+/g, ' ').trim();
+    if (text) out.push(text);
+  }
+  return [...new Set(out)];
 }
 
 // Forms beyond the headword itself.
@@ -278,4 +309,67 @@ export function decideNaobForms(
     status: 'forms', forms: first.forms, articles: first.articles, genus: first.genus,
     used: usable.map((u) => u.slug), ignored,
   };
+}
+
+// --------------------------------------------------------------------------
+// D10 24.10.2026 (agreed): a noun without an Ordbøkene article is divided by
+// its NAOB articles with THE SAME rule as Ordbøkene homographs
+// (decideHomographs: R8 one card / R9 own card / review). Only the source
+// differs: slug numbers, NAOB forms with the article (gender), NAOB
+// explanations.
+// --------------------------------------------------------------------------
+
+export function slugNumber(slug: string): number {
+  const m = String(slug).match(/_(\d+)$/);
+  return m ? Number(m[1]) : 1;
+}
+
+// Forms of a NAOB article as one list: lemma, every listed value and the
+// indefinite article as "#art:en" (different gender = different forms).
+export function naobFormList(lemma: string, article: NaobArticle): string[] {
+  const set = new Set<string>([normalizeWord(lemma)]);
+  for (const f of article.forms) for (const v of [...f.primary_values, ...f.alternative_values]) set.add(v);
+  for (const a of article.articles) set.add(`#art:${a}`);
+  return [...set].sort();
+}
+
+// NAOB lists only some forms: the same article(s) and one list contained in
+// the other = the same paradigm (R8).
+export function naobSameForms(a: string[], b: string[]): boolean {
+  const art = (x: string[]) => x.filter((v) => v.startsWith('#art:')).sort().join(',');
+  if (art(a) !== art(b)) return false;
+  // an article without own forms (only lemma + gender) is never "the same
+  // paradigm": the R9 guard decides it (no own forms -> review)
+  const words = (x: string[]) => x.filter((v) => !v.startsWith('#art:')).length;
+  if (words(a) <= 1 || words(b) <= 1) return false;
+  const sa = new Set(a), sb = new Set(b);
+  return a.every((v) => sb.has(v)) || b.every((v) => sa.has(v));
+}
+
+export function naobParsedArticle(lemma: string, slug: string, article: NaobArticle): ParsedArticle | null {
+  if (article.status !== 'ok' || article.headword !== normalizeWord(lemma) || article.pos !== 'substantiv') return null;
+  return {
+    articleId: slugNumber(slug),
+    hgno: slugNumber(slug),
+    forms: naobFormList(lemma, article),
+    definitions: article.definitions,
+    refArticleIds: [],
+    uninflected: inflectedFormCount(article) === 0,
+  };
+}
+
+export type NaobPlanEntry = HomographDecision & { slug: string; article: NaobArticle | null };
+
+export function planNaobHomographs(
+  lemma: string,
+  parsed: Array<{ slug: string; article: NaobArticle }>,
+): NaobPlanEntry[] {
+  const bySlugNumber = new Map(parsed.map((p) => [slugNumber(p.slug), p]));
+  const decisions = decideHomographs([], parsed.map((p) => ({
+    articleId: slugNumber(p.slug), parsed: naobParsedArticle(lemma, p.slug, p.article),
+  })), { sameForms: naobSameForms });
+  return decisions.map((d) => {
+    const p = bySlugNumber.get(d.articleId);
+    return { ...d, slug: p?.slug ?? String(d.articleId), article: p?.article ?? null };
+  });
 }

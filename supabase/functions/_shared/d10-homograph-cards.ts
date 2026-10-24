@@ -159,10 +159,15 @@ function sameForms(a: string[], b: string[]): boolean {
 // Pure decision for one main card.
 //   mainArticles  parsed own articles of the main card ([] = no article yet)
 //   candidates    parsed homonym articles (null = could not be used)
+// D10 24.10.2026: one rule for both sources. Ordbøkene compares full
+// paradigms (default); NAOB lists only some forms, so its caller passes its
+// own comparison (same article/gender, one form list contained in the other).
 export function decideHomographs(
   mainArticles: ParsedArticle[],
   candidates: Array<{ articleId: number; parsed: ParsedArticle | null }>,
+  options: { sameForms?: (a: string[], b: string[]) => boolean } = {},
 ): HomographDecision[] {
+  const formsEqual = options.sameForms ?? sameForms;
   const decisions: HomographDecision[] = [];
   let reference = mainArticles.filter((a) => a.hgno >= 1);
   const usable = candidates
@@ -188,7 +193,7 @@ export function decideHomographs(
   }
 
   for (const c of rest) {
-    const equal = reference.some((r) => sameForms(r.forms, c.parsed.forms));
+    const equal = reference.some((r) => formsEqual(r.forms, c.parsed.forms));
     const sameNumber = reference.some((r) => r.hgno === c.parsed.hgno);
     if (equal) {
       decisions.push({ articleId: c.articleId, decision: 'r8_same_forms', hgno: c.parsed.hgno,
