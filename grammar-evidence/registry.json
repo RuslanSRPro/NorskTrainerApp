@@ -1328,7 +1328,7 @@
       "status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
       "claim": "An isolated source-backed producer identifies the -el/-en/-er comparative rule's orthographic condition without reading the target form, fails closed when stress evidence is missing and flags required post-transform composition.",
-      "proved_at_head": "ad2f2bf",
+      "proved_at_head": "19ac7bc",
       "evidence_runs": ["R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"],
       "result": "24 checks PASS and Deno typecheck PASS. With explicit synthetic stress evidence, enkel and åpen yield candidate derivations. sikker yields an intermediate candidate requiring a second rule. Actual Production source fixtures for all three lack stress evidence and therefore return missing_stress_evidence; changing the stored target does not change producer output.",
       "dependencies": ["grammar-evidence/artifacts/R102-adjective-eligibility-producer-proof.json", "grammar-evidence/artifacts/R102-adjective-el-en-er-source-fixture.json", "grammar-evidence/tools/verify-adjective-degree-eligibility-v1.ts", "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts", "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP"],

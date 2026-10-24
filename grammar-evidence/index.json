@@ -1,12 +1,12 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "ad2f2bf2b3e189770381ac9958c677fc0e0343eb",
+  "head": "19ac7bce9956b204b100c33b34315cd04ec508d2",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "ad2f2bf2b3e189770381ac9958c677fc0e0343eb",
-  "source_head": "ad2f2bf2b3e189770381ac9958c677fc0e0343eb",
-  "source_revision": "ad2f2bf",
+  "archive_head": "19ac7bce9956b204b100c33b34315cd04ec508d2",
+  "source_head": "19ac7bce9956b204b100c33b34315cd04ec508d2",
+  "source_revision": "19ac7bc",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 195,
+  "file_count": 196,
   "history_event_count": 149,
   "strict_history_event_count": 102,
   "history_runs": [
@@ -804,6 +804,17 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": "Define a versioned batch input preserving all candidates. Select one narrow graph capability, prove its positive and abstention corpus, then run an isolated shadow comparison and a bounded user-facing rollout if it improves analyze-text."
   },
   "files": [
+    {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
+      "sha256": "f71b23ec053cec1448e09626c9cf7b57fda5688a8394291172f652399150fbc9",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
     {
       "path": "supabase/functions/_shared/nlp/canonical-candidate-lattice-v1.ts",
       "sha256": "a931de503df50571ed81505ba9cb589dcf3ad2451415527a9cdd74403c27a4a5",
@@ -3660,7 +3671,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.35 max=24"
+        "DB snapshot expired: age_hours=44.37 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3680,7 +3691,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.30 max=24"
+        "DB snapshot expired: age_hours=44.31 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3885,7 +3896,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.47 max=24"
+        "DB snapshot expired: age_hours=42.49 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3906,7 +3917,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.47 max=24"
+        "DB snapshot expired: age_hours=42.49 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4007,7 +4018,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.20 max=24"
+        "DB snapshot expired: age_hours=43.22 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4685,9 +4696,9 @@
     {
       "proof_id": "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER",
       "declared_status": "PROVEN",
-      "effective_status": "STALE",
+      "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "proved_at_head": "ad2f2bf",
+      "proved_at_head": "19ac7bc",
       "claim": "An isolated source-backed producer identifies the -el/-en/-er comparative rule's orthographic condition without reading the target form, fails closed when stress evidence is missing and flags required post-transform composition.",
       "result": "24 checks PASS and Deno typecheck PASS. With explicit synthetic stress evidence, enkel and åpen yield candidate derivations. sikker yields an intermediate candidate requiring a second rule. Actual Production source fixtures for all three lack stress evidence and therefore return missing_stress_evidence; changing the stored target does not change producer output.",
       "evidence_runs": [
@@ -4701,9 +4712,7 @@
         "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP"
       ],
       "blocked_by": [],
-      "stale_reasons": [
-        "SOURCE_DEPENDENCY_BASELINE_MISSING: supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts"
-      ],
+      "stale_reasons": [],
       "notes": "Candidate-only isolated code; synthetic stress evidence is test input, not Production proof. No runtime wiring, exception exclusion, final rule selection or activation."
     },
     {
