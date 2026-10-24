@@ -1,8 +1,8 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "bbfbbb600bb49e5fe4d4651a6f666c69f36bf02f",
+  "head": "7799edbc464175682568935a31a37295001a05eb",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "bbfbbb600bb49e5fe4d4651a6f666c69f36bf02f",
+  "archive_head": "7799edbc464175682568935a31a37295001a05eb",
   "source_head": "bbfbbb600bb49e5fe4d4651a6f666c69f36bf02f",
   "source_revision": "bbfbbb6",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
@@ -3692,7 +3692,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.67 max=24"
+        "DB snapshot expired: age_hours=44.69 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3712,7 +3712,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.62 max=24"
+        "DB snapshot expired: age_hours=44.64 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3917,7 +3917,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.79 max=24"
+        "DB snapshot expired: age_hours=42.81 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3938,7 +3938,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=42.79 max=24"
+        "DB snapshot expired: age_hours=42.81 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4039,7 +4039,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.52 max=24"
+        "DB snapshot expired: age_hours=43.54 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4774,7 +4774,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Offline curated evidence only; no general source ingestion, exception proof, Production wiring or activation."
+      "notes": "Rule condition is source-verified candidate 8cd6ed7e (NRG 5.1.2.1.1); NAOB supplies only the independent stress input, never the target form. Source-verified candidate 80715a38 covers the separate consonant simplification but is not yet executable here. No general source ingestion, exception proof, Production wiring or activation."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",

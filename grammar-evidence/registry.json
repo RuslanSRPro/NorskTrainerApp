@@ -1362,7 +1362,7 @@
       "dependencies": ["grammar-evidence/artifacts/R103-naob-adjective-stress-proof.json", "grammar-evidence/artifacts/R103-naob-adjective-stress-fixture.json", "grammar-evidence/tools/verify-adjective-stress-evidence-v1.ts", "supabase/functions/_shared/nlp/adjective-stress-evidence-v1.ts", "R102_ADJECTIVE_EL_EN_ER_ELIGIBILITY_CANDIDATE_PRODUCER"],
       "blocked_by": [],
       "invalidation": "Refresh when NAOB pronunciation, article identity, lexeme identity, source notation semantics or the producer changes.",
-      "notes": "Offline curated evidence only; no general source ingestion, exception proof, Production wiring or activation.",
+      "notes": "Rule condition is source-verified candidate 8cd6ed7e (NRG 5.1.2.1.1); NAOB supplies only the independent stress input, never the target form. Source-verified candidate 80715a38 covers the separate consonant simplification but is not yet executable here. No general source ingestion, exception proof, Production wiring or activation.",
       "next_action": "Bind adjective article identity and bring pronunciation and exception evidence into the normal source pipeline."
     },
     {
