@@ -1,0 +1,33 @@
+{
+  "schema_version": "grammar-evidence-shadow-deployment-proof-v1",
+  "run": "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_code_commit": "806261f",
+  "exception_source_read_only": {
+    "lexeme_form_variants_total_rows": 0,
+    "adjective_comparative_display_rows": 139,
+    "adjective_comparative_regularity_unknown_rows": 139,
+    "irregular_degree_candidate_id": "f2cf765b-76db-4b90-a632-0c914e324a60",
+    "irregular_degree_candidate_status": "source_verified",
+    "irregular_degree_manifest_source_links": 0,
+    "conclusion": "No checked Production source clears lexical exceptions for a particular adjective. Absence of a marker is not proof of regularity."
+  },
+  "edge_function": {
+    "slug": "adjective-degree-rule-shadow-v1",
+    "id": "3d4191ab-e33d-41c6-a880-47f597dce831",
+    "version": 1,
+    "status": "ACTIVE",
+    "verify_jwt": true,
+    "deployed_bundle_sha256": "da7079f2e18f20d849f3e3c056c89ba5e3413a1080cee8482f403974069aee66",
+    "source_parity": "7/7 deployed source files match Git checkout",
+    "unauthenticated_post": {"http_status": 401, "code": "UNAUTHORIZED_NO_AUTH_HEADER"},
+    "authorized_execution": "UNVERIFIED",
+    "normal_pipeline_caller": "NONE_REGISTERED"
+  },
+  "local_checks": {"handler": 18, "positive_row_adapter_regression": 16, "typecheck": "PASS", "config_parse": "PASS"},
+  "mode": "closed service-role-only shadow candidate",
+  "writes": false,
+  "activation_authority": false,
+  "graph_mutation": false,
+  "not_proved": ["authorized Production invocation", "exception resolution", "manifest admission", "rule activation", "automatic call from canonical graph or analyze-text"]
+}

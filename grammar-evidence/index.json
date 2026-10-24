@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "e43ef804d51c98877f1a2802fc23891cfc8bcead",
+  "head": "806261fe523eafff1e01fa41253e5665e57ba854",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "e43ef804d51c98877f1a2802fc23891cfc8bcead",
-  "source_head": "e43ef804d51c98877f1a2802fc23891cfc8bcead",
-  "source_revision": "e43ef80",
+  "archive_head": "806261fe523eafff1e01fa41253e5665e57ba854",
+  "source_head": "806261fe523eafff1e01fa41253e5665e57ba854",
+  "source_revision": "806261f",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 199,
-  "history_event_count": 155,
-  "strict_history_event_count": 108,
+  "file_count": 200,
+  "history_event_count": 159,
+  "strict_history_event_count": 112,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -164,7 +164,11 @@
     "R104-EL-EN-ER-ELIGIBILITY-BOUNDARY-RECHECK-2026-10-24",
     "R105-ADJECTIVE-POSITIVE-DISPLAY-ROW-ADAPTER-2026-10-24",
     "R105-NAOB-STRESS-ATTESTATION-REGRESSION-2026-10-24",
-    "R105-ADJECTIVE-DEGREE-COMPOSITION-REGRESSION-2026-10-24"
+    "R105-ADJECTIVE-DEGREE-COMPOSITION-REGRESSION-2026-10-24",
+    "R106-ADJECTIVE-EXCEPTION-SOURCE-GAP-2026-10-24",
+    "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24",
+    "R106-ADJECTIVE-POSITIVE-ROW-ADAPTER-REGRESSION-2026-10-24",
+    "R106-ADJECTIVE-AUTHORIZED-SHADOW-EXECUTION-GAP-2026-10-24"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -287,6 +291,9 @@
     "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": [],
     "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": [],
     "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER": [],
+    "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP": [],
+    "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": [],
+    "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": [],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [],
     "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
@@ -685,6 +692,21 @@
       "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER",
       "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION"
     ],
+    "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP": [
+      "grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json",
+      "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER"
+    ],
+    "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": [
+      "grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json",
+      "grammar-evidence/tools/verify-adjective-degree-shadow-handler-v1.ts",
+      "supabase/functions/adjective-degree-rule-shadow-v1/index.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
+      "supabase/config.toml",
+      "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"
+    ],
+    "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": [
+      "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"
+    ],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [
       "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
       "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"
@@ -826,7 +848,10 @@
     "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": "Resolve adjective article identity for enkel, build a general source ingestion path and exception feature; validate before connecting to runtime.",
     "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": "Bind adjective article identity and bring pronunciation and exception evidence into the normal source pipeline.",
     "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": "Prove exception/class evidence and bind source stress to the normal runtime input before a scoped activation test.",
-    "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER": "Select a service-role-only shadow entrypoint, load current positive rows read-only, and add explicit exception/class decisions before any activation.",
+    "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER": "Verify one authorized service-only shadow call and add explicit exception/class decisions before any activation.",
+    "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP": "Define and populate a source-backed per-lexeme exception/class contract before any rule admission.",
+    "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT": "Perform one controlled service-role invocation for each scoped lexeme and register raw response, bundle hash and zero-write proof.",
+    "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION": "Invoke the service-only endpoint from a controlled backend with scoped lexeme IDs; store sanitized raw responses and compare with R104 while retaining candidate status.",
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms.",
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules.",
     "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
@@ -851,7 +876,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/adjective-degree-display-row-adapter-v1.ts",
-      "sha256": "8fe4ca771c3e0ad146585766cbda09c13090c681deca80da25257a66d733989d",
+      "sha256": "83c59e92d02c1a16b0d5b63e13eaebd03773271f8636ea0b70b1a3e5520204f9",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -863,6 +888,17 @@
     {
       "path": "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
       "sha256": "69aa71a2757f3bad792750368ea92cefcef4b04eb87a44e26a78b98a9261b005",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
+      "sha256": "cad59acb236dca3bf50650fa23568983b1bec40b6118adbaa843fdcf9edad70e",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3738,7 +3774,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=45.26 max=24"
+        "DB snapshot expired: age_hours=47.28 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3758,7 +3794,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=45.21 max=24"
+        "DB snapshot expired: age_hours=47.23 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3963,7 +3999,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.38 max=24"
+        "DB snapshot expired: age_hours=45.40 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3984,7 +4020,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.38 max=24"
+        "DB snapshot expired: age_hours=45.40 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4085,7 +4121,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.11 max=24"
+        "DB snapshot expired: age_hours=46.14 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4790,7 +4826,7 @@
       "proof_kind": "RUNTIME_REQUIREMENT",
       "proved_at_head": null,
       "claim": "Production supplies independently verified ending-stress and lexical-exception evidence sufficient to decide whether the -el/-en/-er default may apply to a specific adjective without reading its comparative target.",
-      "result": "A curated NAOB pronunciation producer supplies independent stress for åpen and sikker. R105 can bind it to saved positive-form rows from Production in isolation. General ingestion, lexical exceptions and deployed runtime wiring remain unproved.",
+      "result": "Curated NAOB pronunciation supplies independent stress for åpen and sikker, and R105 binds it to saved Production positive rows. R106 deploys a closed service-only shadow entrypoint, but authorized Production execution, general ingestion and lexical exception clearance remain unproved.",
       "evidence_runs": [
         "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"
       ],
@@ -4852,11 +4888,12 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_COMPOSITION",
-      "proved_at_head": "e43ef80",
+      "proved_at_head": "806261f",
       "claim": "An isolated adapter can take one current Production positive common-form display row, bind lexeme/article/snapshot identity to curated independent stress evidence and invoke the two-rule graph-first comparative derivation without reading a comparative row.",
       "result": "16 adapter checks, 13 stress regression checks and 22 composition regression checks PASS; Deno typecheck PASS. Saved Production positive rows for åpen and sikker derive candidate outputs. Comparative rows, wrong article, multiple positive values and missing source evidence are rejected.",
       "evidence_runs": [
-        "R105-ADJECTIVE-POSITIVE-DISPLAY-ROW-ADAPTER-2026-10-24"
+        "R105-ADJECTIVE-POSITIVE-DISPLAY-ROW-ADAPTER-2026-10-24",
+        "R106-ADJECTIVE-POSITIVE-ROW-ADAPTER-REGRESSION-2026-10-24"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R105-adjective-display-row-adapter-proof.json",
@@ -4868,7 +4905,67 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Input rows are a read-only Production snapshot used offline. The adapter is not called by deployed SQL/Edge runtime; candidates retain exceptionCheckRequired."
+      "notes": "Input rows are a read-only Production snapshot used offline. R106 deployed a service-only Edge caller for this adapter, but authorized Production execution is still unverified; candidates retain exceptionCheckRequired."
+    },
+    {
+      "proof_id": "R106_ADJECTIVE_EXCEPTION_SOURCE_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "806261f",
+      "claim": "The checked Production sources do not currently provide a per-lexeme exception clearance for the narrow comparative -el/-en/-er rule.",
+      "result": "Read-only Production check: lexeme_form_variants has 0 rows; all 139 adjective comparative display rows have regularity_marker unknown. A source-verified irregular-degree candidate exists but has 0 manifest source links. This does not prove which specific lexemes are exceptions.",
+      "evidence_runs": [
+        "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json",
+        "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Absence of an exception row cannot be treated as proof that åpen or sikker is regular."
+    },
+    {
+      "proof_id": "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "806261f",
+      "claim": "A separate adjective-degree-rule-shadow-v1 Edge Function is active with gateway JWT verification, source parity and an observed 401 for an unauthenticated POST; its code permits only service-role calls and returns candidates without writes or activation authority.",
+      "result": "Function v1 ACTIVE, verify_jwt=true, bundle hash da7079f2e18f20d849f3e3c056c89ba5e3413a1080cee8482f403974069aee66; 7/7 deployed files match local. Unauthenticated POST returned 401. Local handler passed 18 checks, positive-row adapter 16 checks and typechecks passed.",
+      "evidence_runs": [
+        "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R106-adjective-closed-shadow-and-exception-source.json",
+        "grammar-evidence/tools/verify-adjective-degree-shadow-handler-v1.ts",
+        "supabase/functions/adjective-degree-rule-shadow-v1/index.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts",
+        "supabase/config.toml",
+        "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Gateway 401 and source parity do not prove an authorized Production request. No automatic caller from analyze-text or canonical graph was added."
+    },
+    {
+      "proof_id": "R106_ADJECTIVE_AUTHORIZED_SHADOW_EXECUTION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "RUNTIME_REQUIREMENT",
+      "proved_at_head": null,
+      "claim": "An authorized Production call to the closed adjective shadow reads the current positive row and returns a candidate with exceptionCheckRequired=true, no activation authority and no graph mutation.",
+      "result": "No service-role credential is available in this task environment. Only unauthenticated rejection was observed; authorized output remains untested.",
+      "evidence_runs": [
+        "R106-ADJECTIVE-CLOSED-SHADOW-AND-EXCEPTION-SOURCE-2026-10-24"
+      ],
+      "dependencies": [
+        "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Do not infer successful production execution from deployment or local mocks."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",
