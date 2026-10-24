@@ -23,6 +23,11 @@ verify_jwt = true
 import_map = "./functions/analyze-text/deno.json"
 entrypoint = "./functions/analyze-text/index.ts"
 
+[functions.adjective-degree-rule-shadow-v1]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/adjective-degree-rule-shadow-v1/index.ts"
+
 [functions.get-job-status]
 enabled = true
 verify_jwt = true

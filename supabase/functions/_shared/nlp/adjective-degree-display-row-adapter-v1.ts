@@ -25,7 +25,8 @@ export type DisplayRowDerivationV1 = {
 // Adapts one positive row from lexeme_form_display_v2. Comparative rows are
 // rejected before the rule operator is called.
 export function deriveComparativeFromPositiveDisplayRowV1(row: PositiveDisplayRowV1): DisplayRowDerivationV1 {
-  if (row.dictionary_code !== "bm" || row.pos !== "adjective" ||
+  if (!row || !Array.isArray(row.primary_values) || !Array.isArray(row.article_ids) ||
+      !Array.isArray(row.evidence_ids) || row.dictionary_code !== "bm" || row.pos !== "adjective" ||
       row.form_key !== "positive_singular_indefinite_common" || !row.lexeme_id ||
       !row.snapshot_id || !Number.isInteger(row.article_id) ||
       row.primary_values.length !== 1 || row.primary_values[0] !== row.lemma ||

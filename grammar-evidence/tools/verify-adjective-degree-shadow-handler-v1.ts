@@ -1,0 +1,47 @@
+import { handleAdjectiveDegreeShadowV1 } from "../../supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts";
+
+let checks = 0;
+function check(value: boolean, label: string) { checks++; if (!value) throw new Error(label); }
+const fixture = JSON.parse(await Deno.readTextFile("grammar-evidence/artifacts/R105-adjective-positive-display-rows.json"));
+const key = "test-service-role-key";
+const url = "https://example.invalid/adjective-degree-rule-shadow-v1";
+const request = (lexemeId: string, authorization?: string, method = "POST") =>
+  new Request(url, { method, headers: { ...(authorization ? { authorization } : {}), "content-type": "application/json" },
+    ...(method === "POST" ? { body: JSON.stringify({ lexemeId }) } : {}) });
+let reads = 0;
+const reader = async (lexemeId: string) => {
+  reads++;
+  return fixture.rows.filter((row: { lexeme_id: string }) => row.lexeme_id === lexemeId);
+};
+const noAuth = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id), key, reader);
+check(noAuth.status === 401 && reads === 0, "no authorization blocks before DB read");
+const wrongAuth = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, "Bearer wrong"), key, reader);
+check(wrongAuth.status === 401 && reads === 0, "wrong authorization blocks before DB read");
+const outOfScope = await handleAdjectiveDegreeShadowV1(request("00000000-0000-0000-0000-000000000000", `Bearer ${key}`), key, reader);
+check(outOfScope.status === 400 && reads === 0, "out-of-scope lexeme blocks before DB read");
+const wrongMethod = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`, "GET"), key, reader);
+check(wrongMethod.status === 405 && reads === 0, "only POST accepted");
+for (const row of fixture.rows) {
+  const response = await handleAdjectiveDegreeShadowV1(request(row.lexeme_id, `Bearer ${key}`), key, reader);
+  const result = await response.json();
+  check(response.status === 200 && result.status === "candidate", `${row.lemma}: candidate only`);
+  check(result.mode === "shadow" && result.activationAuthority === false && result.graphMutation === false,
+    `${row.lemma}: no activation or graph mutation`);
+  check(result.exceptionCheckRequired === true, `${row.lemma}: exceptions unresolved`);
+  check(result.sourceSnapshotId === row.snapshot_id && result.sourceArticleId === String(row.article_id),
+    `${row.lemma}: source identity preserved`);
+  check(result.candidate === (row.lemma === "åpen" ? "åpnere" : "sikrere"),
+    `${row.lemma}: graph-first candidate`);
+}
+const missing = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key, async () => []);
+check((await missing.json()).status === "not_observed", "missing source abstains");
+const duplicate = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key,
+  async () => [fixture.rows[0], fixture.rows[0]]);
+check((await duplicate.json()).status === "not_observed", "ambiguous source abstains");
+const broken = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key,
+  async () => { throw new Error("database down"); });
+check(broken.status === 503, "DB read failure is closed");
+const malformed = await handleAdjectiveDegreeShadowV1(request(fixture.rows[0].lexeme_id, `Bearer ${key}`), key,
+  async () => [null as never]);
+check((await malformed.json()).status === "not_applicable", "malformed source row cannot derive");
+console.log(JSON.stringify({ status: "PASS", checks, dbReadsBeforeAuthorization: 0 }));
