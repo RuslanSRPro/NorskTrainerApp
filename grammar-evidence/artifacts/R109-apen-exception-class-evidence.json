@@ -1,0 +1,37 @@
+{
+  "schema_version": "grammar-evidence-lexeme-exception-source-v1",
+  "observed_on": "2026-10-24",
+  "decision_id": "r109-apen-suffix-rule-article-1033",
+  "decision": "regular_confirmed",
+  "meaning": "The suffix rule is licensed for this lexeme; other comparison strategies are not excluded.",
+  "lexeme_id": "81a6cba3-26d1-4bf1-9cb3-41997911dd50",
+  "lemma": "åpen",
+  "pos": "adjective",
+  "dictionary_code": "bm",
+  "article_id": 1033,
+  "snapshot_id": "965f0a1a-9f22-446a-b36c-f573c9a002d8",
+  "rule_source_candidate_id": "8cd6ed7e-c27d-4283-bcf1-58af141f387c",
+  "source_revision": "NDLA 2026-04-23; Production positive-row snapshot 965f0a1a-9f22-446a-b36c-f573c9a002d8",
+  "source_evidence_ids": [
+    "ndla:adjective-degree:section-3:apen-class-member:2026-04-23",
+    "ordbokene:bm:article:1033:lemma-pos-identity",
+    "production:positive-row:965f0a1a-9f22-446a-b36c-f573c9a002d8:1033"
+  ],
+  "source_checks": {
+    "grammar_class": {
+      "url": "https://ndla.no/r/norsk-kort-botid-yf/alt-om-adjektiv/53216d4015/20544",
+      "section": "3. Adjektiv som slutter på -er, -el og -en",
+      "finding": "NDLA explicitly places åpen among the adjectives using the contracted -en suffix comparison pattern.",
+      "source_updated": "2026-04-23"
+    },
+    "article_identity": {
+      "url": "https://ordbokene.no/bm/1033",
+      "finding": "Official Bokmålsordboka article 1033 has headword åpen and POS adjective. Its degree table was not passed to the class evaluator."
+    },
+    "production_identity": {
+      "finding": "Read-only positive-form row matches lexeme ID, lemma, POS, dictionary, article 1033 and snapshot ID; one distinct Bokmål åpen article was found in the checked display view."
+    }
+  },
+  "classifier_input_excludes": ["comparative form", "superlative form", "stored target", "candidate-to-target comparison"],
+  "limits": ["Only the suffix rule for this exact lexeme/article/snapshot is covered", "No Production exception producer or activation was changed", "Analytic mer + adjective remains a separate possible strategy"]
+}
