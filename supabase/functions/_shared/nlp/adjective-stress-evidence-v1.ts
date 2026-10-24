@@ -10,9 +10,9 @@ export type AdjectiveStressInputV1 = {
 
 const attestations = [
   { lexemeId: "81a6cba3-26d1-4bf1-9cb3-41997911dd50", lemma: "åpen", pos: "adjective",
-    sourceUrl: "https://naob.no/ordbok/%C3%A5pen", pronunciation: "[å:`p(ə)n]" },
+    ordbokeneArticleId: "1033", sourceUrl: "https://naob.no/ordbok/%C3%A5pen", pronunciation: "[å:`p(ə)n]" },
   { lexemeId: "41a02dd7-544a-43cf-b186-61275a4d39d9", lemma: "sikker", pos: "adjective",
-    sourceUrl: "https://naob.no/ordbok/sikker", pronunciation: "[si´k:ər]" },
+    ordbokeneArticleId: "51413", sourceUrl: "https://naob.no/ordbok/sikker", pronunciation: "[si´k:ər]" },
 ] as const;
 
 export function produceAdjectiveEndingStressV1(input: AdjectiveStressInputV1):
@@ -29,4 +29,13 @@ export function produceAdjectiveEndingStressV1(input: AdjectiveStressInputV1):
   const unstressedTail = notation.slice((accents[0].index ?? 0) + 1);
   if (!/ə/u.test(unstressedTail)) return undefined;
   return { value: "unstressed", evidenceId: `naob:pronunciation:${input.lexemeId}:${input.sourceUrl}` };
+}
+
+export function attestedAdjectiveEndingStressV1(identity: {
+  lexemeId: string; lemma: string; pos: string; ordbokeneArticleId: string;
+}): { value: "unstressed"; evidenceId: string } | undefined {
+  const entry = attestations.find((candidate) => candidate.lexemeId === identity.lexemeId &&
+    candidate.lemma === identity.lemma && candidate.pos === identity.pos &&
+    candidate.ordbokeneArticleId === identity.ordbokeneArticleId);
+  return entry ? produceAdjectiveEndingStressV1(entry) : undefined;
 }
