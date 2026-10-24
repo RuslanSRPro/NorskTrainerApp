@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "198493288a552ae5139622ec4bf01f64e0e92a85",
+  "head": "e43ef804d51c98877f1a2802fc23891cfc8bcead",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "198493288a552ae5139622ec4bf01f64e0e92a85",
-  "source_head": "198493288a552ae5139622ec4bf01f64e0e92a85",
-  "source_revision": "1984932",
+  "archive_head": "e43ef804d51c98877f1a2802fc23891cfc8bcead",
+  "source_head": "e43ef804d51c98877f1a2802fc23891cfc8bcead",
+  "source_revision": "e43ef80",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 198,
-  "history_event_count": 152,
-  "strict_history_event_count": 105,
+  "file_count": 199,
+  "history_event_count": 155,
+  "strict_history_event_count": 108,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -161,7 +161,10 @@
     "R103-ADJECTIVE-STRESS-EXCEPTION-EVIDENCE-GAP-2026-10-24",
     "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24",
     "R104-ADJECTIVE-DEGREE-TWO-RULE-COMPOSITION-2026-10-24",
-    "R104-EL-EN-ER-ELIGIBILITY-BOUNDARY-RECHECK-2026-10-24"
+    "R104-EL-EN-ER-ELIGIBILITY-BOUNDARY-RECHECK-2026-10-24",
+    "R105-ADJECTIVE-POSITIVE-DISPLAY-ROW-ADAPTER-2026-10-24",
+    "R105-NAOB-STRESS-ATTESTATION-REGRESSION-2026-10-24",
+    "R105-ADJECTIVE-DEGREE-COMPOSITION-REGRESSION-2026-10-24"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -283,6 +286,7 @@
     "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": [],
     "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": [],
     "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": [],
+    "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER": [],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [],
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": [],
     "R097_PRONOUN_RUNTIME_ROLE_GAP": [],
@@ -673,6 +677,14 @@
       "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
       "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER"
     ],
+    "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER": [
+      "grammar-evidence/artifacts/R105-adjective-display-row-adapter-proof.json",
+      "grammar-evidence/artifacts/R105-adjective-positive-display-rows.json",
+      "grammar-evidence/tools/verify-adjective-display-row-adapter-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-display-row-adapter-v1.ts",
+      "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER",
+      "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION"
+    ],
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": [
       "grammar-evidence/artifacts/R101-adjective-degree-rule-eligibility-gap.json",
       "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON"
@@ -814,6 +826,7 @@
     "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER": "Resolve adjective article identity for enkel, build a general source ingestion path and exception feature; validate before connecting to runtime.",
     "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER": "Bind adjective article identity and bring pronunciation and exception evidence into the normal source pipeline.",
     "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION": "Prove exception/class evidence and bind source stress to the normal runtime input before a scoped activation test.",
+    "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER": "Select a service-role-only shadow entrypoint, load current positive rows read-only, and add explicit exception/class decisions before any activation.",
     "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP": "Produce independent lexeme/class and stress evidence for one narrow adjective family; compile source conditions into an eligibility evaluator that can abstain before deriving and comparing source forms.",
     "R100_ADJECTIVE_RULE_FIRST_SOURCE_FORM_COMPARISON": "Implement independent rule eligibility and exception/composition selection, then add an incoming-form check that records derivation and comparison separately without allowing observed target forms to select rules.",
     "R097_PRONOUN_RUNTIME_ROLE_GAP": "Define independent role evidence, exception context and coordinated constituent semantics; then test subject/object candidate and abstention corpus before promoting the operator.",
@@ -837,6 +850,17 @@
       }
     },
     {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-display-row-adapter-v1.ts",
+      "sha256": "8fe4ca771c3e0ad146585766cbda09c13090c681deca80da25257a66d733989d",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
       "path": "supabase/functions/_shared/nlp/adjective-degree-eligibility-v1.ts",
       "sha256": "69aa71a2757f3bad792750368ea92cefcef4b04eb87a44e26a78b98a9261b005",
       "symbols": {
@@ -849,7 +873,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/adjective-stress-evidence-v1.ts",
-      "sha256": "9f259ea43b9b351baf3d0b8563e873de679e3ac11705492a2f2066a83ae6eebe",
+      "sha256": "470a7c1ba929d5fd325d9e28bfdc8c187076f07cf715c2d4495bec735004df48",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3714,7 +3738,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=45.15 max=24"
+        "DB snapshot expired: age_hours=45.26 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3734,7 +3758,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=45.10 max=24"
+        "DB snapshot expired: age_hours=45.21 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -3939,7 +3963,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.27 max=24"
+        "DB snapshot expired: age_hours=43.38 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -3960,7 +3984,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=43.27 max=24"
+        "DB snapshot expired: age_hours=43.38 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4061,7 +4085,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=44.00 max=24"
+        "DB snapshot expired: age_hours=44.11 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -4766,7 +4790,7 @@
       "proof_kind": "RUNTIME_REQUIREMENT",
       "proved_at_head": null,
       "claim": "Production supplies independently verified ending-stress and lexical-exception evidence sufficient to decide whether the -el/-en/-er default may apply to a specific adjective without reading its comparative target.",
-      "result": "A curated offline NAOB pronunciation producer now supplies independent ending-stress evidence for åpen and sikker. Current Production source fixtures still lack this feature; general ingestion, lexical exceptions and runtime wiring remain unproved.",
+      "result": "A curated NAOB pronunciation producer supplies independent stress for åpen and sikker. R105 can bind it to saved positive-form rows from Production in isolation. General ingestion, lexical exceptions and deployed runtime wiring remain unproved.",
       "evidence_runs": [
         "R102-ADJECTIVE-EL-EN-ER-ELIGIBILITY-PRODUCER-2026-10-24"
       ],
@@ -4782,11 +4806,12 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_TEST",
-      "proved_at_head": "bbfbbb6",
+      "proved_at_head": "e43ef80",
       "claim": "An isolated exact-attestation producer supplies independent unstressed-ending evidence for the adjective lexemes åpen and sikker from NAOB pronunciation, without reading comparative target forms.",
-      "result": "13 executable checks and Deno typecheck PASS. åpen becomes a comparative candidate; sikker needs a separate consonant post-transform. Wrong identity, POS and pronunciation are rejected. enkel stays excluded because adjective article identity is unresolved.",
+      "result": "13 executable checks re-PASS after adding exact Ordbøkene article binding; Deno adapter typecheck PASS. åpen and sikker retain source-backed stress. Wrong identity, POS and pronunciation are rejected. enkel stays excluded because adjective article identity is unresolved.",
       "evidence_runs": [
-        "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24"
+        "R103-NAOB-ADJECTIVE-STRESS-CURATED-PRODUCER-2026-10-24",
+        "R105-NAOB-STRESS-ATTESTATION-REGRESSION-2026-10-24"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R103-naob-adjective-stress-proof.json",
@@ -4804,11 +4829,12 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "EXECUTABLE_COMPOSITION",
-      "proved_at_head": "1984932",
+      "proved_at_head": "e43ef80",
       "claim": "On bounded adjective fixtures with independently attested stress, the graph-first comparator composes NRG e-deletion and post-deletion consonant simplification in order, deriving sikker → sikkrere → sikrere without using the stored comparative target as input.",
       "result": "22 composition checks PASS, 24 predecessor eligibility checks PASS and Deno typecheck PASS. åpen derives with one rule; sikker with two. Missing stress fails closed, changing the stored target does not change output, and an unrelated double consonant does not trigger adjustment. The stored target is read only for post-derivation comparison.",
       "evidence_runs": [
-        "R104-ADJECTIVE-DEGREE-TWO-RULE-COMPOSITION-2026-10-24"
+        "R104-ADJECTIVE-DEGREE-TWO-RULE-COMPOSITION-2026-10-24",
+        "R105-ADJECTIVE-DEGREE-COMPOSITION-REGRESSION-2026-10-24"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R104-adjective-degree-two-rule-composition-proof.json",
@@ -4820,6 +4846,29 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "This is an isolated derived candidate, not exception clearance, an approved manifest, a Production execution or an activated rule."
+    },
+    {
+      "proof_id": "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "proved_at_head": "e43ef80",
+      "claim": "An isolated adapter can take one current Production positive common-form display row, bind lexeme/article/snapshot identity to curated independent stress evidence and invoke the two-rule graph-first comparative derivation without reading a comparative row.",
+      "result": "16 adapter checks, 13 stress regression checks and 22 composition regression checks PASS; Deno typecheck PASS. Saved Production positive rows for åpen and sikker derive candidate outputs. Comparative rows, wrong article, multiple positive values and missing source evidence are rejected.",
+      "evidence_runs": [
+        "R105-ADJECTIVE-POSITIVE-DISPLAY-ROW-ADAPTER-2026-10-24"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R105-adjective-display-row-adapter-proof.json",
+        "grammar-evidence/artifacts/R105-adjective-positive-display-rows.json",
+        "grammar-evidence/tools/verify-adjective-display-row-adapter-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-display-row-adapter-v1.ts",
+        "R103A_CURATED_NAOB_ADJECTIVE_STRESS_PRODUCER",
+        "R104_ADJECTIVE_DEGREE_TWO_RULE_COMPOSITION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Input rows are a read-only Production snapshot used offline. The adapter is not called by deployed SQL/Edge runtime; candidates retain exceptionCheckRequired."
     },
     {
       "proof_id": "R101_ADJECTIVE_DEGREE_RULE_ELIGIBILITY_GAP",

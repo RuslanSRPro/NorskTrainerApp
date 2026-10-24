@@ -1,0 +1,17 @@
+{
+  "schema_version": "grammar-evidence-producer-proof-v1",
+  "run": "R105-ADJECTIVE-POSITIVE-DISPLAY-ROW-ADAPTER-2026-10-24",
+  "source_code_commit": "e43ef80",
+  "source": "read-only Production lexeme_form_display_v2 positive_singular_indefinite_common snapshot",
+  "commands": [
+    "deno run --allow-read grammar-evidence/tools/verify-adjective-display-row-adapter-v1.ts",
+    "deno check grammar-evidence/tools/verify-adjective-display-row-adapter-v1.ts",
+    "deno run --allow-read grammar-evidence/tools/verify-adjective-stress-evidence-v1.ts",
+    "deno run --allow-read grammar-evidence/tools/verify-adjective-degree-composition-v1.ts"
+  ],
+  "result": {"adapter_checks":16,"stress_regression_checks":13,"composition_regression_checks":22,"typecheck":"PASS"},
+  "derived_candidates": ["åpen→åpnere", "sikker→sikkrere→sikrere"],
+  "boundary": "Only a single source-backed positive common-form row is accepted. Comparative rows are rejected before the rule operator. Lexeme, article, snapshot and stress attestation must bind. Exceptions remain open.",
+  "not_proved": ["normal Edge or SQL runtime call", "general NAOB ingestion", "exception clearance", "POS context resolution", "rule activation"],
+  "production_mutation": false
+}
