@@ -10,6 +10,34 @@
   ],
   "proofs": [
     {
+      "proof_id": "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER",
+      "status": "PROVEN",
+      "proof_kind": "EXECUTABLE_COMPOSITION",
+      "claim": "A family-neutral sentence evidence producer can select applicable evaluator families from input triggers, preserve canonical token and competing candidate identities, and send only supporting findings to the existing canonical constraint propagation engine.",
+      "proved_at_head": "3057bf1632b593d3fb7ad69171383d91b33c0b0e",
+      "evidence_runs": ["R115-REUSABLE-SENTENCE-EVIDENCE-PRODUCER-2026-10-25"],
+      "result": "19 executable checks and typecheck PASS. The adjective family supports En åpen bok while retaining both bok readings; dør noun/verb, target POS alternatives, isolated and copular contexts abstain. Trigger filtering skips unrelated families. Canonical propagation adds one supporting evaluation and resolves zero alternatives.",
+      "dependencies": ["grammar-evidence/artifacts/R115-reusable-sentence-evidence-producer.json", "grammar-evidence/tools/verify-adjective-sentence-context-producer-v1.ts", "supabase/functions/_shared/nlp/canonical-sentence-evidence-producer-v1.ts", "supabase/functions/_shared/nlp/adjective-sentence-evidence-family-v1.ts", "supabase/functions/_shared/nlp/adjective-sentence-context-producer-v1.ts", "supabase/functions/_shared/nlp/canonical-constraint-propagation-v1.ts", "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP"],
+      "blocked_by": [],
+      "invalidation": "Refresh after family trigger, candidate identity, noun article evidence, evaluator mapping or constraint propagation policy changes.",
+      "notes": "This is a reusable support-only local producer, not a new propagation engine. Source observations came from Production but producer execution is local; adjective POS and activation remain unproved.",
+      "next_action": "Bind the family-neutral producer to a trusted canonical shadow input with exact source rule provenance; add another family and benchmark trigger filtering before any sentence grant."
+    },
+    {
+      "proof_id": "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING",
+      "status": "UNVERIFIED",
+      "proof_kind": "USER_REQUIREMENT",
+      "claim": "The deployed canonical shadow runs source-backed sentence evidence families through the generic constraint evaluator and records candidate-specific results without activating or resolving unsupported rules.",
+      "proved_at_head": null,
+      "evidence_runs": ["R115-REUSABLE-SENTENCE-EVIDENCE-PRODUCER-2026-10-25"],
+      "result": "The current canonical-graph-shadow-v1 still calls buildCanonicalConstraintPropagationPatchV1 with an empty evaluator. R115 supplies a tested reusable evaluator but does not wire or deploy it.",
+      "dependencies": ["grammar-evidence/artifacts/R115-reusable-sentence-evidence-producer.json", "supabase/functions/canonical-graph-shadow-v1/index.ts", "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER"],
+      "blocked_by": [],
+      "invalidation": "Recheck after canonical shadow wiring, source-rule attestation, deployed Edge version or runtime capability set changes.",
+      "notes": "Do not interpret support-only adjective context as independent POS, admission, or activation authority.",
+      "next_action": "Add a trusted SQL-token-to-canonical-ID adapter in the shadow endpoint, register source-backed family definitions, run positive/negative corpus and measure per-sentence latency."
+    },
+    {
       "proof_id": "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",

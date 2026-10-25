@@ -1,0 +1,44 @@
+{
+  "schema_version": "grammar-evidence-sentence-producer-proof-v1",
+  "run": "R115-REUSABLE-SENTENCE-EVIDENCE-PRODUCER-2026-10-25",
+  "observed_at_utc": "2026-10-25T09:20:54Z",
+  "source_commits": ["a561842cd138de0a4b36e75af373fd46c7c4a6c2", "3057bf1632b593d3fb7ad69171383d91b33c0b0e"],
+  "production_source": {
+    "project_id": "kevpkawrbtovrgyjkkvu",
+    "rpc": "run_canonical_legacy_compatibility_v140",
+    "release": "runtime-structural-v1.37",
+    "observed_inputs": ["En åpen bok", "En åpen dør", "Han er åpen"],
+    "article_class": "indefinite_article, membership_source=nrg_1997_3.4.2.1",
+    "apen_lexeme_id": "81a6cba3-26d1-4bf1-9cb3-41997911dd50",
+    "bok_lexeme_ids": ["ec9da2b9-22d4-4292-81e3-05b26f4aa852", "ff26110c-7180-4ef4-92e9-372355e40a90"],
+    "door_competing_pos": ["verb", "noun"]
+  },
+  "implementation": {
+    "family_neutral_registry": "supabase/functions/_shared/nlp/canonical-sentence-evidence-producer-v1.ts",
+    "first_family": "supabase/functions/_shared/nlp/adjective-sentence-evidence-family-v1.ts",
+    "frame_evaluator": "supabase/functions/_shared/nlp/adjective-sentence-context-producer-v1.ts",
+    "constraint_engine_reused": "canonical-constraint-propagation-v1",
+    "preselection": "candidate POS, lexical class and relation triggers select relevant families before evaluation",
+    "output_policy": "supporting evidence only; no POS resolution, candidate deletion, graph action or rule activation"
+  },
+  "checks": {
+    "local_executable": 19,
+    "typecheck": "PASS",
+    "positive_frame": "En åpen bok: context_supported; both bok lexeme IDs preserved",
+    "negative_controls": [
+      "En åpen dør: ambiguous because noun and verb head readings coexist",
+      "target candidate with noun alternative: ambiguous",
+      "isolated åpen: insufficient_context",
+      "Han er åpen: copular role remains POS ambiguous",
+      "missing article class or noun article evidence: no positive support",
+      "duplicate canonical ID: withheld",
+      "unrelated rule family skipped by trigger"
+    ],
+    "canonical_composition": "one supporting constraint evaluation targets the exact lexical reading; propagation resolves zero alternatives"
+  },
+  "remaining": [
+    "The new evaluator is not yet wired into the deployed canonical shadow; that endpoint still passes an empty evaluator to constraint propagation.",
+    "The article-adjective-noun frame is context support, not independent adjective POS authority. A source-backed grammar rule and alternative-sensitive agreement proof remain necessary for admission.",
+    "No production deployment, sentence-level grant, rule activation or app integration occurred in R115."
+  ]
+}
