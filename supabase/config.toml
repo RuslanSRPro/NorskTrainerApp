@@ -29,6 +29,12 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/adjective-degree-rule-shadow-v1/index.ts"
 
+[functions.adjective-degree-sql-shadow-v1]
+enabled = true
+# The handler checks the trusted secret key before invoking service-role SQL.
+verify_jwt = false
+entrypoint = "./functions/adjective-degree-sql-shadow-v1/index.ts"
+
 [functions.get-job-status]
 enabled = true
 verify_jwt = true
