@@ -109,6 +109,9 @@ $result = [ordered]@{
   )
   conclusion = 'Two trusted Production shadow responses can be joined for this exact token and lexeme without dropping either bok reading. This is a read-only observation, not an integrated graph executor or a verified analyze-text card.'
 }
-$json = $result | ConvertTo-Json -Depth 8
-if ($OutputPath) { Set-Content -LiteralPath $OutputPath -Value $json -Encoding utf8 }
+$json = ($result | ConvertTo-Json -Depth 8).Replace("`r`n", "`n")
+if ($OutputPath) {
+  $resolvedOutput = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $OutputPath))
+  [System.IO.File]::WriteAllText($resolvedOutput, "$json`n", [System.Text.UTF8Encoding]::new($false))
+}
 Write-Output $json
