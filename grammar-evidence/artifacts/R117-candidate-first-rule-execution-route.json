@@ -1,0 +1,21 @@
+{
+  "schema_version": "grammar-evidence-architecture-disposition-v1",
+  "run": "R117-CANDIDATE-FIRST-RULE-EXECUTION-ROUTE-2026-10-25",
+  "observed_at_utc": "2026-10-25T09:40:35Z",
+  "scope": "Read-only source audit of the current adjective sentence producer and rule-first comparative pilot; no Production calls or writes.",
+  "source_evidence": [
+    {"path":"supabase/functions/_shared/nlp/adjective-sentence-context-producer-v1.ts","observation":"The producer preserves canonical token ID, source candidate ID, lexeme ID and competing IDs; it withholds or marks ambiguous rather than choosing POS."},
+    {"path":"supabase/functions/_shared/nlp/canonical-sentence-evidence-producer-v1.ts","observation":"The generic evaluator adds only supporting graph evidence to a lexical reading, with no resolve/reject transition."},
+    {"path":"supabase/functions/_shared/nlp/adjective-degree-rule-first-shadow-manifest-v1.ts","observation":"The current rule-first pilot admits only one exact lexeme/article/snapshot; this is a lexeme-scoped shadow contract, not sentence POS authority."},
+    {"path":"supabase/functions/_shared/nlp/adjective-degree-shadow-handler-v1.ts","observation":"The trusted handler takes lexemeId and derives a comparative candidate while returning activationAuthority=false and graphMutation=false; it does not take a canonical sentence token."},
+    {"path":"grammar-evidence/artifacts/R116-production-sentence-evidence-binding.json","observation":"Production sentence shadow attaches supporting context to åpen and preserves candidate status; ambiguous controls abstain."}
+  ],
+  "disposition": "Independent POS resolution is not a prerequisite for evaluating a rule as a candidate-scoped shadow hypothesis. It remains required, together with rule applicability and competing-reading checks, before selecting a reading or admitting a learner-facing result.",
+  "missing_contract": [
+    "A versioned bridge must bind canonical token ID + source candidate ID + lexeme ID + source POS + source snapshot before invoking the private rule-first operator.",
+    "The bridge must preserve every competing token reading, run only admitted rule/lexeme combinations, and attach the derived form to the same candidate without promoting POS or activating a rule.",
+    "The current SQL/Edge comparative pilot accepts lexeme ID only and has no sentence-token binding; the existing sentence producer does not invoke it.",
+    "The sentence-admission gate remains UNVERIFIED until an independent applicability proof and positive/negative corpus establish when candidate results may become definitive."
+  ],
+  "next_executable_gate": "On En åpen bok, bind the exact åpen candidate to its canonical token, invoke the existing private rule-first pilot in shadow, attach its result as candidate-only evidence, and prove that both bok readings remain. On Han er åpen, En åpen dør and wrong candidate/snapshot controls, withhold or retain ambiguity."
+}
