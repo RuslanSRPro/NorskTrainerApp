@@ -3,6 +3,7 @@ import type { SentenceEvidenceFamilyV1 } from "./canonical-sentence-evidence-pro
 
 export const adjectiveSentenceEvidenceFamilyV1: SentenceEvidenceFamilyV1 = {
   code: "shadow.sentence.adjective.article_noun_context.v1",
+  trigger: { candidatePos: ["adjective"] },
   produce(tokens, relations) {
     return produceAdjectiveSentenceContextV1([...tokens], [...relations]).map((item) => ({
       tokenId: item.canonicalTokenId,

@@ -25,12 +25,19 @@ export type SentenceEvidenceFindingV1 = {
 
 export type SentenceEvidenceFamilyV1 = {
   code: string;
+  trigger?: {
+    candidatePos?: readonly string[];
+    lexicalClasses?: readonly string[];
+    relations?: readonly string[];
+  };
   produce: (tokens: readonly SentenceSourceTokenV1[], relations: readonly SentenceRelationV1[]) =>
     readonly SentenceEvidenceFindingV1[];
 };
 
 export type SentenceEvidenceProductionV1 = {
   findings: Array<SentenceEvidenceFindingV1 & { familyCode: string }>;
+  familiesEvaluated: string[];
+  familiesSkipped: string[];
   evaluator: CanonicalConstraintEvaluatorV1;
 };
 
@@ -53,7 +60,20 @@ export function produceCanonicalSentenceEvidenceV1(
   const codes = families.map((family) => family.code);
   if (codes.some((code) => !code) || new Set(codes).size !== codes.length)
     throw new Error("sentence_evidence_family_codes_invalid");
-  const findings = [...families].sort((a, b) => a.code.localeCompare(b.code))
+  const presentPos = new Set(tokens.flatMap((token) =>
+    (token.surface_resolution?.candidates ?? []).map((candidate) => candidate.source_pos)));
+  const presentClasses = new Set(tokens.flatMap((token) =>
+    (token.lexical_classes ?? []).map((item) => item.class_code)));
+  const presentRelations = new Set(relations.map((relation) => relation.relation));
+  const orderedFamilies = [...families].sort((a, b) => a.code.localeCompare(b.code));
+  const applicable = orderedFamilies.filter((family) => {
+    const trigger = family.trigger;
+    return (!trigger?.candidatePos?.length || trigger.candidatePos.some((pos) => presentPos.has(pos))) &&
+      (!trigger?.lexicalClasses?.length || trigger.lexicalClasses.some((code) => presentClasses.has(code))) &&
+      (!trigger?.relations?.length || trigger.relations.some((code) => presentRelations.has(code)));
+  });
+  const selected = new Set(applicable.map((family) => family.code));
+  const findings = applicable
     .flatMap((family) => family.produce(tokens, relations).map((finding) =>
       ({ ...finding, familyCode: family.code })));
   const tokenIds = new Set(tokens.map((token) => token.canonical_token_id));
@@ -90,5 +110,7 @@ export function produceCanonicalSentenceEvidenceV1(
     }
     return evaluations;
   };
-  return { findings, evaluator };
+  return { findings, familiesEvaluated: applicable.map((family) => family.code),
+    familiesSkipped: orderedFamilies.filter((family) => !selected.has(family.code)).map((family) => family.code),
+    evaluator };
 }

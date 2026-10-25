@@ -92,8 +92,15 @@ const noPromotion = produceCanonicalSentenceEvidenceV1([article("door"), adjecti
 check(noPromotion.evaluator({ graph, iteration: 0,
   availableCapabilities: new Set(["canonical_candidate_lattice_v1"]) }).length === 0,
   "ambiguous family finding cannot propagate as proof");
-const secondFamily = { code: "shadow.sentence.other.v1", produce: () => [] };
-check(produceCanonicalSentenceEvidenceV1([article("book"), adjective("book"), bok], [],
-  [secondFamily, adjectiveSentenceEvidenceFamilyV1]).findings.length === 1,
-  "multiple families compose deterministically");
+const secondFamily = { code: "shadow.sentence.other.v1", trigger: { relations: ["other_relation"] },
+  produce: () => { throw Error("unrelated family should be skipped"); } };
+const composed = produceCanonicalSentenceEvidenceV1([article("book"), adjective("book"), bok], [],
+  [secondFamily, adjectiveSentenceEvidenceFamilyV1]);
+check(composed.findings.length === 1 && composed.familiesEvaluated.length === 1 &&
+  composed.familiesSkipped.includes(secondFamily.code), "unrelated family skipped by trigger");
+const nounOnly = produceCanonicalSentenceEvidenceV1([{ canonical_token_id: "noun:t1", token_index: 1,
+  surface: "bok", surface_resolution: { candidates: bok.surface_resolution!.candidates } }], [],
+  [adjectiveSentenceEvidenceFamilyV1]);
+check(nounOnly.findings.length === 0 && nounOnly.familiesSkipped.length === 1,
+  "adjective family skipped when no adjective candidate exists");
 console.log(`ADJECTIVE_SENTENCE_CONTEXT_PRODUCER=PASS checks=${checks}`);
