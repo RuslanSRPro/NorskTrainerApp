@@ -1,0 +1,37 @@
+{
+  "schema_version": "grammar-evidence-local-runtime-proof-v1",
+  "run": "R121-PRONOUN-CASE-EXCEPTION-GUARD-2026-10-25",
+  "observed_at_utc": "2026-10-25T10:14:32Z",
+  "source_commit": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+  "scope": "Local canonical candidate runtime; not deployed in this run and not an activation grant.",
+  "source_rule": {
+    "paradigm_candidate_id": "d99c8781-1212-45ed-a490-df7cfa105ede",
+    "case_selection_candidate_id": "f7c256e7-efe7-4687-aadc-26ee831a35bc",
+    "strength": "default_with_exceptions",
+    "manifest_status_in_last_production_snapshot": "draft"
+  },
+  "implementation": [
+    "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts",
+    "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts"
+  ],
+  "verification": {
+    "typecheck": "PASS",
+    "executable_checks": "23 PASS",
+    "controls": [
+      "Jeg ser meg: Nom/Acc candidates remain role-deferred",
+      "Han og meg gikk: coordination exception scope",
+      "Han eller meg ser: coordination exception scope",
+      "hun enn meg: comparison exception scope",
+      "uten meg: preposition exception scope",
+      "den: Nom and Acc alternatives retained",
+      "all graph evidence remains neutral"
+    ]
+  },
+  "remaining": [
+    "Production manifest validation and operator approval",
+    "Independent subject and object role evidence",
+    "Resolved coordinated constituent and full exception arbitration",
+    "Deployment of this guard and live Production regression",
+    "Adjective expansion beyond the exact åpen class"
+  ]
+}

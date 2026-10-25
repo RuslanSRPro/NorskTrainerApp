@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
+  "head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
-  "source_head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
-  "source_revision": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
+  "archive_head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+  "source_head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+  "source_revision": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 207,
-  "history_event_count": 182,
-  "strict_history_event_count": 135,
+  "file_count": 208,
+  "history_event_count": 183,
+  "strict_history_event_count": 136,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -191,7 +191,8 @@
     "R118-LIVE-ADJECTIVE-CANDIDATE-BINDING-2026-10-25",
     "R119-PRONOUN-FORM-ACTIVATION-READINESS-2026-10-25",
     "R120-SHARED-PRONOUN-FORM-CANDIDATE-RUNTIME-2026-10-25",
-    "R120-R119-SUPERSESSION-2026-10-25"
+    "R120-R119-SUPERSESSION-2026-10-25",
+    "R121-PRONOUN-CASE-EXCEPTION-GUARD-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -213,6 +214,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL": [],
     "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": [],
     "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT": [],
     "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING": [],
@@ -343,6 +345,13 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL": [
+      "grammar-evidence/artifacts/R121-pronoun-case-exception-guard.json",
+      "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
+      "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts",
+      "R088_CASE_SELECTION_EXCEPTION_BOUNDARY",
+      "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME"
+    ],
     "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": [
       "grammar-evidence/artifacts/R120-shared-pronoun-form-candidate-runtime.json",
       "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
@@ -899,6 +908,7 @@
     ]
   },
   "proof_next_actions": {
+    "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL": "Validate the manifest and approved operator against current Production source, prove independent subject/object and coordination evidence, deploy this guard with a live regression, then extend the next rule-first adjective class.",
     "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": "Extend source candidate identity into the canonical reading contract, prove exception-aware pronoun roles and more rule-first adjective classes, then define a scoped release/admission grant and shadow comparison with analyze-text before using a result for cards.",
     "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT": "Use R120 for the current shared candidate route. Finish approved nonexhaustive pronoun manifest and exception-aware roles; expand adjective classes and replace the attested-pair executor contract before any release grant.",
     "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING": "Add explicit raw source candidate ID to the canonical lexical reading contract and perform the same join inside the closed graph runtime; retain candidate-only status until independent sentence applicability is proved.",
@@ -1332,7 +1342,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
-      "sha256": "2e4bd197ca880bfeb7307501a6f9fdedecc0afde2c8bb97c538a91ed22641eb3",
+      "sha256": "1296ac4bc37686f51747af39ba23a42fa073b577bd3b35e3f64ceed72f56fd72",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2191,6 +2201,17 @@
     {
       "path": "supabase/functions/_shared/nlp/normalize.ts",
       "sha256": "a8874305fe1010375109e65a45f578d1dba454daf02bac2f2758167db12753c3",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts",
+      "sha256": "7e9b037dfba4eb7b921b1359fed40cab16f9808eb466bea0126ad08278a35852",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3302,9 +3323,31 @@
   ],
   "proofs": [
     {
-      "proof_id": "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME",
+      "proof_id": "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
+      "proof_kind": "LOCAL_EXECUTABLE_TEST",
+      "proved_at_head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+      "claim": "The shared candidate runtime retains source-backed pronoun case forms while explicitly deferring subject/object role decisions in ordinary and selected exception contexts.",
+      "result": "23 local checks and typecheck PASS. Coordination, comparison and preposition exception scopes remain neutral; no subject/object authority is emitted. This code is committed but was not deployed to Production in R121.",
+      "evidence_runs": [
+        "R121-PRONOUN-CASE-EXCEPTION-GUARD-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R121-pronoun-case-exception-guard.json",
+        "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
+        "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts",
+        "R088_CASE_SELECTION_EXCEPTION_BOUNDARY",
+        "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The Production pronoun manifest was draft in the last read-only snapshot. This guard is an explicit abstention contract, not a validated manifest or case_selection implementation."
+    },
+    {
+      "proof_id": "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "proved_at_head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
       "claim": "One closed canonical graph route executes the source-backed pronoun case candidate producer and the exact rule-first adjective form producer, preserving token identity, ambiguity and candidate-only status without card persistence or rule activation.",
@@ -3322,7 +3365,9 @@
         "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts"
+      ],
       "notes": "This is shared candidate execution in a trusted shadow, not global grammar-rule activation. The graph supplies derivation evidence; analyze-text owns verified card choice, enrichment and any database persistence."
     },
     {
@@ -4239,7 +4284,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.68 max=24"
+        "DB snapshot expired: age_hours=67.78 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4259,7 +4304,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.63 max=24"
+        "DB snapshot expired: age_hours=67.73 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4466,7 +4511,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.80 max=24"
+        "DB snapshot expired: age_hours=65.90 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4487,7 +4532,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.80 max=24"
+        "DB snapshot expired: age_hours=65.90 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4588,7 +4633,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.53 max=24"
+        "DB snapshot expired: age_hours=66.64 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },

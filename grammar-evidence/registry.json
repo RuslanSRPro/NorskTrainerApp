@@ -10,6 +10,20 @@
   ],
   "proofs": [
     {
+      "proof_id": "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL",
+      "status": "PROVEN",
+      "proof_kind": "LOCAL_EXECUTABLE_TEST",
+      "claim": "The shared candidate runtime retains source-backed pronoun case forms while explicitly deferring subject/object role decisions in ordinary and selected exception contexts.",
+      "proved_at_head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+      "evidence_runs": ["R121-PRONOUN-CASE-EXCEPTION-GUARD-2026-10-25"],
+      "result": "23 local checks and typecheck PASS. Coordination, comparison and preposition exception scopes remain neutral; no subject/object authority is emitted. This code is committed but was not deployed to Production in R121.",
+      "dependencies": ["grammar-evidence/artifacts/R121-pronoun-case-exception-guard.json", "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts", "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts", "R088_CASE_SELECTION_EXCEPTION_BOUNDARY", "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME"],
+      "blocked_by": [],
+      "invalidation": "Recheck after pronoun paradigm, exception scope, token context, runtime deployment or role selection changes.",
+      "notes": "The Production pronoun manifest was draft in the last read-only snapshot. This guard is an explicit abstention contract, not a validated manifest or case_selection implementation.",
+      "next_action": "Validate the manifest and approved operator against current Production source, prove independent subject/object and coordination evidence, deploy this guard with a live regression, then extend the next rule-first adjective class."
+    },
+    {
       "proof_id": "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
