@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "694a80aee371d7ee72bdeed73880742f725bb532",
+  "head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "694a80aee371d7ee72bdeed73880742f725bb532",
-  "source_head": "694a80aee371d7ee72bdeed73880742f725bb532",
-  "source_revision": "694a80aee371d7ee72bdeed73880742f725bb532",
+  "archive_head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
+  "source_head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
+  "source_revision": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 206,
-  "history_event_count": 180,
-  "strict_history_event_count": 133,
+  "file_count": 207,
+  "history_event_count": 182,
+  "strict_history_event_count": 135,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -189,7 +189,9 @@
     "R116-PRODUCTION-SENTENCE-EVIDENCE-BINDING-2026-10-25",
     "R117-CANDIDATE-FIRST-RULE-EXECUTION-ROUTE-2026-10-25",
     "R118-LIVE-ADJECTIVE-CANDIDATE-BINDING-2026-10-25",
-    "R119-PRONOUN-FORM-ACTIVATION-READINESS-2026-10-25"
+    "R119-PRONOUN-FORM-ACTIVATION-READINESS-2026-10-25",
+    "R120-SHARED-PRONOUN-FORM-CANDIDATE-RUNTIME-2026-10-25",
+    "R120-R119-SUPERSESSION-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -211,6 +213,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": [],
     "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT": [],
     "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING": [],
     "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE": [],
@@ -340,6 +343,15 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": [
+      "grammar-evidence/artifacts/R120-shared-pronoun-form-candidate-runtime.json",
+      "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+      "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
+      "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS",
+      "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING"
+    ],
     "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT": [
       "grammar-evidence/artifacts/R119-pronoun-form-activation-readiness-audit.json",
       "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
@@ -887,7 +899,8 @@
     ]
   },
   "proof_next_actions": {
-    "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT": "Choose one bounded activation slice. For pronoun form candidates, finish canonical binding and approved nonexhaustive manifest; for subject/object roles, first resolve exception, coordination and noun-order controls. For adjective rule-first forms, integrate the exact candidate binding, expand independently attested classes and replace the attested-pair executor contract before a release grant.",
+    "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": "Extend source candidate identity into the canonical reading contract, prove exception-aware pronoun roles and more rule-first adjective classes, then define a scoped release/admission grant and shadow comparison with analyze-text before using a result for cards.",
+    "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT": "Use R120 for the current shared candidate route. Finish approved nonexhaustive pronoun manifest and exception-aware roles; expand adjective classes and replace the attested-pair executor contract before any release grant.",
     "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING": "Add explicit raw source candidate ID to the canonical lexical reading contract and perform the same join inside the closed graph runtime; retain candidate-only status until independent sentence applicability is proved.",
     "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE": "Implement and test a candidate-scoped token-to-lexeme bridge that calls the existing private rule-first pilot in shadow, retaining competing readings and withholding on wrong identity or snapshot.",
     "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER": "Bind the family-neutral producer to a trusted canonical shadow input with exact source rule provenance; add another family and benchmark trigger filtering before any sentence grant.",
@@ -1309,6 +1322,17 @@
     {
       "path": "supabase/functions/_shared/nlp/canonical-predicate-sense-source-role-adapter-v1.ts",
       "sha256": "78ccdc579dc926affa0b4a2c7bae8c0e8d12a3325b6474369ec960a013d950d1",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+      "sha256": "2e4bd197ca880bfeb7307501a6f9fdedecc0afde2c8bb97c538a91ed22641eb3",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3266,7 +3290,7 @@
     },
     {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
-      "sha256": "402d0a83abd56357210b9505404dfec30f65b66bf983128da39c36eff1c05806",
+      "sha256": "4c86a65216b0baa91f10249713d3953b04abcd6d7a20fa01867d83a8b67ed296",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3278,15 +3302,40 @@
   ],
   "proofs": [
     {
-      "proof_id": "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT",
+      "proof_id": "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "proved_at_head": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
+      "claim": "One closed canonical graph route executes the source-backed pronoun case candidate producer and the exact rule-first adjective form producer, preserving token identity, ambiguity and candidate-only status without card persistence or rule activation.",
+      "result": "Canonical shadow v69 ACTIVE. En åpen bok internally invokes the private SQL rule and attaches åpnere as neutral evidence to exact åpen token/lexical candidate while retaining both bok readings. Jeg ser meg emits Nom/Acc candidates; Den ser det preserves both case alternatives; ambiguous adjective and unrelated controls do not invoke the adjective rule. Local 14 checks and typecheck PASS, live invariant errors zero, unauthorized 401, active nrg_rt_v1 rules and live grants zero.",
+      "evidence_runs": [
+        "R120-SHARED-PRONOUN-FORM-CANDIDATE-RUNTIME-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R120-shared-pronoun-form-candidate-runtime.json",
+        "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
+        "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS",
+        "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This is shared candidate execution in a trusted shadow, not global grammar-rule activation. The graph supplies derivation evidence; analyze-text owns verified card choice, enrichment and any database persistence."
+    },
+    {
+      "proof_id": "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
       "proved_at_head": "694a80aee371d7ee72bdeed73880742f725bb532",
       "claim": "Current Production retains the pronoun and adjective form candidate pilots, but their rule-first capabilities are not yet fully integrated or admitted as active nrg_rt_v1 rules.",
-      "result": "Read-only Production snapshot: nine legacy grammar_rules active, zero nrg_rt_v1 active, v1.37 shadow, zero live one-rule grants. Pronoun paradigm and case-selection sources verified and candidate producer returns nonexhaustive readings, but pronoun manifest is draft, both scoped templates blocked, zero paradigm rule-source links and zero pronoun release members. Twelve enabled old morphology members still read empty legacy form tables; exact åpen rule-first shadow is separate and candidate-only.",
+      "result": "Historical read-only Production snapshot before R120. The candidate-only pronoun and adjective producers were subsequently joined inside canonical shadow v69; the release, manifest, role-selection and activation gaps remain.",
       "evidence_runs": [
-        "R119-PRONOUN-FORM-ACTIVATION-READINESS-2026-10-25"
+        "R119-PRONOUN-FORM-ACTIVATION-READINESS-2026-10-25",
+        "R120-R119-SUPERSESSION-2026-10-25"
       ],
       "dependencies": [
         "grammar-evidence/artifacts/R119-pronoun-form-activation-readiness-audit.json",
@@ -3299,12 +3348,12 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "This audits readiness rather than claiming execution of all rules. Analyze-text owns verified card selection, enrichment and persistence; candidate derivations are not saved by the graph."
+      "notes": "Superseded on the candidate-runtime integration point by R120. Historical release and source-table counts remain a dated snapshot. Analyze-text owns verified card selection, enrichment and persistence."
     },
     {
       "proof_id": "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
       "proved_at_head": "835bcfa50ce3743ea61a349564b6c7eb4fd8178e",
       "claim": "For En åpen bok, two trusted Production shadow responses can be joined to the exact åpen token/lexeme candidate and source snapshot without losing either bok reading; mismatched candidate or snapshot is rejected by the read-only verifier.",
@@ -3321,7 +3370,9 @@
         "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/canonical-graph-shadow-v1/index.ts"
+      ],
       "notes": "The graph supplies candidate-scoped derivation evidence only. Analyze-text owns card verification, enrichment and any database persistence. The canonical lexical node does not expose raw SQL candidate ID separately; this is a bounded external join, not general binding authority."
     },
     {
@@ -3376,7 +3427,7 @@
     {
       "proof_id": "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
       "proved_at_head": "204c54f",
       "claim": "The deployed canonical shadow runs trigger-selected, source-backed sentence evidence families through the generic constraint evaluator and records candidate-specific results without activating or resolving unsupported rules.",
@@ -3392,7 +3443,9 @@
         "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/canonical-graph-shadow-v1/index.ts"
+      ],
       "notes": "The deployed adjective family is support-only. It does not establish independent POS, sentence admission or activation authority."
     },
     {
@@ -4186,7 +4239,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.46 max=24"
+        "DB snapshot expired: age_hours=67.68 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4206,7 +4259,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.41 max=24"
+        "DB snapshot expired: age_hours=67.63 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4413,7 +4466,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.58 max=24"
+        "DB snapshot expired: age_hours=65.80 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4434,7 +4487,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.58 max=24"
+        "DB snapshot expired: age_hours=65.80 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4535,7 +4588,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.32 max=24"
+        "DB snapshot expired: age_hours=66.53 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },

@@ -1,0 +1,53 @@
+{
+  "schema_version": "grammar-evidence-shared-rule-candidate-runtime-v1",
+  "run": "R120-SHARED-PRONOUN-FORM-CANDIDATE-RUNTIME-2026-10-25",
+  "observed_at_utc": "2026-10-25T10:04:37Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_commit": "d47a7a6d9dec000012d2cf31233307893b5ba2ee",
+  "deployed_function": "canonical-graph-shadow-v1",
+  "deployed_version": 69,
+  "deployed_status": "ACTIVE",
+  "deployed_bundle_sha256": "79167f44f08e3a8190ed4df242f727207cdea3aec14b4583d24d406601b69c55",
+  "implementation": {
+    "shared_runtime": "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+    "closed_entrypoint": "supabase/functions/canonical-graph-shadow-v1/index.ts",
+    "pronoun_operator": "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+    "adjective_operator": "adjective-degree-sql-shadow-v1, called internally only after exact candidate/token/lexeme check",
+    "output": "neutral candidate-only morphological graph evidence with source-rule provenance; no selected POS, verified card, persistence authority or activation authority"
+  },
+  "local_checks": { "executable": "14 PASS", "module_and_test_typecheck": "PASS", "deployment_bundle": "PASS" },
+  "production_controls": [
+    { "text": "En åpen bok.", "ok": true, "invariant_errors": 0,
+      "families_evaluated": ["adjective_degree_rule_first.apen.v1"],
+      "token_id": "tok:1:3:7", "source_candidate_id": "surface:81a6cba3-26d1-4bf1-9cb3-41997911dd50:adjective",
+      "derived_form": "åpnere", "positive_snapshot_id": "965f0a1a-9f22-446a-b36c-f573c9a002d8",
+      "graph_evidence_status": "neutral", "lexical_reading_status": "candidate", "both_bok_readings_retained": true,
+      "activation_authority": false, "persistence_authority": false },
+    { "text": "Jeg ser meg.", "ok": true, "invariant_errors": 0,
+      "families_evaluated": ["morphological_paradigm.personal_pronoun_case.v1"],
+      "readings": ["Jeg:jeg/Nom", "meg:jeg/Acc"], "candidate_evidence_count": 2 },
+    { "text": "Den ser det.", "ok": true, "invariant_errors": 0,
+      "readings": ["Den:den/Nom+Acc", "det:det/Nom+Acc"], "candidate_evidence_count": 2 },
+    { "text": "Han er åpen.", "ok": true, "invariant_errors": 0,
+      "pronoun_candidate": "Han:han/Nom", "adjective_form_family_evaluated": false },
+    { "text": "En åpen dør.", "ok": true, "invariant_errors": 0,
+      "families_evaluated": [], "candidate_evidence_count": 0 },
+    { "text": "Katten sover.", "ok": true, "invariant_errors": 0,
+      "families_evaluated": [], "candidate_evidence_count": 0 },
+    { "control": "request_without_internal_secret", "http_status": 401 }
+  ],
+  "postcheck": {
+    "release_v1_37_status": "shadow",
+    "active_nrg_rt_v1_rules": 0,
+    "live_one_rule_pilot_grants": 0,
+    "analyze_text_modified": false,
+    "card_database_write": false
+  },
+  "limits": [
+    "The pronoun paradigm is nonexhaustive and yields token-scoped case candidates; it does not choose subject/object roles or verify a lexical card.",
+    "The adjective rule-first form is admitted only for exact åpen/article/snapshot; the old attested-pair release executor is unchanged.",
+    "The canonical lexical node still lacks a separate raw SQL source candidate ID feature; this bounded runtime binds through the raw SQL token, sentence finding and exact canonical lexical node.",
+    "No rule release grant, global rule activation, analyze-text integration, learner-facing result or card persistence is proved."
+  ],
+  "decision": "The pronoun form producer and one adjective rule-first producer now run through one closed candidate-only canonical graph path. Rule activation remains a separate gate."
+}
