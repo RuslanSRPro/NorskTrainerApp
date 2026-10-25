@@ -1,0 +1,59 @@
+{
+  "schema_version": "grammar-evidence-activation-readiness-audit-v1",
+  "run": "R119-PRONOUN-FORM-ACTIVATION-READINESS-2026-10-25",
+  "observed_at_utc": "2026-10-25T09:53:55Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_sql_and_current_source_audit",
+  "production_snapshot": {
+    "grammar_rules_total": 37,
+    "grammar_rules_active": 9,
+    "nrg_rt_v1_rules_active": 0,
+    "release_v1_37_status": "shadow",
+    "subject_of_predicate_global_active": false,
+    "one_rule_pilot_live_grants": 0,
+    "one_rule_pilot_historical_grants": 1,
+    "pronoun_paradigm_source_status": "source_verified",
+    "case_selection_source_status": "source_verified",
+    "pronoun_paradigm_rule_source_links": 0,
+    "pronoun_rules_in_release_v1_37": 0,
+    "pronoun_paradigm_manifest_status": "draft",
+    "pronoun_paradigm_template": "blocked/blocked",
+    "pronoun_case_selection_template": "blocked/blocked",
+    "pronoun_sql_candidate_producer_exists": true,
+    "pronoun_candidate_controls": {
+      "meg": ["jeg/Acc"],
+      "den": ["den/Acc", "den/Nom"],
+      "det": ["det/Acc", "det/Nom"],
+      "dere": ["dere/Acc", "dere/Nom"],
+      "unknown": []
+    },
+    "legacy_morphological_inflection_members_enabled_in_v1_37": 12,
+    "lexeme_form_variants_rows": 0,
+    "adjective_forms_rows": 0,
+    "lexeme_form_display_v2_rows": 9469,
+    "adjective_rule_first_private_shadow_manifest_rows": 1,
+    "adjective_rule_first_sql_function_exists": true,
+    "adjective_degree_release_member": {
+      "is_enabled": true,
+      "global_is_active": false,
+      "manifest_generation": "attested_pair_only",
+      "manifest_generation_enabled": false,
+      "required_evidence": "source_verified_lexeme_form_pair"
+    }
+  },
+  "source_inspection": {
+    "deployed_canonical_shadow_local_source": "Registers the adjective sentence evidence family; no pronoun paradigm producer or rule-first comparative endpoint call in this entrypoint.",
+    "analyze_text_local_source": "selectByContext is still called before grammar-parser; no canonical-graph-shadow-v1 call found in inspected analyze-text source.",
+    "pronoun_correction_lineage": "R086 hard OVS conclusion was superseded by R087 soft evidence; R090 coordination guard remains candidate-only. Fisken spiser hunden positional resolution remains open in saved corpus.",
+    "form_lineage": "R095 accepts nine nonexhaustive pronoun form pairs; R112/R113/R118 prove one exact åpen comparative shadow route. These are separate from the old attested-pair morphological_inflection release members."
+  },
+  "activation_gaps": [
+    "Pronouns: approve and validate a scoped morphological_paradigm manifest/operator, materialize and bind the rule to the intended release/runtime only after candidate provenance and nonexhaustive semantics are preserved.",
+    "Pronoun roles: implement exception-aware case_selection, resolved coordinated constituent and independent object/subject evidence; preserve ambiguous den/det/dere and noun-noun controls.",
+    "Forms: the twelve old release members still read an empty legacy relation and use attested source/target pairs; the new rule-first shadow is not their executor and has only one exact admitted adjective lexeme.",
+    "Sentence integration: the graph and rule-first form endpoints are separately callable, but the canonical runtime does not yet bind them internally; the raw SQL candidate ID is absent from canonical lexical node features.",
+    "Activation admission: no live pilot grant and zero active nrg_rt_v1 rules; any bounded activation needs current hash/source parity, exact scope, positive and abstention corpus, release/manifest authority, revocation and monitoring."
+  ],
+  "decision": "Pronoun and form rework is recorded in grammar-evidence and bounded candidate producers exist, but it is not fully integrated into the canonical rule activation path. The already active nine legacy grammar_rules rows are distinct from the new nrg_rt_v1 activation target.",
+  "user_boundary": "Graph supplies evidence and candidate derivations only. Analyze-text owns card selection, verification, enrichment and database persistence."
+}

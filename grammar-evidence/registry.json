@@ -10,6 +10,20 @@
   ],
   "proofs": [
     {
+      "proof_id": "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "Current Production retains the pronoun and adjective form candidate pilots, but their rule-first capabilities are not yet fully integrated or admitted as active nrg_rt_v1 rules.",
+      "proved_at_head": "694a80aee371d7ee72bdeed73880742f725bb532",
+      "evidence_runs": ["R119-PRONOUN-FORM-ACTIVATION-READINESS-2026-10-25"],
+      "result": "Read-only Production snapshot: nine legacy grammar_rules active, zero nrg_rt_v1 active, v1.37 shadow, zero live one-rule grants. Pronoun paradigm and case-selection sources verified and candidate producer returns nonexhaustive readings, but pronoun manifest is draft, both scoped templates blocked, zero paradigm rule-source links and zero pronoun release members. Twelve enabled old morphology members still read empty legacy form tables; exact åpen rule-first shadow is separate and candidate-only.",
+      "dependencies": ["grammar-evidence/artifacts/R119-pronoun-form-activation-readiness-audit.json", "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE", "R090_PRONOUN_COORDINATION_PILOT_GUARD", "R097_PRONOUN_RUNTIME_ROLE_GAP", "R098_FORM_RULE_SOURCE_GAP", "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING", "R065_COMMITTED_ONE_RULE_SQL_PILOT"],
+      "blocked_by": [],
+      "invalidation": "Refresh after release membership, manifests, operator approvals, form-source imports, candidate-to-token binding, Edge deployments, pilot grants or grammar_rules activation changes.",
+      "notes": "This audits readiness rather than claiming execution of all rules. Analyze-text owns verified card selection, enrichment and persistence; candidate derivations are not saved by the graph.",
+      "next_action": "Choose one bounded activation slice. For pronoun form candidates, finish canonical binding and approved nonexhaustive manifest; for subject/object roles, first resolve exception, coordination and noun-order controls. For adjective rule-first forms, integrate the exact candidate binding, expand independently attested classes and replace the attested-pair executor contract before a release grant."
+    },
+    {
       "proof_id": "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
