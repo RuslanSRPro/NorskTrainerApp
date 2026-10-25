@@ -46,6 +46,7 @@ function lexicalNodeFor(
   finding: SentenceEvidenceFindingV1,
 ): string | null {
   const matches = graph.nodes.filter((node) => node.type === "lexical_reading" &&
+    node.producer === "canonical_candidate_lattice_v1" &&
     node.span?.tokenIds?.includes(finding.tokenId) &&
     node.features.lexemeId === finding.lexemeId &&
     node.features.sourcePos === finding.sourcePos);

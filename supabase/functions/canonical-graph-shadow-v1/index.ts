@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.112.4';
-import { hasInternalServiceAuthorization } from '../_shared/authoritative-morphology-v2/internal-authorization.ts';
+import { hasInternalSecretApiKey, hasInternalServiceAuthorization } from '../_shared/authoritative-morphology-v2/internal-authorization.ts';
 import { buildCanonicalSurfaceDocumentV1, type AbbreviationFactV1 } from '../_shared/nlp/canonical-surface-boundary-v1.ts';
 import { createCanonicalLanguageGraphV1, applyGraphPatchV1, assertCanonicalLanguageGraphV1, type CanonicalLanguageGraphV1, type GraphPatchV1, type LanguageGraphNodeV1, type LanguageGraphEdgeV1, type LanguageGraphEvidenceV1, type LanguageGraphProvenanceV1 } from '../_shared/nlp/canonical-language-graph-core-v1.ts';
 import { buildLegacyCompatibilityMapV1, assertLegacyCompatibilityMapV1, canonicalTokenIdForLegacyIndexV1, canonicalTokenIdsForLegacyRangeV1, type LegacyCompatibilityMapV1 } from '../_shared/nlp/legacy-compatibility-map-v1.ts';
@@ -27,6 +27,9 @@ import {
 import {
   buildCanonicalConstraintPropagationPatchV1,
 } from '../_shared/nlp/canonical-constraint-propagation-v1.ts';
+import { produceCanonicalSentenceEvidenceV1 } from '../_shared/nlp/canonical-sentence-evidence-producer-v1.ts';
+import { adjectiveSentenceEvidenceFamilyV1 } from '../_shared/nlp/adjective-sentence-evidence-family-v1.ts';
+import type { SentenceSourceTokenV1, SentenceRelationV1 } from '../_shared/nlp/adjective-sentence-context-producer-v1.ts';
 
 const VERSION='canonical-phrase-candidate-lattice-v1.43';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type'};
@@ -66,7 +69,7 @@ function dependencyPatch(sentenceModel:J,map:LegacyCompatibilityMapV1):GraphPatc
 
 async function runSentence(url:string,key:string,surface:any,map:LegacyCompatibilityMapV1,lexical:AnalysisToken[],selectionMargin:number){const grammar=await callInternal<J>(url,key,'grammar-pattern-engine',{tokens:lexical.map(t=>({index:t.index,surface:t.surface,normalized_surface:t.normalized_surface,token_role:t.token_role,candidates:t.candidates})),dryRun:false});const finalTokens=Array.isArray(grammar.tokens)?grammar.tokens:lexical;const constructions=arr(grammar.constructions);const cr=await callInternal<J>(url,key,'construction-resolution-engine',{constructions,includeTrace:false,strictValidation:true});const resolved=arr(cr.resolved_constructions);const pb=await callInternal<J>(url,key,'predicate-builder',{text:surface.sentences[map.sentenceIndex].text,tokens:finalTokens,constructions:resolved,construction_model:obj(cr.construction_model),selectionMargin});let sm=obj(pb.sentence_model);const ce=await callInternal<J>(url,key,'clause-pattern-engine',{sentence_model:sm});const clauses=arr(ce.clauses);const de=await callInternal<J>(url,key,'dependency-engine',{sentence_model:sm,clauses,dryRun:false,includeTrace:false,strictValidation:false,allowStructuralFallback:true});sm=obj(de.sentence_model);return{lexicalTokens:finalTokens,sentenceModel:sm,engines:{grammar:grammar.engine_version??null,construction:cr.engine_version??null,predicate:pb.builder_version??pb.predicate_builder_version??null,clause:ce.engine_version??null,dependency:de.engine_version??null},raw:{grammarSummary:grammar.summary??{},constructionSummary:cr.summary??{},clauseSummary:ce.summary??{},dependencySummary:de.summary??{}}}}
 
-Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({ok:false,version:VERSION,error:'Method not allowed'},405);try{const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');if(!url||!key)throw new Error('Missing Supabase runtime env');if(!hasInternalServiceAuthorization(req.headers.get('authorization'),key))return json({ok:false,version:VERSION,error:'Unauthorized'},401);const body=await req.json();if(typeof body?.text!=='string'||!body.text.length)return json({ok:false,version:VERSION,error:'Body must contain text'},400);const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});const [abbr,roles]=await Promise.all([abbreviationFacts(supabase),tokenRoles(supabase)]);const surface=buildCanonicalSurfaceDocumentV1(body.text,abbr);let graph:CanonicalLanguageGraphV1=createCanonicalLanguageGraphV1(surface);const sentenceRuns:any[]=[];const bindingErrors:string[]=[];const candidateSurfaces = [
+Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({ok:false,version:VERSION,error:'Method not allowed'},405);try{const url=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');if(!url||!key)throw new Error('Missing Supabase runtime env');const trusted=hasInternalServiceAuthorization(req.headers.get('authorization'),key)||hasInternalSecretApiKey(req.headers.get('apikey'),Deno.env.get('SUPABASE_SECRET_KEYS'));if(!trusted)return json({ok:false,version:VERSION,error:'Unauthorized'},401);const body=await req.json();if(typeof body?.text!=='string'||!body.text.length)return json({ok:false,version:VERSION,error:'Body must contain text'},400);const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});const [abbr,roles]=await Promise.all([abbreviationFacts(supabase),tokenRoles(supabase)]);const surface=buildCanonicalSurfaceDocumentV1(body.text,abbr);let graph:CanonicalLanguageGraphV1=createCanonicalLanguageGraphV1(surface);const sentenceRuns:any[]=[];const bindingErrors:string[]=[];const candidateSurfaces = [
   ...new Set(
     surface.tokens
       .filter((t) => t.kind === 'word')
@@ -307,6 +310,42 @@ for (let i = 0; i < surface.sentences.length; i++) {
     );
   }
 
+  // Support-only sentence evidence from all raw SQL candidates. The generic
+  // producer preselects families; the constraint engine still owns transitions.
+  const sentenceGraph = obj((sqlAnalysis as J).language_graph);
+  const sentenceTokens = arr(sentenceGraph.tokens) as SentenceSourceTokenV1[];
+  const tokenIdByIndex = new Map(sentenceTokens.map((token) =>
+    [Number(token.token_index), token.canonical_token_id]));
+  const sentenceRelations: SentenceRelationV1[] = arr(obj(sentenceGraph.dependency_build_v2).dependencies)
+    .filter((item: any) => item?.relation === 'copula_links_predicative')
+    .map((item: any) => ({
+      relation: String(item.relation),
+      source_token_id: tokenIdByIndex.get(Number(item.source_token_index)) ?? '',
+      target_token_id: tokenIdByIndex.get(Number(item.target_token_index)) ?? '',
+    }))
+    .filter((item) => Boolean(item.source_token_id && item.target_token_id));
+  const sentenceEvidence = produceCanonicalSentenceEvidenceV1(
+    sentenceTokens, sentenceRelations, [adjectiveSentenceEvidenceFamilyV1],
+  );
+  const sentenceEvidencePropagation = buildCanonicalConstraintPropagationPatchV1(
+    graph, sentenceEvidence.evaluator,
+    { availableCapabilities: ['canonical_candidate_lattice_v1', 'canonical_phrase_candidate_lattice_v1'],
+      minimumResolutionStrength: 'strong' },
+  );
+  if (sentenceEvidencePropagation.summary.resolve !== 0 || sentenceEvidencePropagation.summary.reject !== 0)
+    throw new Error(`sentence_evidence:s${i}:unexpected_graph_transition`);
+  graph = applyGraphPatchV1(graph, sentenceEvidencePropagation.patch);
+  const sentenceEvidenceSummary = {
+    familiesEvaluated: sentenceEvidence.familiesEvaluated,
+    familiesSkipped: sentenceEvidence.familiesSkipped,
+    findings: sentenceEvidence.findings.map((finding) => ({
+      familyCode: finding.familyCode, tokenId: finding.tokenId, candidateId: finding.candidateId,
+      status: finding.status, reason: finding.reason,
+    })),
+    support: sentenceEvidencePropagation.summary.support,
+    resolved: sentenceEvidencePropagation.summary.resolve,
+  };
+
   const projection = projectLegacyNonPhraseStructureIntoCanonicalGraphV143(
     graph,
     sqlAnalysis as J,
@@ -346,6 +385,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
     text: surface.sentences[i].text,
     compatibilityMap: edgeMap,
     sqlCompatibilityMap: sqlMap,
+    sentenceEvidence: sentenceEvidenceSummary,
     structuralReleaseCode,
     sqlStructuralSummary: {
       morphologyCount: arr(
