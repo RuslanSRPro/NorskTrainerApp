@@ -10,6 +10,34 @@
   ],
   "proofs": [
     {
+      "proof_id": "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "In the bounded åpen sentence corpus, current local POS labels come from source candidate consensus; AP and copular relations are compatible context but do not independently prove adjective POS or bind the SQL form result to a canonical token.",
+      "proved_at_head": "0a8831cf8ed457608a92cd4c293e6f4087ca1cae",
+      "evidence_runs": ["R114-ADJECTIVE-SENTENCE-APPLICABILITY-2026-10-25"],
+      "result": "Han er åpen has AP, resolved predicate/clause and er→åpen copula link, but åpen has no morph reading, no hard POS and structural resolution count 0. Han er lærer has the same copula relation for a noun. Isolated åpen also gets AP. En åpen bok gets AP/NP; En åpen dør står mislabels dør as verb in the sampled run.",
+      "dependencies": ["grammar-evidence/artifacts/R114-adjective-sentence-applicability-audit.json", "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS"],
+      "blocked_by": [],
+      "invalidation": "Refresh after local POS, structural POS, phrase/predicate/dependency producers, source resolver, SQL rule input or release definition changes.",
+      "notes": "Scope is the sampled Production corpus and exact function hashes. Structural consistency may support a reading, but deriving POS from a phrase that was built using the same source POS would be circular.",
+      "next_action": "Build a source-backed sentence evidence producer that evaluates adjective agreement and constituent alternatives without assuming adjective POS, preserves canonical token-to-lexeme identity and abstains when competing readings survive."
+    },
+    {
+      "proof_id": "R114_ADJECTIVE_SENTENCE_ADMISSION_READY",
+      "status": "UNVERIFIED",
+      "proof_kind": "USER_REQUIREMENT",
+      "claim": "The rule-first adjective degree candidate may be admitted for a sentence token only after independent POS/applicability evidence and exact canonical token-to-lexeme provenance are proved without comparative target lookup.",
+      "proved_at_head": null,
+      "evidence_runs": ["R114-ADJECTIVE-SENTENCE-APPLICABILITY-2026-10-25"],
+      "result": "R114 found compatible sentence structure but no independent adjective POS proof for åpen; the SQL operator accepts lexeme_id rather than a canonical token binding. No sentence-level admission or activation was granted.",
+      "dependencies": ["grammar-evidence/artifacts/R114-adjective-sentence-applicability-audit.json", "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP"],
+      "blocked_by": [],
+      "invalidation": "Review after a non-circular sentence evidence producer, candidate binding, and positive/ambiguous/negative corpus are available.",
+      "notes": "The lexeme-level form producer remains a valid shadow candidate. This gate concerns applying and explaining a rule for a token in a sentence.",
+      "next_action": "Test En åpen bok, Han er åpen, Han er lærer, isolated åpen and ambiguous noun/verb controls through a new evidence producer; require explicit abstention before any sentence-level grant."
+    },
+    {
       "proof_id": "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",

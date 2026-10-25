@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
+  "head": "0a8831cf8ed457608a92cd4c293e6f4087ca1cae",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
-  "source_head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
-  "source_revision": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
+  "archive_head": "0a8831cf8ed457608a92cd4c293e6f4087ca1cae",
+  "source_head": "0a8831cf8ed457608a92cd4c293e6f4087ca1cae",
+  "source_revision": "0a8831cf8ed457608a92cd4c293e6f4087ca1cae",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 203,
-  "history_event_count": 172,
-  "strict_history_event_count": 125,
+  "history_event_count": 174,
+  "strict_history_event_count": 127,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -181,7 +181,9 @@
     "R111-APEN-SHADOW-MANIFEST-POSITIVE-CONTROL-2026-10-24",
     "R111-RULE-FIRST-SHADOW-MANIFEST-ADMISSION-2026-10-24",
     "R112-ADJECTIVE-SQL-RULE-FIRST-SHADOW-2026-10-24",
-    "R113-ADJECTIVE-SQL-TRUSTED-BACKEND-2026-10-25"
+    "R113-ADJECTIVE-SQL-TRUSTED-BACKEND-2026-10-25",
+    "R114-ADJECTIVE-SENTENCE-POS-GAP-2026-10-25",
+    "R114-ADJECTIVE-SENTENCE-ADMISSION-GATE-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -203,6 +205,8 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP": [],
+    "R114_ADJECTIVE_SENTENCE_ADMISSION_READY": [],
     "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS": [],
     "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": [],
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [],
@@ -325,6 +329,14 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP": [
+      "grammar-evidence/artifacts/R114-adjective-sentence-applicability-audit.json",
+      "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS"
+    ],
+    "R114_ADJECTIVE_SENTENCE_ADMISSION_READY": [
+      "grammar-evidence/artifacts/R114-adjective-sentence-applicability-audit.json",
+      "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP"
+    ],
     "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS": [
       "grammar-evidence/artifacts/R113-adjective-sql-trusted-backend-controls.json",
       "grammar-evidence/tools/verify-adjective-sql-shadow-backend-v1.ts",
@@ -824,6 +836,8 @@
     ]
   },
   "proof_next_actions": {
+    "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP": "Build a source-backed sentence evidence producer that evaluates adjective agreement and constituent alternatives without assuming adjective POS, preserves canonical token-to-lexeme identity and abstains when competing readings survive.",
+    "R114_ADJECTIVE_SENTENCE_ADMISSION_READY": "Test En åpen bok, Han er åpen, Han er lærer, isolated åpen and ambiguous noun/verb controls through a new evidence producer; require explicit abstention before any sentence-level grant.",
     "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS": "Prove sentence-level adjective reading and rule applicability with independent POS evidence; expand curated source-backed positive lexemes and exception controls before considering a bounded activation grant.",
     "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": "Test a genuine service_role backend invocation and expanded positive/abstention corpus; then define a separate reviewed activation grant and sentence-level rule path.",
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": "",
@@ -3175,6 +3189,44 @@
   ],
   "proofs": [
     {
+      "proof_id": "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "0a8831cf8ed457608a92cd4c293e6f4087ca1cae",
+      "claim": "In the bounded åpen sentence corpus, current local POS labels come from source candidate consensus; AP and copular relations are compatible context but do not independently prove adjective POS or bind the SQL form result to a canonical token.",
+      "result": "Han er åpen has AP, resolved predicate/clause and er→åpen copula link, but åpen has no morph reading, no hard POS and structural resolution count 0. Han er lærer has the same copula relation for a noun. Isolated åpen also gets AP. En åpen bok gets AP/NP; En åpen dør står mislabels dør as verb in the sampled run.",
+      "evidence_runs": [
+        "R114-ADJECTIVE-SENTENCE-APPLICABILITY-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R114-adjective-sentence-applicability-audit.json",
+        "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Scope is the sampled Production corpus and exact function hashes. Structural consistency may support a reading, but deriving POS from a phrase that was built using the same source POS would be circular."
+    },
+    {
+      "proof_id": "R114_ADJECTIVE_SENTENCE_ADMISSION_READY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "USER_REQUIREMENT",
+      "proved_at_head": null,
+      "claim": "The rule-first adjective degree candidate may be admitted for a sentence token only after independent POS/applicability evidence and exact canonical token-to-lexeme provenance are proved without comparative target lookup.",
+      "result": "R114 found compatible sentence structure but no independent adjective POS proof for åpen; the SQL operator accepts lexeme_id rather than a canonical token binding. No sentence-level admission or activation was granted.",
+      "evidence_runs": [
+        "R114-ADJECTIVE-SENTENCE-APPLICABILITY-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R114-adjective-sentence-applicability-audit.json",
+        "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The lexeme-level form producer remains a valid shadow candidate. This gate concerns applying and explaining a rule for a token in a sentence."
+    },
+    {
       "proof_id": "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
@@ -3927,7 +3979,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.63 max=24"
+        "DB snapshot expired: age_hours=66.77 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3947,7 +3999,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.58 max=24"
+        "DB snapshot expired: age_hours=66.71 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4152,7 +4204,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=64.75 max=24"
+        "DB snapshot expired: age_hours=64.89 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4173,7 +4225,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=64.75 max=24"
+        "DB snapshot expired: age_hours=64.89 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4274,7 +4326,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.48 max=24"
+        "DB snapshot expired: age_hours=65.62 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },

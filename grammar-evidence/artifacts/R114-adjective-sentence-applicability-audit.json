@@ -1,0 +1,70 @@
+{
+  "schema_version": "grammar-evidence-sentence-applicability-audit-v1",
+  "run": "R114-ADJECTIVE-SENTENCE-APPLICABILITY-2026-10-25",
+  "observed_at_utc": "2026-10-25T09:12:47Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "release_code": "runtime-structural-v1.37",
+  "method": "Read-only calls to run_canonical_legacy_compatibility_v140 with canonical IDs and contiguous 1-based token indices; inspect local_pos_v1, morphology_v1, structural_pos_v1, phrase_build_v1, predicate/clause/dependency summaries. No SQL writes or activation changes.",
+  "definition_md5": {
+    "run_canonical_legacy_compatibility_v140": "81ae1453781a9ee00e67863086ec4bb9",
+    "apply_local_pos_disambiguation_v1": "12f3440ca0529fc445356f7377338da6",
+    "apply_structural_pos_refinement_v2": "5eab5b7241ac3a1a1f63693bd2dab298"
+  },
+  "cases": [
+    {
+      "tokens": ["Han", "er", "åpen"],
+      "target": "åpen",
+      "local_pos": "adjective",
+      "local_pos_reason": "source_pos_consensus",
+      "hard_pos_set": [],
+      "morphology_status": "no_morph_reading",
+      "structural_pos_resolved_by_structure": 0,
+      "phrase": "resolved AP, head åpen",
+      "predicate_count": 1,
+      "clause_count": 1,
+      "dependency": "resolved copula_links_predicative er→åpen"
+    },
+    {
+      "tokens": ["Han", "er", "lærer"],
+      "target": "lærer",
+      "local_pos": "noun",
+      "local_pos_reason": "source_pos_consensus",
+      "hard_pos_set": [],
+      "structural_pos_resolved_by_structure": 0,
+      "phrase": "resolved NP, head lærer",
+      "dependency": "resolved copula_links_predicative er→lærer"
+    },
+    {
+      "tokens": ["En", "åpen", "bok"],
+      "target": "åpen",
+      "local_pos": "adjective",
+      "local_pos_reason": "source_pos_consensus",
+      "hard_pos_set": [],
+      "structural_pos_resolved_by_structure": 0,
+      "phrases": ["resolved AP, head åpen", "resolved NP, members 1,2,3"],
+      "copula_link": false
+    },
+    {
+      "tokens": ["åpen"],
+      "target": "åpen",
+      "local_pos": "adjective",
+      "local_pos_reason": "source_pos_consensus",
+      "hard_pos_set": [],
+      "structural_pos_resolved_by_structure": 0,
+      "phrase": "resolved AP, head åpen",
+      "copula_link": false
+    },
+    {
+      "tokens": ["En", "åpen", "dør", "står"],
+      "target": "dør",
+      "observation": "local_pos_v1 selected verb for dør from morphology; no resolved NP, predicate or clause. This is a corpus warning against inferring a general sentence admission from one successful phrase."
+    }
+  ],
+  "conclusion": "The current sentence pipeline supplies compatible structural context but has not independently proved adjective POS for åpen. AP follows source_pos_consensus and is also built for isolated åpen; copula_links_predicative also applies to noun lærer. The SQL form operator receives lexeme_id only and has no canonical token binding. Sentence-level activation is not admitted.",
+  "required_contract": {
+    "input": ["canonical token ID and preserved candidate identities before POS collapse", "source-backed adjective agreement/constituent rules", "structural relations and competing readings", "private rule-first manifest and positive-form provenance"],
+    "output": ["token-to-lexeme binding with provenance", "context support distinguished from independently resolved POS", "ambiguous or withheld when noun/other readings remain viable", "rule application trace without stored comparative target lookup"],
+    "gate": "A positive sentence case and counterexamples must show non-circular POS evidence; only then may the candidate be considered for sentence-level admission."
+  },
+  "activation": { "rule_is_active": false, "grant_created": false, "app_integration_changed": false }
+}
