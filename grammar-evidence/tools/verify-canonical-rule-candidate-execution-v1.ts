@@ -117,6 +117,32 @@ check(pronoun.results[0].readings?.[0].Case === "Nom" &&
 check(pronoun.patch.evidence?.every((item) => item.status === "neutral" &&
   item.payload.candidateOnly === true && item.payload.verifiedCard === false) === true,
   "pronoun evidence is nonauthoritative");
+check(pronoun.results.every((item) => item.caseContext?.roleStatus === "deferred" &&
+  item.caseContext.subjectOrObjectAuthority === false),
+  "case forms do not resolve syntactic roles");
+for (const [surfaces, expectedReason] of [
+  [["Han", "og", "meg", "gikk"], "coordination_exception_scope"],
+  [["Han", "eller", "meg", "ser"], "coordination_exception_scope"],
+  [["hun", "enn", "meg"], "comparison_exception_scope"],
+  [["uten", "meg"], "preposition_exception_scope"],
+] as const) {
+  const scopedTokens: SentenceSourceTokenV1[] = surfaces.map((surface, index) => ({
+    canonical_token_id: `scope:${index + 1}`, token_index: index + 1, surface,
+  }));
+  const scopedGraph = { ...graph, nodes: [...graph.nodes, ...scopedTokens.map((token) => ({
+    id: token.canonical_token_id, type: "token", status: "resolved",
+    features: { surface: token.surface }, producer: "surface",
+    evidenceIds: [], provenanceIds: [],
+  }))] } as CanonicalLanguageGraphV1;
+  const scoped = await executeCanonicalRuleCandidatesV1({ graph: scopedGraph,
+    tokens: scopedTokens, sentenceFindings: [],
+    callAdjectiveRule: async () => { throw Error("must not call"); } });
+  check(scoped.results.some((item) => item.caseContext?.reason === expectedReason &&
+    item.caseContext.subjectOrObjectAuthority === false),
+    `${expectedReason} defers role selection`);
+  check(scoped.patch.evidence?.every((item) => item.status === "neutral") === true,
+    `${expectedReason} remains neutral graph evidence`);
+}
 const denGraph = { ...graph, nodes: [...graph.nodes, { id: "d1", type: "token",
   status: "resolved", features: { surface: "Den" }, producer: "surface",
   evidenceIds: [], provenanceIds: [] }] } as CanonicalLanguageGraphV1;

@@ -9,6 +9,8 @@ import type { SentenceEvidenceFindingV1 } from "./canonical-sentence-evidence-pr
 import {
   producePronounCaseCandidatesV1, pronounParadigmManifestV1,
 } from "./pronoun-paradigm-operator-v1.ts";
+import { assessPronounCaseContextV1, type PronounCaseContextV1 } from
+  "./pronoun-case-context-guard-v1.ts";
 import { adjectiveDegreeRuleFirstShadowManifestV1 as adjectiveManifest } from
   "./adjective-degree-rule-first-shadow-manifest-v1.ts";
 
@@ -27,6 +29,7 @@ export type CandidateRuleResultV1 = {
   ruleCode: string;
   sourceRuleCandidateId: string;
   readings?: Array<{ lemma: string; Case: "Nom" | "Acc" }>;
+  caseContext?: PronounCaseContextV1;
   derivedForm?: string;
   positiveSnapshotId?: string;
   activationAuthority: false;
@@ -81,6 +84,7 @@ export const pronounCaseCandidateFamilyV1: CandidateRuleFamilyV1 = {
         ruleCode: pronounParadigmManifestV1.code,
         sourceRuleCandidateId: pronounParadigmManifestV1.sourceCandidateId,
         readings: readings.map(({ lemma, Case }) => ({ lemma, Case })),
+        caseContext: assessPronounCaseContextV1(tokens, token.token_index),
         activationAuthority: false as const, persistenceAuthority: false as const,
       }] : [];
     });
