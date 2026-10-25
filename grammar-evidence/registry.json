@@ -10,6 +10,29 @@
   ],
   "proofs": [
     {
+      "proof_id": "R125_RELEASE_WIDE_ACTIVATION_READINESS_MATRIX",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "A repeatable batch inventory classifies every member of structural release v1.37 by pattern type, manifest, input contract, source parity and admission evidence.",
+      "proved_at_head": "ab9e3dc544f9b3b05af447a3b0dcec6f2e558a46",
+      "evidence_runs": [
+        "R125-BATCH-READINESS-2026-10-25"
+      ],
+      "result": "27 unique enabled members were classified in one pass: 12 BLOCKED by empty legacy adjective-form inputs and attested-pair-only generation; 15 OPEN for rule-specific execution, manifest mapping or current corpus proof; 0 activation-ready. Duplicate membership is rejected. R065 source parity changed and must be refreshed before a new subject grant.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R125-release-rule-snapshot.json",
+        "grammar-evidence/artifacts/R125-batch-readiness.json",
+        "grammar-evidence/tools/build-activation-readiness.py",
+        "R124_BATCH_ACTIVATION_ROUTE_AUDIT",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+        "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
+      ],
+      "blocked_by": [],
+      "invalidation": "Rerun after Production release membership, manifest, source table, SQL definition, grant or corpus changes; the snapshot is time-bound.",
+      "notes": "OPEN denotes insufficient proof, not a demonstrated malfunction. The inventory makes no Production mutation and does not grant activation.",
+      "next_action": "Refresh current subject source and 12-case corpus as the first cohort gate; then replace the 12 form-rule input contract and build pattern-type admission with batch tests for later cohorts."
+    },
+    {
       "proof_id": "R124_BATCH_ACTIVATION_ROUTE_AUDIT",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
