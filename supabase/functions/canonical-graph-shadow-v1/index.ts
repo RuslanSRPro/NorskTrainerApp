@@ -30,6 +30,7 @@ import {
 import { produceCanonicalSentenceEvidenceV1 } from '../_shared/nlp/canonical-sentence-evidence-producer-v1.ts';
 import { adjectiveSentenceEvidenceFamilyV1 } from '../_shared/nlp/adjective-sentence-evidence-family-v1.ts';
 import type { SentenceSourceTokenV1, SentenceRelationV1 } from '../_shared/nlp/adjective-sentence-context-producer-v1.ts';
+import { executeCanonicalRuleCandidatesV1 } from '../_shared/nlp/canonical-rule-candidate-execution-v1.ts';
 
 const VERSION='canonical-phrase-candidate-lattice-v1.43';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type'};
@@ -346,6 +347,24 @@ for (let i = 0; i < surface.sentences.length; i++) {
     resolved: sentenceEvidencePropagation.summary.resolve,
   };
 
+  // Rule families share one candidate-only path. The private comparative
+  // operator receives a lexeme ID only after the sentence candidate and
+  // canonical reading are matched. The graph keeps its result as evidence;
+  // analyze-text remains the owner of verified cards and persistence.
+  const ruleCandidates = await executeCanonicalRuleCandidatesV1({
+    graph, tokens: sentenceTokens, sentenceFindings: sentenceEvidence.findings,
+    callAdjectiveRule: async (lexemeId) =>
+      await callInternal<J>(url, key, 'adjective-degree-sql-shadow-v1', { lexemeId }),
+  });
+  graph = applyGraphPatchV1(graph, ruleCandidates.patch);
+  const ruleCandidateSummary = {
+    familiesEvaluated: ruleCandidates.familiesEvaluated,
+    familiesSkipped: ruleCandidates.familiesSkipped,
+    results: ruleCandidates.results,
+    evidenceCount: ruleCandidates.patch.evidence?.length ?? 0,
+    graphResolution: false, activationAuthority: false, persistenceAuthority: false,
+  };
+
   const projection = projectLegacyNonPhraseStructureIntoCanonicalGraphV143(
     graph,
     sqlAnalysis as J,
@@ -386,6 +405,7 @@ for (let i = 0; i < surface.sentences.length; i++) {
     compatibilityMap: edgeMap,
     sqlCompatibilityMap: sqlMap,
     sentenceEvidence: sentenceEvidenceSummary,
+    ruleCandidates: ruleCandidateSummary,
     structuralReleaseCode,
     sqlStructuralSummary: {
       morphologyCount: arr(
