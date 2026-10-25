@@ -1,0 +1,36 @@
+{
+  "schema_version": "grammar-evidence-live-runtime-proof-v1",
+  "run": "R123-REGULAR-PEN-RULE-FIRST-CANDIDATE-2026-10-25",
+  "observed_at_utc": "2026-10-25T14:37:23Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_commit": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
+  "edge_function": "canonical-graph-shadow-v1",
+  "deployed_version": 71,
+  "deployed_status": "ACTIVE",
+  "bundle_sha256": "f804de4354860f7daa171e807505ab7288dc5a929c73756731f9a4bb5d3c9ea7",
+  "source_rule_candidate_id": "c73d8c29-fb54-4e4f-82b2-1e0cf5b272c8",
+  "source_rule_status": "source_verified",
+  "independent_class_source": "https://ndla.no/r/norsk-kort-botid-sf-vg1/a-gradboye-adjektiv/35c0a7b548",
+  "positive_identity_source": "https://ordbokene.no/bm/44555",
+  "positive_row": {
+    "lexeme_id": "2504e6fd-2466-4fbb-8894-e5e1885a61fd",
+    "snapshot_id": "bc1a34c6-e31a-4a9a-83b8-3ca7bc53b560",
+    "article_id": 44555,
+    "lemma": "pen",
+    "form_key": "positive_singular_indefinite_common",
+    "regularity_marker": "unknown"
+  },
+  "operator": "Append -ere to the exact positive source form after sentence candidate, lexical node, article and snapshot checks; the observed comparative is not read.",
+  "local_checks": {"module_typecheck":"PASS","executable_checks":"28 PASS","full_entrypoint_typecheck":"UNAVAILABLE: local Deno npm node_modules missing"},
+  "live_controls": [
+    {"text":"En pen bok.","ok":true,"errors":0,"family":"adjective_degree_rule_first.regular_ere.pen.v1","status":"candidate","derived_form":"penere","evidence_count":1},
+    {"text":"Han er pen.","ok":true,"errors":0,"regular_pen_family_evaluated":false},
+    {"text":"En bra bok.","ok":true,"errors":0,"regular_pen_family_evaluated":false},
+    {"text":"En åpen bok.","ok":true,"errors":0,"existing_derived_form":"åpnere"},
+    {"text":"Jeg ser meg.","ok":true,"errors":0,"pronoun_case_candidates":2},
+    {"text":"Han og meg gikk.","ok":true,"errors":0,"case_context":"coordination_exception_scope"}
+  ],
+  "read_only_postcheck": {"active_nrg_rt_v1_rules":0,"pronoun_manifest_status":"draft","pronoun_operator_capability_status":"blocked"},
+  "scope": "Candidate-only closed graph shadow; no card choice, database persistence, release grant or grammar rule activation.",
+  "next": "Generalize regular -ere only after independent applicability and exception evidence for more lexemes; validate pronoun manifest and independent subject/object role contract separately."
+}

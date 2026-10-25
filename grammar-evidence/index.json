@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "58c1579a31584f071ef697fe379c188731b6518e",
+  "head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "58c1579a31584f071ef697fe379c188731b6518e",
-  "source_head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
-  "source_revision": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+  "archive_head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
+  "source_head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
+  "source_revision": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
-  "file_count": 208,
-  "history_event_count": 184,
-  "strict_history_event_count": 137,
+  "file_count": 210,
+  "history_event_count": 185,
+  "strict_history_event_count": 138,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -193,7 +193,8 @@
     "R120-SHARED-PRONOUN-FORM-CANDIDATE-RUNTIME-2026-10-25",
     "R120-R119-SUPERSESSION-2026-10-25",
     "R121-PRONOUN-CASE-EXCEPTION-GUARD-2026-10-25",
-    "R122-PRONOUN-EXCEPTION-GUARD-PRODUCTION-2026-10-25"
+    "R122-PRONOUN-EXCEPTION-GUARD-PRODUCTION-2026-10-25",
+    "R123-REGULAR-PEN-RULE-FIRST-CANDIDATE-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -215,6 +216,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": [],
     "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION": [],
     "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL": [],
     "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": [],
@@ -347,6 +349,14 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": [
+      "grammar-evidence/artifacts/R123-regular-pen-rule-first-candidate.json",
+      "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-regular-pen-family-v1.ts",
+      "supabase/functions/_shared/nlp/adjective-degree-regular-pen-manifest-v1.ts",
+      "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION"
+    ],
     "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION": [
       "grammar-evidence/artifacts/R122-pronoun-exception-guard-production.json",
       "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts",
@@ -916,6 +926,7 @@
     ]
   },
   "proof_next_actions": {
+    "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": "Expand the regular -ere class with independent lexeme eligibility and exception checks; validate the pronoun manifest and separate subject/object role contract before a release grant.",
     "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION": "Build independent syntactic role and coordination evidence, then validate and admit the nonexhaustive paradigm manifest. Extend a second adjective form class through the same candidate route.",
     "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL": "Validate the manifest and approved operator against current Production source, prove independent subject/object and coordination evidence, deploy this guard with a live regression, then extend the next rule-first adjective class.",
     "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME": "Extend source candidate identity into the canonical reading contract, prove exception-aware pronoun roles and more rule-first adjective classes, then define a scoped release/admission grant and shadow comparison with analyze-text before using a result for cards.",
@@ -1088,6 +1099,28 @@
     {
       "path": "supabase/functions/_shared/nlp/adjective-degree-lexeme-exception-v1.ts",
       "sha256": "9f6eb7bd2e826868b9379b1932e04b3d22b7d76a2e0745662fa95718f0d2a200",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-regular-pen-family-v1.ts",
+      "sha256": "df22c25fd6abe2e661cbb2c8a59c41133d7ad49ae90275fab1114db5c8c06f09",
+      "symbols": {
+        "create_dependency": false,
+        "clausePatchFromLegacyV11": false,
+        "projectLegacyNonPhraseStructureIntoCanonicalGraphV143": false,
+        "buildCanonicalPhraseCandidateLatticePatchV1": false,
+        "canonical_dependency_action_activation_authority_v1": false
+      }
+    },
+    {
+      "path": "supabase/functions/_shared/nlp/adjective-degree-regular-pen-manifest-v1.ts",
+      "sha256": "f4dbab2020a4948aabd722b562f2b5d1f2cb41fca5256c05d5da7d3abbd018f0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -1351,7 +1384,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
-      "sha256": "1296ac4bc37686f51747af39ba23a42fa073b577bd3b35e3f64ceed72f56fd72",
+      "sha256": "c6e97f4523e385cc9c7cf530d6753a3f89669c4aa6aa3c371a61c551351318f7",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3320,7 +3353,7 @@
     },
     {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
-      "sha256": "4c86a65216b0baa91f10249713d3953b04abcd6d7a20fa01867d83a8b67ed296",
+      "sha256": "76f53322d67b74f82c4e5d61fe72891a2fe3dc859bf25d77b46833b154a521fa",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3332,9 +3365,32 @@
   ],
   "proofs": [
     {
-      "proof_id": "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION",
+      "proof_id": "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "proved_at_head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
+      "claim": "A second independently licensed adjective degree class runs inside the shared candidate-only canonical shadow: exact pen positive form plus regular -ere rule yields penere without reading the stored comparative.",
+      "result": "Canonical shadow v71 ACTIVE. En pen bok yields one neutral penere candidate; ambiguous Han er pen and unrelated En bra bok do not execute the family. Åpen and pronoun controls retain their previous behavior. 28 local checks pass; Production nrg_rt_v1 active count remains zero.",
+      "evidence_runs": [
+        "R123-REGULAR-PEN-RULE-FIRST-CANDIDATE-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R123-regular-pen-rule-first-candidate.json",
+        "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-regular-pen-family-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-regular-pen-manifest-v1.ts",
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Exact pen scope only. The dictionary comparative is a post-derivation validation reference and is excluded from the operator input. Graph evidence does not choose or persist a card."
+    },
+    {
+      "proof_id": "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "proved_at_head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
       "claim": "Canonical shadow v70 executes the pronoun case exception guard in Production while retaining candidate-only morphology and the earlier exact adjective derivation.",
@@ -3349,7 +3405,9 @@
         "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts"
+      ],
       "notes": "Only an explicit abstention contract is proven. It does not implement exception-aware subject/object selection or approve the draft manifest."
     },
     {
@@ -3396,7 +3454,8 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts"
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/canonical-graph-shadow-v1/index.ts"
       ],
       "notes": "This is shared candidate execution in a trusted shadow, not global grammar-rule activation. The graph supplies derivation evidence; analyze-text owns verified card choice, enrichment and any database persistence."
     },
@@ -4314,7 +4373,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.85 max=24"
+        "DB snapshot expired: age_hours=72.18 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4334,7 +4393,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.80 max=24"
+        "DB snapshot expired: age_hours=72.13 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4541,7 +4600,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.97 max=24"
+        "DB snapshot expired: age_hours=70.30 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4562,7 +4621,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.97 max=24"
+        "DB snapshot expired: age_hours=70.30 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4663,7 +4722,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.70 max=24"
+        "DB snapshot expired: age_hours=71.03 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },

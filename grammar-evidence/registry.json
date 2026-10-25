@@ -10,6 +10,29 @@
   ],
   "proofs": [
     {
+      "proof_id": "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "A second independently licensed adjective degree class runs inside the shared candidate-only canonical shadow: exact pen positive form plus regular -ere rule yields penere without reading the stored comparative.",
+      "proved_at_head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
+      "evidence_runs": [
+        "R123-REGULAR-PEN-RULE-FIRST-CANDIDATE-2026-10-25"
+      ],
+      "result": "Canonical shadow v71 ACTIVE. En pen bok yields one neutral penere candidate; ambiguous Han er pen and unrelated En bra bok do not execute the family. Åpen and pronoun controls retain their previous behavior. 28 local checks pass; Production nrg_rt_v1 active count remains zero.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R123-regular-pen-rule-first-candidate.json",
+        "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-regular-pen-family-v1.ts",
+        "supabase/functions/_shared/nlp/adjective-degree-regular-pen-manifest-v1.ts",
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after source article or positive snapshot, NDLA example, regular degree rule, sentence context producer or Edge deployment changes.",
+      "notes": "Exact pen scope only. The dictionary comparative is a post-derivation validation reference and is excluded from the operator input. Graph evidence does not choose or persist a card.",
+      "next_action": "Expand the regular -ere class with independent lexeme eligibility and exception checks; validate the pronoun manifest and separate subject/object role contract before a release grant."
+    },
+    {
       "proof_id": "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
