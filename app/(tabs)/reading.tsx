@@ -181,6 +181,18 @@ function normalizeAppLanguage(v: any): AppLanguage { return v==="ua"||v==="en"||
 // D10 16.10.2026: part of speech and "choose part of speech" in the app language.
 const POS_UI:Record<string,Record<AppLanguage,string>>={noun:{ua:"іменник",en:"noun",no:"substantiv"},verb:{ua:"дієслово",en:"verb",no:"verb"},adjective:{ua:"прикметник",en:"adjective",no:"adjektiv"},adverb:{ua:"прислівник",en:"adverb",no:"adverb"},preposition:{ua:"прийменник",en:"preposition",no:"preposisjon"},pronoun:{ua:"займенник",en:"pronoun",no:"pronomen"},conjunction:{ua:"сполучник",en:"conjunction",no:"konjunksjon"},determiner:{ua:"детермінатив",en:"determiner",no:"determinativ"},numeral:{ua:"числівник",en:"numeral",no:"tallord"},interjection:{ua:"вигук",en:"interjection",no:"interjeksjon"},expression:{ua:"вираз",en:"expression",no:"uttrykk"}};
 function posUi(pos:any,lang:AppLanguage){const raw=String(pos||"");return POS_UI[raw.toLowerCase().split("_")[0]]?.[lang]||raw;}
+// D10 25.10.2026 (agreed): clear text for a request that got no answer
+// (code NETWORK_UNAVAILABLE from services/api.ts); any other error as before.
+const NETWORK_UI:Record<"preview"|"send",Record<AppLanguage,string>>={
+  preview:{ua:"Немає зв'язку із сервером, спробуйте ще раз.",en:"No connection to the server, please try again.",no:"Ingen forbindelse med serveren, prøv igjen."},
+  send:{ua:"Не вдалося надіслати на сервер (немає зв'язку). Спробуйте ще раз.",en:"Could not send to the server (no connection). Please try again.",no:"Kunne ikke sende til serveren (ingen forbindelse). Prøv igjen."},
+};
+function errorText(err:any,lang:AppLanguage):string{
+  if(err?.code==="NETWORK_UNAVAILABLE")return NETWORK_UI[err?.networkAction==="send"?"send":"preview"][lang];
+  // the same failure on a database read (word search) before any function call
+  if(/Network request failed|Failed to fetch|Failed to send a request to the Edge Function/i.test(String(err?.message||err)))return NETWORK_UI.preview[lang];
+  return String(err?.message||err);
+}
 const CHOOSE_POS_UI:Record<AppLanguage,string>={ua:"Оберіть частину мови:",en:"Choose part of speech:",no:"Velg ordklasse:"};
 function formatTemplate(tmpl: string, vals?: Record<string,string|number>) {
   if (!vals) return tmpl;
@@ -735,7 +747,7 @@ export default function ReadingScreen() {
         if(r?.preview){showPreview(r.preview,tr("new_word_review_preview"));return;}
         setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
       }
-    }catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setWordLoading(false);}
+    }catch(err:any){setWordSearchMessage(errorText(err,lang));}finally{setWordLoading(false);}
   }
 
   // D10 25.10.2026 (agreed): a previewed word with several cards (other part of
@@ -760,7 +772,7 @@ export default function ReadingScreen() {
       if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||"",en:r.item.en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
       if(r?.preview){showPreview(r.preview,tr("preview_ready"));return;}
       setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
-    }catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setWordLoading(false);}
+    }catch(err:any){setWordSearchMessage(errorText(err,lang));}finally{setWordLoading(false);}
   }
 
   // D10 15.10.2026: the preview of a word from the dictionaries is saved the
@@ -779,21 +791,21 @@ export default function ReadingScreen() {
         startJobTracking(String(result.job.id));
       }
       setWordSearchMessage(tr("saved_selected_queued",{count:1}));setPreviewWord(null);}
-    catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setAddingGlobalWord(false);}
+    catch(err:any){setWordSearchMessage(errorText(err,lang));}finally{setAddingGlobalWord(false);}
   }
 
   async function loadSentenceAI(){
     try{if(!selectedSentence)return;setSentenceLoading(true);setSentenceError("");
       const data=await translateSentenceWithAI({sentence:selectedSentence,profileKey:preferred_user,targetLanguage:lang==="ua"?"ua":"en"});
       setSentenceAI(data.result||null);setSentenceUsage(data.usage||null);
-    }catch(err:any){setSentenceError(String(err?.message||err));}finally{setSentenceLoading(false);}
+    }catch(err:any){setSentenceError(errorText(err,lang));}finally{setSentenceLoading(false);}
   }
 
   async function addCurrentWordToLearning(){
     try{if(!selectedWord?.id)return;setAddingWord(true);await addLexemeToLearningFromSupabase({preferred_user,lexemeId:selectedWord.id});
       setAnalysis(prev=>prev.map(item=>item.lexeme?.id===selectedWord.id?{...item,status:"learned",lexeme:{...item.lexeme,learned:true}}:item));
       setSelectedWord({...selectedWord,learned:true});
-    }catch(err:any){setError(String(err?.message||err));}finally{setAddingWord(false);}
+    }catch(err:any){setError(errorText(err,lang));}finally{setAddingWord(false);}
   }
 
   async function runAnalysis(source: AnalysisSource,options?:{mode?:TextAnalysisMode;keepJobTracking?:boolean}):Promise<AnalyzerCandidate[]>{
@@ -837,7 +849,7 @@ export default function ReadingScreen() {
         startJobTracking(String(result.job.id));
       }
       return candidates;
-    }catch(err:any){setAnalyzerMessage(String(err?.message||err));return[];}
+    }catch(err:any){setAnalyzerMessage(errorText(err,lang));return[];}
     finally{if(isPwa)setPwaLoading(false);else setAiTextLoading(false);setLoading(false);}
   }
 
@@ -856,7 +868,7 @@ export default function ReadingScreen() {
       const learnedNow=new Set<string>();
       for(const c of toLearn){
         try{await addLexemeToLearningFromSupabase({preferred_user,lexemeId:String(c.lexeme.id)});learnedNow.add(String(c.lexeme.id));}
-        catch(err:any){setAnalyzerCandidates(prev=>prev.map(x=>x.id===c.id?{...x,selected:false,error:String(err?.message||err)}:x));}
+        catch(err:any){setAnalyzerCandidates(prev=>prev.map(x=>x.id===c.id?{...x,selected:false,error:errorText(err,lang)}:x));}
       }
       if(learnedNow.size){
         markLearned(learnedNow);
@@ -875,7 +887,7 @@ export default function ReadingScreen() {
         messages.push(tr("saved_selected_queued",{count:new Set(words).size}));
       }
       setAnalyzerMessage(messages.join(" "));
-    }catch(err:any){setAnalyzerMessage([...messages,String(err?.message||err)].join(" "));}
+    }catch(err:any){setAnalyzerMessage([...messages,errorText(err,lang)].join(" "));}
     finally{setBatchAdding(false);}
   }
 
@@ -923,7 +935,7 @@ export default function ReadingScreen() {
         if(!ar?.ok){fail++;proc[c.id]={ok:false,message:(ar as any)?.message||"Add failed"};continue;}
         const rr=await inspectWordViaAppsScript(ir.preview.word||q);ok++;
         proc[c.id]={ok:true,message:(ar as any)?.message||tr("added_to_database"),foundItem:rr?.item||null};
-      }catch(err:any){fail++;proc[c.id]={ok:false,message:String(err?.message||err)};}
+      }catch(err:any){fail++;proc[c.id]={ok:false,message:errorText(err,lang)};}
     }
     setAnalyzerCandidates(prev=>prev.map(c=>{const r=proc[c.id];if(!r)return c;if(!r.ok)return{...c,selected:false,error:r.message||"Add failed"};return{...c,selected:false,added:true,status:"in_base",lexeme:r.foundItem||c.lexeme,error:""};}));
     const{dictionary}=await analyzeTextLocal();

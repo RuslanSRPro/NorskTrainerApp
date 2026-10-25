@@ -60,6 +60,8 @@ export type PreviewCard = {
   forms: PreviewArticle['forms'];
   definitions: string[];
   translation: { uk: string[]; en: string[]; status: 'lexin' | 'none'; review: string | null };
+  // the asked word when it is a form of this card's lemma (tørker -> tørke)
+  matched_form?: string | null;
 };
 
 // uk/en: every variant (Lexin worker parsing); firstUk/firstEn: the variant the
@@ -139,9 +141,42 @@ export async function ordbokenePreview(word: string, fetchImpl?: FetchLike): Pro
 
 // Every article of the word (sorted: exact lemma first, then homograph number),
 // each with its parsed form for the homograph rule.
+const MAX_FORM_ARTICLES = 6;
+
+// Articles where the word is an inflected form (Ordbøkene scope "i"), minus
+// those already found. A failure only means no extra articles.
+async function inflectionArticles(client: OrdbokeneClient, word: string, known: string[],
+  fetchImpl?: FetchLike): Promise<any[]> {
+  try {
+    const url = new URL('https://ord.uib.no/api/articles');
+    url.searchParams.set('w', normalizeNorwegian(word));
+    url.searchParams.set('dict', 'bm');
+    url.searchParams.set('scope', 'i');
+    const response = await (fetchImpl ?? fetch)(url.toString());
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const ids = (Array.isArray(payload?.articles?.bm) ? payload.articles.bm : [])
+      .map((id: unknown) => String(id)).filter((id: string) => /^[1-9][0-9]*$/.test(id) && !known.includes(id))
+      .slice(0, MAX_FORM_ARTICLES);
+    if (!ids.length) return [];
+    return (await client.lookupKnownArticles(word, ids, ['bm'])).articles;
+  } catch {
+    return [];
+  }
+}
+
 async function ordbokeneAllArticles(word: string, fetchImpl?: FetchLike): Promise<WordPreview['ordbokene']> {
   try {
-    const lookup = await new OrdbokeneClient(fetchImpl ? { fetchImpl } : {}).lookup(word, ['bm']);
+    const client = new OrdbokeneClient(fetchImpl ? { fetchImpl } : {});
+    const lookup = await client.lookup(word, ['bm']);
+    // D10 25.10.2026 (agreed: a single word -> every possible card): the word
+    // is a lemma (tørker "dryer") AND a form of other lemmas (tørke: tørker).
+    // The shared lookup stops at the exact lemma, so the inflection search is
+    // asked as well and its other articles are added (exact lemma stays first).
+    if (lookup.scopeUsed === 'e' && lookup.articles.length > 0) {
+      const extra = await inflectionArticles(client, word, lookup.articles.map((a) => String(a.articleId)), fetchImpl);
+      lookup.articles.push(...extra);
+    }
     if (lookup.articles.length === 0) {
       return lookup.errors.length
         ? { status: 'error', scope: lookup.scopeUsed, articles: [], more_articles: 0, error: lookup.errors[0].message }
@@ -391,6 +426,8 @@ export async function buildPreview(word: string, fetchImpl?: FetchLike): Promise
   const first = lexinResults[lemmas.indexOf(firstLemma)];
   const lexin: WordPreview['lexin'] = { ...first, entries: first.entries.map(({ pos, uk, en }) => ({ pos, uk, en })) };
 
-  const cards = withTranslations(drafts.slice(0, MAX_CARDS), lexinByLemma);
+  const asked = normalizeNorwegian(word);
+  const cards = withTranslations(drafts.slice(0, MAX_CARDS), lexinByLemma)
+    .map((c) => ({ ...c, matched_form: normalizeNorwegian(c.lemma) === asked ? null : asked }));
   return { ok: true, word, ordbokene, lexin, cards, naob };
 }

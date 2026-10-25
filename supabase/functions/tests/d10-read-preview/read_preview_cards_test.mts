@@ -147,3 +147,29 @@ test('Lexin text parsing moved unchanged: same results as the worker gave', asyn
   assert.equal(lt.cleanTranslationText('вдягти, одягти, вдягти'), 'вдягти, одягти');
   assert.deepEqual(lt.cleanTranslationVariants('зараз, тепер|нині'), ['зараз', 'тепер', 'нині']);
 });
+
+test('word that is a lemma AND a form (tørker): own card first, then the cards it is a form of', async () => {
+  const dryer = clone(BOK, 601, 'tørker', 1);
+  const noun = clone(BOK, 501, 'tørke', 1);
+  const verb = clone(VAERE, 502, 'tørke', 1);
+  const lexinT = { result: [[
+    { id: 1, type: 'E-lem', text: 'tørke' }, { id: 1, type: 'E-kat', text: 'substantiv' }, { id: 1, type: 'Ukr-lem', text: 'засуха' },
+    { id: 2, type: 'E-lem', text: 'tørke' }, { id: 2, type: 'E-kat', text: 'verb' }, { id: 2, type: 'Ukr-lem', text: 'сохнути' },
+  ]] };
+  const { f, calls } = site({ search: { 'tørker|e': [601], 'tørker|i': [601, 501, 502] },
+    articles: { 601: dryer, 501: noun, 502: verb }, lexin: { 'tørke': lexinT } });
+  const r = await pv.buildPreview('tørker', f as any);
+  assert.deepEqual(r.cards.map((c: any) => [c.lemma, c.pos, c.matched_form]),
+    [['tørker', 'noun', null], ['tørke', 'noun', 'tørker'], ['tørke', 'verb', 'tørker']]);
+  assert.deepEqual(r.cards.slice(1).map((c: any) => c.translation.uk[0]), ['засуха', 'сохнути']);
+  assert.ok(calls.some((c) => c.includes('scope=i')));
+  assert.equal(r.ordbokene.articles[0].lemma, 'tørker');
+});
+
+test('inflection search fails: the exact lemma card still comes', async () => {
+  const dryer = clone(BOK, 601, 'tørker', 1);
+  const { f } = site({ search: { 'tørker|e': [601] }, articles: { 601: dryer }, lexin: {} });
+  const failing = async (input: any) => String(input).includes('scope=i') ? new Response('x', { status: 503 }) : f(input);
+  const r = await pv.buildPreview('tørker', failing as any);
+  assert.deepEqual(r.cards.map((c: any) => c.lemma), ['tørker']);
+});

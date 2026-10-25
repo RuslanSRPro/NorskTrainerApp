@@ -1388,6 +1388,28 @@ export async function translateSentenceWithAI(params: {
 
 export type TextAnalysisMode = 'audit' | 'read';
 
+// D10 25.10.2026 (agreed): "Failed to send a request to the Edge Function"
+// = the request got no answer at all (network / gateway), nothing from our
+// functions. It becomes an error with code NETWORK_UNAVAILABLE, and the
+// screen shows a clear message in the app language.
+//   networkAction 'preview': read only, retried once automatically;
+//   networkAction 'send':    writes a job, NOT retried (the server may have
+//                            received it; a retry could make a second job).
+export const NETWORK_UNAVAILABLE = 'NETWORK_UNAVAILABLE';
+
+function isNetworkFailure(error: any): boolean {
+  return error?.name === 'FunctionsFetchError' ||
+    /Failed to send a request to the Edge Function|Network request failed|Failed to fetch/i.test(String(error?.message ?? ''));
+}
+
+function networkError(action: 'preview' | 'send', cause: unknown): Error {
+  const error: any = new Error(NETWORK_UNAVAILABLE);
+  error.code = NETWORK_UNAVAILABLE;
+  error.networkAction = action;
+  error.cause = cause;
+  return error;
+}
+
 // audit: analyze-text writes every word of the text to the database (job).
 // read:  analyze-text returns the same analysis without writing anything.
 export async function analyzeTextViaGemini(
@@ -1399,6 +1421,7 @@ export async function analyzeTextViaGemini(
   if (options?.wordList) body.mode = 'word_list';
   const response = await supabase.functions.invoke('analyze-text', { body });
 
+  if (response.error && isNetworkFailure(response.error)) throw networkError('send', response.error);
   if (response.error) throw new Error(response.error.message || 'analyze-text failed');
   if (!response.data?.ok) throw new Error(response.data?.message || 'analyze-text returned not ok');
   return response.data;
@@ -1434,6 +1457,8 @@ export async function inspectWordViaAppsScript(query: string) {
   // the backend pipeline enriches them asynchronously.
   const found = await searchLexemeInSupabase(query);
   if (found?.found) return found;
+  // (D10 25.10.2026: a network failure of the preview is passed on, so the
+  // screen says "no connection" instead of "could not process the word")
   // D10 15.10.2026 (agreed): Read mode, word not in the database -> preview
   // from Ordbøkene + Lexin (read-word-preview), on tap only. Nothing is
   // written; saving goes through the usual job.
@@ -1441,6 +1466,7 @@ export async function inspectWordViaAppsScript(query: string) {
     const preview = await previewWordFromSources(query);
     return { ...found, found: false, preview };
   } catch (error) {
+    if ((error as any)?.code === NETWORK_UNAVAILABLE) throw error;
     console.warn('[read preview] unavailable', error);
     return found;
   }
@@ -1453,7 +1479,13 @@ const PREVIEW_POS_LABEL: Record<string, string> = {
 // Preview card of a word that is not in the database (shape of a word card:
 // forms through the same read model as the database forms).
 export async function previewWordFromSources(query: string): Promise<any> {
-  const { data, error } = await supabase.functions.invoke('read-word-preview', { body: { word: query } });
+  let { data, error } = await supabase.functions.invoke('read-word-preview', { body: { word: query } });
+  if (error && isNetworkFailure(error)) {
+    // read only: one automatic retry after 1.5 s
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    ({ data, error } = await supabase.functions.invoke('read-word-preview', { body: { word: query } }));
+    if (error && isNetworkFailure(error)) throw networkError('preview', error);
+  }
   if (error) throw new Error(error.message);
   if (!data?.ok) throw new Error(String(data?.error ?? 'read-word-preview failed'));
   // D10 25.10.2026 (agreed): the server returns the cards the audit would
@@ -1522,6 +1554,9 @@ function previewFromCard(card: any, index: number, data: any): any {
   const pos = String(card.pos ?? '');
   return {
     variantIndex: index,
+    // D10 25.10.2026: the asked word is a form of this card (tørker -> tørke);
+    // the list row shows "tørker → tørke" like the database matches
+    matchedForm: card.matched_form ?? null,
     word: card.lemma ?? data.word,
     lemma: card.lemma ?? data.word,
     pos,
