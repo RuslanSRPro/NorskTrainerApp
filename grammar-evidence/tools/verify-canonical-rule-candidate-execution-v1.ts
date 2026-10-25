@@ -154,4 +154,58 @@ check(den.results.length === 1 && den.results[0].readings?.length === 2 &&
   den.results[0].readings?.some((item) => item.Case === "Acc"),
 "ambiguous den case forms preserved");
 
+
+const penId = "2504e6fd-2466-4fbb-8894-e5e1885a61fd";
+const penCandidateId = `surface:${penId}:adjective`;
+const penTokens: SentenceSourceTokenV1[] = [
+  { canonical_token_id: "pen:1", token_index: 1, surface: "En" },
+  { canonical_token_id: "pen:2", token_index: 2, surface: "pen",
+    surface_resolution: { candidates: [{ candidate_id: penCandidateId,
+      lexeme_id: penId, source_pos: "adjective" }] } },
+  { canonical_token_id: "pen:3", token_index: 3, surface: "bok" },
+];
+const penGraph = { ...graph, nodes: [
+  ...penTokens.map((token) => ({ id: token.canonical_token_id,
+    type: "token", status: "resolved", features: { surface: token.surface },
+    producer: "surface", evidenceIds: [], provenanceIds: [] })),
+  { id: "lex:pen", type: "lexical_reading", status: "candidate",
+    span: { tokenIds: ["pen:2"] },
+    features: { lexemeId: penId, lemma: "pen", sourcePos: "adjective" },
+    producer: "canonical_candidate_lattice_v1",
+    evidenceIds: [], provenanceIds: [] },
+] } as CanonicalLanguageGraphV1;
+const penFinding = { ...finding, tokenId: "pen:2", candidateId: penCandidateId,
+  lexemeId: penId, inputTokenIds: ["pen:1", "pen:2", "pen:3"] };
+const positivePenRow = {
+  lexeme_id: penId, snapshot_id: "bc1a34c6-e31a-4a9a-83b8-3ca7bc53b560",
+  dictionary_code: "bm", article_id: 44555, pos: "adjective", lemma: "pen",
+  form_key: "positive_singular_indefinite_common", primary_values: ["pen"],
+  article_ids: ["44555"], evidence_ids: ["ordbokene:official-form"],
+};
+let penReads = 0;
+const pen = await executeCanonicalRuleCandidatesV1({ graph: penGraph,
+  tokens: penTokens, sentenceFindings: [penFinding],
+  callAdjectiveRule: async () => { throw Error("wrong operator"); },
+  loadPositiveAdjectiveRow: async (id) => { penReads++;
+    check(id === penId, "pen positive row loaded for exact lexeme");
+    return [positivePenRow]; } });
+check(penReads === 1 && pen.results.length === 1 &&
+  pen.results[0].status === "candidate" &&
+  pen.results[0].derivedForm === "penere", "regular pen rule derives from positive");
+check(pen.patch.evidence?.length === 1 && pen.patch.evidence[0].status === "neutral" &&
+  pen.patch.evidence[0].targetIds.includes("lex:pen"),
+  "pen derivation stays candidate-scoped");
+const wrongPenSnapshot = await executeCanonicalRuleCandidatesV1({ graph: penGraph,
+  tokens: penTokens, sentenceFindings: [penFinding],
+  callAdjectiveRule: async () => { throw Error("wrong operator"); },
+  loadPositiveAdjectiveRow: async () => [{ ...positivePenRow, snapshot_id: "wrong" }] });
+check(wrongPenSnapshot.results[0].status === "withheld" &&
+  wrongPenSnapshot.patch.evidence?.length === 0, "wrong pen snapshot withheld");
+const ambiguousPen = await executeCanonicalRuleCandidatesV1({ graph: penGraph,
+  tokens: penTokens, sentenceFindings: [{ ...penFinding, status: "ambiguous" }],
+  callAdjectiveRule: async () => { throw Error("wrong operator"); },
+  loadPositiveAdjectiveRow: async () => { throw Error("must not read source"); } });
+check(ambiguousPen.results.length === 0 && ambiguousPen.patch.evidence?.length === 0,
+  "ambiguous pen context cannot execute rule");
+
 console.log(`CANONICAL_RULE_CANDIDATE_EXECUTION=PASS checks=${checks}`);

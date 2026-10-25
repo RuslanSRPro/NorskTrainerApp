@@ -355,6 +355,14 @@ for (let i = 0; i < surface.sentences.length; i++) {
     graph, tokens: sentenceTokens, sentenceFindings: sentenceEvidence.findings,
     callAdjectiveRule: async (lexemeId) =>
       await callInternal<J>(url, key, 'adjective-degree-sql-shadow-v1', { lexemeId }),
+    loadPositiveAdjectiveRow: async (lexemeId) => {
+      const { data, error } = await supabase.from('lexeme_form_display_v2')
+        .select('lexeme_id,snapshot_id,dictionary_code,article_id,pos,lemma,form_key,primary_values,article_ids,evidence_ids')
+        .eq('lexeme_id', lexemeId).eq('form_key', 'positive_singular_indefinite_common')
+        .eq('article_id', 44555).limit(2);
+      if (error) throw new Error('positive_adjective_source_unavailable');
+      return data;
+    },
   });
   graph = applyGraphPatchV1(graph, ruleCandidates.patch);
   const ruleCandidateSummary = {

@@ -13,6 +13,8 @@ import { assessPronounCaseContextV1, type PronounCaseContextV1 } from
   "./pronoun-case-context-guard-v1.ts";
 import { adjectiveDegreeRuleFirstShadowManifestV1 as adjectiveManifest } from
   "./adjective-degree-rule-first-shadow-manifest-v1.ts";
+import { regularPenDegreeCandidateFamilyV1 } from
+  "./adjective-degree-regular-pen-family-v1.ts";
 
 const PRODUCER = "canonical_rule_candidate_execution_v1";
 const PRONOUN_FAMILY = "morphological_paradigm.personal_pronoun_case.v1";
@@ -41,6 +43,7 @@ export type CandidateRuleContextV1 = {
   tokens: readonly SentenceSourceTokenV1[];
   sentenceFindings: readonly SentenceEvidenceFindingV1[];
   callAdjectiveRule: (lexemeId: string) => Promise<unknown>;
+  loadPositiveAdjectiveRow?: (lexemeId: string) => Promise<unknown>;
 };
 
 export type CandidateRuleFamilyV1 = {
@@ -151,7 +154,8 @@ export const adjectiveDegreeCandidateFamilyV1: CandidateRuleFamilyV1 = {
 export async function executeCanonicalRuleCandidatesV1(
   context: CandidateRuleContextV1,
   families: readonly CandidateRuleFamilyV1[] =
-    [pronounCaseCandidateFamilyV1, adjectiveDegreeCandidateFamilyV1],
+    [pronounCaseCandidateFamilyV1, adjectiveDegreeCandidateFamilyV1,
+      regularPenDegreeCandidateFamilyV1],
 ): Promise<{ patch: GraphPatchV1; results: CandidateRuleResultV1[];
   familiesEvaluated: string[]; familiesSkipped: string[] }> {
   const codes = families.map((family) => family.code);
