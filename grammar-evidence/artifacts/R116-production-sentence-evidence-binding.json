@@ -1,0 +1,32 @@
+{
+  "schema_version": "grammar-evidence-production-binding-proof-v1",
+  "run": "R116-PRODUCTION-SENTENCE-EVIDENCE-BINDING-2026-10-25",
+  "observed_at_utc": "2026-10-25T09:27:27Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "edge_function": "canonical-graph-shadow-v1",
+  "deployed_version": 68,
+  "deployed_status": "ACTIVE",
+  "deployed_bundle_sha256": "5c945784a6d4ea9e58b41bc4e2246f5531d91f028616fe840f37961bd5f411b0",
+  "source_commit": "204c54f",
+  "source_parity_before_deploy": "All 10 deployed v67 source files matched local files before editing; v68 bundle includes the new producer and adjective family.",
+  "local_checks": {
+    "producer_executable_checks": "19 PASS",
+    "new_module_deno_check": "PASS",
+    "full_edge_deno_check": "INCOMPLETE: external JSR dependency could not be loaded in local environment",
+    "deployment_bundle": "PASS"
+  },
+  "production_https_controls": [
+    {"text":"En åpen bok.","http":200,"ok":true,"invariant_errors":0,"families_evaluated":["shadow.sentence.adjective.article_noun_context.v1"],"finding":"context_supported","reason":"article_adjective_noun_frame_compatible","canonical_token_id":"tok:1:3:7","candidate_lexeme_id":"81a6cba3-26d1-4bf1-9cb3-41997911dd50","constraint_support":1,"constraint_resolve":0,"lexical_reading_status":"candidate","grammar_activation":false,"both_bok_lexemes_retained":true},
+    {"text":"Han er åpen.","http":200,"ok":true,"invariant_errors":0,"finding":"ambiguous","reason":"copular_predicative_allows_noun_or_adjective","constraint_support":0,"constraint_resolve":0},
+    {"text":"En åpen dør.","http":200,"ok":true,"invariant_errors":0,"finding":"ambiguous","reason":"head_pos_competes_or_missing","constraint_support":0,"constraint_resolve":0},
+    {"text":"Han er lærer.","http":200,"ok":true,"invariant_errors":0,"families_evaluated":[],"constraint_support":0,"constraint_resolve":0},
+    {"text":"Åpen.","http":200,"ok":true,"invariant_errors":0,"finding":"insufficient_context","reason":"no_independent_adjective_context","constraint_support":0,"constraint_resolve":0},
+    {"control":"request_without_internal_secret","http":401}
+  ],
+  "conclusion": "The deployed trusted canonical shadow binds raw SQL candidate tokens to canonical reading identities and runs the trigger-selected generic sentence evidence producer through existing constraint propagation. The first adjective family adds support only and abstains on controls.",
+  "limits": [
+    "One family is deployed; family registry is reusable but other families still require implementation and tests.",
+    "Article-noun context is not independent proof of adjective POS or agreement.",
+    "No rule grant, sentence admission, candidate resolution, application integration or rule activation is established."
+  ]
+}

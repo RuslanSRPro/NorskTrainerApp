@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "3057bf1632b593d3fb7ad69171383d91b33c0b0e",
+  "head": "204c54fb9181931d6ed4716b2baf67ffc5d7185b",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "3057bf1632b593d3fb7ad69171383d91b33c0b0e",
-  "source_head": "3057bf1632b593d3fb7ad69171383d91b33c0b0e",
-  "source_revision": "3057bf1632b593d3fb7ad69171383d91b33c0b0e",
+  "archive_head": "204c54fb9181931d6ed4716b2baf67ffc5d7185b",
+  "source_head": "204c54fb9181931d6ed4716b2baf67ffc5d7185b",
+  "source_revision": "204c54f",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 206,
-  "history_event_count": 176,
-  "strict_history_event_count": 129,
+  "history_event_count": 177,
+  "strict_history_event_count": 130,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -185,7 +185,8 @@
     "R114-ADJECTIVE-SENTENCE-POS-GAP-2026-10-25",
     "R114-ADJECTIVE-SENTENCE-ADMISSION-GATE-2026-10-25",
     "R115-REUSABLE-SENTENCE-EVIDENCE-PRODUCER-2026-10-25",
-    "R115-SENTENCE-EVALUATOR-PRODUCTION-BINDING-GATE-2026-10-25"
+    "R115-SENTENCE-EVALUATOR-PRODUCTION-BINDING-GATE-2026-10-25",
+    "R116-PRODUCTION-SENTENCE-EVIDENCE-BINDING-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -343,8 +344,9 @@
       "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP"
     ],
     "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING": [
-      "grammar-evidence/artifacts/R115-reusable-sentence-evidence-producer.json",
+      "grammar-evidence/artifacts/R116-production-sentence-evidence-binding.json",
       "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "supabase/functions/_shared/nlp/canonical-sentence-evidence-producer-v1.ts",
       "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER"
     ],
     "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP": [
@@ -855,7 +857,7 @@
   },
   "proof_next_actions": {
     "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER": "Bind the family-neutral producer to a trusted canonical shadow input with exact source rule provenance; add another family and benchmark trigger filtering before any sentence grant.",
-    "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING": "Add a trusted SQL-token-to-canonical-ID adapter in the shadow endpoint, register source-backed family definitions, run positive/negative corpus and measure per-sentence latency.",
+    "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING": "Add independent adjective POS/agreement evidence and connect eligible sentence evidence to the rule-first form operator; then test admission before any activation grant.",
     "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP": "Build a source-backed sentence evidence producer that evaluates adjective agreement and constituent alternatives without assuming adjective POS, preserves canonical token-to-lexeme identity and abstains when competing readings survive.",
     "R114_ADJECTIVE_SENTENCE_ADMISSION_READY": "Test En åpen bok, Han er åpen, Han er lærer, isolated åpen and ambiguous noun/verb controls through a new evidence producer; require explicit abstention before any sentence-level grant.",
     "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS": "Prove sentence-level adjective reading and rule applicability with independent POS evidence; expand curated source-backed positive lexemes and exception controls before considering a bounded activation grant.",
@@ -1954,7 +1956,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-sentence-evidence-producer-v1.ts",
-      "sha256": "da2c34cf83377c49dd14c08e01802710087913e2c1f1640b4bc5cc0ebe95402f",
+      "sha256": "f38e74bfeeeac5a65f35afea5b87e82a0213f29e100a2693879b0ce9a08c3de0",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3230,7 +3232,7 @@
     },
     {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
-      "sha256": "2e74ab31cee13d17e94c397eb44295ddfe429650ac65154ba1f717ebfe61a7a0",
+      "sha256": "402d0a83abd56357210b9505404dfec30f65b66bf983128da39c36eff1c05806",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3244,7 +3246,7 @@
     {
       "proof_id": "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "EXECUTABLE_COMPOSITION",
       "proved_at_head": "3057bf1632b593d3fb7ad69171383d91b33c0b0e",
       "claim": "A family-neutral sentence evidence producer can select applicable evaluator families from input triggers, preserve canonical token and competing candidate identities, and send only supporting findings to the existing canonical constraint propagation engine.",
@@ -3262,28 +3264,32 @@
         "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/canonical-sentence-evidence-producer-v1.ts"
+      ],
       "notes": "This is a reusable support-only local producer, not a new propagation engine. Source observations came from Production but producer execution is local; adjective POS and activation remain unproved."
     },
     {
       "proof_id": "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING",
-      "declared_status": "UNVERIFIED",
-      "effective_status": "UNVERIFIED",
-      "proof_kind": "USER_REQUIREMENT",
-      "proved_at_head": null,
-      "claim": "The deployed canonical shadow runs source-backed sentence evidence families through the generic constraint evaluator and records candidate-specific results without activating or resolving unsupported rules.",
-      "result": "The current canonical-graph-shadow-v1 still calls buildCanonicalConstraintPropagationPatchV1 with an empty evaluator. R115 supplies a tested reusable evaluator but does not wire or deploy it.",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "204c54f",
+      "claim": "The deployed canonical shadow runs trigger-selected, source-backed sentence evidence families through the generic constraint evaluator and records candidate-specific results without activating or resolving unsupported rules.",
+      "result": "Production canonical-graph-shadow-v1 v68 returned 200 with one supporting constraint evaluation for En åpen bok, zero resolutions and unchanged candidate status. Four semantic controls abstained or skipped; unauthorized request returned 401. No activation occurred.",
       "evidence_runs": [
-        "R115-REUSABLE-SENTENCE-EVIDENCE-PRODUCER-2026-10-25"
+        "R115-REUSABLE-SENTENCE-EVIDENCE-PRODUCER-2026-10-25",
+        "R116-PRODUCTION-SENTENCE-EVIDENCE-BINDING-2026-10-25"
       ],
       "dependencies": [
-        "grammar-evidence/artifacts/R115-reusable-sentence-evidence-producer.json",
+        "grammar-evidence/artifacts/R116-production-sentence-evidence-binding.json",
         "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "supabase/functions/_shared/nlp/canonical-sentence-evidence-producer-v1.ts",
         "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER"
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Do not interpret support-only adjective context as independent POS, admission, or activation authority."
+      "notes": "The deployed adjective family is support-only. It does not establish independent POS, sentence admission or activation authority."
     },
     {
       "proof_id": "R114_ADJECTIVE_SENTENCE_POS_EVIDENCE_GAP",
@@ -4076,7 +4082,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.89 max=24"
+        "DB snapshot expired: age_hours=67.00 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4096,7 +4102,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.84 max=24"
+        "DB snapshot expired: age_hours=66.95 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4163,7 +4169,7 @@
     {
       "proof_id": "R056_SHADOW_EDGE_AUTH_BOUNDARY",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "DEPLOYED_SOURCE_AND_HTTP_PROBE",
       "proved_at_head": "05449a7",
       "claim": "The deployed canonical graph shadow Edge endpoint rejects unauthenticated requests before executing or returning graph data.",
@@ -4177,7 +4183,9 @@
         "grammar-evidence/artifacts/R056-shadow-edge-authorization-boundary.json"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/canonical-graph-shadow-v1/index.ts"
+      ],
       "notes": "verify_jwt remains false; authorization is enforced in the handler. This is a direct endpoint proof, not an audit of all downstream consumers."
     },
     {
@@ -4301,7 +4309,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.01 max=24"
+        "DB snapshot expired: age_hours=65.12 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4322,7 +4330,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.01 max=24"
+        "DB snapshot expired: age_hours=65.12 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4423,7 +4431,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.75 max=24"
+        "DB snapshot expired: age_hours=65.86 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
