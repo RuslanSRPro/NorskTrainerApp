@@ -1,0 +1,32 @@
+{
+  "schema_version": "grammar-evidence-live-candidate-binding-v1",
+  "observed_at_utc": "2026-10-25T09:49:07Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "input_text": "En åpen bok.",
+  "graph_route": "canonical-graph-shadow-v1",
+  "rule_route": "adjective-degree-sql-shadow-v1",
+  "canonical_token_id": "tok:1:3:7",
+  "source_candidate_id": "surface:81a6cba3-26d1-4bf1-9cb3-41997911dd50:adjective",
+  "lexeme_id": "81a6cba3-26d1-4bf1-9cb3-41997911dd50",
+  "positive_snapshot_id": "965f0a1a-9f22-446a-b36c-f573c9a002d8",
+  "rule_code": "nrg_rt_v1.adjective.degree.suffix.el_en_er_vowel_deletion.comparative",
+  "derived_form": "åpnere",
+  "observed_status": "candidate_derivation_observed",
+  "wrong_candidate_control": "source_candidate_identity_mismatch",
+  "wrong_snapshot_control": "rule_or_snapshot_mismatch",
+  "retained_bok_lexeme_ids": [
+    "ec9da2b9-22d4-4292-81e3-05b26f4aa852",
+    "ff26110c-7180-4ef4-92e9-372355e40a90"
+  ],
+  "graph_candidate_status": "candidate",
+  "output_class": "rule_derivation_evidence_for_candidate_only",
+  "persistence_authority": false,
+  "activation_authority": false,
+  "consumer_boundary": "analyze-text owns card verification, enrichment and any database persistence",
+  "limits": [
+    "The two Production responses were joined by this read-only verifier; the canonical graph runtime does not yet invoke the SQL rule endpoint.",
+    "The canonical lexical node carries lexeme ID and POS but does not carry the raw SQL source candidate ID as a separate feature.",
+    "The derived form is a rule output candidate; this check does not establish sentence-level POS, learner-facing correctness or a verified card."
+  ],
+  "conclusion": "Two trusted Production shadow responses can be joined for this exact token and lexeme without dropping either bok reading. This is a read-only observation, not an integrated graph executor or a verified analyze-text card."
+}
