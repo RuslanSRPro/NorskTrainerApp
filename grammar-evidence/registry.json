@@ -10,6 +10,20 @@
   ],
   "proofs": [
     {
+      "proof_id": "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "A secret-authenticated Edge backend invokes the service-role-only SQL bridge for the private adjective rule-first shadow operator, returning the exact admitted åpen candidate and withholding out-of-scope lexemes.",
+      "proved_at_head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
+      "evidence_runs": ["R113-ADJECTIVE-SQL-TRUSTED-BACKEND-2026-10-25"],
+      "result": "Edge v1 ACTIVE. Production HTTPS: åpen→åpnere candidate; sikker, pen, vakker, bok and unknown UUID withheld; invalid ID 400; missing secret 401. Public SQL EXECUTE denied, service_role allowed. Handler 10/10 and typecheck PASS.",
+      "dependencies": ["grammar-evidence/artifacts/R113-adjective-sql-trusted-backend-controls.json", "grammar-evidence/tools/verify-adjective-sql-shadow-backend-v1.ts", "supabase/functions/adjective-degree-sql-shadow-v1/index.ts", "supabase/functions/adjective-degree-sql-shadow-v1/handler.ts", "supabase/migrations/20261025085554_grammar_adjective_rule_first_service_bridge_v1.sql", "supabase/config.toml", "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION"],
+      "blocked_by": [],
+      "invalidation": "Refresh after Edge version, wrapper ACL/function body, private SQL operator, manifest or positive source snapshot changes.",
+      "notes": "The extended corpus establishes abstention only outside one admitted lexeme. No sentence-level proof or activation grant. Backend response is not connected to analyze-text or the app.",
+      "next_action": "Prove sentence-level adjective reading and rule applicability with independent POS evidence; expand curated source-backed positive lexemes and exception controls before considering a bounded activation grant."
+    },
+    {
       "proof_id": "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",

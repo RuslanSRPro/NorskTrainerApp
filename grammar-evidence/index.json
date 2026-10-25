@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
+  "head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
-  "source_head": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
-  "source_revision": "d2304a3a1b7008978b3a01f81d8c30c319f4af7f",
+  "archive_head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
+  "source_head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
+  "source_revision": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 203,
-  "history_event_count": 171,
-  "strict_history_event_count": 124,
+  "history_event_count": 172,
+  "strict_history_event_count": 125,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -180,7 +180,8 @@
     "R111-ADJECTIVE-SHADOW-V6-DEPLOYMENT-2026-10-24",
     "R111-APEN-SHADOW-MANIFEST-POSITIVE-CONTROL-2026-10-24",
     "R111-RULE-FIRST-SHADOW-MANIFEST-ADMISSION-2026-10-24",
-    "R112-ADJECTIVE-SQL-RULE-FIRST-SHADOW-2026-10-24"
+    "R112-ADJECTIVE-SQL-RULE-FIRST-SHADOW-2026-10-24",
+    "R113-ADJECTIVE-SQL-TRUSTED-BACKEND-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -202,6 +203,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS": [],
     "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": [],
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": [],
     "S0_FOCUSED_REGRESSION_SUITE": [],
@@ -323,6 +325,15 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS": [
+      "grammar-evidence/artifacts/R113-adjective-sql-trusted-backend-controls.json",
+      "grammar-evidence/tools/verify-adjective-sql-shadow-backend-v1.ts",
+      "supabase/functions/adjective-degree-sql-shadow-v1/index.ts",
+      "supabase/functions/adjective-degree-sql-shadow-v1/handler.ts",
+      "supabase/migrations/20261025085554_grammar_adjective_rule_first_service_bridge_v1.sql",
+      "supabase/config.toml",
+      "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION"
+    ],
     "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": [
       "grammar-evidence/artifacts/R112-adjective-sql-rule-first-shadow.json",
       "supabase/migrations/20261024185032_grammar_adjective_rule_first_shadow_v1.sql",
@@ -813,6 +824,7 @@
     ]
   },
   "proof_next_actions": {
+    "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS": "Prove sentence-level adjective reading and rule applicability with independent POS evidence; expand curated source-backed positive lexemes and exception controls before considering a bounded activation grant.",
     "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION": "Test a genuine service_role backend invocation and expanded positive/abstention corpus; then define a separate reviewed activation grant and sentence-level rule path.",
     "S0_OWNER_BINDING_AUTHORITY_IDENTITY": "",
     "S0_FOCUSED_REGRESSION_SUITE": "",
@@ -3163,6 +3175,30 @@
   ],
   "proofs": [
     {
+      "proof_id": "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "c2085851dadd37d8760af57084ba0b4a74fac7a9",
+      "claim": "A secret-authenticated Edge backend invokes the service-role-only SQL bridge for the private adjective rule-first shadow operator, returning the exact admitted åpen candidate and withholding out-of-scope lexemes.",
+      "result": "Edge v1 ACTIVE. Production HTTPS: åpen→åpnere candidate; sikker, pen, vakker, bok and unknown UUID withheld; invalid ID 400; missing secret 401. Public SQL EXECUTE denied, service_role allowed. Handler 10/10 and typecheck PASS.",
+      "evidence_runs": [
+        "R113-ADJECTIVE-SQL-TRUSTED-BACKEND-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R113-adjective-sql-trusted-backend-controls.json",
+        "grammar-evidence/tools/verify-adjective-sql-shadow-backend-v1.ts",
+        "supabase/functions/adjective-degree-sql-shadow-v1/index.ts",
+        "supabase/functions/adjective-degree-sql-shadow-v1/handler.ts",
+        "supabase/migrations/20261025085554_grammar_adjective_rule_first_service_bridge_v1.sql",
+        "supabase/config.toml",
+        "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The extended corpus establishes abstention only outside one admitted lexeme. No sentence-level proof or activation grant. Backend response is not connected to analyze-text or the app."
+    },
+    {
       "proof_id": "R112_ADJECTIVE_SQL_RULE_FIRST_SHADOW_EXECUTION",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
@@ -3891,7 +3927,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=52.49 max=24"
+        "DB snapshot expired: age_hours=66.63 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -3911,7 +3947,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=52.44 max=24"
+        "DB snapshot expired: age_hours=66.58 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4116,7 +4152,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=50.61 max=24"
+        "DB snapshot expired: age_hours=64.75 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4137,7 +4173,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=50.61 max=24"
+        "DB snapshot expired: age_hours=64.75 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4238,7 +4274,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=51.34 max=24"
+        "DB snapshot expired: age_hours=65.48 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -5047,7 +5083,7 @@
     {
       "proof_id": "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
       "proved_at_head": "d16f7dd",
       "claim": "A separate adjective-degree-rule-shadow-v1 Edge Function is active, checks the trusted secret apikey in code and returns candidate-only shadow output without writes or activation authority.",
@@ -5070,7 +5106,9 @@
         "R105_ADJECTIVE_POSITIVE_DISPLAY_ROW_ADAPTER"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/config.toml"
+      ],
       "notes": "R111 records v6 admission controls. No automatic caller from analyze-text or canonical graph was added. Response flags are not an independent database zero-write audit."
     },
     {
