@@ -1,0 +1,28 @@
+{
+  "schema_version": "grammar-evidence-live-runtime-proof-v1",
+  "run": "R122-PRONOUN-EXCEPTION-GUARD-PRODUCTION-2026-10-25",
+  "observed_at_utc": "2026-10-25T10:18:04Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_commit": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+  "edge_function": "canonical-graph-shadow-v1",
+  "deployed_version": 70,
+  "deployed_status": "ACTIVE",
+  "bundle_sha256": "ba05d4620f8bf2ddd0b4f64d6858824616b4b168538a872bdb9d50bb1f484202",
+  "live_controls": [
+    {"text":"Jeg ser meg.","ok":true,"errors":0,"case_context":"independent_role_evidence_missing","role_authority_count":0},
+    {"text":"Han og meg gikk.","ok":true,"errors":0,"case_context":"coordination_exception_scope","role_authority_count":0},
+    {"text":"Han eller meg ser.","ok":true,"errors":0,"case_context":"coordination_exception_scope","role_authority_count":0},
+    {"text":"hun enn meg","ok":true,"errors":0,"case_context":"comparison_exception_scope","role_authority_count":0},
+    {"text":"uten meg","ok":true,"errors":0,"case_context":"preposition_exception_scope","role_authority_count":0},
+    {"text":"Den ser det.","ok":true,"errors":0,"case_context":"independent_role_evidence_missing","role_authority_count":0},
+    {"text":"En åpen bok.","ok":true,"errors":0,"adjective_derivation_count":1,"role_authority_count":0}
+  ],
+  "read_only_sql": {
+    "pronoun_manifest_status": "draft",
+    "pronoun_operator_capability_status": "blocked",
+    "pronoun_operator_approval_status": "blocked",
+    "active_nrg_rt_v1_rules": 0,
+    "release_v1_37_shadow_count": 1
+  },
+  "scope": "Closed candidate-only shadow. No manifest approval, release grant, role resolution, app card selection or database persistence."
+}

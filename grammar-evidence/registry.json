@@ -10,6 +10,20 @@
   ],
   "proofs": [
     {
+      "proof_id": "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "Canonical shadow v70 executes the pronoun case exception guard in Production while retaining candidate-only morphology and the earlier exact adjective derivation.",
+      "proved_at_head": "2316ee4dfaf54d653892dbcd2b6b97f27650218f",
+      "evidence_runs": ["R122-PRONOUN-EXCEPTION-GUARD-PRODUCTION-2026-10-25"],
+      "result": "Seven live sentence controls returned ok with zero invariant errors; coordination, comparison and preposition contexts defer role assignment. En åpen bok still produces one adjective derivation. Read-only SQL confirms pronoun manifest draft, operator blocked, zero active nrg_rt_v1 rules and release v1.37 shadow.",
+      "dependencies": ["grammar-evidence/artifacts/R122-pronoun-exception-guard-production.json", "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts", "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts", "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL"],
+      "blocked_by": [],
+      "invalidation": "Recheck after canonical shadow, pronoun source, manifest, token context or role-selection changes.",
+      "notes": "Only an explicit abstention contract is proven. It does not implement exception-aware subject/object selection or approve the draft manifest.",
+      "next_action": "Build independent syntactic role and coordination evidence, then validate and admit the nonexhaustive paradigm manifest. Extend a second adjective form class through the same candidate route."
+    },
+    {
       "proof_id": "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL",
       "status": "PROVEN",
       "proof_kind": "LOCAL_EXECUTABLE_TEST",
