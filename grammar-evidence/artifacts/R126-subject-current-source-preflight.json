@@ -1,0 +1,20 @@
+{
+  "schema_version": "grammar-evidence-subject-preflight-v1",
+  "run": "R126-SUBJECT-CURRENT-SOURCE-PREFLIGHT-2026-10-25",
+  "observed_at_utc": "2026-10-25T21:11:39Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "source_head": "b6d2f2ffba1d59a74b9897b27df93fc2f90cfcd7",
+  "release_code": "runtime-structural-v1.37",
+  "rpc_definition_md5": "81ae1453781a9ee00e67863086ec4bb9",
+  "pre_rule_plane_definition_md5": "83f2e42bbc91943a4723b67a0671d3c6",
+  "active_pilot_grants": 0,
+  "comparison": {
+    "r124_current_hashes_match": true,
+    "r065_historical_hashes_match": false,
+    "r071_corpus_expected_subject_edges_matched": 9,
+    "r071_corpus_positive_cases": 12,
+    "r071_corpus_rerun_on_current_source": false
+  },
+  "decision": "Current source preflight matches R124; R065 is historical and R071 corpus has not been rerun on the current RPC. This does not justify a new grant.",
+  "next_gate": "Run the saved R068 canonical corpus through the current route as one read-only batch before any new grant."
+}

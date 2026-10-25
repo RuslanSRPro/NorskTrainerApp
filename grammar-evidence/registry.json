@@ -10,6 +10,27 @@
   ],
   "proofs": [
     {
+      "proof_id": "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "Current Production RPC and private pre-rule-plane definition hashes match R124, with zero active pilot grants.",
+      "proved_at_head": "b6d2f2ffba1d59a74b9897b27df93fc2f90cfcd7",
+      "evidence_runs": [
+        "R126-SUBJECT-CURRENT-SOURCE-PREFLIGHT-2026-10-25"
+      ],
+      "result": "RPC md5 81ae1453781a9ee00e67863086ec4bb9 and producer md5 83f2e42bbc91943a4723b67a0671d3c6 match R124; zero active grants. R065 differs. R071 corpus has not been rerun.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R126-subject-current-source-preflight.json",
+        "R124_BATCH_ACTIVATION_ROUTE_AUDIT",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+        "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
+      ],
+      "blocked_by": [],
+      "invalidation": "Refresh after SQL definitions, release or grant state changes.",
+      "notes": "Read-only metadata query; no rule execution, grant, activation or app output.",
+      "next_action": "Run the saved R068 corpus as one current-source batch and compare clause, predicate and subject edges."
+    },
+    {
       "proof_id": "R125_RELEASE_WIDE_ACTIVATION_READINESS_MATRIX",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",

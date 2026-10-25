@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "ab9e3dc544f9b3b05af447a3b0dcec6f2e558a46",
+  "head": "5579c50bf3615a644c99c6e5457088cbdcc45009",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "ab9e3dc544f9b3b05af447a3b0dcec6f2e558a46",
-  "source_head": "ab9e3dc544f9b3b05af447a3b0dcec6f2e558a46",
-  "source_revision": "ab9e3dc544f9b3b05af447a3b0dcec6f2e558a46",
+  "archive_head": "5579c50bf3615a644c99c6e5457088cbdcc45009",
+  "source_head": "5579c50bf3615a644c99c6e5457088cbdcc45009",
+  "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 210,
-  "history_event_count": 187,
-  "strict_history_event_count": 140,
+  "history_event_count": 188,
+  "strict_history_event_count": 141,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -196,7 +196,8 @@
     "R122-PRONOUN-EXCEPTION-GUARD-PRODUCTION-2026-10-25",
     "R123-REGULAR-PEN-RULE-FIRST-CANDIDATE-2026-10-25",
     "R124-BATCH-ACTIVATION-ROUTE-AUDIT-2026-10-25",
-    "R125-BATCH-READINESS-2026-10-25"
+    "R125-BATCH-READINESS-2026-10-25",
+    "R126-SUBJECT-CURRENT-SOURCE-PREFLIGHT-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -218,6 +219,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": [],
     "R125_RELEASE_WIDE_ACTIVATION_READINESS_MATRIX": [],
     "R124_BATCH_ACTIVATION_ROUTE_AUDIT": [],
     "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": [],
@@ -353,6 +355,12 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": [
+      "grammar-evidence/artifacts/R126-subject-current-source-preflight.json",
+      "R124_BATCH_ACTIVATION_ROUTE_AUDIT",
+      "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+      "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
+    ],
     "R125_RELEASE_WIDE_ACTIVATION_READINESS_MATRIX": [
       "grammar-evidence/artifacts/R125-release-rule-snapshot.json",
       "grammar-evidence/artifacts/R125-batch-readiness.json",
@@ -946,6 +954,7 @@
     ]
   },
   "proof_next_actions": {
+    "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": "Run the saved R068 corpus as one current-source batch and compare clause, predicate and subject edges.",
     "R125_RELEASE_WIDE_ACTIVATION_READINESS_MATRIX": "Refresh current subject source and 12-case corpus as the first cohort gate; then replace the 12 form-rule input contract and build pattern-type admission with batch tests for later cohorts.",
     "R124_BATCH_ACTIVATION_ROUTE_AUDIT": "Build one batch readiness contract per rule family. First refresh the exact subject pilot source/corpus gate; then add independent pronoun role and form applicability producers, generic pattern-type admission, cohort tests and rollback before wider release activation.",
     "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": "Expand the regular -ere class with independent lexeme eligibility and exception checks; validate the pronoun manifest and separate subject/object role contract before a release grant.",
@@ -3387,6 +3396,27 @@
   ],
   "proofs": [
     {
+      "proof_id": "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "b6d2f2ffba1d59a74b9897b27df93fc2f90cfcd7",
+      "claim": "Current Production RPC and private pre-rule-plane definition hashes match R124, with zero active pilot grants.",
+      "result": "RPC md5 81ae1453781a9ee00e67863086ec4bb9 and producer md5 83f2e42bbc91943a4723b67a0671d3c6 match R124; zero active grants. R065 differs. R071 corpus has not been rerun.",
+      "evidence_runs": [
+        "R126-SUBJECT-CURRENT-SOURCE-PREFLIGHT-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R126-subject-current-source-preflight.json",
+        "R124_BATCH_ACTIVATION_ROUTE_AUDIT",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+        "R071_POSTFINITE_ADVERBIAL_CORE_GUARD"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Read-only metadata query; no rule execution, grant, activation or app output."
+    },
+    {
       "proof_id": "R125_RELEASE_WIDE_ACTIVATION_READINESS_MATRIX",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
@@ -4441,7 +4471,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=75.10 max=24"
+        "DB snapshot expired: age_hours=78.78 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4461,7 +4491,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=75.05 max=24"
+        "DB snapshot expired: age_hours=78.73 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4668,7 +4698,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=73.22 max=24"
+        "DB snapshot expired: age_hours=76.90 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4689,7 +4719,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=73.22 max=24"
+        "DB snapshot expired: age_hours=76.90 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4790,7 +4820,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=73.95 max=24"
+        "DB snapshot expired: age_hours=77.64 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
