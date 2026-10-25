@@ -10,6 +10,20 @@
   ],
   "proofs": [
     {
+      "proof_id": "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "For En åpen bok, two trusted Production shadow responses can be joined to the exact åpen token/lexeme candidate and source snapshot without losing either bok reading; mismatched candidate or snapshot is rejected by the read-only verifier.",
+      "proved_at_head": "835bcfa50ce3743ea61a349564b6c7eb4fd8178e",
+      "evidence_runs": ["R118-LIVE-ADJECTIVE-CANDIDATE-BINDING-2026-10-25"],
+      "result": "Positive candidate_derivation_observed for tok:1:3:7 and åpnere; wrong candidate and altered returned snapshot rejected; two bok lexeme IDs retained. Both endpoints were called separately. No graph runtime composition, candidate resolution, card persistence or activation occurred.",
+      "dependencies": ["grammar-evidence/artifacts/R118-live-adjective-candidate-binding.json", "grammar-evidence/tools/verify-adjective-candidate-rule-binding-live.ps1", "supabase/functions/canonical-graph-shadow-v1/index.ts", "supabase/functions/adjective-degree-sql-shadow-v1/handler.ts", "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING", "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS"],
+      "blocked_by": [],
+      "invalidation": "Recheck after either deployed Edge function, positive-row snapshot, candidate identity mapping, rule manifest or source schema changes.",
+      "notes": "The graph supplies candidate-scoped derivation evidence only. Analyze-text owns card verification, enrichment and any database persistence. The canonical lexical node does not expose raw SQL candidate ID separately; this is a bounded external join, not general binding authority.",
+      "next_action": "Add explicit raw source candidate ID to the canonical lexical reading contract and perform the same join inside the closed graph runtime; retain candidate-only status until independent sentence applicability is proved."
+    },
+    {
       "proof_id": "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE",
       "status": "INFERRED",
       "proof_kind": "SOURCE_CONTRACT_AUDIT",

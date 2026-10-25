@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "2fab0add9cadf88a550f7e9b8f7e6ff3700ee491",
+  "head": "835bcfa50ce3743ea61a349564b6c7eb4fd8178e",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "2fab0add9cadf88a550f7e9b8f7e6ff3700ee491",
-  "source_head": "204c54fb9181931d6ed4716b2baf67ffc5d7185b",
-  "source_revision": "204c54fb9181931d6ed4716b2baf67ffc5d7185b",
+  "archive_head": "835bcfa50ce3743ea61a349564b6c7eb4fd8178e",
+  "source_head": "835bcfa50ce3743ea61a349564b6c7eb4fd8178e",
+  "source_revision": "835bcfa50ce3743ea61a349564b6c7eb4fd8178e",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 206,
-  "history_event_count": 178,
-  "strict_history_event_count": 131,
+  "history_event_count": 179,
+  "strict_history_event_count": 132,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -187,7 +187,8 @@
     "R115-REUSABLE-SENTENCE-EVIDENCE-PRODUCER-2026-10-25",
     "R115-SENTENCE-EVALUATOR-PRODUCTION-BINDING-GATE-2026-10-25",
     "R116-PRODUCTION-SENTENCE-EVIDENCE-BINDING-2026-10-25",
-    "R117-CANDIDATE-FIRST-RULE-EXECUTION-ROUTE-2026-10-25"
+    "R117-CANDIDATE-FIRST-RULE-EXECUTION-ROUTE-2026-10-25",
+    "R118-LIVE-ADJECTIVE-CANDIDATE-BINDING-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -209,6 +210,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING": [],
     "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE": [],
     "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER": [],
     "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING": [],
@@ -336,6 +338,14 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING": [
+      "grammar-evidence/artifacts/R118-live-adjective-candidate-binding.json",
+      "grammar-evidence/tools/verify-adjective-candidate-rule-binding-live.ps1",
+      "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "supabase/functions/adjective-degree-sql-shadow-v1/handler.ts",
+      "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING",
+      "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS"
+    ],
     "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE": [
       "grammar-evidence/artifacts/R117-candidate-first-rule-execution-route.json",
       "supabase/functions/_shared/nlp/adjective-sentence-context-producer-v1.ts",
@@ -866,6 +876,7 @@
     ]
   },
   "proof_next_actions": {
+    "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING": "Add explicit raw source candidate ID to the canonical lexical reading contract and perform the same join inside the closed graph runtime; retain candidate-only status until independent sentence applicability is proved.",
     "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE": "Implement and test a candidate-scoped token-to-lexeme bridge that calls the existing private rule-first pilot in shadow, retaining competing readings and withholding on wrong identity or snapshot.",
     "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER": "Bind the family-neutral producer to a trusted canonical shadow input with exact source rule provenance; add another family and benchmark trigger filtering before any sentence grant.",
     "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING": "Add independent adjective POS/agreement evidence and connect eligible sentence evidence to the rule-first form operator; then test admission before any activation grant.",
@@ -3255,6 +3266,29 @@
   ],
   "proofs": [
     {
+      "proof_id": "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "835bcfa50ce3743ea61a349564b6c7eb4fd8178e",
+      "claim": "For En åpen bok, two trusted Production shadow responses can be joined to the exact åpen token/lexeme candidate and source snapshot without losing either bok reading; mismatched candidate or snapshot is rejected by the read-only verifier.",
+      "result": "Positive candidate_derivation_observed for tok:1:3:7 and åpnere; wrong candidate and altered returned snapshot rejected; two bok lexeme IDs retained. Both endpoints were called separately. No graph runtime composition, candidate resolution, card persistence or activation occurred.",
+      "evidence_runs": [
+        "R118-LIVE-ADJECTIVE-CANDIDATE-BINDING-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R118-live-adjective-candidate-binding.json",
+        "grammar-evidence/tools/verify-adjective-candidate-rule-binding-live.ps1",
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "supabase/functions/adjective-degree-sql-shadow-v1/handler.ts",
+        "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING",
+        "R113_ADJECTIVE_SQL_TRUSTED_BACKEND_CONTROLS"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "The graph supplies candidate-scoped derivation evidence only. Analyze-text owns card verification, enrichment and any database persistence. The canonical lexical node does not expose raw SQL candidate ID separately; this is a bounded external join, not general binding authority."
+    },
+    {
       "proof_id": "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE",
       "declared_status": "INFERRED",
       "effective_status": "INFERRED",
@@ -4116,7 +4150,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.22 max=24"
+        "DB snapshot expired: age_hours=67.37 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4136,7 +4170,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=67.17 max=24"
+        "DB snapshot expired: age_hours=67.31 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4343,7 +4377,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.34 max=24"
+        "DB snapshot expired: age_hours=65.49 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4364,7 +4398,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=65.34 max=24"
+        "DB snapshot expired: age_hours=65.49 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4465,7 +4499,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=66.07 max=24"
+        "DB snapshot expired: age_hours=66.22 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
