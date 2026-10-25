@@ -10,6 +10,29 @@
   ],
   "proofs": [
     {
+      "proof_id": "R124_BATCH_ACTIVATION_ROUTE_AUDIT",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "Current structural release v1.37 has 27 enabled, hash-matching members but no active nrg_rt_v1 rule; the existing admission wrapper is hardcoded to one dependency rule and cannot admit the other pattern families.",
+      "proved_at_head": "463304957804ae8e1d592aee41a414af6979e839",
+      "evidence_runs": [
+        "R124-BATCH-ACTIVATION-ROUTE-AUDIT-2026-10-25"
+      ],
+      "result": "Read-only Production audit: 27 enabled members and 27 hash matches, zero globally active and zero live grants. Twelve adjective form rules retain attested-pair-only contracts over empty legacy tables; pronoun manifest draft/operator blocked. R065 one-rule proof is historical because current RPC and private producer definition hashes differ from its preflight.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R124-batch-activation-route-audit.json",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+        "R071_POSTFINITE_ADVERBIAL_CORE_GUARD",
+        "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
+        "R098_FORM_RULE_SOURCE_GAP_AUDIT",
+        "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE"
+      ],
+      "blocked_by": [],
+      "invalidation": "Refresh after release membership, SQL definitions, grant state, manifests, source tables or runtime producer changes.",
+      "notes": "This is an activation-route audit, not a grant or proof that all 27 rules are safe to activate. Candidate-only adjective and pronoun shadows do not constitute SQL release admission.",
+      "next_action": "Build one batch readiness contract per rule family. First refresh the exact subject pilot source/corpus gate; then add independent pronoun role and form applicability producers, generic pattern-type admission, cohort tests and rollback before wider release activation."
+    },
+    {
       "proof_id": "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE",
       "status": "PROVEN",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",

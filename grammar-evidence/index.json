@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
+  "head": "463304957804ae8e1d592aee41a414af6979e839",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
-  "source_head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
-  "source_revision": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
+  "archive_head": "463304957804ae8e1d592aee41a414af6979e839",
+  "source_head": "463304957804ae8e1d592aee41a414af6979e839",
+  "source_revision": "463304957804ae8e1d592aee41a414af6979e839",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 210,
-  "history_event_count": 185,
-  "strict_history_event_count": 138,
+  "history_event_count": 186,
+  "strict_history_event_count": 139,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -194,7 +194,8 @@
     "R120-R119-SUPERSESSION-2026-10-25",
     "R121-PRONOUN-CASE-EXCEPTION-GUARD-2026-10-25",
     "R122-PRONOUN-EXCEPTION-GUARD-PRODUCTION-2026-10-25",
-    "R123-REGULAR-PEN-RULE-FIRST-CANDIDATE-2026-10-25"
+    "R123-REGULAR-PEN-RULE-FIRST-CANDIDATE-2026-10-25",
+    "R124-BATCH-ACTIVATION-ROUTE-AUDIT-2026-10-25"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -216,6 +217,7 @@
     "db_snapshot_default_max_age_hours": 24
   },
   "proof_dependencies": {
+    "R124_BATCH_ACTIVATION_ROUTE_AUDIT": [],
     "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": [],
     "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION": [],
     "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL": [],
@@ -349,6 +351,14 @@
     "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT": []
   },
   "proof_source_dependencies": {
+    "R124_BATCH_ACTIVATION_ROUTE_AUDIT": [
+      "grammar-evidence/artifacts/R124-batch-activation-route-audit.json",
+      "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+      "R071_POSTFINITE_ADVERBIAL_CORE_GUARD",
+      "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
+      "R098_FORM_RULE_SOURCE_GAP_AUDIT",
+      "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE"
+    ],
     "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": [
       "grammar-evidence/artifacts/R123-regular-pen-rule-first-candidate.json",
       "grammar-evidence/tools/verify-canonical-rule-candidate-execution-v1.ts",
@@ -926,6 +936,7 @@
     ]
   },
   "proof_next_actions": {
+    "R124_BATCH_ACTIVATION_ROUTE_AUDIT": "Build one batch readiness contract per rule family. First refresh the exact subject pilot source/corpus gate; then add independent pronoun role and form applicability producers, generic pattern-type admission, cohort tests and rollback before wider release activation.",
     "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE": "Expand the regular -ere class with independent lexeme eligibility and exception checks; validate the pronoun manifest and separate subject/object role contract before a release grant.",
     "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION": "Build independent syntactic role and coordination evidence, then validate and admit the nonexhaustive paradigm manifest. Extend a second adjective form class through the same candidate route.",
     "R121_PRONOUN_CASE_EXCEPTION_GUARD_LOCAL": "Validate the manifest and approved operator against current Production source, prove independent subject/object and coordination evidence, deploy this guard with a live regression, then extend the next rule-first adjective class.",
@@ -3365,6 +3376,29 @@
   ],
   "proofs": [
     {
+      "proof_id": "R124_BATCH_ACTIVATION_ROUTE_AUDIT",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "proved_at_head": "463304957804ae8e1d592aee41a414af6979e839",
+      "claim": "Current structural release v1.37 has 27 enabled, hash-matching members but no active nrg_rt_v1 rule; the existing admission wrapper is hardcoded to one dependency rule and cannot admit the other pattern families.",
+      "result": "Read-only Production audit: 27 enabled members and 27 hash matches, zero globally active and zero live grants. Twelve adjective form rules retain attested-pair-only contracts over empty legacy tables; pronoun manifest draft/operator blocked. R065 one-rule proof is historical because current RPC and private producer definition hashes differ from its preflight.",
+      "evidence_runs": [
+        "R124-BATCH-ACTIVATION-ROUTE-AUDIT-2026-10-25"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R124-batch-activation-route-audit.json",
+        "R065_COMMITTED_ONE_RULE_SQL_PILOT",
+        "R071_POSTFINITE_ADVERBIAL_CORE_GUARD",
+        "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
+        "R098_FORM_RULE_SOURCE_GAP_AUDIT",
+        "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "This is an activation-route audit, not a grant or proof that all 27 rules are safe to activate. Candidate-only adjective and pronoun shadows do not constitute SQL release admission."
+    },
+    {
       "proof_id": "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE",
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
@@ -4373,7 +4407,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=72.18 max=24"
+        "DB snapshot expired: age_hours=74.97 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4393,7 +4427,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=72.13 max=24"
+        "DB snapshot expired: age_hours=74.92 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4600,7 +4634,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=70.30 max=24"
+        "DB snapshot expired: age_hours=73.09 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4621,7 +4655,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=70.30 max=24"
+        "DB snapshot expired: age_hours=73.09 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4722,7 +4756,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=71.03 max=24"
+        "DB snapshot expired: age_hours=73.83 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },

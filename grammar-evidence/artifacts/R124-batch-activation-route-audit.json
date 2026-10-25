@@ -1,0 +1,102 @@
+{
+  "schema_version": "grammar-evidence-activation-gap-audit-v1",
+  "run": "R124-BATCH-ACTIVATION-ROUTE-AUDIT-2026-10-25",
+  "observed_at_utc": "2026-10-25T17:24:03Z",
+  "project_id": "kevpkawrbtovrgyjkkvu",
+  "mode": "read_only_production_sql_plus_current_source",
+  "release_code": "runtime-structural-v1.37",
+  "live_snapshot": {
+    "release_status": "shadow",
+    "release_rules": 27,
+    "release_members_enabled": 27,
+    "release_compile_hash_matches": 27,
+    "globally_active_nrg_rules": 0,
+    "active_pilot_grants": 0,
+    "legacy_lexeme_form_variants_rows": 0,
+    "legacy_adjective_forms_rows": 0,
+    "pronoun_manifest_status": "draft",
+    "pronoun_operator_capability_status": "blocked",
+    "pilot_rule_codes_in_release_metadata": [
+      "nrg_rt_v1.preposition.complementless_category.candidate_constraint",
+      "nrg_rt_v1.structural.noun_phrase.noun_head",
+      "nrg_rt_v1.structural.dependency.subject_of_predicate"
+    ]
+  },
+  "release_by_pattern": [
+    {
+      "family": "adjective",
+      "pattern_type": "feature_unification",
+      "count": 1,
+      "manifest_mapping_observed": 0
+    },
+    {
+      "family": "adjective",
+      "pattern_type": "morphological_inflection",
+      "count": 12,
+      "validated_manifests": 12,
+      "strategy": "attested_pair_only",
+      "current_source_rows": 0
+    },
+    {
+      "family": "preposition",
+      "pattern_type": "candidate_constraint",
+      "count": 1,
+      "manifest_mapping_observed": 0
+    },
+    {
+      "family": "structural",
+      "pattern_type": "clause_pattern",
+      "count": 3,
+      "validated_manifests": 3
+    },
+    {
+      "family": "structural",
+      "pattern_type": "dependency_pattern",
+      "count": 1,
+      "validated_manifests": 1
+    },
+    {
+      "family": "structural",
+      "pattern_type": "graph_pattern",
+      "count": 4,
+      "validated_manifests": 4
+    },
+    {
+      "family": "structural",
+      "pattern_type": "phrase_pattern",
+      "count": 3,
+      "validated_manifests": 3
+    },
+    {
+      "family": "word_order",
+      "pattern_type": "relative_order",
+      "count": 2,
+      "manifest_mapping_observed": 0
+    }
+  ],
+  "one_rule_route": {
+    "historical_r065": "One committed Production grant executed subject_of_predicate on Katten sover and was revoked.",
+    "current_pilot_wrapper_subject_code_hardcoded": true,
+    "current_pilot_wrapper_dependency_executor_only": true,
+    "subject_member_hash_matches": true,
+    "subject_global_active": false,
+    "r065_historical_rpc_md5": "968759622f01f1489b79b67f60cce775",
+    "current_rpc_md5": "81ae1453781a9ee00e67863086ec4bb9",
+    "r065_historical_private_producer_md5": "7be6a79614163ca12589ec9e68f54f30",
+    "current_private_producer_md5": "83f2e42bbc91943a4723b67a0671d3c6",
+    "decision": "R065 proves the historical pilot, not unchanged current input parity. Refresh exact source and corpus checks before a new grant."
+  },
+  "other_routes": {
+    "canonical_shadow": "v71 candidate-only pronoun and exact adjective form evidence; not SQL release admission",
+    "pronoun": "source-backed candidate producer exists, but manifest draft, operator blocked, and no release membership",
+    "adjective_forms": "12 validated old manifests are attested-pair-only and read empty legacy form tables; the new shadow producers are separate",
+    "subject_corpus": "R071 matched 9 of 12 expected subject edges; three remain missing"
+  },
+  "decisions": {
+    "first_rule": "Recheck current source hashes and corpus, then reuse the existing scoped subject_of_predicate pilot grant/executor; no new per-word producer is required for this proof.",
+    "batch_activation": "Build a release-wide readiness inventory and admission dispatcher per pattern type. For each cohort require source-backed input producer, manifest/operator mapping, batch positive/negative/abstention corpus, exact release/hash gate, isolated output, revocation and monitoring. Admit only cohorts meeting all checks.",
+    "form_rules": "Replace attested-pair-only input contract with positive-source plus independently proved class and exception features before any of the 12 rules can join a productive cohort.",
+    "pronoun": "Finish operator/manifest and role arbitration as separate capabilities; candidate case forms alone do not resolve subject/object."
+  },
+  "scope_limit": "Read-only audit. No Production write, grant, rule activation, app integration or source-code runtime change in R124."
+}
