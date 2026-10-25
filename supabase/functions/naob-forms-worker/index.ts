@@ -93,7 +93,8 @@ type Loaded =
   | { status: 'review'; reason: string; detail: unknown };
 
 // NAOB search + every article "substantiv" with exactly this headword.
-async function loadNaobNounArticles(lemma: string, fetchImpl: FetchLike): Promise<Loaded> {
+// D10 25.10.2026: exported for the Read mode preview (same rule, read only).
+export async function loadNaobNounArticles(lemma: string, fetchImpl: FetchLike): Promise<Loaded> {
   const searchUrl = `${NAOB}/s%C3%B8k?q=${encodeURIComponent(lemma)}`;
   const listing = parseNaobSearch(await fetchNaobPage(searchUrl, fetchImpl));
   const slugs = listing.entries

@@ -203,6 +203,13 @@ function previewSourceLabel(word: any, lang: AppLanguage): string {
   const notFound = src.ordbokene === "not_found";
   const failed = src.ordbokene === "error";
   const more = Number(src.moreArticles || 0);
+  // D10 25.10.2026: card divided by NAOB (no Ordbøkene article)
+  if (src.naob) {
+    const lx = src.lexin === "found";
+    if (lang === "ua") return "З NAOB" + (lx ? " і Lexin" : "") + ", немає в Ordbøkene. Слово ще не в базі.";
+    if (lang === "no") return "Fra NAOB" + (lx ? " og Lexin" : "") + ", ikke i Ordbøkene. Ordet er ikke i databasen ennå.";
+    return "From NAOB" + (lx ? " and Lexin" : "") + ", not in Ordbøkene. Not in the database yet.";
+  }
   if (lang === "ua") {
     if (failed) return "Ordbøkene зараз недоступний. Слово ще не в базі.";
     if (notFound) return "Немає в Ordbøkene" + (src.lexin === "found" ? " (переклад з Lexin)" : "") + ". Слово ще не в базі; його можна зберегти.";
@@ -725,10 +732,19 @@ export default function ReadingScreen() {
       if(found.length){setWordSearchMessage(firstUnknown ? `${tr("word_found")} · ${tr("not_in_base")}: ${firstUnknown}` : tr("word_found"));return;}
       if(firstUnknown){
         const r=await inspectWordViaAppsScript(firstUnknown);
-        if(r?.preview){setPreviewWord(r.preview);setWordSearchMessage(tr("new_word_review_preview"));return;}
+        if(r?.preview){showPreview(r.preview,tr("new_word_review_preview"));return;}
         setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
       }
     }catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setWordLoading(false);}
+  }
+
+  // D10 25.10.2026 (agreed): a previewed word with several cards (other part of
+  // speech, homograph card II/III) is shown like the database matches: first
+  // the list, a tap opens the preview of that card. One card -> its preview.
+  function showPreview(preview:any,message:string){
+    const variants:any[]=Array.isArray(preview?.variants)?preview.variants:[];
+    if(variants.length>1){setPreviewWord(null);setWordMatches(variants.map((v:any)=>({...v,isPreviewVariant:true})));setWordSearchMessage(message);return;}
+    setPreviewWord(preview);setWordSearchMessage(message);
   }
 
   async function inspectUnknownWord(value:string){
@@ -742,7 +758,7 @@ export default function ReadingScreen() {
       }
       const r=await inspectWordViaAppsScript(q);
       if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||"",en:r.item.en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
-      if(r?.preview){setPreviewWord(r.preview);setWordSearchMessage(tr("preview_ready"));return;}
+      if(r?.preview){showPreview(r.preview,tr("preview_ready"));return;}
       setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
     }catch(err:any){setWordSearchMessage(String(err?.message||err));}finally{setWordLoading(false);}
   }
@@ -970,8 +986,8 @@ export default function ReadingScreen() {
           {wordMatches.length>0?(<View style={[s.msgBox,{backgroundColor:T.cardAlt}]}>
             <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>{CHOOSE_POS_UI[lang]}</Text>
             {wordMatches.map((item:any,index:number)=>(
-              <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:selectedWord?.id===item.id?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>setSelectedWord(item)}>
-                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.matchedForm&&normalizeToken(String(item.matchedForm))!==normalizeToken(String(item.lemma||item.word||""))?`${item.matchedForm} → `:""}{item.lemma||item.word} — {posUi(item.pos||item.category||item.type||"",lang)}{pickTranslation(item,lang)?` · ${pickTranslation(item,lang)}`:""}</Text>
+              <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:(item.isPreviewVariant?previewWord?.variantIndex===item.variantIndex:selectedWord?.id===item.id)?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>item.isPreviewVariant?setPreviewWord(item):setSelectedWord(item)}>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.matchedForm&&normalizeToken(String(item.matchedForm))!==normalizeToken(String(item.lemma||item.word||""))?`${item.matchedForm} → `:""}{item.lemma||item.word} — {posUi(item.pos||item.category||item.type||"",lang)}{(pickTranslation(item,lang)||item.definitionShort)?` · ${pickTranslation(item,lang)||item.definitionShort}`:""}</Text>
               </Pressable>
             ))}
           </View>):null}

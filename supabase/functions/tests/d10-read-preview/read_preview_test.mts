@@ -3,6 +3,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { register } from 'node:module';
+// D10 25.10.2026: preview.ts now imports naob-forms-worker (esm.sh client stubbed)
+register('data:text/javascript,' + encodeURIComponent(`
+export async function resolve(specifier, context, next) {
+  if (specifier.startsWith('https://esm.sh/')) {
+    return { url: 'data:text/javascript,export const createClient=()=>{throw new Error("stub")}', shortCircuit: true };
+  }
+  return next(specifier, context);
+}`));
 const pv = await import('../../read-word-preview/preview.ts');
 
 const bok = JSON.parse(readFileSync(new URL('./ordbokene_6790.json', import.meta.url), 'utf8'));

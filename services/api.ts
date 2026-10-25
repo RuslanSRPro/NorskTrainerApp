@@ -1456,6 +1456,14 @@ export async function previewWordFromSources(query: string): Promise<any> {
   const { data, error } = await supabase.functions.invoke('read-word-preview', { body: { word: query } });
   if (error) throw new Error(error.message);
   if (!data?.ok) throw new Error(String(data?.error ?? 'read-word-preview failed'));
+  // D10 25.10.2026 (agreed): the server returns the cards the audit would
+  // make (same rule functions as the pipeline). The first card is shown, all
+  // of them are listed under it ("variants"). An older server without cards
+  // -> the first article as before.
+  if (Array.isArray(data.cards) && data.cards.length > 0) {
+    const variants = data.cards.map((card: any, index: number) => previewFromCard(card, index, data));
+    return { ...variants[0], variants };
+  }
   const article = data.ordbokene?.articles?.[0] ?? null;
   const pos = article?.pos ?? data.lexin?.entries?.[0]?.pos ?? '';
   const lexinEntry = (data.lexin?.entries ?? []).find((e: any) => e.pos && e.pos === pos)
@@ -1492,6 +1500,51 @@ export async function previewWordFromSources(query: string): Promise<any> {
       lexin: data.lexin?.status ?? 'error',
       articleId: article?.article_id ?? null,
       moreArticles: Math.max(0, (data.ordbokene?.articles?.length ?? 0) - 1) + (data.ordbokene?.more_articles ?? 0),
+    },
+  };
+}
+
+// One preview card (shape of a word card, forms through the same read model
+// as the database forms). No translation (Lexin cannot tell the card) -> the
+// explanation of its own article is shown instead.
+function previewFromCard(card: any, index: number, data: any): any {
+  const id = `preview-${index}`;
+  const rows: V2FormRow[] = (card.forms ?? []).map((form: any) => ({
+    lexeme_id: id,
+    form_key: form.form_key,
+    primary_values: form.primary_values,
+    alternative_values: form.alternative_values,
+    accepted_articles: card.accepted_articles ?? [],
+    regularity_marker: 'unknown',
+    display_order: form.display_order,
+  }));
+  const forms = buildV2Bundles(rows).get(id);
+  const pos = String(card.pos ?? '');
+  return {
+    variantIndex: index,
+    word: card.lemma ?? data.word,
+    lemma: card.lemma ?? data.word,
+    pos,
+    type: PREVIEW_POS_LABEL[pos] ?? pos,
+    category: pos,
+    ua: (card.translation?.uk ?? []).join(', '),
+    en: (card.translation?.en ?? []).join(', '),
+    verb_forms: forms?.verb_forms ?? null,
+    noun_forms: forms?.noun_forms ?? null,
+    adjective_forms: forms?.adjective_forms ?? null,
+    form_primary: forms?.form_primary ?? {},
+    form_alternatives: forms?.form_alternatives ?? {},
+    accepted_articles: forms?.accepted_articles ?? card.accepted_articles ?? [],
+    has_form_alternatives: forms?.has_form_alternatives ?? false,
+    regularity_marker: forms?.regularity_marker ?? 'unknown',
+    notes: (card.definitions ?? []).join('\n'),
+    definitionShort: String(card.definitions?.[0] ?? '').slice(0, 60),
+    previewSource: {
+      ordbokene: data.ordbokene?.status ?? 'error',
+      lexin: card.translation?.status === 'lexin' ? 'found' : 'not_found',
+      naob: card.source === 'naob',
+      articleId: card.article_id ?? null,
+      moreArticles: 0,
     },
   };
 }
