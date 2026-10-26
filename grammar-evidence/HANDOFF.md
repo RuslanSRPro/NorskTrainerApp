@@ -22,3 +22,7 @@ Stage B (продуктивная генерация форм, dispatcher на d
 
 ## Как писать результат
 `python3 grammar-evidence/tools/record-proof.py --proof-id R135_... --kind ... --claim ... --result ... --raw-file <файл> --artifact R135-... --next-action ...` (`--dry-run` для проверки).
+
+## Ссылки
+- Полная сводка сессии: `grammar-evidence/sessions/2026-10-25_26-session-summary.md`
+- Открытые пункты в матрице: R135 (модальный глагол + инверсия), R137 (EXECUTE для anon, отложено), R136 (`var` после ремонта морфологии).

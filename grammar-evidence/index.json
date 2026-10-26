@@ -1,9 +1,9 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
+  "head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
-  "source_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
+  "archive_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+  "source_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 210,
@@ -368,7 +368,10 @@
     "R131_TEXT_ANALYSIS_GRAPH_CONSUMER_DECISION": [],
     "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL": [],
     "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE": [],
-    "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": []
+    "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": [],
+    "R135_MODAL_INVERSION_SUBJECT_GAP": [],
+    "R136_VAR_LEMMA_AFTER_MORPH_REPAIR": [],
+    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": []
   },
   "proof_source_dependencies": {
     "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": [
@@ -1000,7 +1003,15 @@
       "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
       "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
       "grammar-evidence/artifacts/R134-canonical-shadow-live-single-pronoun-source.json"
-    ]
+    ],
+    "R135_MODAL_INVERSION_SUBJECT_GAP": [
+      "grammar-evidence/artifacts/R127-pronoun-subject-authority-v138.json"
+    ],
+    "R136_VAR_LEMMA_AFTER_MORPH_REPAIR": [
+      "grammar-evidence/contracts/analyze-text-graph-integration-v3.md",
+      "grammar-evidence/artifacts/R128-morphology-form-key-regression-repair.json"
+    ],
+    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": []
   },
   "proof_next_actions": {
     "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": "Run the saved R068 corpus as one current-source batch and compare clause, predicate and subject edges.",
@@ -1137,7 +1148,10 @@
     "R131_TEXT_ANALYSIS_GRAPH_CONSUMER_DECISION": "Unify pronoun implementations (R132); add active-release selection and the canary gate; define the graph section per contract v3.",
     "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL": "Decide the single source and make the TS operator read the release-bound paradigm.",
     "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE": "Deploy canonical-graph-shadow-v1 and run it once with structuralReleaseCode v1.38 to see release_table:9 and roleEvidence; then add active-release selection and the canary gate.",
-    "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": "Add active-release selection and the shadow->canary gate (owner first) with RPC-path checks; then the graph section in the text-analysis result per contract v3."
+    "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": "Add active-release selection and the shadow->canary gate (owner first) with RPC-path checks; then the graph section in the text-analysis result per contract v3.",
+    "R135_MODAL_INVERSION_SUBJECT_GAP": "One read-only SQL over v1.38 with modal+inversion sentences; decide whether a source-backed modal predicate rule is needed.",
+    "R136_VAR_LEMMA_AFTER_MORPH_REPAIR": "Run the contract v3 acceptance corpus through v1.38 in one read-only query.",
+    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": "One read-only ACL query listing anon/authenticated EXECUTE on promote/golden/analyzer functions; then a revoke draft with gate."
   },
   "files": [
     {
@@ -4530,7 +4544,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=99.39 max=24"
+        "DB snapshot expired: age_hours=100.47 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4550,7 +4564,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=99.34 max=24"
+        "DB snapshot expired: age_hours=100.42 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4757,7 +4771,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=97.51 max=24"
+        "DB snapshot expired: age_hours=98.59 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4778,7 +4792,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=97.51 max=24"
+        "DB snapshot expired: age_hours=98.59 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4879,7 +4893,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=98.24 max=24"
+        "DB snapshot expired: age_hours=99.33 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -6183,6 +6197,53 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Completes R133 in production shadow. Edge default release remains v1.37; nothing activated. Subject-first sentences ('Jeg sover') get no pronoun role evidence by design of the bounded SQL authority. Session step S-R141."
+    },
+    {
+      "proof_id": "R135_MODAL_INVERSION_SUBJECT_GAP",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "OPEN_GAP",
+      "proved_at_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+      "claim": "In v1.38, modal + inversion sentences ('I morgen vil jeg ...') get no predicate and no subject_of, because construction recognition defers them as modal_ellipsis_motion.",
+      "result": "Observed in session golden as known_gap (S-R121); not yet isolated as its own proof.",
+      "evidence_runs": [],
+      "dependencies": [
+        "grammar-evidence/artifacts/R127-pronoun-subject-authority-v138.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Recorded from session 2026-10-25/26 summary (grammar-evidence/sessions/2026-10-25_26-session-summary.md)."
+    },
+    {
+      "proof_id": "R136_VAR_LEMMA_AFTER_MORPH_REPAIR",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "OPEN_CHECK",
+      "proved_at_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+      "claim": "After the R128 morphology repair, 'var' in 'Det var kaldt i går' resolves to være (past), not only to the noun lemma vare.",
+      "result": "Not checked after the repair; required by the contract v3 acceptance corpus.",
+      "evidence_runs": [],
+      "dependencies": [
+        "grammar-evidence/contracts/analyze-text-graph-integration-v3.md",
+        "grammar-evidence/artifacts/R128-morphology-form-key-regression-repair.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Recorded from session 2026-10-25/26 summary."
+    },
+    {
+      "proof_id": "R137_SECURITY_ANON_EXECUTE_RESIDUAL",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "proof_kind": "OPEN_SECURITY",
+      "proved_at_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+      "claim": "Release promote, golden and analyzer functions in public are executable by anon.",
+      "result": "Observed during session ACL reads (S-R110); raw result not captured as an artifact. Deferred by owner decision until the graph works in the project.",
+      "evidence_runs": [],
+      "dependencies": [],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Recorded from session 2026-10-25/26 summary. Not a blocker for activation work."
     }
   ],
   "policy": {

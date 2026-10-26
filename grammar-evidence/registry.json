@@ -2041,6 +2041,53 @@
       "invalidation": "Recheck after redeploy of canonical-graph-shadow-v1 or changes to the v1.38 paradigm rows or apply_pronoun_subject_authority_v1.",
       "notes": "Completes R133 in production shadow. Edge default release remains v1.37; nothing activated. Subject-first sentences ('Jeg sover') get no pronoun role evidence by design of the bounded SQL authority. Session step S-R141.",
       "next_action": "Add active-release selection and the shadow->canary gate (owner first) with RPC-path checks; then the graph section in the text-analysis result per contract v3."
+    },
+    {
+      "proof_id": "R135_MODAL_INVERSION_SUBJECT_GAP",
+      "status": "UNVERIFIED",
+      "proof_kind": "OPEN_GAP",
+      "claim": "In v1.38, modal + inversion sentences ('I morgen vil jeg ...') get no predicate and no subject_of, because construction recognition defers them as modal_ellipsis_motion.",
+      "proved_at_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+      "evidence_runs": [],
+      "result": "Observed in session golden as known_gap (S-R121); not yet isolated as its own proof.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R127-pronoun-subject-authority-v138.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after construction recognition or predicate build changes.",
+      "notes": "Recorded from session 2026-10-25/26 summary (grammar-evidence/sessions/2026-10-25_26-session-summary.md).",
+      "next_action": "One read-only SQL over v1.38 with modal+inversion sentences; decide whether a source-backed modal predicate rule is needed."
+    },
+    {
+      "proof_id": "R136_VAR_LEMMA_AFTER_MORPH_REPAIR",
+      "status": "UNVERIFIED",
+      "proof_kind": "OPEN_CHECK",
+      "claim": "After the R128 morphology repair, 'var' in 'Det var kaldt i går' resolves to være (past), not only to the noun lemma vare.",
+      "proved_at_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+      "evidence_runs": [],
+      "result": "Not checked after the repair; required by the contract v3 acceptance corpus.",
+      "dependencies": [
+        "grammar-evidence/contracts/analyze-text-graph-integration-v3.md",
+        "grammar-evidence/artifacts/R128-morphology-form-key-regression-repair.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after morphology or lexical resolution changes.",
+      "notes": "Recorded from session 2026-10-25/26 summary.",
+      "next_action": "Run the contract v3 acceptance corpus through v1.38 in one read-only query."
+    },
+    {
+      "proof_id": "R137_SECURITY_ANON_EXECUTE_RESIDUAL",
+      "status": "UNVERIFIED",
+      "proof_kind": "OPEN_SECURITY",
+      "claim": "Release promote, golden and analyzer functions in public are executable by anon.",
+      "proved_at_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+      "evidence_runs": [],
+      "result": "Observed during session ACL reads (S-R110); raw result not captured as an artifact. Deferred by owner decision until the graph works in the project.",
+      "dependencies": [],
+      "blocked_by": [],
+      "invalidation": "Recheck after any grant/revoke on public functions.",
+      "notes": "Recorded from session 2026-10-25/26 summary. Not a blocker for activation work.",
+      "next_action": "One read-only ACL query listing anon/authenticated EXECUTE on promote/golden/analyzer functions; then a revoke draft with gate."
     }
   ]
 }

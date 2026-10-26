@@ -521,6 +521,36 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R135_MODAL_INVERSION_SUBJECT_GAP",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "One read-only SQL over v1.38 with modal+inversion sentences; decide whether a source-backed modal predicate rule is needed.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R136_VAR_LEMMA_AFTER_MORPH_REPAIR",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Run the contract v3 acceptance corpus through v1.38 in one read-only query.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R137_SECURITY_ANON_EXECUTE_RESIDUAL",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "One read-only ACL query listing anon/authenticated EXECUTE on promote/golden/analyzer functions; then a revoke draft with gate.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "S0_OWNER_BINDING_AUTHORITY_IDENTITY",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
