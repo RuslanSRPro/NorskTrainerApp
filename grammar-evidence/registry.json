@@ -1888,6 +1888,116 @@
       "invalidation": "Review when the user changes app-output gating, analyze-text input schema, candidate identity/provenance, rule activation scope, or rollout order.",
       "notes": "User correction: no blanket ban on graph output to the app and no requirement to activate all rules before first use. Ship only a bounded capability with proved evidence, explicit abstention, measured behavior and rollback. The parser owns final choice; graph evidence must not insert, delete or collapse supplied candidates at this interface. Soft rules cannot hard-filter. Graph generation remains separate from analyze-text's source-observed form input.",
       "next_action": "Define a versioned batch input preserving all candidates. Select one narrow graph capability, prove its positive and abstention corpus, then run an isolated shadow comparison and a bounded user-facing rollout if it improves analyze-text."
+    },
+    {
+      "proof_id": "R127_PRONOUN_CASE_SUBJECT_AUTHORITY_V138",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "In build release runtime-structural-v1.38, run_canonical_legacy_compatibility_v140 attaches release-bound pronoun case and subject evidence and a bounded subject authority (rule 1: three-token case patterns; rule 2: single default nominative pronoun right after a finite verb), producing a clause and subject_of in the rule plane, while v1.37 output is unchanged.",
+      "proved_at_head": "8e52b1b5d4fa1e94b2be8e1a18b1a01fdd72f239",
+      "evidence_runs": [
+        "R127-PRONOUN-CASE-SUBJECT-AUTHORITY-V138-2026-10-26"
+      ],
+      "result": "Golden run_pronoun_case_authority_golden_v1: 63/63 (30 sentences x v1.38/v1.37, self-test, V32 md5 28301d55, ACL closed). 16 longer sentences with hand gold: 16/16 right after R128. Known gaps pinned: modal verb under inversion defers the predicate (modal_ellipsis_motion), so subject_of is missing for Ham vil jeg ikke se / Dem kan vi hjelpe.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R127-pronoun-subject-authority-v138.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after changes to run_canonical_legacy_compatibility_v140, apply_pronoun_subject_authority_v1, the paradigm table, V32, the normalizer, or release v1.38 membership.",
+      "notes": "Release v1.38 is build, not active; no learner exposure. Pronoun case and V2 position are default-with-exceptions rules: at the analyze-text interface they must yield preferred/soft or ambiguous, never chosen (contract v3). Duplicates the TS operator in canonical shadow v70, see R132. Session steps S-R089..S-R121 (chat numbering, not repository ids).",
+      "next_action": "Unify with the TS pronoun operator (R132), then carry v1.38 through golden -> shadow with RPC-path evidence."
+    },
+    {
+      "proof_id": "R128_MORPHOLOGY_FORM_KEY_REGRESSION_REPAIR",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_EXECUTION",
+      "claim": "Token readings were silently lost after the 2026-09-16 move to lexeme_form_display_v2 (unmapped form keys, empty gender source); the committed repair restores the v1.37 behaviour of 2026-09-01.",
+      "proved_at_head": "8e52b1b5d4fa1e94b2be8e1a18b1a01fdd72f239",
+      "evidence_runs": [
+        "R128-MORPHOLOGY-FORM-KEY-REGRESSION-REPAIR-2026-10-26"
+      ],
+      "result": "Before: 24/34 parity with stored batch 90e7c9c2 (8 ville sentences lost the clause, 2 agreement diagnostics lost). Key aliases alone: 32/34. Key aliases + noun_gender_evidence_v1 (gender from lexemes.display_form): 34/34 inside the committing transaction, golden 63/63. hus/bil now carry gender, ble reads as preterite of bli.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R128-morphology-form-key-regression-repair.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after changes to normalize_morph_readings_v1, build_structural_token_v2, noun_gender_evidence_v1, lexeme_form_display_v2 keys or lexemes.display_form.",
+      "notes": "Global effect on all releases by design (restores Sept-1 behaviour). dispatch_morphological_rules_v3 and resolve_surface_form still read the empty lexeme_form_variants (see R130). var still reads as lemma vare; not yet checked after the repair. Session steps S-R125..S-R134.",
+      "next_action": "Check the contract v3 acceptance corpus (Det var kaldt i går etc.) on the repaired morphology."
+    },
+    {
+      "proof_id": "R129_RELEASE_ACTIVATION_MECHANISM_ABSENT",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "Production has no mechanism to bring a runtime release to canary or active and no runtime selection of an active release.",
+      "proved_at_head": "8e52b1b5d4fa1e94b2be8e1a18b1a01fdd72f239",
+      "evidence_runs": [
+        "R129-RELEASE-ACTIVATION-MECHANISM-ABSENT-2026-10-26"
+      ],
+      "result": "No function sets status canary/active or activated_at; none selects status active; the RPC default and canonical-graph-shadow-v1 pin runtime-structural-v1.37. Readiness v2 (v1.38): 23 activation_ready, 13 manifest-covered, 1696 need manifest (1684 without approved template), 2832 not runtime targets; 0 active nrg_rt_v1 rules. track_functions=none.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R129-release-activation-mechanism-absent.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Snapshot; rerun after any release-status, promotion or runtime-selection change.",
+      "notes": "READY is not ACTIVATED. Explains why no release ever reached active. Session steps S-R135..S-R137.",
+      "next_action": "Design release selection + shadow->canary->active gate with RPC-path evidence (R131)."
+    },
+    {
+      "proof_id": "R130_RULE_BASED_FORM_GENERATION_ABSENT",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_PRODUCTION_SNAPSHOT",
+      "claim": "The graph does not generate word forms by rule; morphological rules only verify dictionary form pairs, and noun inflection candidates are not compiled into rules.",
+      "proved_at_head": "8e52b1b5d4fa1e94b2be8e1a18b1a01fdd72f239",
+      "evidence_runs": [
+        "R130-RULE-BASED-FORM-GENERATION-ABSENT-2026-10-26"
+      ],
+      "result": "dispatch_morphological_rules_v3 / execute_morphological_inflection_rule_v1 read source and target forms from lexeme_form_variants (empty) and report productive_generation false; 12 morphological_inflection rules, all adjective. NRG ch. 3 has 372 candidates; gender candidates are reference or grammar+lexicon by design; 3.1.4 inflection runtime candidates exist but no grammar_rules.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R130-rule-based-form-generation-absent.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Snapshot; rerun after dispatcher changes or new morphological_inflection rules.",
+      "notes": "Stage B: dispatcher on lexeme_form_display_v2, productive rules for regular classes, dictionary for exceptions and gender, rule/dictionary agreement as POS evidence. Session steps S-R131, S-R133.",
+      "next_action": "Read 3.1.4 and verb conjugation candidates in full to see whether they compile into productive rules."
+    },
+    {
+      "proof_id": "R131_TEXT_ANALYSIS_GRAPH_CONSUMER_DECISION",
+      "status": "PROVEN",
+      "proof_kind": "ARCHITECTURE_DECISION",
+      "claim": "The user decided on 2026-10-26 that the first learner-facing consumer of the grammar graph is text analysis, fed by the canonical RPC v140 path, reached through the full release lifecycle with an owner-only canary.",
+      "proved_at_head": "8e52b1b5d4fa1e94b2be8e1a18b1a01fdd72f239",
+      "evidence_runs": [
+        "R131-TEXT-ANALYSIS-GRAPH-CONSUMER-DECISION-2026-10-26"
+      ],
+      "result": "Decision recorded: graph section in the text-analysis result (POS with word and sentence information, visualisation, rule explanations, later virtual teacher); start with the most frequent structural rules (v1.38 core) and extend in batches; build->golden->shadow->canary(owner)->active. Today build_text_analysis_result does not use the graph (653 results, 50 in 30 days).",
+      "dependencies": [
+        "grammar-evidence/artifacts/R131-text-analysis-graph-consumer-decision.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Revisit if the user changes the first consumer, engine path or rollout order.",
+      "notes": "Consistent with R091 contract analyze-text-graph-integration-v3 (bounded capability, preferred/ambiguous for default rules, parser owns selection, no candidate insertion/deletion). Integration point is the canonical-graph-shadow-v1 path (canonical tokens), not a second SQL tokenizer. Session steps S-R137, S-R138.",
+      "next_action": "Unify pronoun implementations (R132); add active-release selection and the canary gate; define the graph section per contract v3."
+    },
+    {
+      "proof_id": "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL",
+      "status": "PROVEN",
+      "proof_kind": "SOURCE_INSPECTION",
+      "claim": "The NRG 4.1.1/4.1.2 pronoun model is implemented twice: in TS (canonical-graph-shadow-v1 operator and guard) and in SQL (release-bound paradigm, evidence planes, subject authority).",
+      "proved_at_head": "8e52b1b5d4fa1e94b2be8e1a18b1a01fdd72f239",
+      "evidence_runs": [
+        "R132-DUPLICATE-PRONOUN-IMPLEMENTATION-TS-SQL-2026-10-26"
+      ],
+      "result": "Both use candidates d99c8781 and f7c256e7, the same nine pairs and the same coordination/comparison/preposition scopes. TS keeps case selection blocked (candidate only); SQL v1.38 applies a bounded subject authority with golden.",
+      "dependencies": [
+        "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+        "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts",
+        "grammar-evidence/artifacts/R132-duplicate-pronoun-implementation-ts-sql.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after either implementation changes.",
+      "notes": "Architecture claim only (source inspection). Proposed resolution: one paradigm source (release-bound table), one decision point (SQL conveyor); TS keeps generation/explanations and reads the pairs.",
+      "next_action": "Decide the single source and make the TS operator read the release-bound paradigm."
     }
   ]
 }

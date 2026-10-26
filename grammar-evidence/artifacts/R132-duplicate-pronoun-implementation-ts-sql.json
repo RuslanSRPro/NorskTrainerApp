@@ -1,0 +1,14 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "session": "claude-cowork 2026-10-25/26",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "numbering_note": "Session step numbers S-R086..S-R139 were assigned in chat and collide with repository R086..R126; they are kept only as session_step labels. Repository proof ids R127..R132 are authoritative.",
+ "proof_id": "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL",
+ "source_files": [
+  "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+  "supabase/functions/_shared/nlp/pronoun-case-context-guard-v1.ts",
+  "supabase/functions/canonical-graph-shadow-v1/index.ts"
+ ],
+ "summary": "Two implementations of the same NRG 4.1.1/4.1.2 model exist: TS operator and guard (canonical shadow v70; case selection blocked, candidate only) and SQL release-bound paradigm + evidence planes + subject authority in v1.38. Same source candidates d99c8781 and f7c256e7, same nine pairs, same coordination/comparison/preposition scopes.",
+ "captured_results": []
+}

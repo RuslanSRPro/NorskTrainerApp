@@ -161,6 +161,66 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R053_SUBJECT_SQL_READINESS_GATES",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R053_SUBJECT_SQL_SHADOW_EXECUTION_STATUS",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R056_SHADOW_EDGE_AUTH_BOUNDARY",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R059_PILOT_AUDIT_ACL_SNAPSHOT",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R059_PRODUCTION_DORMANT_ADMISSION",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R061_RELEASE_CONTROL_WRITE_BOUNDARY",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "R066_SQL_SUBJECT_CORPUS_V32_GAP",
       "declared_status": "STALE",
       "effective_status": "STALE",
@@ -206,7 +266,7 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Define evidence that makes subject identity resolved versus hypothesized, then test SVO and OVS minimal pairs without selecting from word order alone.",
+      "next_action": "R080 identified the specific pronoun.personal.forms.bokmal.paradigm grammar rule candidate; trace its source-to-runtime form mapping and test nominative/object-form pairs. Keep noun-noun subject identity hypothesized when evidence is insufficient.",
       "search_gate": null,
       "queue_priority": 100
     },
@@ -226,7 +286,207 @@
       "effective_status": "UNVERIFIED",
       "blocked_by": [],
       "ready_for_next_action": true,
-      "next_action": "Implement a narrow candidate occurrence contract using the verified i dag source with canonical token span; test before integrating a new release or changing V32.",
+      "next_action": "R074 proved a candidate-only early occurrence. Audit its consumer and resolved function contract before changing V32 or release membership.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R075_SOURCE_TO_RUNTIME_OCCURRENCE_CONTRACT",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Design the smallest bridge into an existing runtime occurrence contract and test it before Production migration.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R077_SCOPED_CORE_RUNTIME_INTEGRATION",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "R078 proved a candidate-only span patch in isolation. Identify a source-backed Producer boundary and independent subject-role authority before live integration.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R082_PRONOUN_PARADIGM_ACTIVATION_PREFLIGHT",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "R084 proved an isolated bidirectional contract from the source-backed paradigm. Design a scoped morphological_paradigm operator and canonical token producer before any manifest, release membership or activation. R083 separately extends the executed subject rule corpus.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R083_JEG_SOVER_ONE_RULE_EXECUTION",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Choose the next source-backed input family and require independent subject evidence before expanding from simple two-token clauses to ambiguous SVO/OVS structures.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R086_PRONOUN_CASE_SQL_PILOT_SVO_OVS",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "R087 superseded the hard case-to-clause transition. Use the separate case_selection source and its exceptions before any subject resolution.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R088_CASE_SELECTION_EXCEPTION_BOUNDARY",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "R090 added bounded og/eller coordination candidate evidence and blocked single-conjunct subject selection in the private pilot. Build a resolved coordinated nominal constituent and verify exception scope before validating case_selection.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R091_ANALYZE_TEXT_GRAPH_INTEGRATION_CONTRACT",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Define a versioned batch input preserving all candidates. Select one narrow graph capability, prove its positive and abstention corpus, then run an isolated shadow comparison and a bounded user-facing rollout if it improves analyze-text.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R096_FIRST_GRAPH_USE_READINESS",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Complete exception-aware pronoun subject/object and coordination proofs, then build the joint noun/verb/adjective/article corpus and measure graph-to-analyze-text shadow results.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R099_GRAPH_FIRST_FORM_RULE_BOUNDARY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Select one fully specified adjective rule and independently justified POS context; derive a regular form without reading target forms, then test ambiguity, exception, reverse analysis and post-derivation comparison.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R103_ADJECTIVE_STRESS_AND_EXCEPTION_EVIDENCE_PRODUCER",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Resolve adjective article identity for enkel, build a general source ingestion path and exception feature; validate before connecting to runtime.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R106_ADJECTIVE_CLOSED_SHADOW_DEPLOYMENT",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Evaluate SQL rule-first operator, release admission and broader source ingestion separately.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R108_ADJECTIVE_LEXEME_EXCEPTION_CONTRACT",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Build source ingestion and a reviewed irregular case, then test both classes in the closed shadow.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R114_ADJECTIVE_SENTENCE_ADMISSION_READY",
+      "declared_status": "UNVERIFIED",
+      "effective_status": "UNVERIFIED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Test exact candidate-to-token binding and shadow rule execution while retaining alternatives; then prove independent POS/applicability and re-run positive, ambiguous and negative controls before any sentence-level grant.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R115_PRODUCTION_SENTENCE_EVALUATOR_BINDING",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Add independent adjective POS/agreement evidence and connect eligible sentence evidence to the rule-first form operator; then test admission before any activation grant.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R115_REUSABLE_SENTENCE_EVIDENCE_PRODUCER",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Bind the family-neutral producer to a trusted canonical shadow input with exact source rule provenance; add another family and benchmark trigger filtering before any sentence grant.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R117_CANDIDATE_FIRST_RULE_EXECUTION_ROUTE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Implement and test a candidate-scoped token-to-lexeme bridge that calls the existing private rule-first pilot in shadow, retaining competing readings and withholding on wrong identity or snapshot.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R118_BOUNDED_LIVE_ADJECTIVE_CANDIDATE_BINDING",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Add explicit raw source candidate ID to the canonical lexical reading contract and perform the same join inside the closed graph runtime; retain candidate-only status until independent sentence applicability is proved.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R119_PRONOUN_FORM_ACTIVATION_READINESS_AUDIT",
+      "declared_status": "STALE",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Use R120 for the current shared candidate route. Finish approved nonexhaustive pronoun manifest and exception-aware roles; expand adjective classes and replace the attested-pair executor contract before any release grant.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R120_SHARED_PRONOUN_FORM_CANDIDATE_RUNTIME",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Extend source candidate identity into the canonical reading contract, prove exception-aware pronoun roles and more rule-first adjective classes, then define a scoped release/admission grant and shadow comparison with analyze-text before using a result for cards.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Build independent syntactic role and coordination evidence, then validate and admit the nonexhaustive paradigm manifest. Extend a second adjective form class through the same candidate route.",
       "search_gate": null,
       "queue_priority": 100
     },
