@@ -361,6 +361,16 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Build exception-aware case_selection and a resolved coordination constituent; test positive, negative and abstention cases before manifest promotion.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "R096_FIRST_GRAPH_USE_READINESS",
       "declared_status": "UNVERIFIED",
       "effective_status": "UNVERIFIED",
@@ -487,6 +497,26 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "Build independent syntactic role and coordination evidence, then validate and admit the nonexhaustive paradigm manifest. Extend a second adjective form class through the same candidate route.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Expand the regular -ere class with independent lexeme eligibility and exception checks; validate the pronoun manifest and separate subject/object role contract before a release grant.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Decide the single source and make the TS operator read the release-bound paradigm.",
       "search_gate": null,
       "queue_priority": 100
     },

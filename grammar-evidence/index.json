@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "d7a7a054d75286055674db16aa790be78332d7c7",
+  "head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "d7a7a054d75286055674db16aa790be78332d7c7",
-  "source_head": "d7a7a054d75286055674db16aa790be78332d7c7",
+  "archive_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
+  "source_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 210,
-  "history_event_count": 195,
-  "strict_history_event_count": 148,
+  "history_event_count": 196,
+  "strict_history_event_count": 149,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -204,7 +204,8 @@
     "R129-RELEASE-ACTIVATION-MECHANISM-ABSENT-2026-10-26",
     "R131-TEXT-ANALYSIS-GRAPH-CONSUMER-DECISION-2026-10-26",
     "R132-DUPLICATE-PRONOUN-IMPLEMENTATION-TS-SQL-2026-10-26",
-    "R133-PRONOUN-SINGLE-SOURCE-TS-READS-RELEASE-TABLE-2026-10-26"
+    "R133-PRONOUN-SINGLE-SOURCE-TS-READS-RELEASE-TABLE-2026-10-26",
+    "R134-CANONICAL-SHADOW-LIVE-SINGLE-PRONOUN-SOURCE-2026-10-26"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -366,7 +367,8 @@
     "R130_RULE_BASED_FORM_GENERATION_ABSENT": [],
     "R131_TEXT_ANALYSIS_GRAPH_CONSUMER_DECISION": [],
     "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL": [],
-    "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE": []
+    "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE": [],
+    "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": []
   },
   "proof_source_dependencies": {
     "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": [
@@ -992,6 +994,12 @@
       "supabase/functions/canonical-graph-shadow-v1/index.ts",
       "grammar-evidence/tools/verify-pronoun-paradigm-single-source-v1.ts",
       "grammar-evidence/artifacts/R133-pronoun-single-source-ts-reads-release-table.json"
+    ],
+    "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": [
+      "supabase/functions/canonical-graph-shadow-v1/index.ts",
+      "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+      "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+      "grammar-evidence/artifacts/R134-canonical-shadow-live-single-pronoun-source.json"
     ]
   },
   "proof_next_actions": {
@@ -1128,7 +1136,8 @@
     "R130_RULE_BASED_FORM_GENERATION_ABSENT": "Read 3.1.4 and verb conjugation candidates in full to see whether they compile into productive rules.",
     "R131_TEXT_ANALYSIS_GRAPH_CONSUMER_DECISION": "Unify pronoun implementations (R132); add active-release selection and the canary gate; define the graph section per contract v3.",
     "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL": "Decide the single source and make the TS operator read the release-bound paradigm.",
-    "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE": "Deploy canonical-graph-shadow-v1 and run it once with structuralReleaseCode v1.38 to see release_table:9 and roleEvidence; then add active-release selection and the canary gate."
+    "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE": "Deploy canonical-graph-shadow-v1 and run it once with structuralReleaseCode v1.38 to see release_table:9 and roleEvidence; then add active-release selection and the canary gate.",
+    "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": "Add active-release selection and the shadow->canary gate (owner first) with RPC-path checks; then the graph section in the text-analysis result per contract v3."
   },
   "files": [
     {
@@ -1463,7 +1472,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
-      "sha256": "c6e97f4523e385cc9c7cf530d6753a3f89669c4aa6aa3c371a61c551351318f7",
+      "sha256": "ace2b4ec8de59053436c47a2cf90c3ec24ced1bf4b57f32434c265441200fc56",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -2343,7 +2352,7 @@
     },
     {
       "path": "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
-      "sha256": "74a37769a30788c5db82997fcfc5fe368829947b01cf6de11dd4861b929d6d65",
+      "sha256": "f6c76b75799389773f7f6ad27bf117876bd7d28062ae9e0a93cbb636feab7e8f",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3432,7 +3441,7 @@
     },
     {
       "path": "supabase/functions/canonical-graph-shadow-v1/index.ts",
-      "sha256": "76f53322d67b74f82c4e5d61fe72891a2fe3dc859bf25d77b46833b154a521fa",
+      "sha256": "222ad7b8b8a70391dfa5f9f910b6d5616efebb0258725bde3e992c038f81651d",
       "symbols": {
         "create_dependency": false,
         "clausePatchFromLegacyV11": false,
@@ -3513,7 +3522,7 @@
     {
       "proof_id": "R123_REGULAR_PEN_RULE_FIRST_CANDIDATE",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "LIVE_PRODUCTION_EXECUTION",
       "proved_at_head": "ee3da8d94f258b8c85cc1c047390ec6c1219e3b2",
       "claim": "A second independently licensed adjective degree class runs inside the shared candidate-only canonical shadow: exact pen positive form plus regular -ere rule yields penere without reading the stored comparative.",
@@ -3530,7 +3539,9 @@
         "R122_PRONOUN_EXCEPTION_GUARD_PRODUCTION"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/canonical-graph-shadow-v1/index.ts"
+      ],
       "notes": "Exact pen scope only. The dictionary comparative is a post-derivation validation reference and is excluded from the operator input. Graph evidence does not choose or persist a card."
     },
     {
@@ -4519,7 +4530,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=92.69 max=24"
+        "DB snapshot expired: age_hours=99.39 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4539,7 +4550,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=92.64 max=24"
+        "DB snapshot expired: age_hours=99.34 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4746,7 +4757,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=90.81 max=24"
+        "DB snapshot expired: age_hours=97.51 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4767,7 +4778,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=90.81 max=24"
+        "DB snapshot expired: age_hours=97.51 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4868,7 +4879,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=91.54 max=24"
+        "DB snapshot expired: age_hours=98.24 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -5936,7 +5947,7 @@
     {
       "proof_id": "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "EXECUTABLE_TEST",
       "proved_at_head": "36eed48",
       "claim": "The existing morphological_paradigm pronoun producer recognizes and generates candidate forms for all nine source-backed pairs and matches its SQL pilot counterpart without collapsing ambiguous case surfaces.",
@@ -5953,7 +5964,9 @@
         "R090_PRONOUN_COORDINATION_PILOT_GUARD"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts"
+      ],
       "notes": "Acceptance is limited to candidate form production. It does not validate the draft manifest, case_selection, subject/object assignment, global activation or analyze-text integration."
     },
     {
@@ -6109,7 +6122,7 @@
     {
       "proof_id": "R132_DUPLICATE_PRONOUN_IMPLEMENTATION_TS_SQL",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "SOURCE_INSPECTION",
       "proved_at_head": "8e52b1b5d4fa1e94b2be8e1a18b1a01fdd72f239",
       "claim": "The NRG 4.1.1/4.1.2 pronoun model is implemented twice: in TS (canonical-graph-shadow-v1 operator and guard) and in SQL (release-bound paradigm, evidence planes, subject authority).",
@@ -6123,7 +6136,9 @@
         "grammar-evidence/artifacts/R132-duplicate-pronoun-implementation-ts-sql.json"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts"
+      ],
       "notes": "Architecture claim only (source inspection). Proposed resolution: one paradigm source (release-bound table), one decision point (SQL conveyor); TS keeps generation/explanations and reads the pairs."
     },
     {
@@ -6131,7 +6146,7 @@
       "declared_status": "PROVEN",
       "effective_status": "PROVEN",
       "proof_kind": "SQL_GATE_AND_LOCAL_TEST",
-      "proved_at_head": "d7a7a054d75286055674db16aa790be78332d7c7",
+      "proved_at_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
       "claim": "The pronoun model has one paradigm source (release-bound table, read by SQL and TS) and one decision point (SQL subject authority); the TS operator no longer depends on its embedded pairs when the release carries rows.",
       "result": "Gate passed: pronoun_paradigm_pairs_v1 returns the 9 NRG 4.1.1 pairs for v1.38 (single source d99c8781), 0 rows for v1.37, drift 0, anon/authenticated cannot execute. TS operator reads the release table; SQL is the only subject decision point; TS carries it as preferred/soft evidence. Local checks: 38+47+42+28 PASS, strict tsc clean.",
       "evidence_runs": [
@@ -6146,7 +6161,28 @@
       ],
       "blocked_by": [],
       "stale_reasons": [],
-      "notes": "Supersedes the duplication noted in R132. Edge function canonical-graph-shadow-v1 still has to be deployed by the owner; until then the deployed v70 keeps the embedded pairs. Default release remains v1.37, so the deployed path reports embedded_manifest:release_has_no_rows. Session step S-R140."
+      "notes": "proved_at_head set to the commit that contains the verified code (local checks ran on that exact tree). Supersedes the duplication noted in R132. Edge function canonical-graph-shadow-v1 still has to be deployed by the owner; until then the deployed v70 keeps the embedded pairs. Default release remains v1.37, so the deployed path reports embedded_manifest:release_has_no_rows. Session step S-R140."
+    },
+    {
+      "proof_id": "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "LIVE_SHADOW_CALL",
+      "proved_at_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
+      "claim": "The deployed canonical shadow path reads the pronoun paradigm from the release table and carries the SQL subject decision as soft preferred evidence only.",
+      "result": "Deployed canonical-graph-shadow-v1 returns ok on v1.37 and v1.38; v1.37 origin embedded_manifest (release_has_no_rows), v1.38 origin release_table:9; subject/preferred/soft only on the SQL subject token (2 of 2 expected), none elsewhere; guard false on all 7 pronoun results.",
+      "evidence_runs": [
+        "R134-CANONICAL-SHADOW-LIVE-SINGLE-PRONOUN-SOURCE-2026-10-26"
+      ],
+      "dependencies": [
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+        "grammar-evidence/artifacts/R134-canonical-shadow-live-single-pronoun-source.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Completes R133 in production shadow. Edge default release remains v1.37; nothing activated. Subject-first sentences ('Jeg sover') get no pronoun role evidence by design of the bounded SQL authority. Session step S-R141."
     }
   ],
   "policy": {

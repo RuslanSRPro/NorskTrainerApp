@@ -1,0 +1,16 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "session": "claude-cowork 2026-10-25/26",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "proof_id": "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE",
+ "deployment": "canonical-graph-shadow-v1 deployed by owner 2026-10-26 from commit e118b9d (supabase functions deploy; verify_jwt unchanged)",
+ "call": "POST canonical-graph-shadow-v1, apikey from local DPAPI secret, text 'Meg ser han. Jeg sover. I dag leser hun boka.', structuralReleaseCode v1.37 and v1.38, constraintReleaseCode v1.37; read-only",
+ "summary": "Live: v1.37 uses the embedded fallback and reports it; v1.38 reads 9 pairs from the release table. SQL subject decision reaches the graph only as subject/preferred/soft on the SQL subject token (han in 'Meg ser han', hun in 'I dag leser hun boka'); no role on meg; guard authority false everywhere. 'Jeg sover' gets no pronoun role evidence because the SQL authority rules cover only acc+finite+nom/3-token and post-finite nominative patterns (bounded scope, not a regression).",
+ "captured_results": [
+  {
+   "session_step": "S-R141",
+   "script_file": "R141_canonical_shadow_pronoun_single_source_check.ps1",
+   "raw_result": "R141 observed_at_utc=2026-10-26T17:44:01.4484905Z\n===== runtime-structural-v1.37 ok=True version=canonical-phrase-candidate-lattice-v1.43\n    sentence_runs=3\n--- [0] Meg ser han. | origin=embedded_manifest | load=embedded_manifest:release_has_no_rows\n    token=tok:0:0:3 origin=embedded_manifest readings=jeg:Acc guard=False role=-\n    token=tok:2:8:11 origin=embedded_manifest readings=han:Nom guard=False role=-\n--- [1] Jeg sover. | origin=embedded_manifest | load=embedded_manifest:release_has_no_rows\n    token=tok:4:13:16 origin=embedded_manifest readings=jeg:Nom guard=False role=-\n--- [2] I dag leser hun boka. | origin=embedded_manifest | load=embedded_manifest:release_has_no_rows\n    token=tok:10:36:39 origin=embedded_manifest readings=hun:Nom guard=False role=-\n===== runtime-structural-v1.38 ok=True version=canonical-phrase-candidate-lattice-v1.43\n    sentence_runs=3\n--- [0] Meg ser han. | origin=release_table | load=release_table:9\n    token=tok:0:0:3 origin=release_table readings=jeg:Acc guard=False role=-\n    token=tok:2:8:11 origin=release_table readings=han:Nom guard=False role=subject/preferred/soft pattern=accusative_pronoun_finite_nominative_pronoun finite=2\n--- [1] Jeg sover. | origin=release_table | load=release_table:9\n    token=tok:4:13:16 origin=release_table readings=jeg:Nom guard=False role=-\n--- [2] I dag leser hun boka. | origin=release_table | load=release_table:9\n    token=tok:10:36:39 origin=release_table readings=hun:Nom guard=False role=subject/preferred/soft pattern=post_finite_nominative_pronoun finite=3\n"
+  }
+ ]
+}

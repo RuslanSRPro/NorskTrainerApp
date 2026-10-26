@@ -2004,7 +2004,7 @@
       "status": "PROVEN",
       "proof_kind": "SQL_GATE_AND_LOCAL_TEST",
       "claim": "The pronoun model has one paradigm source (release-bound table, read by SQL and TS) and one decision point (SQL subject authority); the TS operator no longer depends on its embedded pairs when the release carries rows.",
-      "proved_at_head": "d7a7a054d75286055674db16aa790be78332d7c7",
+      "proved_at_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
       "evidence_runs": [
         "R133-PRONOUN-SINGLE-SOURCE-TS-READS-RELEASE-TABLE-2026-10-26"
       ],
@@ -2018,8 +2018,29 @@
       ],
       "blocked_by": [],
       "invalidation": "Recheck if the paradigm table, pronoun_paradigm_pairs_v1, apply_pronoun_subject_authority_v1 or the TS operator/execution files change, or when canonical-graph-shadow-v1 is deployed (Deno check).",
-      "notes": "Supersedes the duplication noted in R132. Edge function canonical-graph-shadow-v1 still has to be deployed by the owner; until then the deployed v70 keeps the embedded pairs. Default release remains v1.37, so the deployed path reports embedded_manifest:release_has_no_rows. Session step S-R140.",
+      "notes": "proved_at_head set to the commit that contains the verified code (local checks ran on that exact tree). Supersedes the duplication noted in R132. Edge function canonical-graph-shadow-v1 still has to be deployed by the owner; until then the deployed v70 keeps the embedded pairs. Default release remains v1.37, so the deployed path reports embedded_manifest:release_has_no_rows. Session step S-R140.",
       "next_action": "Deploy canonical-graph-shadow-v1 and run it once with structuralReleaseCode v1.38 to see release_table:9 and roleEvidence; then add active-release selection and the canary gate."
+    },
+    {
+      "proof_id": "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE",
+      "status": "PROVEN",
+      "proof_kind": "LIVE_SHADOW_CALL",
+      "claim": "The deployed canonical shadow path reads the pronoun paradigm from the release table and carries the SQL subject decision as soft preferred evidence only.",
+      "proved_at_head": "e118b9d8903fc2de7336b8b0afd114953b5e819d",
+      "evidence_runs": [
+        "R134-CANONICAL-SHADOW-LIVE-SINGLE-PRONOUN-SOURCE-2026-10-26"
+      ],
+      "result": "Deployed canonical-graph-shadow-v1 returns ok on v1.37 and v1.38; v1.37 origin embedded_manifest (release_has_no_rows), v1.38 origin release_table:9; subject/preferred/soft only on the SQL subject token (2 of 2 expected), none elsewhere; guard false on all 7 pronoun results.",
+      "dependencies": [
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+        "grammar-evidence/artifacts/R134-canonical-shadow-live-single-pronoun-source.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after redeploy of canonical-graph-shadow-v1 or changes to the v1.38 paradigm rows or apply_pronoun_subject_authority_v1.",
+      "notes": "Completes R133 in production shadow. Edge default release remains v1.37; nothing activated. Subject-first sentences ('Jeg sover') get no pronoun role evidence by design of the bounded SQL authority. Session step S-R141.",
+      "next_action": "Add active-release selection and the shadow->canary gate (owner first) with RPC-path checks; then the graph section in the text-analysis result per contract v3."
     }
   ]
 }
