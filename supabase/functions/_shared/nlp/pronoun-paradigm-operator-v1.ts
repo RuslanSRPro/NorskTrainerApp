@@ -35,12 +35,55 @@ export type PronounCaseCandidateV1 = {
   exhaustive: false;
 };
 
-export function producePronounCaseCandidatesV1(surface: string): PronounCaseCandidateV1[] {
+// Single source (R133): a runtime release that carries the release-bound paradigm
+// (grammar_runtime_release_pronoun_paradigm_v1, read via pronoun_paradigm_pairs_v1)
+// supplies the pairs; the embedded manifest above is the fallback for releases
+// without paradigm rows and must stay identical to the release table (tested).
+export type PronounParadigmSourceV1 = {
+  readonly pairs: readonly (readonly [string, string])[];
+  readonly sourceCandidateId: string;
+  readonly origin: "release_table" | "embedded_manifest";
+  readonly releaseCode: string | null;
+};
+
+export const embeddedPronounParadigmSourceV1: PronounParadigmSourceV1 = {
+  pairs: pronounParadigmManifestV1.pairs,
+  sourceCandidateId: pronounParadigmManifestV1.sourceCandidateId,
+  origin: "embedded_manifest",
+  releaseCode: null,
+};
+
+export function pronounParadigmSourceFromRowsV1(rows: unknown, releaseCode: string): PronounParadigmSourceV1 {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ...embeddedPronounParadigmSourceV1, releaseCode };
+  }
+  const norm = (value: unknown) =>
+    typeof value === "string" ? value.normalize("NFC").trim().toLocaleLowerCase("nb-NO") : "";
+  const pairs: [string, string][] = [];
+  const sources = new Set<string>();
+  for (const row of rows) {
+    const r = (row ?? {}) as Record<string, unknown>;
+    const nominative = norm(r.nominative);
+    const accusative = norm(r.accusative);
+    const source = typeof r.source_candidate_id === "string" ? r.source_candidate_id : "";
+    if (!nominative || !accusative || !source) throw new Error("pronoun_paradigm_rows_invalid");
+    if (pairs.some(([nom]) => nom === nominative)) throw new Error("pronoun_paradigm_rows_duplicate");
+    pairs.push([nominative, accusative]);
+    sources.add(source);
+  }
+  if (sources.size !== 1) throw new Error("pronoun_paradigm_rows_mixed_sources");
+  return { pairs, sourceCandidateId: [...sources][0], origin: "release_table", releaseCode };
+}
+
+export function producePronounCaseCandidatesV1(
+  surface: string,
+  paradigm: PronounParadigmSourceV1 = embeddedPronounParadigmSourceV1,
+): PronounCaseCandidateV1[] {
   const normalized = surface.toLocaleLowerCase("nb-NO");
   const candidates: PronounCaseCandidateV1[] = [];
-  for (const [nominative, accusative] of pronounParadigmManifestV1.pairs) {
-    if (normalized === nominative) candidates.push({ lemma: nominative, Case: "Nom", source_candidate_id: pronounParadigmManifestV1.sourceCandidateId, status: "candidate", exhaustive: false });
-    if (normalized === accusative) candidates.push({ lemma: nominative, Case: "Acc", source_candidate_id: pronounParadigmManifestV1.sourceCandidateId, status: "candidate", exhaustive: false });
+  for (const [nominative, accusative] of paradigm.pairs) {
+    if (normalized === nominative) candidates.push({ lemma: nominative, Case: "Nom", source_candidate_id: paradigm.sourceCandidateId, status: "candidate", exhaustive: false });
+    if (normalized === accusative) candidates.push({ lemma: nominative, Case: "Acc", source_candidate_id: paradigm.sourceCandidateId, status: "candidate", exhaustive: false });
   }
   return candidates;
 }

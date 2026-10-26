@@ -1,0 +1,33 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "session": "claude-cowork 2026-10-25/26",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "numbering_note": "Session step numbers S-R086..S-R140 were assigned in chat and collide with repository R086..R126; they are kept only as session_step labels. Repository proof ids R127..R133 are authoritative.",
+ "proof_id": "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE",
+ "applied_scripts": [
+  "S-R140"
+ ],
+ "source_files": [
+  "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+  "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+  "supabase/functions/canonical-graph-shadow-v1/index.ts",
+  "grammar-evidence/tools/verify-pronoun-paradigm-single-source-v1.ts",
+  "grammar-evidence/patches/2026-10-26_S-R140_pronoun_paradigm_pairs_reader.sql"
+ ],
+ "summary": "One paradigm source: the TS operator reads pairs from grammar_runtime_release_pronoun_paradigm_v1 via the new read-only service_role reader pronoun_paradigm_pairs_v1 (the same table the SQL conveyor uses via pronoun_case_evidence_v2); the embedded manifest is only a reported fallback for releases without rows (v1.37). One decision point: the subject decision stays in SQL apply_pronoun_subject_authority_v1; TS carries it as preferred/soft roleEvidence with NRG provenance, never chosen; the case guard decides nothing. Edge default release stays v1.37, so deployed behaviour is unchanged until a release with rows is requested.",
+ "local_checks": {
+  "verify-pronoun-paradigm-single-source-v1.ts": "PASS 38 checks",
+  "verify-pronoun-paradigm-pipeline-v1.ts": "PASS 5 cases 47 checks",
+  "verify-pronoun-paradigm-contract-v1.mjs": "PASS 42 checks",
+  "verify-canonical-rule-candidate-execution-v1.ts": "PASS 28 checks",
+  "tsc --strict --noEmit (operator, execution, verify)": "0 errors",
+  "canonical-graph-shadow-v1/index.ts": "transpile 0 diagnostics; Deno type check and Edge deploy not run (Deno unavailable)"
+ },
+ "captured_results": [
+  {
+   "session_step": "S-R140",
+   "sql_file": "DRAFT_R140_pronoun_paradigm_pairs_reader_REVIEW_ONLY.sql",
+   "raw_result": "{\n    \"gate\": \"passed\",\n    \"function\": \"public.pronoun_paradigm_pairs_v1(text)\",\n    \"anon_exec\": false,\n    \"auth_exec\": false,\n    \"v137_rows\": 0,\n    \"drift_rows\": 0,\n    \"v138_pairs\": [\n        [\n            \"de\",\n            \"dem\"\n        ],\n        [\n            \"den\",\n            \"den\"\n        ],\n        [\n            \"dere\",\n            \"dere\"\n        ],\n        [\n            \"det\",\n            \"det\"\n        ],\n        [\n            \"du\",\n            \"deg\"\n        ],\n        [\n            \"han\",\n            \"ham\"\n        ],\n        [\n            \"hun\",\n            \"henne\"\n        ],\n        [\n            \"jeg\",\n            \"meg\"\n        ],\n        [\n            \"vi\",\n            \"oss\"\n        ]\n    ],\n    \"service_exec\": true,\n    \"observed_at_utc\": \"2026-10-26T11:05:26.499805+00:00\"\n}"
+  }
+ ]
+}

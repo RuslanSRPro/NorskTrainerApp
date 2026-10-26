@@ -7,7 +7,8 @@ import type {
 import type { SentenceSourceTokenV1 } from "./adjective-sentence-context-producer-v1.ts";
 import type { SentenceEvidenceFindingV1 } from "./canonical-sentence-evidence-producer-v1.ts";
 import {
-  producePronounCaseCandidatesV1, pronounParadigmManifestV1,
+  embeddedPronounParadigmSourceV1, producePronounCaseCandidatesV1, pronounParadigmManifestV1,
+  type PronounParadigmSourceV1,
 } from "./pronoun-paradigm-operator-v1.ts";
 import { assessPronounCaseContextV1, type PronounCaseContextV1 } from
   "./pronoun-case-context-guard-v1.ts";
@@ -32,6 +33,8 @@ export type CandidateRuleResultV1 = {
   sourceRuleCandidateId: string;
   readings?: Array<{ lemma: string; Case: "Nom" | "Acc" }>;
   caseContext?: PronounCaseContextV1;
+  paradigmOrigin?: PronounParadigmSourceV1["origin"];
+  roleEvidence?: PronounRoleEvidenceV1;
   derivedForm?: string;
   positiveSnapshotId?: string;
   activationAuthority: false;
@@ -44,7 +47,48 @@ export type CandidateRuleContextV1 = {
   sentenceFindings: readonly SentenceEvidenceFindingV1[];
   callAdjectiveRule: (lexemeId: string) => Promise<unknown>;
   loadPositiveAdjectiveRow?: (lexemeId: string) => Promise<unknown>;
+  pronounParadigm?: PronounParadigmSourceV1;
+  sqlPronounSubjectAuthority?: SqlPronounSubjectAuthorityV1 | null;
 };
+
+// Single decision point (R133): the subject decision is taken only by the SQL
+// conveyor (apply_pronoun_subject_authority_v1 in run_canonical_legacy_compatibility_v140).
+// This layer carries it as soft, preferred evidence (contract analyze-text-graph-integration-v3:
+// a source default with exceptions never yields "chosen"); the TS case guard still decides nothing.
+export type SqlPronounSubjectAuthorityV1 = {
+  status: string;
+  pattern: string | null;
+  subjectTokenIndex: number | null;
+  finiteTokenIndex: number | null;
+  releaseCode: string | null;
+  provenance: unknown[];
+};
+
+export type PronounRoleEvidenceV1 = {
+  source: "sql_pronoun_subject_authority_v1";
+  role: "subject";
+  recommendation: "preferred";
+  strength: "soft";
+  pattern: string | null;
+  finiteTokenIndex: number | null;
+  releaseCode: string | null;
+  provenance: unknown[];
+};
+
+export function sqlPronounSubjectAuthorityFromAnalysisV1(analysis: unknown): SqlPronounSubjectAuthorityV1 | null {
+  const graph = (analysis as { language_graph?: Record<string, unknown> } | null)?.language_graph;
+  const plane = graph?.pronoun_subject_authority_v1 as Record<string, unknown> | undefined;
+  if (!plane || typeof plane !== "object") return null;
+  const num = (value: unknown) => (typeof value === "number" && Number.isInteger(value) ? value : null);
+  return {
+    status: typeof plane.status === "string" ? plane.status : "unknown",
+    pattern: typeof plane.pattern === "string" ? plane.pattern : null,
+    subjectTokenIndex: num(plane.subject_token_index),
+    finiteTokenIndex: num(plane.finite_token_index),
+    releaseCode: typeof plane.release_code === "string" ? plane.release_code : null,
+    provenance: Array.isArray(plane.provenance) ? plane.provenance : [],
+  };
+}
 
 export type CandidateRuleFamilyV1 = {
   code: string;
@@ -74,20 +118,31 @@ function withheld(reason: string, tokenId: string): CandidateRuleResultV1 {
 
 export const pronounCaseCandidateFamilyV1: CandidateRuleFamilyV1 = {
   code: PRONOUN_FAMILY,
-  triggered: ({ tokens }) => tokens.some((token) =>
-    producePronounCaseCandidatesV1(token.surface).length > 0),
-  async evaluate({ tokens }) {
+  triggered: ({ tokens, pronounParadigm }) => tokens.some((token) =>
+    producePronounCaseCandidatesV1(token.surface, pronounParadigm ?? embeddedPronounParadigmSourceV1).length > 0),
+  async evaluate({ tokens, pronounParadigm, sqlPronounSubjectAuthority }) {
+    const paradigm = pronounParadigm ?? embeddedPronounParadigmSourceV1;
+    const authority = sqlPronounSubjectAuthority?.status === "applied" ? sqlPronounSubjectAuthority : null;
     return tokens.flatMap((token) => {
-      const readings = producePronounCaseCandidatesV1(token.surface);
+      const readings = producePronounCaseCandidatesV1(token.surface, paradigm);
       return readings.length ? [{
         familyCode: PRONOUN_FAMILY, status: "candidate" as const,
         reason: "source_backed_nonexhaustive_case_readings",
         tokenId: token.canonical_token_id, sourceCandidateId: null,
         lexemeId: null, lexicalNodeId: null,
         ruleCode: pronounParadigmManifestV1.code,
-        sourceRuleCandidateId: pronounParadigmManifestV1.sourceCandidateId,
+        sourceRuleCandidateId: paradigm.sourceCandidateId,
         readings: readings.map(({ lemma, Case }) => ({ lemma, Case })),
         caseContext: assessPronounCaseContextV1(tokens, token.token_index),
+        paradigmOrigin: paradigm.origin,
+        ...(authority && authority.subjectTokenIndex === token.token_index ? {
+          roleEvidence: {
+            source: "sql_pronoun_subject_authority_v1" as const, role: "subject" as const,
+            recommendation: "preferred" as const, strength: "soft" as const,
+            pattern: authority.pattern, finiteTokenIndex: authority.finiteTokenIndex,
+            releaseCode: authority.releaseCode, provenance: authority.provenance,
+          },
+        } : {}),
         activationAuthority: false as const, persistenceAuthority: false as const,
       }] : [];
     });

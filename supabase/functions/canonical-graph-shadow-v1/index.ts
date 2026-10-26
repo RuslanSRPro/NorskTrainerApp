@@ -30,7 +30,8 @@ import {
 import { produceCanonicalSentenceEvidenceV1 } from '../_shared/nlp/canonical-sentence-evidence-producer-v1.ts';
 import { adjectiveSentenceEvidenceFamilyV1 } from '../_shared/nlp/adjective-sentence-evidence-family-v1.ts';
 import type { SentenceSourceTokenV1, SentenceRelationV1 } from '../_shared/nlp/adjective-sentence-context-producer-v1.ts';
-import { executeCanonicalRuleCandidatesV1 } from '../_shared/nlp/canonical-rule-candidate-execution-v1.ts';
+import { executeCanonicalRuleCandidatesV1, sqlPronounSubjectAuthorityFromAnalysisV1 } from '../_shared/nlp/canonical-rule-candidate-execution-v1.ts';
+import { embeddedPronounParadigmSourceV1, pronounParadigmSourceFromRowsV1, type PronounParadigmSourceV1 } from '../_shared/nlp/pronoun-paradigm-operator-v1.ts';
 
 const VERSION='canonical-phrase-candidate-lattice-v1.43';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type'};
@@ -266,6 +267,23 @@ const structuralReleaseCode =
     ? body.structuralReleaseCode.trim()
     : 'runtime-structural-v1.37';
 
+// R133 single source: pronoun pairs come from the release-bound paradigm table
+// (pronoun_paradigm_pairs_v1). A release without rows (v1.37) or an unavailable
+// reader falls back to the embedded manifest; the origin is reported, never hidden.
+let pronounParadigm: PronounParadigmSourceV1 = { ...embeddedPronounParadigmSourceV1, releaseCode: structuralReleaseCode };
+let pronounParadigmLoad = 'embedded_manifest:not_loaded';
+{
+  const { data, error } = await supabase.rpc('pronoun_paradigm_pairs_v1', { p_release_code: structuralReleaseCode });
+  if (error) {
+    pronounParadigmLoad = `embedded_manifest:reader_unavailable:${error.message}`;
+  } else {
+    pronounParadigm = pronounParadigmSourceFromRowsV1(data, structuralReleaseCode);
+    pronounParadigmLoad = pronounParadigm.origin === 'release_table'
+      ? `release_table:${pronounParadigm.pairs.length}`
+      : 'embedded_manifest:release_has_no_rows';
+  }
+}
+
 const includeEdgeComparator = body.includeEdgeComparator !== false;
 
 for (let i = 0; i < surface.sentences.length; i++) {
@@ -353,6 +371,8 @@ for (let i = 0; i < surface.sentences.length; i++) {
   // analyze-text remains the owner of verified cards and persistence.
   const ruleCandidates = await executeCanonicalRuleCandidatesV1({
     graph, tokens: sentenceTokens, sentenceFindings: sentenceEvidence.findings,
+    pronounParadigm,
+    sqlPronounSubjectAuthority: sqlPronounSubjectAuthorityFromAnalysisV1(sqlAnalysis),
     callAdjectiveRule: async (lexemeId) =>
       await callInternal<J>(url, key, 'adjective-degree-sql-shadow-v1', { lexemeId }),
     loadPositiveAdjectiveRow: async (lexemeId) => {
@@ -370,6 +390,8 @@ for (let i = 0; i < surface.sentences.length; i++) {
     familiesSkipped: ruleCandidates.familiesSkipped,
     results: ruleCandidates.results,
     evidenceCount: ruleCandidates.patch.evidence?.length ?? 0,
+    pronounParadigmOrigin: pronounParadigm.origin,
+    pronounParadigmLoad,
     graphResolution: false, activationAuthority: false, persistenceAuthority: false,
   };
 

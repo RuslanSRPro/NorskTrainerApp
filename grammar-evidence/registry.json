@@ -1998,6 +1998,28 @@
       "invalidation": "Recheck after either implementation changes.",
       "notes": "Architecture claim only (source inspection). Proposed resolution: one paradigm source (release-bound table), one decision point (SQL conveyor); TS keeps generation/explanations and reads the pairs.",
       "next_action": "Decide the single source and make the TS operator read the release-bound paradigm."
+    },
+    {
+      "proof_id": "R133_PRONOUN_SINGLE_SOURCE_TS_READS_RELEASE_TABLE",
+      "status": "PROVEN",
+      "proof_kind": "SQL_GATE_AND_LOCAL_TEST",
+      "claim": "The pronoun model has one paradigm source (release-bound table, read by SQL and TS) and one decision point (SQL subject authority); the TS operator no longer depends on its embedded pairs when the release carries rows.",
+      "proved_at_head": "d7a7a054d75286055674db16aa790be78332d7c7",
+      "evidence_runs": [
+        "R133-PRONOUN-SINGLE-SOURCE-TS-READS-RELEASE-TABLE-2026-10-26"
+      ],
+      "result": "Gate passed: pronoun_paradigm_pairs_v1 returns the 9 NRG 4.1.1 pairs for v1.38 (single source d99c8781), 0 rows for v1.37, drift 0, anon/authenticated cannot execute. TS operator reads the release table; SQL is the only subject decision point; TS carries it as preferred/soft evidence. Local checks: 38+47+42+28 PASS, strict tsc clean.",
+      "dependencies": [
+        "supabase/functions/_shared/nlp/pronoun-paradigm-operator-v1.ts",
+        "supabase/functions/_shared/nlp/canonical-rule-candidate-execution-v1.ts",
+        "supabase/functions/canonical-graph-shadow-v1/index.ts",
+        "grammar-evidence/tools/verify-pronoun-paradigm-single-source-v1.ts",
+        "grammar-evidence/artifacts/R133-pronoun-single-source-ts-reads-release-table.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck if the paradigm table, pronoun_paradigm_pairs_v1, apply_pronoun_subject_authority_v1 or the TS operator/execution files change, or when canonical-graph-shadow-v1 is deployed (Deno check).",
+      "notes": "Supersedes the duplication noted in R132. Edge function canonical-graph-shadow-v1 still has to be deployed by the owner; until then the deployed v70 keeps the embedded pairs. Default release remains v1.37, so the deployed path reports embedded_manifest:release_has_no_rows. Session step S-R140.",
+      "next_action": "Deploy canonical-graph-shadow-v1 and run it once with structuralReleaseCode v1.38 to see release_table:9 and roleEvidence; then add active-release selection and the canary gate."
     }
   ]
 }
