@@ -1,7 +1,7 @@
 // app/(tabs)/explore.tsx
 // Training screen — Liquid Glass UI 2.0 + preserved training logic
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -98,6 +98,8 @@ export default function TrainScreen() {
   const isDark = themeName === 'dark';
 
   const [loading, setLoading] = useState(true);
+  const [settingsReady,setSettingsReady]=useState(false);
+  const loadGeneration = useRef(0);
   const [savingReview, setSavingReview] = useState(false);
   const [reviewSaved, setReviewSaved] = useState(false);
   const [tasks, setTasks] = useState<TrainingTask[]>([]);
@@ -128,9 +130,15 @@ export default function TrainScreen() {
     [theme, fonts, height, insets.bottom, isDark, textColor, mutedColor, accent],
   );
 
-  useEffect(() => { loadSettings(); return () => { stopSpeech(); }; }, []);
+  useEffect(() => {
+    let alive=true;
+    const ready=()=>{if(alive)setSettingsReady(true);};
+    void Promise.resolve(loadSettings()).then(ready,ready);
+    return () => { alive=false;++loadGeneration.current;stopSpeech(); };
+  }, []);
 
-  useEffect(() => { loadWords(); }, [
+  useEffect(() => { if(settingsReady)void loadWords(); }, [
+    settingsReady,
     app_language, translation_mode, category_filter, study_set,
     daily_limit, preferred_user, training_modes, mix_modes, training_flow,
   ]);
@@ -142,15 +150,17 @@ export default function TrainScreen() {
   }, [auto_pronounce, currentTask?.id, loading, pronounce_forms, speech_rate]);
 
   async function loadWords() {
+    const generation = ++loadGeneration.current;
     try {
       setLoading(true); setError(''); setTaskIndex(0);
       setAnswerVisible(false); setTypedAnswer(''); setFeedback(''); setReviewSaved(false);
       const data = await getLearningWordsFromSupabase({ preferred_user, category_filter, study_set, daily_limit });
+      if(generation !== loadGeneration.current)return;
       const queue = buildTaskQueue(data);
       setTasks(queue);
     } catch (e: any) {
-      setError(String(e?.message || e));
-    } finally { setLoading(false); }
+      if(generation === loadGeneration.current)setError(String(e?.message || e));
+    } finally { if(generation === loadGeneration.current)setLoading(false); }
   }
 
   function getTranslation(w: any) {

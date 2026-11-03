@@ -1,0 +1,24 @@
+{
+  "evidence_id": "R064",
+  "source": "R051-current-production-structural-rpc-smoke.json",
+  "rule_snapshot": "R059-production-subject-rule-snapshot.json",
+  "release_code": "runtime-structural-v1.37",
+  "rule_code": "nrg_rt_v1.structural.dependency.subject_of_predicate",
+  "compiled_hash": "bd82ab98c85e71050b5162e2001a658168b45c6b1bb391a3ae4a47afb59e570e",
+  "canonical_graph_sha256": "2cd138d8e85a3e9c079a663895bc66d6fa278f4a81d0b7f5c8f10e6e75048b3f",
+  "validation": {
+    "sentence_matches": true,
+    "release_matches": true,
+    "rule_matches": true,
+    "one_execution": true,
+    "compiled_hash_matches": true,
+    "execution_succeeded": true,
+    "actions_supported": true,
+    "tokens_present": true,
+    "clauses_present": true,
+    "predicates_present": true
+  },
+  "all_checks_passed": true,
+  "production_execution": false,
+  "grant_created": false
+}

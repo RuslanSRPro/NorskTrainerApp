@@ -4,9 +4,11 @@
 // they encode learning state, not UI theme.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import {
-  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet,
+  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Keyboard, KeyboardAvoidingView, Platform, useWindowDimensions,
   Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 
@@ -17,7 +19,9 @@ import {
   getLexemesByIdsFromSupabase,
   inspectWordViaAppsScript, searchLexemeInSupabase, searchLexemesByFormInSupabase, translateSentenceWithAI,
   getJobProgress, getJobChainProgress, getJobStatus,
-  saveSelectedWordsToDatabase, type TextAnalysisMode,
+  saveSelectedWordsToDatabase, type TextAnalysisMode, getProblemCardsFromSupabase,
+  isCyrillicWord, searchLexemesByTranslationInSupabase, getProblemCardsCountFromSupabase,
+  previewWordFromSources, getSynonymProblemsFromSupabase, rerunSynonymCandidates, type SynonymProblem,
 } from "@/services/api";
 import { speakNorwegian, stopSpeech } from "@/services/speech";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -39,6 +43,10 @@ import { useServerRating } from "@/services/serverStars";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlassOverlay } from "@/components/ui/glass/GlassOverlay";
 import { CompoundWordText } from "@/components/CompoundWordText";
+import { ReadingWordActions } from "@/components/ReadingWordActions";
+// D10 28.10.2026 (agreed): recent analyses (up to 20, on this device)
+import { AnalysisHistory } from "@/components/AnalysisHistory";
+import { recordAnalysis, recordChildJob } from "@/services/analysisHistory";
 
 // "function": a function word (jeg, det, i ...) - recognised, never offered for learning (D10 F4).
 type WordStatus = "learned" | "in_base" | "unknown" | "function";
@@ -70,7 +78,8 @@ type JobChainRow = {
   is_complete: boolean;
 };
 
-type JobPhase = "processing" | "completed" | "needs_review";
+// D10 26.10.2026: completed_review = the job ended, some words are "for review"
+type JobPhase = "processing" | "completed" | "completed_review" | "needs_review";
 
 const OVERALL_POLL_MS = 4000;
 const CHAIN_POLL_MS = 4000;
@@ -101,7 +110,7 @@ const READING_TEXT = {
     add_selected_count:"➕ Додати вибрані ({count})",adding_short:"Додаю...",
     unique_words_not_in_base:"Унікальних слів не в базі: {count}",words_in_base_not_learned:"Слів є в базі, але не вивчено: {count}",database_coverage:"Покриття базою: {coverage}%",
     job_progress_title:"⚙️ Фонова обробка",job_processing:"Обробка триває...",job_completed:"Готово! Усі дані оброблено.",
-    job_needs_review:"Потрібна ручна перевірка.",job_close:"Закрити",
+    job_needs_review:"Потрібна ручна перевірка.",job_completed_review:"Готово. Деякі слова потребують перевірки.",job_close:"Закрити",
     mode_read:"📖 Читання",mode_audit:"🧪 Аудит",
     mode_read_hint:"Читання: у словникову базу нічого не записується. Вибери слова й натисни «Зберегти в базу».",
     mode_audit_hint:"Аудит: усі слова тексту автоматично записуються в базу й обробляються.",
@@ -134,7 +143,7 @@ const READING_TEXT = {
     add_selected_count:"➕ Add selected ({count})",adding_short:"Adding...",
     unique_words_not_in_base:"Unique words not in base: {count}",words_in_base_not_learned:"Words in base, not learned: {count}",database_coverage:"Database coverage: {coverage}%",
     job_progress_title:"⚙️ Background processing",job_processing:"Still processing...",job_completed:"Done! All data processed.",
-    job_needs_review:"Needs manual review.",job_close:"Close",
+    job_needs_review:"Needs manual review.",job_completed_review:"Done. Some words need review.",job_close:"Close",
     mode_read:"📖 Reading",mode_audit:"🧪 Audit",
     mode_read_hint:"Reading: nothing is written to the dictionary database. Select words and press “Save to database”.",
     mode_audit_hint:"Audit: every word of the text is written to the database and processed automatically.",
@@ -167,7 +176,7 @@ const READING_TEXT = {
     add_selected_count:"➕ Legg til valgte ({count})",adding_short:"Legger til...",
     unique_words_not_in_base:"Unike ord ikke i basen: {count}",words_in_base_not_learned:"Ord i basen, men ikke lært: {count}",database_coverage:"Database-dekning: {coverage}%",
     job_progress_title:"⚙️ Bakgrunnsbehandling",job_processing:"Behandling pågår...",job_completed:"Ferdig! All data er behandlet.",
-    job_needs_review:"Trenger manuell gjennomgang.",job_close:"Lukk",
+    job_needs_review:"Trenger manuell gjennomgang.",job_completed_review:"Ferdig. Noen ord må gjennomgås.",job_close:"Lukk",
     mode_read:"📖 Lesing",mode_audit:"🧪 Revisjon",
     mode_read_hint:"Lesing: ingenting lagres i ordbokdatabasen. Velg ord og trykk «Lagre i databasen».",
     mode_audit_hint:"Revisjon: alle ord i teksten lagres og behandles automatisk.",
@@ -192,6 +201,106 @@ function errorText(err:any,lang:AppLanguage):string{
   // the same failure on a database read (word search) before any function call
   if(/Network request failed|Failed to fetch|Failed to send a request to the Edge Function/i.test(String(err?.message||err)))return NETWORK_UI.preview[lang];
   return String(err?.message||err);
+}
+// D10 25.10.2026 (agreed, point 4): a completed job may list words "for
+// review" (not made learning cards, the job is not stopped by them).
+const REVIEW_TITLE_UI:Record<AppLanguage,(n:number)=>string>={
+  ua:(n)=>`Слова на перевірку: ${n}`,en:(n)=>`Words for review: ${n}`,no:(n)=>`Ord til gjennomgang: ${n}`,
+};
+const REVIEW_REASON_UI:Record<string,Record<AppLanguage,string>>={
+  AMBIGUOUS_POS_WITHOUT_ARTICLE:{ua:"незрозуміла частина мови, немає статті",en:"part of speech unclear, no article",no:"uklar ordklasse, ingen artikkel"},
+  CONFIRMED_ORDBOKENE_POS_CONFLICT:{ua:"словник вказує іншу частину мови",en:"the dictionary gives another part of speech",no:"ordboka oppgir en annen ordklasse"},
+  CONFIRMED_ARTICLE_POS_CONFLICT:{ua:"словник вказує іншу частину мови",en:"the dictionary gives another part of speech",no:"ordboka oppgir en annen ordklasse"},
+  NO_CONFIRMED_WHOLE_UNIT_REGISTRATION:{ua:"не знайдено як ціле слово чи вираз",en:"not found as a whole word or expression",no:"ikke funnet som helt ord eller uttrykk"},
+  unknown_pos_requires_review:{ua:"невідома частина мови",en:"unknown part of speech",no:"ukjent ordklasse"},
+  TRANSLATION_REVIEW:{ua:"переклад потребує перевірки",en:"translation needs review",no:"oversettelsen må sjekkes"},
+};
+function reviewReasonText(code:any,lang:AppLanguage){const c=String(code||"");return REVIEW_REASON_UI[c]?.[lang]||c;}
+// D10 25.10.2026 (agreed, point 4): reading-mode list of problem cards.
+const PROBLEM_UI:Record<string,Record<AppLanguage,string>>={
+  button:{ua:"Проблемні слова",en:"Problem words",no:"Problemord"},
+  title:{ua:"Картки без перекладу, прикладу або не повністю оброблені",en:"Cards without a translation or example, or not fully processed",no:"Kort uten oversettelse eller eksempel, eller ikke ferdig behandlet"},
+  no_translation:{ua:"немає перекладу українською або англійською",en:"Ukrainian or English translation missing",no:"ukrainsk eller engelsk oversettelse mangler"},
+  no_example:{ua:"немає прикладу",en:"no example",no:"ingen eksempel"},
+  deferred:{ua:"сімейство 360: обробку відкладено",en:"360 family: processing deferred",no:"360-familie: behandling utsatt"},
+  synonym_error:{ua:"синоніми: перевірку не завершено",en:"synonyms: verification incomplete",no:"synonymer: kontroll ikke fullført"},
+  synonym_waiting:{ua:"синоніми: очікується обробка",en:"synonyms: processing pending",no:"synonymer: venter på behandling"},
+  synonym_deferred:{ua:"синоніми: наступне покоління відкладено",en:"synonyms: next generation deferred",no:"synonymer: neste generasjon utsatt"},
+  legacy:{ua:"Старі записи (невідома частина мови) — для аудиту бази",en:"Old records (unknown part of speech) — for the database audit",no:"Gamle oppføringer (ukjent ordklasse) — til revisjon"},
+  select_all:{ua:"Вибрати всі",en:"Select all",no:"Velg alle"},
+  rerun:{ua:"Прогнати повторно",en:"Process again",no:"Kjør på nytt"},
+  rerun_started:{ua:"Повторна обробка запущена.",en:"Processing started again.",no:"Ny behandling startet."},
+  hidden_note:{ua:"Картки без перекладу не показуються в навчанні, поки переклад не з'явиться.",en:"Cards without a translation are not trained until a translation appears.",no:"Kort uten oversettelse trenes ikke før en oversettelse finnes."},
+  none:{ua:"Проблемних карток немає.",en:"No problem cards.",no:"Ingen problemkort."},
+  without_translation:{ua:"без перекладу",en:"no translation",no:"uten oversettelse"},
+  // D10 28.10.2026 (D10_synonym_expressions_v1): NAOB synonyms without a card
+  syn_title:{ua:"Синоніми NAOB без картки",en:"NAOB synonyms without a card",no:"NAOB-synonymer uten kort"},
+  syn_not_dispatchable:{ua:"не відправлено в обробку",en:"not sent for processing",no:"ikke sendt til behandling"},
+  syn_no_card:{ua:"оброблено, картки немає",en:"processed, no card",no:"behandlet, uten kort"},
+  syn_from:{ua:"до",en:"for",no:"til"},
+  syn_rerun:{ua:"Відправити синоніми ще раз",en:"Send synonyms again",no:"Send synonymer på nytt"},
+  syn_started:{ua:"Синоніми відправлено в дочірню задачу — див. «Останні аналізи».",en:"Synonyms sent to a child job — see “Recent analyses”.",no:"Synonymer sendt til en underjobb — se «Siste analyser»."},
+  syn_waiting:{ua:"Синоніми поставлено в чергу: денний ліміт задач вичерпано, підуть після наступної задачі.",en:"Synonyms queued: the daily job limit is reached, they go after the next job.",no:"Synonymer i kø: dagens jobbgrense er nådd, de går etter neste jobb."},
+};
+// D10 25.10.2026 (agreed): reverse search, a note when the word was found as
+// an English word (Ukrainian input needs no note).
+const FOUND_AS_ENGLISH_UI:Record<AppLanguage,string>={ua:"знайдено як англійське слово",en:"found as an English word",no:"funnet som engelsk ord"};
+function withEnglishNote(message:string,items:any[],lang:AppLanguage){
+  return items.some((i:any)=>i?.matchedLanguage==="en")?`${message} · ${FOUND_AS_ENGLISH_UI[lang]}`:message;
+}
+// D10 25.10.2026 (agreed): in the "choose part of speech" list, the form the
+// word was found by is always shown: "bar (preteritum) → bære",
+// "bar (imperativ) → bare", "bar (ubestemt entall)" for a lemma match.
+// The card itself keeps its forms. Norwegian grammar names, as in the card.
+const FORM_KEY_LABEL:Record<string,string>={
+  lemma:"grunnform",infinitive:"infinitiv",present:"presens",past:"preteritum",preterite:"preteritum",
+  imperative:"imperativ",present_perfect:"perfektum",past_perfect:"pluskvamperfektum",
+  past_participle:"perfektum partisipp",present_participle:"presens partisipp",passive:"s-passiv",s_passive:"s-passiv",
+  singular_indefinite:"ubestemt entall",singular_definite:"bestemt entall",
+  plural_indefinite:"ubestemt flertall",plural_definite:"bestemt flertall",
+  positive_common:"positiv",positive_neuter:"positiv intetkjønn",positive_plural:"positiv flertall",
+  comparative:"komparativ",superlative:"superlativ",superlative_definite:"bestemt superlativ",
+};
+function oneFormKeyLabel(raw:string):string{
+  const k=String(raw||"").toLowerCase().replace(/^(noun|verb|adj|adjective)_/,"");
+  if(!k||k==="needs_review")return "";
+  // D10 27.10.2026: the only form of an indeclinable word (spille I, noun)
+  if(k==="unmarked")return "ubøyelig";
+  if(FORM_KEY_LABEL[k])return FORM_KEY_LABEL[k];
+  // unknown keys: the closest name by its parts
+  if(k.includes("imperative"))return "imperativ";
+  if(k.includes("passive"))return "s-passiv";
+  if(k.includes("present_participle"))return "presens partisipp";
+  if(k.includes("past_participle"))return "perfektum partisipp";
+  if(k.includes("superlative"))return "superlativ";
+  if(k.includes("comparative"))return "komparativ";
+  if(k.includes("plural"))return k.includes("indefinite")?"ubestemt flertall":k.includes("definite")?"bestemt flertall":"flertall";
+  if(k.includes("singular"))return k.includes("indefinite")?"ubestemt entall":k.includes("definite")?"bestemt entall":"entall";
+  return "";
+}
+function matchedFormLabel(keys:any):string{
+  const list=(Array.isArray(keys)?keys:[keys]).map((k:any)=>oneFormKeyLabel(String(k??""))).filter(Boolean);
+  return [...new Set(list)].join(" / ");
+}
+// a lemma match: the base form name by part of speech (words without forms get none)
+function baseFormLabel(pos:any):string{
+  const p=String(pos||"").toLowerCase();
+  if(p.startsWith("verb"))return "infinitiv";
+  if(p.startsWith("noun")||p==="substantiv")return "ubestemt entall";
+  if(p.startsWith("adj"))return "positiv";
+  return "";
+}
+function matchRowText(item:any):string{
+  const lemma=String(item?.lemma||item?.word||"");
+  const form=String(item?.matchedForm||"");
+  const isForm=!!form&&normalizeToken(form)!==normalizeToken(lemma);
+  if(isForm){
+    const label=matchedFormLabel(item?.matchedFormKeys);
+    return `${form}${label?` (${label})`:""} → ${lemma}`;
+  }
+  const keyLabel=matchedFormLabel(item?.matchedFormKeys);
+  const label=keyLabel||(item?.indeclinable?"ubøyelig":baseFormLabel(item?.pos||item?.category||""));
+  return `${lemma}${label?` (${label})`:""}`;
 }
 const CHOOSE_POS_UI:Record<AppLanguage,string>={ua:"Оберіть частину мови:",en:"Choose part of speech:",no:"Velg ordklasse:"};
 function formatTemplate(tmpl: string, vals?: Record<string,string|number>) {
@@ -276,11 +385,23 @@ function getFormLabels(word: any):TrainingFormItem[]{
   ]:isA?[
     ["positiv","positiv"],["intetkjonn","intetkjønn"],["flertall","flertall"],["komparativ","komparativ"],["superlativ","superlativ"],["best_superlativ","best. superlativ"],
   ]:[];
+  // D10 27.10.2026: an indeclinable word (the article says "ubøyelig", only
+  // the unmarked form exists): one row "ubøyelig" with the word itself,
+  // instead of an empty forms table.
+  if(word?.indeclinable){
+    const lemma=String(word?.lemma||word?.word||"").trim();
+    const hasOther=definitions.some(([formKey])=>getFormTierValues(word,formKey,"").primaryValues.length>0);
+    if(lemma&&!hasOther)return [{label:"ubøyelig",formKey:"ubøyelig",value:lemma,primaryValues:[lemma],alternativeValues:[]}];
+  }
   return definitions.flatMap(([formKey,label])=>{
     const fallback=word?.verb_forms?.[formKey]||word?.noun_forms?.[formKey]||word?.adjective_forms?.[formKey]||"";
     const tiers=getFormTierValues(word,formKey,fallback);
+    // D10 27.10.2026 (agreed): perfektum is shown with "har" (har brent), the
+    // same rule as the training cards (explore.tsx getAllForms)
     const decorate=(value:string)=>isV&&formKey==="infinitiv"
       ?formatInfinitive(value)
+      :isV&&formKey==="perfektum"
+      ?`har ${value.replace(/^har\s+/i,"")}`
       :isN&&formKey==="ubest_entall"
       ?formatNounIndefinite(value,word)
       :value;
@@ -291,7 +412,9 @@ function getFormLabels(word: any):TrainingFormItem[]{
       // without its own Ordbøkene article (vinterjakke <- jakke).
       // D10 16.10.2026: " · NAOB" = forms listed in the NAOB article of a noun
       // without Ordbøkene forms (brenne, noun).
-      label:(word?.formsByHead?"≈ ":"")+label+(word?.formsSource==="naob"?" · NAOB":""),
+      // D10 26.10.2026: "≈ " also before a form built by us from the NAOB
+      // forms (presens of a verb, bestemt superlativ of an adjective).
+      label:(word?.formsByHead||(Array.isArray(word?.derivedFormKeys)&&word.derivedFormKeys.includes(formKey))?"≈ ":"")+label+(word?.formsSource==="naob"?" · NAOB":""),
       formKey,
       value:primaryValues.join(", "),
       primaryValues,
@@ -336,6 +459,8 @@ async function boostReadingHits(items:AnalysisItem[],user:string){
 }
 
 export default function ReadingScreen() {
+  const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
   const { theme, fonts, themeName } = useTheme();
   const { preferred_user, app_language } = useSettingsStore();
   const lang = normalizeAppLanguage(app_language);
@@ -360,6 +485,20 @@ export default function ReadingScreen() {
   const [analyzerCandidates,setAnalyzerCandidates]=useState<AnalyzerCandidate[]>([]);
   const [analyzerMessage,setAnalyzerMessage]=useState("");
   const [selectedWord,setSelectedWord]=useState<any>(null);
+  const [searchCardScale,setSearchCardScale]=useState(1);
+  const [searchCardViewport,setSearchCardViewport]=useState(0);
+  const [searchCardContent,setSearchCardContent]=useState(0);
+  useEffect(()=>{setSearchCardScale(1);setSearchCardContent(0);},[selectedWord?.id,window.width,window.height,window.fontScale]);
+  useEffect(()=>{
+    if(searchCardViewport>0&&searchCardContent>searchCardViewport+3){
+      setSearchCardScale(current=>Math.max(0.78,current*Math.min(0.94,searchCardViewport/searchCardContent)));
+    }
+  },[searchCardViewport,searchCardContent]);
+  const searchCardFonts={...fonts,
+    word:Math.max(25,Math.min(34,fonts.word))*searchCardScale,
+    translation:Math.max(18,Math.min(23,fonts.translation))*searchCardScale,
+    base:Math.max(15,Math.min(20,fonts.base)*searchCardScale),
+    meta:Math.max(12,Math.min(15,fonts.meta)*searchCardScale)};
   const [wordMatches,setWordMatches]=useState<any[]>([]);
   const [selectedSentence,setSelectedSentence]=useState<string|null>(null);
   const [sentenceAI,setSentenceAI]=useState<SentenceAIResult|null>(null);
@@ -376,6 +515,17 @@ export default function ReadingScreen() {
   const [jobId,setJobId]=useState<string|null>(null);
   const [jobPhase,setJobPhase]=useState<JobPhase>("processing");
   const [jobPercent,setJobPercent]=useState(0);
+  const [jobReviewItems,setJobReviewItems]=useState<any[]>([]);
+  const [problemCards,setProblemCards]=useState<any[]>([]);
+  const [showProblems,setShowProblems]=useState(false);
+  const [problemSelected,setProblemSelected]=useState<Set<string>>(new Set());
+  const [problemBusy,setProblemBusy]=useState(false);
+  const [problemMessage,setProblemMessage]=useState("");
+  const [problemCount,setProblemCount]=useState<number|null>(null);
+  const [problemPageBusy,setProblemPageBusy]=useState(false);
+  const problemOffset=useRef(0);
+  const [synProblems,setSynProblems]=useState<SynonymProblem[]>([]);
+  const [synSelected,setSynSelected]=useState<Set<string>>(new Set());
   const [jobChainRows,setJobChainRows]=useState<JobChainRow[]>([]);
   const [showJobModal,setShowJobModal]=useState(false);
   const overallPollRef=useRef<ReturnType<typeof setInterval>|null>(null);
@@ -389,7 +539,8 @@ export default function ReadingScreen() {
   // so that saving and the refresh after saving follow that same mode.
   const [analysisMode,setAnalysisMode]=useState<TextAnalysisMode>("read");
   const resultModeRef=useRef<TextAnalysisMode>("read");
-  const lastSourceRef=useRef<AnalysisSource>("ai");
+  // D10 25.10.2026: the "AI analysis" button is removed, the default re-run is PWA
+  const lastSourceRef=useRef<AnalysisSource>("pwa");
   const readSaveJobRef=useRef<string|null>(null);
   // D10: audit job started by "Check" for single words; on completion the
   // word list is searched again so new cards (e.g. bok II) appear.
@@ -400,6 +551,8 @@ export default function ReadingScreen() {
   // Words sent to the database from reading mode: once processed they are
   // added to the user's learning (the user chose them).
   const readSaveWordsRef=useRef<Set<string>>(new Set());
+  // D10 28.10.2026: the analysis that jobs started now belong to (recent analyses)
+  const historyIdRef=useRef<string|null>(null);
   const textRef=useRef<string>("");
   useEffect(()=>{textRef.current=text;},[text]);
   useEffect(()=>{analysisRef.current=analysis;},[analysis]);
@@ -420,6 +573,63 @@ export default function ReadingScreen() {
     }));
     setSelectedWord((current:any)=>current?.id&&byId.has(current.id)
       ?{...current,...byId.get(current.id)}:current);
+  }
+
+  // D10 25.10.2026 (agreed, point 4): problem cards (no translation / no example).
+  async function loadProblemCards(){
+    setProblemPageBusy(true);
+    try{const rows=await getProblemCardsFromSupabase(300);problemOffset.current=rows.length;
+      setProblemCards(Array.from(new Map(rows.map(c=>[c.lexeme_id,c])).values()));}
+    catch(e:any){console.warn('[problem cards] load failed',e?.message||e);}
+    setProblemCount(await getProblemCardsCountFromSupabase().catch(()=>null));
+    // D10 28.10.2026: NAOB synonyms without a card (own list, own re-run)
+    try{setSynProblems(await getSynonymProblemsFromSupabase(300));}
+    catch(e:any){console.warn('[synonym problems] load failed',e?.message||e);}
+    setProblemPageBusy(false);
+  }
+  async function loadMoreProblemCards(){
+    if(problemPageBusy)return;
+    setProblemPageBusy(true);
+    try{const rows=await getProblemCardsFromSupabase(300,problemOffset.current);
+      problemOffset.current+=rows.length;
+      setProblemCards(prev=>Array.from(new Map([...prev,...rows].map(c=>[c.lexeme_id,c])).values()));
+      if(!rows.length)setProblemCount(problemOffset.current);
+    }catch(e:any){setProblemMessage(String(e?.message||e));}
+    finally{setProblemPageBusy(false);}
+  }
+  async function rerunSynonymProblems(){
+    const chosen=synProblems.filter((p)=>synSelected.has(`${p.target_kind}:${p.target_text}`));
+    const ids=Array.from(new Set(chosen.flatMap((p)=>p.candidate_ids||[]).map(String)));
+    if(!ids.length)return;
+    setProblemBusy(true);setProblemMessage("");
+    try{
+      const result=await rerunSynonymCandidates(ids);
+      if(!result?.ok)throw new Error(String(result?.error||"RERUN_FAILED"));
+      const jobs=(result.dispatch?.child_job_ids||[]).map(String);
+      for(const jobId of jobs){
+        recordChildJob(historyIdRef.current,{jobId,kind:"rerun_problems",words:chosen.map((p)=>p.target_text),mode:analysisMode});
+      }
+      setSynSelected(new Set());
+      setProblemMessage(jobs.length?PROBLEM_UI.syn_started[lang]:PROBLEM_UI.syn_waiting[lang]);
+      void loadProblemCards();
+    }catch(err:any){setProblemMessage(errorText(err,lang));}
+    finally{setProblemBusy(false);}
+  }
+  useEffect(()=>{void loadProblemCards();},[]);
+  async function rerunProblemCards(){
+    const words=Array.from(new Set(problemCards.filter((c:any)=>!c.legacy&&problemSelected.has(String(c.lexeme_id)))
+      .map((c:any)=>String(c.lemma||"").trim()).filter(Boolean)));
+    if(!words.length)return;
+    setProblemBusy(true);setProblemMessage("");
+    try{
+      const result=await saveSelectedWordsToDatabase(words);
+      if(result?.job?.id){
+        startJobTracking(String(result.job.id));
+        recordChildJob(historyIdRef.current,{jobId:String(result.job.id),kind:"rerun_problems",words,mode:analysisMode});
+      }
+      setProblemSelected(new Set());setProblemMessage(PROBLEM_UI.rerun_started[lang]);
+    }catch(err:any){setProblemMessage(errorText(err,lang));}
+    finally{setProblemBusy(false);}
   }
 
   // A card is refreshed by exact ID when opened. No analysis/job polling is
@@ -489,6 +699,8 @@ export default function ReadingScreen() {
 
       if(status==="completed"){
         setJobPhase("completed");
+        void loadProblemCards();
+        setJobReviewItems(Array.isArray((statusRow as any)?.review_items)?(statusRow as any).review_items:[]);
         setJobPercent(100);
         stopOverallPolling();
         stopChainPolling();
@@ -514,7 +726,18 @@ export default function ReadingScreen() {
         return;
       }
       if(status==="needs_manual_review"){
-        setJobPhase("needs_review");
+        // D10 26.10.2026 (agreed): the job itself ran to the end (execution
+        // completed) and only some words did not pass the completion check:
+        // "Done, some words need review" with the list, not "manual review".
+        // A job that really stopped keeps "needs_review".
+        const executionDone=String((statusRow as any)?.execution_state||"")==="completed";
+        if(executionDone){
+          setJobPhase("completed_review");
+          setJobReviewItems(Array.isArray((statusRow as any)?.review_items)?(statusRow as any).review_items:[]);
+          void loadProblemCards();
+        }else{
+          setJobPhase("needs_review");
+        }
         stopOverallPolling();
         stopChainPolling();
         // D10 17.10.2026 (agreed): a job that ended "for review" has still
@@ -555,6 +778,7 @@ export default function ReadingScreen() {
     setJobId(id);
     setJobPhase("processing");
     setJobPercent(0);
+    setJobReviewItems([]);
     setJobChainRows([]);
     stopOverallPolling();
     pollOverallProgress(id);
@@ -690,12 +914,42 @@ export default function ReadingScreen() {
   // form of other cards (tok -> ta, er -> være, var -> være). Lemma matches
   // first; a form lookup that fails only adds nothing.
   async function searchWordWithForms(query:string):Promise<any[]>{
+    // D10 25.10.2026 (agreed): Ukrainian input -> cards whose translation is
+    // exactly the word; Latin input -> Norwegian as before, English only when
+    // nothing Norwegian was found. The list itself is unchanged.
+    if(isCyrillicWord(query)){
+      try{return await searchLexemesByTranslationInSupabase(query,"uk");}catch(e){console.warn("Translation lookup failed:",e);return [];}
+    }
+    const norwegian=await searchWordWithFormsNorwegian(query);
+    if(norwegian.length)return norwegian;
+    try{return await searchLexemesByTranslationInSupabase(query,"en");}catch(e){console.warn("Translation lookup failed:",e);return [];}
+  }
+
+  async function searchWordWithFormsNorwegian(query:string):Promise<any[]>{
     const r=await searchLexemeInSupabase(query);
     const byLemma:any[]=r?.found&&Array.isArray(r.items)?r.items:[];
     let byForm:any[]=[];
     try{byForm=await searchLexemesByFormInSupabase(query);}catch(e){console.warn("Form lookup failed:",e);}
     const seen=new Set(byLemma.map((item:any)=>String(item?.id||"")));
-    return [...byLemma,...byForm.filter((item:any)=>!seen.has(String(item?.id||"")))];
+    const merged=[...byLemma,...byForm.filter((item:any)=>!seen.has(String(item?.id||"")))];
+    // D10 27.10.2026 (agreed, B): Read mode, the word is in the database only
+    // as a form of other cards (bar -> bære, bare) -> the dictionary cards
+    // whose headword IS the word (bar noun / adjective) are listed too, as
+    // preview rows (nothing is written). Cards reached through a form
+    // (matchedForm set: bære, bare again) are dropped, so nothing is doubled.
+    if(analysisMode!=="audit"&&!byLemma.length&&byForm.length){
+      try{
+        const preview=await previewWordFromSources(query);
+        const variants:any[]=preview?Array.isArray(preview.variants)&&preview.variants.length?preview.variants:[preview]:[];
+        const asked=normalizeToken(query);
+        for(const v of variants){
+          if(v?.matchedForm)continue;
+          if(normalizeToken(String(v?.lemma||""))!==asked)continue;
+          merged.push({...v,isPreviewVariant:true,isHeadwordPreview:true});
+        }
+      }catch(e){console.warn("Headword preview failed:",e);}
+    }
+    return merged;
   }
 
   // D10: re-reads the checked words after their audit job (same mapping as checkWord).
@@ -732,19 +986,35 @@ export default function ReadingScreen() {
       // the audit job, known words included, so the job chain (verification,
       // second homograph cards, enrichment) runs for them. Read mode is unchanged.
       if(analysisMode==="audit"){
-        const result=await saveSelectedWordsToDatabase(queries);
+        // D10 25.10.2026: a Ukrainian / English word goes to the job as the
+        // Norwegian lemma(s) it was found as; a word found nowhere is not sent.
+        const jobWords:string[]=[];
+        for(const query of queries){
+          const own=found.filter((item:any)=>item.searchQuery===query);
+          if(own.length&&own.some((item:any)=>item.matchedLanguage)){jobWords.push(...own.map((item:any)=>String(item.lemma||"")));continue;}
+          if(own.length||!isCyrillicWord(query)&&query!==firstUnknown){jobWords.push(query);continue;}
+          const r=await inspectWordViaAppsScript(query);
+          const variants:any[]=r?.preview?Array.isArray(r.preview.variants)&&r.preview.variants.length?r.preview.variants:[r.preview]:[];
+          if(r?.preview?.matchedLanguage)jobWords.push(...variants.map((v:any)=>String(v.lemma||v.word||"")));
+          else if(!isCyrillicWord(query))jobWords.push(query);
+        }
+        const sendWords=Array.from(new Set(jobWords.map(w=>w.trim()).filter(Boolean)));
+        if(!sendWords.length){setWordSearchMessage(tr("could_not_process_word"));return;}
+        const result=await saveSelectedWordsToDatabase(sendWords);
         if(result?.job?.id){
           wordCheckJobRef.current=String(result.job.id);wordCheckQueriesRef.current=queries;wordCheckTextRef.current=wordQuery.trim();
           startJobTracking(String(result.job.id));
+          // D10 28.10.2026: a word check in Audit mode is an analysis of its own
+          historyIdRef.current=recordAnalysis({jobId:String(result.job.id),kind:"word",mode:"audit",preview:sendWords.join(", ")});
         }
-        const queued=tr("saved_selected_queued",{count:queries.length});
-        setWordSearchMessage(found.length ? `${tr("word_found")} · ${queued}` : queued);
+        const queued=tr("saved_selected_queued",{count:sendWords.length});
+        setWordSearchMessage(found.length ? withEnglishNote(`${tr("word_found")} · ${queued}`,found,lang) : queued);
         return;
       }
-      if(found.length){setWordSearchMessage(firstUnknown ? `${tr("word_found")} · ${tr("not_in_base")}: ${firstUnknown}` : tr("word_found"));return;}
+      if(found.length){setWordSearchMessage(withEnglishNote(firstUnknown ? `${tr("word_found")} · ${tr("not_in_base")}: ${firstUnknown}` : tr("word_found"),found,lang));return;}
       if(firstUnknown){
         const r=await inspectWordViaAppsScript(firstUnknown);
-        if(r?.preview){showPreview(r.preview,tr("new_word_review_preview"));return;}
+        if(r?.preview){showPreview(r.preview,withEnglishNote(tr("new_word_review_preview"),[r.preview],lang));return;}
         setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
       }
     }catch(err:any){setWordSearchMessage(errorText(err,lang));}finally{setWordLoading(false);}
@@ -766,11 +1036,11 @@ export default function ReadingScreen() {
       setWordLoading(true);const lookupItems=await searchWordWithForms(q);
       if(lookupItems.length){
         const items=lookupItems.map((item:any)=>({...item,learned:false,ua:item.ua||"",en:item.en||"",category:item.type||item.category||"",searchQuery:q}));
-        setWordMatches(items);setWordSearchMessage(tr("word_found"));return;
+        setWordMatches(items);setWordSearchMessage(withEnglishNote(tr("word_found"),items,lang));return;
       }
       const r=await inspectWordViaAppsScript(q);
       if(r?.found&&r?.item){setSelectedWord({...r.item,learned:false,ua:r.item.ua||"",en:r.item.en||"",category:r.item.type||r.item.category||""});setWordSearchMessage(tr("word_found"));return;}
-      if(r?.preview){showPreview(r.preview,tr("preview_ready"));return;}
+      if(r?.preview){showPreview(r.preview,withEnglishNote(tr("preview_ready"),[r.preview],lang));return;}
       setWordSearchMessage((r as any)?.message||tr("could_not_process_word"));
     }catch(err:any){setWordSearchMessage(errorText(err,lang));}finally{setWordLoading(false);}
   }
@@ -789,6 +1059,7 @@ export default function ReadingScreen() {
         // after processing the word list is searched again: its card opens
         wordCheckJobRef.current=String(result.job.id);wordCheckQueriesRef.current=[normalizeToken(word)];wordCheckTextRef.current=text.trim();
         startJobTracking(String(result.job.id));
+        recordChildJob(historyIdRef.current,{jobId:String(result.job.id),kind:"save_preview",words:[word],mode:analysisMode});
       }
       setWordSearchMessage(tr("saved_selected_queued",{count:1}));setPreviewWord(null);}
     catch(err:any){setWordSearchMessage(errorText(err,lang));}finally{setAddingGlobalWord(false);}
@@ -842,6 +1113,13 @@ export default function ReadingScreen() {
       setAnalyzerResult(adapted);setAnalyzerCandidates(candidates);
       const unk=candidates.filter(i=>i.status==="unknown").length,inB=candidates.filter(i=>i.status==="in_base"||i.status==="learned").length;
       setAnalyzerMessage(tr(isPwa?"pwa_ready":"ai_ready",{inBase:inB,unknown:unk}));
+      // D10 28.10.2026 (agreed): a new analysis in "recent analyses" (the
+      // re-read after saving, keepJobTracking, is not a new analysis)
+      if(!options?.keepJobTracking){
+        historyIdRef.current=recordAnalysis({jobId:result?.job?.id?String(result.job.id):null,kind:"text",mode,
+          preview:text.trim(),counts:{inBase:inB,unknown:unk},
+          unknownWords:candidates.filter(i=>i.status==="unknown").map(c=>String(c.lemma||c.text||""))});
+      }
       // ДОБАВЛЕНО (05.08.2026): job.id уже возвращается analyze-text (см.
       // response shape {ok, job, ingestion, orchestrator}) — начинаем
       // отслеживать фоновую обработку сразу после успешного анализа.
@@ -883,6 +1161,7 @@ export default function ReadingScreen() {
           readSaveJobRef.current=String(result.job.id);readSaveTextRef.current=text.trim();
           readSaveWordsRef.current=new Set(words.map(w=>normalizeToken(w)).filter(Boolean));
           startJobTracking(String(result.job.id));
+          recordChildJob(historyIdRef.current,{jobId:String(result.job.id),kind:"save_selected",words,mode:resultModeRef.current});
         }
         messages.push(tr("saved_selected_queued",{count:new Set(words).size}));
       }
@@ -951,15 +1230,58 @@ export default function ReadingScreen() {
 
   return (
     <>
-      <ScrollView style={{flex:1,backgroundColor: 'transparent'}} contentContainerStyle={s.content}>
-        <Text style={[s.title,{color:T.textPrimary,fontSize:20}]}>{tr("reading_title")}</Text>
-        <Text style={[s.subtitle,{color:T.textSecondary,fontSize:F.base}]}>{tr("reading_subtitle")}</Text>
-
+      <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={{paddingTop:insets.top+8,paddingHorizontal:18,paddingBottom:10,gap:10}}>
+          <View style={{flexDirection:"row",alignItems:"center",gap:8}}>
+            <Text style={[s.title,{flex:1,marginBottom:0,color:T.textPrimary,fontSize:20}]}>{tr("reading_title")}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${PROBLEM_UI.button[lang]}: ${(problemCount ?? problemCards.length) + synProblems.length}`}
+              onPress={()=>{setProblemMessage("");setShowProblems(true);void loadProblemCards();}}
+              style={({pressed})=>[s.toolbarIcon,{opacity:pressed?0.6:1,transform:[{scale:pressed?0.94:1}]}]}>
+              <GlassOverlay dark={themeName==="dark"} material="button" shape="card" radius={22}/>
+              <Ionicons name="warning-outline" size={23} color={problemCards.length||synProblems.length?T.danger:T.textPrimary}/>
+            </Pressable>
+            <AnalysisHistory iconOnly dark={themeName==="dark"} lang={lang as any} theme={T} reasonText={(code:any)=>reviewReasonText(code,lang)} posText={(pos:any)=>posUi(pos,lang)}/>
+          </View>
+          <View style={{flexDirection:"row",alignItems:"center",gap:8}}>
+            <View accessibilityRole="radiogroup" style={{flex:1,flexDirection:"row",padding:3,borderRadius:16,overflow:"hidden",backgroundColor:T.cardAlt}}>
+              <GlassOverlay dark={themeName==="dark"} material="button" shape="card" radius={16}/>
+              {(["read","audit"] as TextAnalysisMode[]).map(mode=>(
+                <Pressable key={mode} accessibilityRole="radio" accessibilityState={{checked:analysisMode===mode,disabled:wordLoading||pwaLoading||aiTextLoading||batchAdding}}
+                  accessibilityLabel={tr(mode==="read"?"mode_read":"mode_audit")}
+                  disabled={wordLoading||pwaLoading||aiTextLoading||batchAdding}
+                  onPress={()=>setAnalysisMode(mode)}
+                  style={({pressed})=>({flex:1,flexBasis:0,minWidth:0,height:44,justifyContent:"center",alignItems:"center",paddingHorizontal:6,paddingVertical:6,borderRadius:13,
+                    borderWidth:1,borderColor:analysisMode===mode?T.accent:"transparent",
+                    backgroundColor:analysisMode===mode?T.accentBg:"transparent",opacity:pressed?0.6:1})}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}
+                    style={{width:"100%",textAlign:"center",flexShrink:1,fontSize:14,fontWeight:analysisMode===mode?"900":"600",color:analysisMode===mode?T.accent:T.textSecondary}}>
+                    {tr(mode==="read"?"mode_read":"mode_audit").replace(/^[^\p{L}]+/u,"")}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr("check")} accessibilityState={{busy:wordLoading||pwaLoading||aiTextLoading,disabled:wordLoading||!text.trim()||pwaLoading||aiTextLoading||batchAdding}}
+              disabled={wordLoading||!text.trim()||pwaLoading||aiTextLoading||batchAdding}
+              onPress={()=>{Keyboard.dismiss();void checkWord();}}
+              style={({pressed})=>({minHeight:46,minWidth:window.width<350?68:82,paddingHorizontal:14,borderRadius:16,backgroundColor:T.accent,justifyContent:"center",alignItems:"center",
+                opacity:wordLoading||!text.trim()||pwaLoading||aiTextLoading||batchAdding?0.45:pressed?0.65:1,transform:[{scale:pressed?0.96:1}]})}>
+              {wordLoading||pwaLoading||aiTextLoading?<ActivityIndicator color="#fff"/>:
+                window.width<380||window.fontScale>1.2?<Ionicons name="checkmark" size={24} color="#fff"/>:<Text style={{color:"#fff",fontSize:14,fontWeight:"800"}}>{tr("check")}</Text>}
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={tr("clear")} disabled={!text||wordLoading||pwaLoading||aiTextLoading||batchAdding}
+              onPress={clearText} style={({pressed})=>[s.toolbarIcon,{marginLeft:6,opacity:!text||wordLoading||pwaLoading||aiTextLoading||batchAdding?0.4:pressed?0.6:1,transform:[{scale:pressed?0.94:1}]}]}>
+              <GlassOverlay dark={themeName==="dark"} material="button" shape="card" radius={22}/>
+              <Ionicons name="trash-outline" size={21} color={T.textPrimary}/>
+            </Pressable>
+          </View>
+        </View>
+      <ScrollView style={{flex:1,backgroundColor:'transparent'}} contentContainerStyle={s.content}
+        keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==="ios"?"interactive":"on-drag"}>
         {/* Text analysis card */}
         <View style={s.card}>
           <GlassOverlay dark={themeName === "dark"} material="card" shape="card" radius={22} />
           <View style={s.cardHeaderRow}>
-            <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+4,marginBottom:0}]}>{tr("text_analysis_title")}</Text>
+            <Text style={{flex:1,color:T.textMuted,fontSize:12}}>{tr(analysisMode==="read"?"mode_read_hint":"mode_audit_hint")}</Text>
             {/* ДОБАВЛЕНО (05.08.2026): иконка прогресса фоновой обработки.
                 ⏳ пока job-orchestrator/enrichment-цепочки работают,
                 ✅ когда lexeme_processing_jobs.status='completed',
@@ -968,7 +1290,7 @@ export default function ReadingScreen() {
             {jobId?(
               <Pressable style={[s.jobPill,{backgroundColor:T.cardAlt,borderColor:T.border}]} onPress={openJobModal}>
                 <Text style={s.jobPillIcon}>
-                  {jobPhase==="completed"?"✅":jobPhase==="needs_review"?"⚠️":"⏳"}
+                  {jobPhase==="completed"||jobPhase==="completed_review"?"✅":jobPhase==="needs_review"?"⚠️":"⏳"}
                 </Text>
                 {jobPhase==="processing"?(
                   <Text style={[s.jobPillText,{color:T.textSecondary}]}>{jobPercent}%</Text>
@@ -976,12 +1298,7 @@ export default function ReadingScreen() {
               </Pressable>
             ):null}
           </View>
-          <TextInput style={[s.textArea,{backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={text} onChangeText={(value)=>{setText(value);setWordMatches([]);setWordSearchMessage("");setPreviewWord(null);}} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
-          <View style={s.actionsRow}>
-            <Pressable style={[s.btn,{backgroundColor:T.accent,flex:1},wordLoading&&s.disabled]} disabled={wordLoading||!text.trim()||pwaLoading||aiTextLoading} onPress={checkWord}>
-              <Text style={s.btnText}>{wordLoading?tr("searching"):tr("check")}</Text>
-            </Pressable>
-          </View>
+          <TextInput style={[s.textArea,{height:Math.max(120,Math.min(240,window.height*0.25)),backgroundColor:themeName === "dark" ? "rgba(15,23,42,0.34)" : "rgba(255,255,255,0.28)",borderColor:themeName === "dark" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.58)",color:T.textPrimary}]} value={text} onChangeText={(value)=>{setText(value);setWordMatches([]);setWordSearchMessage("");setPreviewWord(null);}} placeholder="Jeg har hatt det travelt i det siste..." placeholderTextColor={T.textMuted} multiline textAlignVertical="top"/>
           {previewWord?(<View style={[s.previewBox,{backgroundColor:T.cardAlt}]}>
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+3}]}>{tr("word_preview_title")}</Text>
             <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord.word}</Text>
@@ -998,27 +1315,11 @@ export default function ReadingScreen() {
           {wordMatches.length>0?(<View style={[s.msgBox,{backgroundColor:T.cardAlt}]}>
             <Text style={[s.formLabel,{color:T.textMuted,marginBottom:8}]}>{CHOOSE_POS_UI[lang]}</Text>
             {wordMatches.map((item:any,index:number)=>(
-              <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:(item.isPreviewVariant?previewWord?.variantIndex===item.variantIndex:selectedWord?.id===item.id)?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]} onPress={()=>item.isPreviewVariant?setPreviewWord(item):setSelectedWord(item)}>
-                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{item.matchedForm&&normalizeToken(String(item.matchedForm))!==normalizeToken(String(item.lemma||item.word||""))?`${item.matchedForm} → `:""}{item.lemma||item.word} — {posUi(item.pos||item.category||item.type||"",lang)}{(pickTranslation(item,lang)||item.definitionShort)?` · ${pickTranslation(item,lang)||item.definitionShort}`:""}</Text>
+              <Pressable key={`${item.id||item.lemma}-${index}`} style={[s.clearBtn,{backgroundColor:(item.isPreviewVariant?previewWord?.variantIndex===item.variantIndex:selectedWord?.id===item.id)?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6},item.isHeadwordPreview?{opacity:0.6}:null]} onPress={()=>item.isPreviewVariant?setPreviewWord(item):setSelectedWord(item)}>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{matchRowText(item)} — {posUi(item.pos||item.category||item.type||"",lang)}{(pickTranslation(item,lang)||item.definitionShort)?` · ${pickTranslation(item,lang)||item.definitionShort}`:(!item.isPreviewVariant&&item.id?` · ${PROBLEM_UI.without_translation[lang]}`:"")}</Text>
               </Pressable>
             ))}
           </View>):null}
-          <View style={s.actionsRow}>
-            {(["read","audit"] as TextAnalysisMode[]).map(mode=>(
-              <Pressable key={mode} style={[s.smallCtrl,{backgroundColor:analysisMode===mode?T.accentBg:T.cardAlt,marginBottom:0}]} disabled={pwaLoading||aiTextLoading||batchAdding} onPress={()=>setAnalysisMode(mode)}>
-                <Text style={[s.smallCtrlText,{color:analysisMode===mode?T.accent:T.textPrimary}]}>{tr(mode==="read"?"mode_read":"mode_audit")}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <Text style={[s.candidateMeta,{color:T.textMuted,fontSize:F.meta,marginTop:6}]}>{tr(analysisMode==="read"?"mode_read_hint":"mode_audit_hint")}</Text>
-          <View style={s.actionsCol}>
-            <Pressable style={[s.aiBtn,aiTextLoading&&s.disabled]} disabled={pwaLoading||aiTextLoading||!text.trim()} onPress={()=>runAnalysis("ai")}>
-              <Text style={s.aiBtnText}>{aiTextLoading?tr("ai_analyzing"):tr("ai_analysis")}</Text>
-            </Pressable>
-            <Pressable style={[s.clearWide,{backgroundColor:T.cardAlt}]} onPress={clearText}>
-              <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{tr("clear")}</Text>
-            </Pressable>
-          </View>
         </View>
 
         {loading||pwaLoading||aiTextLoading?<ActivityIndicator size="large" color={T.accent}/>:null}
@@ -1143,6 +1444,7 @@ export default function ReadingScreen() {
           </View>
         </>):null}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* ── Modal helper */}
       {[
@@ -1169,12 +1471,19 @@ export default function ReadingScreen() {
             <Pressable style={[s.closeBtn,{backgroundColor:T.accent}]} onPress={()=>{stopSpeech();setPreviewWord(null);}}><Text style={s.closeBtnText}>{tr("close")}</Text></Pressable>
           </>
         )},
-        {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},content:(
+        {visible:!!selectedWord,onClose:()=>{stopSpeech();setSelectedWord(null);},compact:true,footer:(
+          <ReadingWordActions dark={themeName==="dark"} color={T.textPrimary} accent={T.accent}
+            learned={!!selectedWord?.learned} busy={addingWord} lang={lang}
+            speakLabel={tr("pronounce")} stopLabel={tr("stop_audio")} closeLabel={tr("close")}
+            onSpeak={()=>speakNorwegian(selectedWord?.lemma||selectedWord?.word||"")}
+            onStop={stopSpeech} onAdd={addCurrentWordToLearning}
+            onClose={()=>{stopSpeech();setSelectedWord(null);}} />
+        ),content:(
           <>
-            <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={selectedWord?.isCompound||selectedWord?.is_compound||isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
-            <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{bothTranslations(selectedWord,lang)}</Text>
+            <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:searchCardFonts.word,lineHeight:Math.ceil(searchCardFonts.word*1.15)}]} mainColor={selectedWord?.isCompound||selectedWord?.is_compound||isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
+            <Text style={[s.modalTrans,{color:T.accent,fontSize:searchCardFonts.translation,lineHeight:Math.ceil(searchCardFonts.translation*1.25)}]}>{bothTranslations(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
-              <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
+              <Text style={[s.modalCat,{color:T.textMuted,fontSize:searchCardFonts.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
 
               {/* ФИКС: три компактні іконки в одному ряду — синоніми, 360°,
                   верифікація (крайня права) — той самий порядок і стиль,
@@ -1187,6 +1496,8 @@ export default function ReadingScreen() {
                   lemma={selectedWord?.lemma||selectedWord?.word}
                   size="sm"
                   lang={lang}
+                  lexemeId={selectedWord?.id}
+                  onSelectSynonym={(id:string)=>{void openRelatedLexeme(id);}}
                 />
 
                 {selectedWord?.id &&
@@ -1214,7 +1525,7 @@ export default function ReadingScreen() {
                 ) : null}
               </View>
             </View>
-            {selectedWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{selectedWord.example}</Text>{selectedWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary}]}>{selectedWord.example_translation_uk}</Text>:null}</View>:null}
+            {selectedWord?.example?<View style={[s.exBox,{backgroundColor:"transparent",overflow:"hidden",marginTop:8,padding:10}]}><GlassOverlay dark={themeName==="dark"} material="card" shape="card" radius={14} /><Text style={[s.exText,{color:T.textSecondary,fontSize:searchCardFonts.base,lineHeight:Math.ceil(searchCardFonts.base*1.35)}]}>{selectedWord.example}</Text>{selectedWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary,fontSize:searchCardFonts.base,lineHeight:Math.ceil(searchCardFonts.base*1.35)}]}>{selectedWord.example_translation_uk}</Text>:null}</View>:null}
             {getFormLabels(selectedWord||{}).length>0?(
               <TrainingFormsList
                 forms={getFormLabels(selectedWord||{})}
@@ -1223,13 +1534,10 @@ export default function ReadingScreen() {
                 isDark={themeName==="dark"}
                 textColor={isIrregularMorphology(selectedWord) ? T.danger : T.textPrimary}
                 mutedColor={T.textMuted}
-                fonts={F}
+                fonts={searchCardFonts} density="dense"
               />
             ):null}
-            <Pressable style={[s.speakBtn,{backgroundColor:T.accentBg}]} onPress={()=>speakNorwegian(selectedWord?.lemma||selectedWord?.word||"")}><Text style={[s.speakBtnText,{color:T.accent}]}>🔊 {tr("pronounce")}</Text></Pressable>
-            {!selectedWord?.learned?<Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingWord&&s.disabled]} disabled={addingWord} onPress={addCurrentWordToLearning}><Text style={[s.addBtnText,{color:T.accent}]}>{addingWord?tr("adding"):tr("add_to_learning")}</Text></Pressable>:<View style={[s.addBtn,{backgroundColor:T.accentBg}]}><Text style={[s.addBtnText,{color:T.accent}]}>✅ {tr("in_learning")}</Text></View>}
-            <Pressable style={[s.stopBtn,{backgroundColor:T.cardAlt}]} onPress={stopSpeech}><Text style={[s.stopBtnText,{color:T.textSecondary}]}>⏹ {tr("stop_audio")}</Text></Pressable>
-            <Pressable style={[s.closeBtn,{backgroundColor:T.accent}]} onPress={()=>{stopSpeech();setSelectedWord(null);}}><Text style={s.closeBtnText}>{tr("close")}</Text></Pressable>
+
           </>
         )},
         {visible:!!selectedSentence,onClose:()=>{stopSpeech();setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");},content:(
@@ -1248,14 +1556,67 @@ export default function ReadingScreen() {
             <Pressable style={[s.closeBtn,{backgroundColor:T.accent}]} onPress={()=>{stopSpeech();setSelectedSentence(null);setSentenceAI(null);setSentenceUsage(null);setSentenceError("");}}><Text style={s.closeBtnText}>{tr("close")}</Text></Pressable>
           </>
         )},
-      ].map(({visible,onClose,content},i)=>(
-        <Modal key={i} visible={visible} transparent animationType="fade">
-          <View style={s.modalOverlay}>
-            <View style={s.modalCard}>
+        {visible:showProblems,onClose:()=>setShowProblems(false),content:(
+          <>
+            <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>⚠️ {PROBLEM_UI.title[lang]}</Text>
+            <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{PROBLEM_UI.hidden_note[lang]}</Text>
+            {problemCards.length===0&&synProblems.length===0?<Text style={[s.exText,{color:T.textSecondary}]}>{PROBLEM_UI.none[lang]}</Text>:null}
+            {problemCards.filter((c:any)=>!c.legacy).map((c:any)=>{const id=String(c.lexeme_id);const on=problemSelected.has(id);return(
+              <Pressable key={id} style={[s.clearBtn,{backgroundColor:on?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]}
+                onPress={()=>setProblemSelected(prev=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;})}>
+                <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{on?"☑ ":"☐ "}{c.lemma||c.display_form}{c.homograph_key?` ${c.homograph_key}`:""} ({posUi(c.pos||"",lang)}) — {[c.missing_translation?PROBLEM_UI.no_translation[lang]:"",c.missing_example?PROBLEM_UI.no_example[lang]:"",c.deferred_by_policy?PROBLEM_UI.deferred[lang]:"",c.synonym_status==="error"?PROBLEM_UI.synonym_error[lang]:c.synonym_status==="waiting"?PROBLEM_UI.synonym_waiting[lang]:c.synonym_status==="deferred"?PROBLEM_UI.synonym_deferred[lang]:""].filter(Boolean).join(", ")}</Text>
+                {c.review_reason?<Text style={[s.exText,{color:T.textSecondary}]}>{reviewReasonText(c.review_reason,lang)}</Text>:null}
+              </Pressable>);})}
+            {problemCards.some((c:any)=>c.legacy)?(<View style={[s.msgBox,{backgroundColor:T.cardAlt,marginTop:10}]}>
+              <Text style={[s.formLabel,{color:T.textMuted,marginBottom:4}]}>{PROBLEM_UI.legacy[lang]}</Text>
+              <Text style={[s.exText,{color:T.textSecondary}]}>{problemCards.filter((c:any)=>c.legacy).map((c:any)=>c.lemma).join(", ")}</Text>
+            </View>):null}
+            {problemCount!==null&&problemOffset.current<problemCount?(
+              <Pressable disabled={problemPageBusy} onPress={loadMoreProblemCards}
+                style={[s.smallCtrl,{backgroundColor:T.cardAlt,marginTop:10}]}>
+                <Text style={{color:T.textPrimary}}>{problemPageBusy?'…':lang==='ua'?'Показати ще':lang==='no'?'Vis flere':'Show more'} ({problemCards.length} / {problemCount})</Text>
+              </Pressable>):null}
+            {synProblems.length>0?(<View style={{marginTop:12}}>
+              <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>🔁 {PROBLEM_UI.syn_title[lang]} ({synProblems.length})</Text>
+              {synProblems.map((p)=>{const key=`${p.target_kind}:${p.target_text}`;const on=synSelected.has(key);const roots=(p.root_lemmas||[]).filter(Boolean);return(
+                <Pressable key={key} style={[s.clearBtn,{backgroundColor:on?T.accentBg:T.card,borderColor:T.border,borderWidth:1,marginTop:6}]}
+                  onPress={()=>setSynSelected(prev=>{const n=new Set(prev);if(n.has(key))n.delete(key);else n.add(key);return n;})}>
+                  <Text style={[s.clearBtnText,{color:T.textPrimary}]}>{on?"☑ ":"☐ "}{p.target_text}{p.target_kind==="expression"?` (${posUi("expression",lang)})`:""} — {p.reason==="not_dispatchable"?PROBLEM_UI.syn_not_dispatchable[lang]:PROBLEM_UI.syn_no_card[lang]}{roots.length?` · ${PROBLEM_UI.syn_from[lang]} ${roots.join(", ")}`:""}</Text>
+                </Pressable>);})}
+              <View style={s.actionsRow}>
+                <Pressable style={[s.smallCtrl,{backgroundColor:T.cardAlt,marginBottom:0}]} onPress={()=>setSynSelected(new Set(synProblems.map((p)=>`${p.target_kind}:${p.target_text}`)))}>
+                  <Text style={{color:T.textPrimary}}>{PROBLEM_UI.select_all[lang]}</Text>
+                </Pressable>
+                <Pressable style={[s.btn,{backgroundColor:T.accent,flex:1},(problemBusy||synSelected.size===0)&&s.disabled]} disabled={problemBusy||synSelected.size===0} onPress={rerunSynonymProblems}>
+                  <Text style={s.btnText}>{PROBLEM_UI.syn_rerun[lang]} ({synSelected.size})</Text>
+                </Pressable>
+              </View>
+            </View>):null}
+            {problemMessage?<Text style={[s.modalCat,{color:T.textPrimary,fontSize:F.meta}]}>{problemMessage}</Text>:null}
+            {problemCards.some((c:any)=>!c.legacy)?(<View style={s.actionsRow}>
+              <Pressable style={[s.smallCtrl,{backgroundColor:T.cardAlt,marginBottom:0}]} onPress={()=>setProblemSelected(new Set(problemCards.filter((c:any)=>!c.legacy).map((c:any)=>String(c.lexeme_id))))}>
+                <Text style={{color:T.textPrimary}}>{PROBLEM_UI.select_all[lang]}</Text>
+              </Pressable>
+              <Pressable style={[s.btn,{backgroundColor:T.accent,flex:1},(problemBusy||problemSelected.size===0)&&s.disabled]} disabled={problemBusy||problemSelected.size===0} onPress={rerunProblemCards}>
+                <Text style={s.btnText}>{PROBLEM_UI.rerun[lang]} ({problemSelected.size})</Text>
+              </Pressable>
+            </View>):null}
+            <Pressable style={[s.closeBtn,{backgroundColor:T.accent}]} onPress={()=>setShowProblems(false)}><Text style={s.closeBtnText}>{tr("close")}</Text></Pressable>
+          </>
+        )},
+      ].map(({visible,onClose,content,compact,footer},i)=>(
+        <Modal key={i} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+          <View style={[s.modalOverlay,compact&&{paddingHorizontal:16,paddingTop:insets.top+8,paddingBottom:insets.bottom+8}]}>
+            <View style={[s.modalCard,compact&&{height:Math.min(780,window.height-insets.top-insets.bottom-32),maxHeight:undefined}]}>
             <GlassOverlay dark={themeName === "dark"} material="overlay" shape="sheet" radius={28} />
-              <ScrollView style={s.modalScroll} contentContainerStyle={s.modalScrollContent} showsVerticalScrollIndicator={false}>
+              <ScrollView style={[s.modalScroll,compact&&{flex:1,minHeight:0}]}
+                onLayout={compact?event=>setSearchCardViewport(event.nativeEvent.layout.height):undefined}
+                onContentSizeChange={compact?(_width,height)=>setSearchCardContent(height):undefined}
+                contentContainerStyle={[s.modalScrollContent,compact&&{padding:16,paddingBottom:8}]}
+                showsVerticalScrollIndicator={!!compact}>
                 {content}
               </ScrollView>
+              {footer}
             </View>
           </View>
         </Modal>
@@ -1276,6 +1637,13 @@ export default function ReadingScreen() {
                 <View style={[s.jobStatusBox,{backgroundColor:T.accentBg}]}>
                   <Text style={s.jobStatusIcon}>✅</Text>
                   <Text style={[s.jobStatusText,{color:T.textPrimary}]}>{tr("job_completed")}</Text>
+                </View>
+              ):jobPhase==="completed_review"?(
+                <View style={[s.jobStatusBox,{backgroundColor:T.accentBg}]}>
+                  <Text style={s.jobStatusIcon}>✅</Text>
+                  <Text style={[s.jobStatusText,{color:T.textPrimary}]}>{jobReviewItems.length>0
+                    ?`${tr("job_completed")} ${REVIEW_TITLE_UI[lang](jobReviewItems.length)}`
+                    :tr("job_completed_review")}</Text>
                 </View>
               ):jobPhase==="needs_review"?(
                 <View style={[s.jobStatusBox,{backgroundColor:T.dangerSoft}]}>
@@ -1303,6 +1671,17 @@ export default function ReadingScreen() {
                 </>
               )}
 
+              {(jobPhase==="completed"||jobPhase==="completed_review")&&jobReviewItems.length>0?(
+                <View style={[s.msgBox,{backgroundColor:T.cardAlt}]}>
+                  <Text style={[s.formLabel,{color:T.textMuted,marginBottom:6}]}>⚠️ {REVIEW_TITLE_UI[lang](jobReviewItems.length)}</Text>
+                  {jobReviewItems.map((item:any,index:number)=>(
+                    <Text key={`review-${index}`} style={[s.exText,{color:T.textSecondary}]}>
+                      {String(item?.word||"?")}{item?.pos?` (${posUi(item.pos,lang)})`:""} — {reviewReasonText(item?.code,lang)}
+                    </Text>
+                  ))}
+                </View>
+              ):null}
+
               <Pressable style={[s.closeBtn,{backgroundColor:T.accent}]} onPress={closeJobModal}>
                 <Text style={s.closeBtnText}>{tr("job_close")}</Text>
               </Pressable>
@@ -1328,7 +1707,8 @@ function Stat({label,value}:{label:string;value:string|number}){
 }
 
 const s=StyleSheet.create({
-  content:{paddingTop:70,paddingHorizontal:18,paddingBottom:120},
+  toolbarIcon:{width:44,height:44,borderRadius:22,overflow:"hidden",alignItems:"center",justifyContent:"center"},
+  content:{paddingTop:2,paddingHorizontal:18,paddingBottom:120},
   title:{fontWeight:"900",marginBottom:10},subtitle:{lineHeight:24,marginBottom:20},
   card:{borderRadius:22,padding:18,marginBottom:18,overflow:"hidden",backgroundColor:"transparent"},
   cardHeaderRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:14},
@@ -1341,7 +1721,7 @@ const s=StyleSheet.create({
   chainRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingVertical:10,borderBottomWidth:0.5,borderRadius:8,paddingHorizontal:6},
   chainLabel:{fontSize:14,fontWeight:"700"},chainCount:{fontSize:13,fontWeight:"900"},
   wordInput:{borderWidth:1,borderRadius:16,padding:14,fontWeight:"700",marginBottom:14},
-  textArea:{minHeight:160,borderWidth:1,borderRadius:16,padding:14,fontWeight:"600",marginBottom:14},
+  textArea:{minHeight:100,borderWidth:1,borderRadius:16,padding:14,fontWeight:"600",marginBottom:14},
   actionsRow:{flexDirection:"row",gap:10,marginTop:4},actionsCol:{gap:10},
   btn:{borderRadius:16,paddingVertical:16},btnText:{color:"#fff",textAlign:"center",fontSize:16,fontWeight:"900"},
   clearBtn:{borderRadius:16,paddingHorizontal:18,justifyContent:"center"},clearBtnText:{fontSize:15,fontWeight:"800",textAlign:"center"},

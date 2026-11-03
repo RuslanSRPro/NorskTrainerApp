@@ -9,6 +9,11 @@
 //     forms if all articles with forms agree, else "for review".
 //   Forms go to lexeme_naob_forms_v1 (d10_publish_naob_forms_v1);
 //   lexeme_form_display_v2 is not touched.
+//   D10 26.10.2026 (agreed): also VERB and ADJECTIVE cards (NAOB articles
+//   "verb" / "adjektiv"), same rule: all articles with forms agree (R8) ->
+//   forms, else "for review". Built forms (presens, bestemt form, bestemt
+//   superlativ) are marked with their rule (withDerivedNaobForms).
+//   Division (mode "split") stays for nouns only.
 //
 // Mode "split" (job-orchestrator, before the enrichment chains), for the
 // nouns of a job without an Ordbøkene article: the NAOB articles are
@@ -29,6 +34,8 @@ import {
 import {
   decideNaobForms,
   inflectedFormCount,
+  NAOB_POS_OF_CARD,
+  withDerivedNaobForms,
   normalizeWord,
   parseNaobArticle,
   parseNaobSearch,
@@ -44,7 +51,9 @@ const TIME_BUDGET_MS = 40_000;
 // split mode runs inside the orchestrator call (45 s budget of the supervisor)
 const SPLIT_LEXEMES_PER_CALL = 2;
 const SPLIT_TIME_BUDGET_MS = 20_000;
-const ALLOWED_POS = new Set(['noun']);
+const ALLOWED_POS = new Set(['noun', 'verb', 'adjective']);
+// division by NAOB articles (mode "split"): nouns only, as before
+const SPLIT_POS = new Set(['noun']);
 const NAOB = 'https://naob.no';
 
 type Supa = ReturnType<typeof createClient>;
@@ -95,10 +104,15 @@ type Loaded =
 // NAOB search + every article "substantiv" with exactly this headword.
 // D10 25.10.2026: exported for the Read mode preview (same rule, read only).
 export async function loadNaobNounArticles(lemma: string, fetchImpl: FetchLike): Promise<Loaded> {
+  return await loadNaobArticles(lemma, 'substantiv', fetchImpl);
+}
+
+// D10 26.10.2026: the same for any NAOB part of speech ("verb", "adjektiv").
+export async function loadNaobArticles(lemma: string, naobPos: string, fetchImpl: FetchLike): Promise<Loaded> {
   const searchUrl = `${NAOB}/s%C3%B8k?q=${encodeURIComponent(lemma)}`;
   const listing = parseNaobSearch(await fetchNaobPage(searchUrl, fetchImpl));
   const slugs = listing.entries
-    .filter((e) => e.headword === lemma && e.pos === 'substantiv')
+    .filter((e) => e.headword === lemma && e.pos === naobPos)
     .map((e) => e.slug);
   if (!slugs.length) return { status: 'none', searchUrl };
   if (listing.total !== null && listing.shown !== null && listing.total > listing.shown) {
@@ -120,7 +134,8 @@ async function publishArticleForms(supabase: Supa, lexemeId: string, slug: strin
   if (article.status !== 'ok' || inflectedFormCount(article) === 0) return { error: 'NO_FORMS_IN_ARTICLE' };
   const { data, error } = await supabase.rpc('d10_publish_naob_forms_v1', {
     p_lexeme_id: lexemeId,
-    p_forms: article.forms.map((f) => ({ ...f, accepted_articles: article.articles })),
+    p_forms: withDerivedNaobForms(article.headword ?? '', article.pos ?? '', article.forms)
+      .map((f) => ({ ...f, accepted_articles: article.articles })),
     p_evidence: {
       rule: 'd10_naob_boeyning_v1', article_urls: [`${NAOB}/ordbok/${slug}`],
       naob_slugs: [slug], genus: article.genus, ...extra,
@@ -154,11 +169,13 @@ export async function processLexeme(
   const lemma = normalizeWord(lexeme.lemma);
   if (!lemma || /\s/.test(lemma)) return { ...base, status: 'not_single_word' };
 
+  const naobPos = NAOB_POS_OF_CARD[lexeme.pos];
+
   // D10 24.10.2026: a card bound to a NAOB article takes only its forms.
   const binding = await bindingOf(supabase, lexeme.id);
   if (binding) {
     const article = parseNaobArticle(await fetchNaobPage(`${NAOB}/ordbok/${binding.slug}`, fetchImpl));
-    if (article.headword !== lemma || article.pos !== 'substantiv') {
+    if (article.headword !== lemma || article.pos !== naobPos) {
       return { ...base, status: 'naob_bound_article_changed', detail: { slug: binding.slug } };
     }
     const published = await publishArticleForms(supabase, lexeme.id, binding.slug, article, { bound: true });
@@ -167,12 +184,12 @@ export async function processLexeme(
     return { ...base, status: 'naob_forms', detail: { rows: published.rows, slugs: [binding.slug], bound: true } };
   }
 
-  const loaded = await loadNaobNounArticles(lemma, fetchImpl);
+  const loaded = await loadNaobArticles(lemma, naobPos, fetchImpl);
   if (loaded.status === 'none') return { ...base, status: 'no_naob_article_of_pos' };
   if (loaded.status === 'review') return await review(supabase, base, loaded.reason, loaded.detail);
   const { searchUrl, parsed } = loaded;
 
-  const decision = decideNaobForms(lemma, parsed);
+  const decision = decideNaobForms(lemma, parsed, naobPos);
   if (decision.status === 'no_forms') return { ...base, status: 'naob_no_forms', detail: { ignored: decision.ignored } };
   if (decision.status === 'review') return await review(supabase, base, decision.reason, decision.detail);
 
@@ -186,7 +203,8 @@ export async function processLexeme(
   };
   const { data: rows, error: publishError } = await supabase.rpc('d10_publish_naob_forms_v1', {
     p_lexeme_id: lexeme.id,
-    p_forms: decision.forms.map((f) => ({ ...f, accepted_articles: decision.articles })),
+    p_forms: withDerivedNaobForms(lemma, naobPos, decision.forms)
+      .map((f) => ({ ...f, accepted_articles: decision.articles })),
     p_evidence: evidence,
   });
   if (publishError) {
@@ -213,7 +231,7 @@ export async function processSplit(
   fetchImpl: FetchLike = fetch,
 ): Promise<LexemeResult & { added: number }> {
   const base = { lexemeId: lexeme.id, lemma: lexeme.lemma, added: 0 };
-  if (!ALLOWED_POS.has(lexeme.pos)) return { ...base, status: 'pos_not_supported' };
+  if (!SPLIT_POS.has(lexeme.pos)) return { ...base, status: 'pos_not_supported' };
   const other = await hasOtherForms(supabase, lexeme.id);
   if (other) return { ...base, status: other };
   const lemma = normalizeWord(lexeme.lemma);

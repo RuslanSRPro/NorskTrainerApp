@@ -14,6 +14,8 @@
 //       adjective, then fallback verb > noun > adjective > adverb.
 // Only the four legacy POS groups take part in the context choice, one lexeme
 // per POS (the first in resolver order), exactly as the legacy resolver did.
+// D10 25.10.2026: without neighbours every lemma of a POS is kept (bar ->
+// bære + bare); with neighbours the rule above is unchanged.
 // When none of the four is present, one exact lexeme is returned (known POS
 // first), as the legacy exact-lexeme fallback did.
 //
@@ -140,6 +142,32 @@ export function selectByContext(
       ?? rows.find(isKnown)
       ?? rows[0];
     return [toSurfaceResolution(chosen)];
+  }
+
+  // D10 25.10.2026 (agreed): a single word / word list (no neighbours) keeps
+  // EVERY lemma of a part of speech, not only the first: "bar" is a form of
+  // bære AND of bare (both verbs), and both go through the full audit. One
+  // candidate per lemma + POS (a second card of the same lemma, brenne II, is
+  // still added by the homograph step). When every POS has one lemma, the
+  // previous behaviour below is unchanged.
+  if (!context.prevToken && !context.nextToken) {
+    const perLemmaPos = new Map<string, SurfaceCandidateV2>();
+    for (const row of rows) {
+      const pos = String(row.pos ?? '').toLowerCase();
+      if (!(CORE_POS as readonly string[]).includes(pos)) continue;
+      const key = `${normalizeSurface(row.lemma) ?? ''}|${pos}`;
+      if (!perLemmaPos.has(key)) perLemmaPos.set(key, row);
+    }
+    if (perLemmaPos.size > perPos.size) {
+      const ordered = [...perLemmaPos.values()].sort((a, b) =>
+        CORE_POS.indexOf(String(a.pos ?? '').toLowerCase() as CorePos) -
+        CORE_POS.indexOf(String(b.pos ?? '').toLowerCase() as CorePos));
+      return ordered.map((row) => toSurfaceResolution(row, {
+        confidence: 'medium',
+        features: { pos_ambiguous: perPos.size > 1, lemma_ambiguous: true,
+          disambiguation_rule: 'no_context_all_lemmas_returned', candidate_count: perLemmaPos.size },
+      }));
+    }
   }
 
   const count = perPos.size;

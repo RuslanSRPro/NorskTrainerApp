@@ -5,6 +5,11 @@ import {
   loadJobEntities,
   versionCompletedJob,
 } from '../_shared/final-versioning.ts';
+import { OrdbokeneClient } from '../_shared/authoritative-morphology-v2/mod.ts';
+import {
+  SURFACE_PROBE_STAGE,
+  surfaceProbeDecision,
+} from '../_shared/d10-surface-probe.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get(
@@ -18,7 +23,90 @@ const supabase = createClient(
 
 const CURRENT_VERIFICATION_VERSION = 5;
 const CURRENT_METHOD_VERSION = 1;
+// D10 25.10.2026 (agreed): content versioning. The card content (translations,
+// forms, examples) "before" this job; the first capture of an entity wins.
+// Never breaks the job: an error is only logged.
+async function captureJobContentBefore(jobId: string, stage: string): Promise<void> {
+  try {
+    const { data, error } = await supabase.rpc('d10_capture_job_content_before_v1', { p_job_id: jobId });
+    if (error) console.warn('[content-versioning] capture failed', jobId, stage, error.message ?? error);
+    else if (data === -1) console.warn('[content-versioning] capture returned -1', jobId, stage);
+  } catch (e) {
+    console.warn('[content-versioning] capture threw', jobId, stage, e instanceof Error ? e.message : e);
+  }
+}
+
 const PROMOTION_BATCH_LIMIT = 3;
+
+// D10 27.10.2026 (agreed): "surface as lemma" probes (_shared/d10-surface-probe.ts).
+// Before the lexical worker: one Ordbøkene lookup per probe; the SQL function
+// splits the probe into part-of-speech items (they get the normal five source
+// checks, processed by the lexical worker on this same tick) or closes it.
+// Ordbøkene not answering -> attempt + 1 (closed at max_attempts by the SQL
+// function). Returns how many probes still wait: while any does, this tick
+// stops before promotion and the job is not finalised.
+const SURFACE_PROBES_PER_TICK = 5;
+
+async function resolveSurfaceProbes(jobId: string): Promise<{
+  resolved: number;
+  remaining: number;
+  warnings: string[];
+}> {
+  const warnings: string[] = [];
+  const { data, error } = await supabase
+    .from('lexeme_processing_items')
+    .select('id, normalized_lemma')
+    .eq('job_id', jobId)
+    .eq('current_stage', SURFACE_PROBE_STAGE)
+    .order('id')
+    .limit(SURFACE_PROBES_PER_TICK);
+  if (error) throw new Error(`surface probes read failed: ${safeStringify(error)}`);
+
+  let resolved = 0;
+  const client = new OrdbokeneClient();
+  for (const probe of (data ?? []) as Array<{ id: string; normalized_lemma: string | null }>) {
+    const word = String(probe.normalized_lemma ?? '').trim();
+    let outcome: 'split' | 'no_headword' | 'retry' = 'no_headword';
+    let pos: string[] = [];
+    let evidence: Record<string, unknown> = { query: word, reason: 'empty_word', version: 'd10_surface_probe_v1' };
+    if (word) {
+      try {
+        const decision = surfaceProbeDecision(word, await client.lookup(word, ['bm']));
+        outcome = decision.outcome;
+        pos = decision.pos;
+        evidence = decision.evidence;
+      } catch (lookupError) {
+        outcome = 'retry';
+        evidence = { query: word, error: lookupError instanceof Error ? lookupError.message : String(lookupError),
+          version: 'd10_surface_probe_v1' };
+      }
+    }
+    const { data: result, error: rpcError } = await supabase.rpc('d10_resolve_surface_probe_v1', {
+      p_item_id: probe.id,
+      p_outcome: outcome,
+      p_pos: pos,
+      p_evidence: evidence,
+    });
+    // A database error is not an Ordbøkene outage: fail the tick like any
+    // rpcOrThrow step, so pipeline-supervisor counts it (no silent endless retry).
+    if (rpcError) {
+      throw new Error(`RPC d10_resolve_surface_probe_v1 failed for ${probe.id}: ${safeStringify(rpcError)}`);
+    }
+    if ((result as any)?.closed === true) resolved += 1;
+    if ((result as any)?.outcome === 'retry') {
+      warnings.push(`surface probe ${probe.id} (${word}): Ordbøkene did not answer, attempt ${(result as any)?.attempt}`);
+    }
+  }
+
+  const { count, error: countError } = await supabase
+    .from('lexeme_processing_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('job_id', jobId)
+    .eq('current_stage', SURFACE_PROBE_STAGE);
+  if (countError) throw new Error(`surface probes count failed: ${safeStringify(countError)}`);
+  if (warnings.length) console.warn('job-orchestrator: surface probe warnings for job', jobId, warnings);
+  return { resolved, remaining: count ?? 0, warnings };
+}
 
 // ФИКС (05.08.2026): было 60с — оказалось слишком коротким порогом
 // устаревания лока. Реальная обработка job-orchestrator (runLexicalWorker
@@ -358,7 +446,8 @@ serve(async (req) => {
           .from('lexeme_processing_items')
           .select('id', { count: 'exact', head: true })
           .eq('job_id', jobId)
-          .eq('current_stage', 'source_checks');
+          // D10 27.10.2026: a waiting surface probe is unfinished work too
+          .in('current_stage', ['source_checks', SURFACE_PROBE_STAGE]);
         if (error) throw error;
         if (!count) {
           processedJobs.push({ job_id: jobId, action: 'skipped', reason: 'no unpromoted items' });
@@ -421,6 +510,7 @@ serve(async (req) => {
             supabase as unknown as Parameters<typeof loadJobEntities>[0],
             jobId,
           );
+        await captureJobContentBefore(jobId, 'start');
 
         await supabase
           .from('lexeme_processing_jobs')
@@ -433,6 +523,10 @@ serve(async (req) => {
               new Date().toISOString(),
           })
           .eq('id', jobId);
+
+        // D10 27.10.2026 (agreed): surface probes first, so their part-of-speech
+        // items are checked by the lexical worker on this same tick.
+        const surfaceProbes = await resolveSurfaceProbes(jobId);
 
         await rpcOrThrow<number>(
           'reset_stuck_source_checks',
@@ -455,6 +549,23 @@ serve(async (req) => {
             lexical_warnings: lexicalWarnings.length ? lexicalWarnings : undefined,
             orchestrator_incomplete: true,
             source_checks_remaining: sourceChecksRemaining,
+            enrichment_pending: false,
+          });
+
+          continue;
+        }
+
+        // D10 27.10.2026 (agreed): a probe that is still waiting (Ordbøkene did
+        // not answer) keeps the job in the orchestrator stage: no promotion,
+        // no final result yet. pipeline-supervisor retries on the next tick;
+        // the probe is closed at its max_attempts by the SQL function.
+        if (surfaceProbes.remaining > 0) {
+          processedJobs.push({
+            job_id: jobId,
+            lexical_batches: lexicalBatches,
+            orchestrator_incomplete: true,
+            surface_probes_remaining: surfaceProbes.remaining,
+            surface_probe_warnings: surfaceProbes.warnings.length ? surfaceProbes.warnings : undefined,
             enrichment_pending: false,
           });
 
@@ -571,7 +682,11 @@ serve(async (req) => {
         // A failure is reported to pipeline-supervisor instead of failing the
         // whole orchestrator call, so the supervisor can count it and, after
         // repeated failures, continue the job without family injection.
-        if (!skipFamilyInjection) {
+        // D10 27.10.2026 (agreed, D10_synonym_child_job_v1): a child job of
+        // NAOB synonym candidates gets full cards and homographs, but no
+        // family 360 (the cards are marked deferred_by_policy and can be
+        // processed again in full from "Problem words").
+        if (!skipFamilyInjection && job.input_type !== 'synonym_candidate') {
           let familyPage!: { ok: boolean; added: number; has_more: boolean };
           try {
             familyPage = await rpcOrThrow<{
@@ -750,6 +865,8 @@ serve(async (req) => {
               p_job_id: jobId,
             },
           );
+
+        await captureJobContentBefore(jobId, 'final');
 
         const versioningResult =
           await versionCompletedJob(

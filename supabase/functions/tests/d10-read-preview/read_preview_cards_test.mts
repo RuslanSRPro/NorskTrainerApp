@@ -173,3 +173,45 @@ test('inflection search fails: the exact lemma card still comes', async () => {
   const r = await pv.buildPreview('tørker', failing as any);
   assert.deepEqual(r.cards.map((c: any) => c.lemma), ['tørker']);
 });
+
+// ---------------------------------------------------------------- reverse search (25.10.2026)
+const REVERSE_KNYHA = { result: [[
+  { id: 1, type: 'E-lem', text: 'bok' }, { id: 1, type: 'E-kat', text: 'substantiv' }, { id: 1, type: 'Ukr-lem', text: 'книжка, книга' }, { id: 1, type: 'B-lem', text: 'book' },
+  { id: 2, type: 'E-lem', text: 'bibel' }, { id: 2, type: 'E-kat', text: 'substantiv' }, { id: 2, type: 'Ukr-lem', text: 'біблія' }, { id: 2, type: 'Ukr-def', text: 'священна книга' },
+  { id: 3, type: 'E-lem', text: 'koke~bok' }, { id: 3, type: 'E-kat', text: 'substantiv' }, { id: 3, type: 'Ukr-lem', text: 'книга' },
+  { id: 4, type: 'E-lem', text: 'lære~bok' }, { id: 4, type: 'Ukr-lem', text: 'підручник' },
+  { id: 5, type: 'E-lem', text: 'billig' }, { id: 5, type: 'E-kat', text: 'adjektiv' }, { id: 5, type: 'Ukr-lem', text: 'недорогий, дешевий' }, { id: 5, type: 'Ukr-eks', text: 'дешева книга' },
+]], resArray: { 0: { id: 2 }, 1: { id: 1 }, 2: { id: 3 } } };
+const REVERSE_BOOK = { result: [[
+  { id: 1, type: 'E-lem', text: 'bok' }, { id: 1, type: 'E-kat', text: 'substantiv' }, { id: 1, type: 'B-lem', text: 'book' },
+  { id: 6, type: 'E-lem', text: 'å booke' }, { id: 6, type: 'E-kat', text: 'verb' }, { id: 6, type: 'B-lem', text: 'to book' }, { id: 6, type: 'Ukr-lem', text: 'замовити|замовляти' },
+  { id: 7, type: 'E-lem', text: 'hefte' }, { id: 7, type: 'B-lem', text: 'booklet' },
+]] };
+
+test('reverse uk: "книга" -> only bok (own translation is exactly the word); bibel, billig, compounds dropped', async () => {
+  const r = await pv.reverseLexinLemmas('книга', 'uk', site({ search: {}, articles: {}, lexin: { 'книга': REVERSE_KNYHA } }).f as any);
+  assert.equal(r.status, 'found');
+  assert.deepEqual(r.lemmas, [{ lemma: 'bok', pos: 'noun' }]);
+});
+
+test('reverse en: "book" -> bok and booke ("to book"), hefte (booklet) dropped', async () => {
+  const r = await pv.reverseLexinLemmas('book', 'en', site({ search: {}, articles: {}, lexin: { book: REVERSE_BOOK } }).f as any);
+  assert.deepEqual(r.lemmas.map((l: any) => l.lemma), ['bok', 'booke']);
+});
+
+test('reverse preview: "книга" -> the cards of bok by the same rules (main + II), Norwegian word shown', async () => {
+  const { f } = site({ search: { 'bok|e': [6790, 106786] }, articles: { 6790: BOK, 106786: BOK_II },
+    lexin: { 'книга': REVERSE_KNYHA, bok: LEXIN_BOK } });
+  const r = await pv.buildReversePreview('книга', 'uk', f as any);
+  assert.equal(r.from, 'uk');
+  assert.deepEqual(r.cards.map((c: any) => [c.lemma, c.role]), [['bok', 'main'], ['bok', 'second']]);
+  assert.deepEqual(r.cards[0].translation.uk, ['книжка']);
+  assert.equal(r.cards.every((c: any) => c.matched_form === null), true);
+});
+
+test('reverse: nothing exact -> no cards, no error', async () => {
+  const { f } = site({ search: {}, articles: {}, lexin: { 'підручник': { result: [[{ id: 4, type: 'E-lem', text: 'lære~bok' }, { id: 4, type: 'Ukr-lem', text: 'підручник' }]] } } });
+  const r = await pv.buildReversePreview('підручник', 'uk', f as any);
+  assert.equal(r.reverse.status, 'not_found');
+  assert.equal(r.cards.length, 0);
+});

@@ -25,11 +25,32 @@ export const NAOB_NOUN_FORM_KEYS = [
 ] as const;
 export type NaobNounFormKey = typeof NAOB_NOUN_FORM_KEYS[number];
 
+// D10 26.10.2026 (agreed): verbs and adjectives too. The keys are the ones the
+// app already reads for Ordbøkene forms (formReadModelCore aliases).
+export const NAOB_VERB_FORM_KEYS = ['infinitive', 'present', 'past', 'past_participle'] as const;
+export const NAOB_ADJECTIVE_FORM_KEYS = [
+  'positive_singular_indefinite_common',
+  'positive_singular_indefinite_neuter',
+  'positive_definite',
+  'positive_plural_indefinite',
+  'comparative',
+  'superlative',
+  'superlative_definite',
+] as const;
+export type NaobVerbFormKey = typeof NAOB_VERB_FORM_KEYS[number];
+export type NaobAdjectiveFormKey = typeof NAOB_ADJECTIVE_FORM_KEYS[number];
+export type NaobFormKey = NaobNounFormKey | NaobVerbFormKey | NaobAdjectiveFormKey;
+
 export type NaobForm = {
-  form_key: NaobNounFormKey;
+  form_key: NaobFormKey;
   primary_values: string[];
   alternative_values: string[];
+  // D10 26.10.2026 (agreed): set only on a form built by us from the forms
+  // NAOB lists (not taken from the source). The app shows "≈" next to it.
+  derived_rule?: NaobDerivedRule;
 };
+
+export type NaobDerivedRule = 'present_infinitive_plus_r' | 'definite_equals_plural' | 'superlative_plus_e';
 
 export type NaobListingEntry = { slug: string; headword: string; pos: string };
 
@@ -59,6 +80,53 @@ const ROW_LABELS: Record<string, NaobNounFormKey> = {
   'bestemt form entall': 'noun_singular_definite',
   'ubestemt form flertall': 'noun_plural_indefinite',
   'bestemt form flertall': 'noun_plural_definite',
+};
+
+// D10 26.10.2026: verb and adjective rows of the BØYNING block (seen on
+// naob.no 26.10.2026: bare_2, kaste_4, bar_3, stor). "verbalsubstantiv"
+// (baring) is not a form of the paradigm and is left out.
+const VERB_ROW_LABELS: Record<string, NaobVerbFormKey> = {
+  'infinitiv': 'infinitive',
+  'presens': 'present',
+  'preteritum': 'past',
+  'perfektum partisipp': 'past_participle',
+};
+const ADJECTIVE_ROW_LABELS: Record<string, NaobAdjectiveFormKey> = {
+  'nøytrum': 'positive_singular_indefinite_neuter',
+  'bestemt form': 'positive_definite',
+  'flertall': 'positive_plural_indefinite',
+  'komparativ': 'comparative',
+  'superlativ': 'superlative',
+};
+const VERB_SUMMARY_CLASSES: Record<string, NaobVerbFormKey> = {
+  VerbPres: 'present',
+  VerbPret: 'past',
+  VerbPerfPart: 'past_participle',
+};
+const ADJECTIVE_SUMMARY_CLASSES: Record<string, NaobAdjectiveFormKey> = {
+  AdjArtPronNoeytrum: 'positive_singular_indefinite_neuter',
+  AdjArtPronFlertall: 'positive_plural_indefinite',
+  AdjKomparativ: 'comparative',
+  AdjSuperlativ: 'superlative',
+};
+const IGNORED_LABELS = new Set(['verbalsubstantiv', 'presens partisipp', 'imperativ']);
+
+type NaobPosKind = 'noun' | 'verb' | 'adjective';
+// NAOB part of speech -> which rows are read. Anything else is read as before
+// (noun rows only), so nothing changes for other parts of speech.
+export function naobPosKind(pos: string | null): NaobPosKind {
+  if (pos === 'verb') return 'verb';
+  if (pos === 'adjektiv') return 'adjective';
+  return 'noun';
+}
+// Card POS -> NAOB part of speech of its articles.
+export const NAOB_POS_OF_CARD: Record<string, string> = { noun: 'substantiv', verb: 'verb', adjective: 'adjektiv' };
+const KEYS_OF: Record<NaobPosKind, readonly NaobFormKey[]> = {
+  noun: NAOB_NOUN_FORM_KEYS, verb: NAOB_VERB_FORM_KEYS, adjective: NAOB_ADJECTIVE_FORM_KEYS,
+};
+// The headword itself: indefinite singular / infinitive / positive.
+const HEADWORD_KEY: Record<NaobPosKind, NaobFormKey> = {
+  noun: 'noun_singular_indefinite', verb: 'infinitive', adjective: 'positive_singular_indefinite_common',
 };
 
 const SUMMARY_CLASSES: Record<string, NaobNounFormKey> = {
@@ -168,7 +236,12 @@ export function parseNaobArticle(html: string): NaobArticle {
   const tables = block.match(/class="contents boeyningsskjema"/g) ?? [];
   if (tables.length > 1) return { ...result, status: 'multiple_paradigms' };
 
-  const byKey = new Map<NaobNounFormKey, { primary: string[]; alternative: string[] }>();
+  const kind = naobPosKind(result.pos);
+  const rowLabels: Record<string, NaobFormKey> = kind === 'verb' ? VERB_ROW_LABELS
+    : kind === 'adjective' ? ADJECTIVE_ROW_LABELS : ROW_LABELS;
+  const summaryClasses: Record<string, NaobFormKey> = kind === 'verb' ? VERB_SUMMARY_CLASSES
+    : kind === 'adjective' ? ADJECTIVE_SUMMARY_CLASSES : SUMMARY_CLASSES;
+  const byKey = new Map<NaobFormKey, { primary: string[]; alternative: string[] }>();
   const row = /boeyningsform-ledetekst td">([\s\S]*?)<\/div>\s*<div class="table-body-cell[^"]*td">([\s\S]*?)<\/div>/g;
   for (const m of block.matchAll(row)) {
     const label = plain(m[1]).toLowerCase();
@@ -184,7 +257,8 @@ export function parseNaobArticle(html: string): NaobArticle {
       result.articles = ARTICLES.filter((a) => words.includes(a));
       continue;
     }
-    const key = ROW_LABELS[label];
+    const key = rowLabels[label];
+    if (!key && kind !== 'noun' && IGNORED_LABELS.has(label)) continue;
     if (!key) {
       result.unknown_labels.push(label);
       continue;
@@ -198,7 +272,7 @@ export function parseNaobArticle(html: string): NaobArticle {
   if (byKey.size === 0) {
     const summary = /<span class="boeyningsform ([A-Za-z]+)">([\s\S]*?)<\/span>/g;
     for (const m of block.matchAll(summary)) {
-      const key = SUMMARY_CLASSES[m[1]];
+      const key = summaryClasses[m[1]];
       if (!key) continue;
       const values = splitValues(m[2]);
       result.invalid_values.push(...values.invalid);
@@ -215,12 +289,13 @@ export function parseNaobArticle(html: string): NaobArticle {
     }
   }
 
-  // The headword itself is the indefinite singular of a noun.
-  if (headword && !byKey.has('noun_singular_indefinite') && byKey.size > 0) {
-    byKey.set('noun_singular_indefinite', { primary: [headword], alternative: [] });
+  // The headword itself is the indefinite singular of a noun (the infinitive
+  // of a verb, the positive of an adjective).
+  if (headword && !byKey.has(HEADWORD_KEY[kind]) && byKey.size > 0) {
+    byKey.set(HEADWORD_KEY[kind], { primary: [headword], alternative: [] });
   }
 
-  result.forms = NAOB_NOUN_FORM_KEYS.filter((k) => byKey.has(k)).map((k) => ({
+  result.forms = (KEYS_OF[kind] as readonly NaobFormKey[]).filter((k) => byKey.has(k)).map((k) => ({
     form_key: k,
     primary_values: byKey.get(k)!.primary,
     alternative_values: byKey.get(k)!.alternative,
@@ -256,7 +331,8 @@ export function parseNaobDefinitions(page: string, start = 0): string[] {
 
 // Forms beyond the headword itself.
 export function inflectedFormCount(article: NaobArticle): number {
-  return article.forms.filter((f) => f.form_key !== 'noun_singular_indefinite').length;
+  const headwordKey = HEADWORD_KEY[naobPosKind(article.pos)];
+  return article.forms.filter((f) => f.form_key !== headwordKey).length;
 }
 
 export function formsSignature(article: NaobArticle): string {
@@ -277,6 +353,7 @@ export type NaobDecision =
 export function decideNaobForms(
   lemma: string,
   parsed: Array<{ slug: string; article: NaobArticle }>,
+  naobPos = 'substantiv',
 ): NaobDecision {
   const want = normalizeWord(lemma);
   const usable: Array<{ slug: string; article: NaobArticle }> = [];
@@ -286,7 +363,7 @@ export function decideNaobForms(
     if (a.status === 'multiple_paradigms' || a.status === 'invalid_value') {
       return { status: 'review', reason: `naob_article_${a.status}`, detail: { slug: p.slug, invalid: a.invalid_values } };
     }
-    if (a.status !== 'ok' || a.headword !== want || a.pos !== 'substantiv') {
+    if (a.status !== 'ok' || a.headword !== want || a.pos !== naobPos) {
       ignored.push(p.slug);
       continue;
     }
@@ -372,4 +449,54 @@ export function planNaobHomographs(
     const p = bySlugNumber.get(d.articleId);
     return { ...d, slug: p?.slug ?? String(d.articleId), article: p?.article ?? null };
   });
+}
+
+// --------------------------------------------------------------------------
+// D10 26.10.2026 (agreed): forms we build from the forms NAOB lists, each
+// marked with its rule (shown with "≈"). Only these three; nothing else is
+// invented. Not used to compare articles (R8/R9 compare source forms only).
+//   verb:      presens = infinitive + r, only an infinitive in -e and not one
+//              of the verbs with another presens (kan, vet, gjør, er ...);
+//   adjective: bestemt form = flertall (store), bestemt superlativ =
+//              superlativ + e (størst -> største), only a one-word -st form.
+// An adjective without komparativ / superlativ in NAOB keeps no degrees:
+// nothing is built for them (agreed: Norwegian has such adjectives).
+// --------------------------------------------------------------------------
+// infinitives in -e whose presens is not "+ r"
+const OWN_PRESENT = new Set([
+  'være', 'gjøre', 'spørre', 'vite', 'kunne', 'skulle', 'ville', 'måtte', 'burde', 'tørre',
+]);
+// adjectives whose bestemt form is not the flertall form (lille / små)
+const OWN_DEFINITE = new Set(['liten']);
+
+export function withDerivedNaobForms(lemma: string, naobPos: string, forms: NaobForm[]): NaobForm[] {
+  const kind = naobPosKind(naobPos);
+  const head = normalizeWord(lemma);
+  const has = (key: NaobFormKey) => forms.some((f) => f.form_key === key);
+  const get = (key: NaobFormKey) => forms.find((f) => f.form_key === key);
+  const added: NaobForm[] = [];
+  if (kind === 'verb') {
+    if (!has('present') && (has('past') || has('past_participle')) && WORD.test(head) &&
+        head.length > 2 && head.endsWith('e') && !OWN_PRESENT.has(head)) {
+      added.push({ form_key: 'present', primary_values: [`${head}r`], alternative_values: [],
+        derived_rule: 'present_infinitive_plus_r' });
+    }
+  }
+  if (kind === 'adjective') {
+    const plural = get('positive_plural_indefinite');
+    if (!has('positive_definite') && plural && !OWN_DEFINITE.has(head)) {
+      added.push({ form_key: 'positive_definite', primary_values: [...plural.primary_values],
+        alternative_values: [...plural.alternative_values], derived_rule: 'definite_equals_plural' });
+    }
+    const sup = get('superlative');
+    const st = (v: string) => WORD.test(v) && v.endsWith('st');
+    if (!has('superlative_definite') && sup && sup.primary_values.length && sup.primary_values.every(st)) {
+      added.push({ form_key: 'superlative_definite', primary_values: sup.primary_values.map((v) => `${v}e`),
+        alternative_values: sup.alternative_values.filter(st).map((v) => `${v}e`),
+        derived_rule: 'superlative_plus_e' });
+    }
+  }
+  if (!added.length) return forms;
+  const order = KEYS_OF[kind] as readonly NaobFormKey[];
+  return [...forms, ...added].sort((a, b) => order.indexOf(a.form_key) - order.indexOf(b.form_key));
 }

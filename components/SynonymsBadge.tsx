@@ -1,16 +1,4 @@
-// components/SynonymsBadge.tsx
-// Norsk Trainer App — synonyms badge with card-carousel popup
-//
-// Читает lexemes.synonyms (заповнюється тригером sync_lexeme_synonym_column
-// з authoritative_semantic_relations, relation_type='synonym'). Іконка
-// показується ТІЛЬКИ якщо для слова реально є хоча б один синонім.
-//
-// v2: замінено плаский список на горизонтальну карусель карток — той самий
-// візуальний підхід, що й у 360°-карусели: картка з кольоровою рамкою-
-// акцентом, бейдж зверху (resolved/candidate), жирний заголовок. resolved-
-// картки клікабельні (перехід через onSelectSynonym), candidate — лише
-// інформаційні.
-
+// Synonym popup: source sense AND class filters; canonical card translations are never written.
 import React, { useRef, useState } from 'react';
 import {
   View,
@@ -21,9 +9,24 @@ import {
   StyleSheet,
   Pressable,
   Dimensions,
+  useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
+import { GlassOverlay } from '@/components/ui/glass/GlassOverlay';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { filterSynonyms, SYNONYM_TEXT, sourceMeaningsTitle } from '@/services/synonymPresentation';
 import type { AppLanguage } from '@/services/i18n';
+import { Lexeme360Carousel } from '@/components/Lexeme360Carousel';
+import {
+  fetchSynonymSenseCarousel,
+  senseLabel,
+  type SynonymCarouselItem,
+  type SynonymSense,
+} from '@/services/synonymCarousel';
+import { addLexemeToLearningFromSupabase } from '@/services/api';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export type SynonymEntry = {
   text: string;
@@ -32,6 +35,7 @@ export type SynonymEntry = {
   target_entity_id?: string | null;
   confidence?: string | null;
   source?: string | null;
+  decision?: string | null;
 };
 
 type Props = {
@@ -39,6 +43,8 @@ type Props = {
   lemma?: string;
   size?: 'sm' | 'md';
   lang?: AppLanguage | string | null;
+  // D10 stage D: the card whose synonyms are shown; enables the 360-style carousel.
+  lexemeId?: string | null;
   onSelectSynonym?: (entityId: string, entityType: 'lexeme' | 'expression') => void;
 };
 
@@ -50,6 +56,8 @@ const UI = {
     close: 'Закрити',
     candidate_badge: 'КАНДИДАТ',
     resolved_badge: 'СИНОНІМ',
+    contextual_badge: 'СИНОНІМ У КОНТЕКСТІ',
+    loading: 'Завантаження…',
     candidate_note: 'Ще не пов’язано з карткою в базі — точний збіг не знайдено.',
     open: 'Відкрити',
   },
@@ -60,6 +68,8 @@ const UI = {
     close: 'Close',
     candidate_badge: 'CANDIDATE',
     resolved_badge: 'SYNONYM',
+    contextual_badge: 'SYNONYM IN CONTEXT',
+    loading: 'Loading…',
     candidate_note: 'Not yet linked to a card in the database — no exact match found.',
     open: 'Open',
   },
@@ -70,6 +80,8 @@ const UI = {
     close: 'Lukk',
     candidate_badge: 'KANDIDAT',
     resolved_badge: 'SYNONYM',
+    contextual_badge: 'SYNONYM I KONTEKST',
+    loading: 'Laster…',
     candidate_note: 'Ikke koblet til et kort i databasen ennå — ingen eksakt match funnet.',
     open: 'Åpne',
   },
@@ -89,19 +101,42 @@ function tr(key: keyof typeof UI.en, lang?: AppLanguage | string | null): string
 const ACCENT = '#7C5CFC';
 const CARD_WIDTH = Math.min(Dimensions.get('window').width - 88, 280);
 
-export function SynonymsBadge({
+export function SynonymsBadge(props: Props) {
+  return <SynonymsBadgeContent key={`${props.lexemeId ?? props.lemma}:${props.lang}`} {...props} />;
+}
+
+function SynonymsBadgeContent({
   synonyms,
   lemma,
   size = 'sm',
   lang = 'ua',
+  lexemeId,
   onSelectSynonym,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const safeLang = normalizeLang(lang);
+  const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const { preferred_user } = useSettingsStore();
+  // D10 stage D: 360-style carousel data (loaded when the window opens)
+  const [items, setItems] = useState<SynonymCarouselItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [learnedIds, setLearnedIds] = useState<Set<string>>(new Set());
+  // D10 point 5: senses of the word, the sense of the card in view, scroll requests
+  const [senses, setSenses] = useState<SynonymSense[]>([]);
+  const [wordTr, setWordTr] = useState<{ uk: string; en: string } | null>(null);
+  const [selectedSense, setSelectedSense] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [bodyHeight, setBodyHeight] = useState(0);
+  // Reserve room for the card and its fixed controls before allocating space to meanings.
+  const sensePanelHeight = Math.max(64, Math.min(136,
+    (bodyHeight || window.height * 0.6) - 300 * Math.min(window.fontScale, 1.3) - 84));
+  const labels = SYNONYM_TEXT[safeLang];
 
-  const list = Array.isArray(synonyms) ? synonyms.filter((item) => item?.text) : [];
+  const list = Array.isArray(synonyms) ? synonyms.filter((item) => item?.text && item.resolved && item.decision === 'verified_synonym') : [];
 
   // Іконка з'являється тільки якщо реально є дані — сама видимість це
   // сигнал, а не декоративний елемент.
@@ -118,6 +153,44 @@ export function SynonymsBadge({
   function openModal() {
     setActiveIndex(0);
     setModalVisible(true);
+    if (lexemeId && !loading) {
+      setLoading(true);
+      setLoadError(false);
+      fetchSynonymSenseCarousel(lexemeId, lemma, safeLang)
+        .then((result) => {
+          setItems(result.items);
+          setSenses(result.senses);
+          setWordTr(result.word ?? null);
+        })
+        .catch((error) => {
+          console.error('Synonyms carousel load failed:', error);
+          setItems(null);
+          setSenses([]);
+          setLoadError(true);
+        })
+        .finally(() => setLoading(false));
+    }
+  }
+
+  async function addToLearning(id: string) {
+    if (!id || addingId || learnedIds.has(id)) return;
+    setAddingId(id);
+    try {
+      await addLexemeToLearningFromSupabase({ preferred_user, lexemeId: id });
+      setLearnedIds((prev) => new Set(prev).add(id));
+    } catch (err) {
+      console.error('Synonyms add to learning error:', err);
+    } finally {
+      setAddingId(null);
+    }
+  }
+
+  const carouselItems = filterSynonyms(items ?? [], selectedSense, ['strict'])
+    .map(item => ({ ...item, learned: Boolean(item.learned || learnedIds.has(item.cardId ?? item.id)) }));
+  const showCarousel360 = Boolean(lexemeId);
+
+  function showSense(key: string) {
+    setSelectedSense(current => current === key ? null : key);
   }
 
   return (
@@ -141,7 +214,7 @@ export function SynonymsBadge({
             },
           ]}
         >
-          <Text style={{ fontSize: iconSize * 0.5, color: ACCENT }}>🔁</Text>
+          <Ionicons name="swap-horizontal" size={Math.round(iconSize * 0.6)} color={ACCENT} />
         </View>
       </TouchableOpacity>
 
@@ -151,19 +224,95 @@ export function SynonymsBadge({
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+        <Pressable style={[styles.overlay, { paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 12) }]} onPress={() => setModalVisible(false)}>
+          <Pressable style={[styles.sheet, { height: Math.max(1, window.height - insets.top - Math.max(insets.bottom, 12) - 16), maxHeight: '100%' }]} onPress={(event) => event.stopPropagation()}>
+            <GlassOverlay material="overlay" shape="sheet" radius={24} />
+            <ScrollView style={{ maxHeight: window.height * 0.16, flexGrow: 0 }} nestedScrollEnabled>
             <View style={styles.header}>
-              <View>
+              <View style={styles.headerText}>
                 <Text style={[styles.title, { color: ACCENT }]}>{tr('title', safeLang)}</Text>
                 {lemma ? <Text style={styles.lemma}>«{lemma}»</Text> : null}
+                {wordTr && (wordTr.uk || wordTr.en) ? (
+                  <Text style={styles.wordTr} numberOfLines={2}>
+                    {[wordTr.uk, wordTr.en].filter(Boolean).join(' · ')}
+                  </Text>
+                ) : null}
               </View>
 
+              {showCarousel360 ? null : (
               <Text style={styles.counter}>
                 {activeIndex + 1} / {list.length}
               </Text>
+              )}
             </View>
 
+            </ScrollView>
+            {showCarousel360 ? (
+              loading ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="small" color={ACCENT} />
+                  <Text style={styles.loadingText}>{tr('loading', safeLang)}</Text>
+                </View>
+              ) : (
+                <View style={styles.carousel360} onLayout={({ nativeEvent: { layout } }) => setBodyHeight(layout.height)}>
+                  <ScrollView style={{ maxHeight: sensePanelHeight, flexGrow: 0, marginBottom: 8 }}
+                    nestedScrollEnabled showsVerticalScrollIndicator bounces={false}>
+                  <Text style={styles.loadingText}>{sourceMeaningsTitle(lemma || '',safeLang)}</Text>
+                  {senses.length > 0 ? <Pressable onPress={() => setSelectedSense(null)} accessibilityRole="button">
+                    <Text style={{ color: ACCENT, padding: 8 }}>{selectedSense ? labels.all : `✓ ${labels.all}`}</Text>
+                  </Pressable> : null}
+                  {senses.length > 0 ? (
+                    <View style={{ marginHorizontal: 12, marginBottom: 10 }}>
+                      {senses.map((sense) => {
+                        const active = selectedSense === sense.key;
+                        return (
+                          <Pressable
+                            key={sense.key}
+                            style={[styles.senseRow, active && styles.senseRowActive]}
+                            onPress={() => showSense(sense.key)}
+                          >
+                            {senses.length > 1 ? (
+                              <Text style={[styles.senseNo, active && styles.senseNoActive]}>{senseLabel(sense)}</Text>
+                            ) : null}
+                            <View style={styles.senseBody}>
+                              {sense.uk ? (
+                                <Text style={[styles.senseUk, active && styles.senseUkActive]} numberOfLines={1}>
+                                  {sense.uk}{sense.en ? ` · ${sense.en}` : ''}
+                                </Text>
+                              ) : null}
+                              <Text style={styles.senseText} numberOfLines={2}>{sense.text}</Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  </ScrollView>
+                  {loadError ? (
+                    <Pressable onPress={openModal} accessibilityRole="button">
+                      <Text style={styles.loadingText}>{safeLang === 'ua' ? 'Не вдалося завантажити. Натисни, щоб повторити.' : safeLang === 'no' ? 'Kunne ikke laste. Trykk for å prøve igjen.' : 'Could not load. Tap to retry.'}</Text>
+                    </Pressable>
+                  ) : carouselItems.length === 0 ? (
+                    <Text style={{ color: '#6B7280', padding: 24 }}>{labels.empty}</Text>
+                  ) : <Lexeme360Carousel
+                    key={`${lexemeId}:${selectedSense ?? 'all'}`}
+                    fillAvailable
+                    pinActions
+                    compactFooter
+                    items={carouselItems}
+                    lang={safeLang as AppLanguage}
+                    title={tr('title', safeLang)}
+                    onSelect={onSelectSynonym ? (id) => {
+                      setModalVisible(false);
+                      onSelectSynonym(id, 'lexeme');
+                    } : undefined}
+                    onAdd={addToLearning}
+                  />}
+
+                </View>
+              )
+            ) : (
+            <>
             <ScrollView
               ref={scrollRef}
               horizontal
@@ -210,7 +359,9 @@ export function SynonymsBadge({
                           item.resolved ? styles.cardBadgeTextResolved : styles.cardBadgeTextCandidate,
                         ]}
                       >
-                        {item.resolved ? tr('resolved_badge', safeLang) : tr('candidate_badge', safeLang)}
+                        {item.resolved
+                          ? item.decision === 'contextual_synonym' ? tr('contextual_badge', safeLang) : tr('resolved_badge', safeLang)
+                          : tr('candidate_badge', safeLang)}
                       </Text>
                     </View>
 
@@ -243,8 +394,11 @@ export function SynonymsBadge({
                 ))}
               </View>
             ) : null}
+            </>
+            )}
 
             <TouchableOpacity style={styles.closeBtn} onPress={() => setModalVisible(false)}>
+              <GlassOverlay material="button" shape="card" radius={16} />
               <Text style={styles.closeBtnText}>{tr('close', safeLang)}</Text>
             </TouchableOpacity>
           </Pressable>
@@ -276,8 +430,8 @@ const styles = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: 460,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: 'transparent',
+    borderRadius: 24,
     overflow: 'hidden',
     paddingTop: 18,
     paddingBottom: 16,
@@ -382,12 +536,83 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#E5E1F5',
   },
+  loadingBox: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+  },
+  carousel360: {
+    flex: 1,
+    minHeight: 0,
+    paddingHorizontal: 12,
+  },
+  headerText: {
+    flexShrink: 1,
+  },
+  wordTr: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#374151',
+    marginTop: 2,
+  },
+  senseList: {
+    maxHeight: 170,
+    marginHorizontal: 12,
+    marginBottom: 10,
+  },
+  senseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  senseRowActive: {
+    backgroundColor: `${ACCENT}12`,
+    borderColor: `${ACCENT}55`,
+  },
+  senseNo: {
+    minWidth: 22,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#9CA3AF',
+    lineHeight: 21,
+  },
+  senseNoActive: {
+    color: ACCENT,
+  },
+  senseBody: {
+    flex: 1,
+  },
+  senseUk: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#374151',
+  },
+  senseUkActive: {
+    color: ACCENT,
+  },
+  senseText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#888780',
+    fontStyle: 'italic',
+  },
   closeBtn: {
-    marginTop: 16,
+    marginTop: 4,
+    flexShrink: 0,
     marginHorizontal: 20,
     padding: 14,
-    backgroundColor: '#F1EFE8',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    borderRadius: 16,
+    overflow: 'hidden',
     alignItems: 'center',
   },
   closeBtnText: {

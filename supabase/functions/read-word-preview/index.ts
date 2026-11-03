@@ -2,9 +2,9 @@
 // Read mode: a word that is not in the database is looked up in Ordbøkene
 // and Lexin when the user taps it. Read only: nothing is written, no AI.
 // Called by the app with the user's session (supabase.functions.invoke).
-// Body: { word: string }
+// Body: { word: string, from?: 'uk' | 'en' }
 
-import { buildPreview, cleanWord } from './preview.ts';
+import { buildPreview, buildReversePreview, cleanWord } from './preview.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,5 +23,7 @@ Deno.serve(async (request: Request) => {
   const body = await request.json().catch(() => ({}));
   const word = cleanWord(body?.word);
   if (!word) return json({ ok: false, error: 'INVALID_WORD' }, 400);
-  return json(await buildPreview(word));
+  // D10 25.10.2026: from 'uk' / 'en' = the word is Ukrainian / English (reverse search)
+  const from = body?.from === 'uk' || body?.from === 'en' ? body.from : null;
+  return json(from ? await buildReversePreview(word, from) : await buildPreview(word));
 });

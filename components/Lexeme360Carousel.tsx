@@ -4,8 +4,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Dimensions,
+  useWindowDimensions,
   FlatList,
+  Modal,
+  ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -20,6 +22,12 @@ import { GlassOverlay } from '@/components/ui/glass/GlassOverlay';
 
 export type Lexeme360CarouselItem = {
   id: string;
+  // Optional synonym view identity: actions still open the original card.
+  cardId?: string;
+  accentColor?: string;
+  translationCaption?: string;
+  sourceMeaningCaption?: string;
+  sourceMeaning?: string;
   lemma: string;
   translation_ua?: string;
   translation_en?: string;
@@ -41,9 +49,19 @@ export type Lexeme360CarouselItem = {
   canAdd?: boolean;
   sourceLabel?: string;
   colorKey?: string;
+  // D10 30.10.2026 (stage D): own hint line under the card (synonyms);
+  // without it the card shows the importance text as before.
+  hint?: string;
+  // D10 30.10.2026 (point 5): text before the badge label (sense number "② ") and the
+  // proof shown by the ⓘ button in place of the example; both optional.
+  labelPrefix?: string;
+  details?: string;
 };
 
 type Props = {
+  fillAvailable?: boolean;
+  pinActions?: boolean;
+  compactFooter?: boolean;
   items: Lexeme360CarouselItem[];
   lang: AppLanguage;
   onSelect?: (id: string, lemma: string) => void;
@@ -52,14 +70,36 @@ type Props = {
   // открытии — используется, когда 360° открыт напрямую с конкретной
   // expression (например, из превью в analyze-text), а не с корня.
   highlightId?: string;
+  // D10 30.10.2026 (stage D): carousel title; default 'Смислові звʼязки' as before.
+  title?: string;
+  // D10 30.10.2026 (point 5): the card in view changed (index + item); a request to scroll to a card
+  // (id, nonce so the same card can be asked again). Both optional; the family 360 does not use them.
+  onActiveChange?: (item: Lexeme360CarouselItem, index: number) => void;
+  scrollRequest?: { id: string; nonce: number } | null;
 };
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(350, SCREEN_WIDTH - 56);
-const CARD_HEIGHT = Math.min(360, Math.max(304, Math.round(SCREEN_HEIGHT * 0.40)));
-const NAV_GAP = 18;
 const CARD_GAP = 12;
-const SNAP = CARD_WIDTH + CARD_GAP;
+
+// Fit by measured lines, keeping all text visible once the readable minimum is reached.
+function AdaptiveCardText({ children, kind, width }: {
+  children: string; kind: 'lemma' | 'translation'; width: number;
+}) {
+  const { fontScale } = useWindowDimensions();
+  const baseSize = kind === 'lemma' ? 30 : 18;
+  const minSize = kind === 'lemma' ? 22 : 15;
+  const targetLines = kind === 'lemma' ? 2 : 3;
+  const [size, setSize] = useState(baseSize);
+  useEffect(() => { setSize(baseSize); }, [children, width, fontScale, baseSize]);
+  return <Text
+    style={[kind === 'lemma' ? styles.lemma : styles.translation,
+      { fontSize: size, lineHeight: Math.ceil(size * (kind === 'lemma' ? 1.2 : 1.39)) }]}
+    onTextLayout={({ nativeEvent }) => {
+      if (nativeEvent.lines.length > targetLines) {
+        setSize(current => Math.max(minSize, current - 1));
+      }
+    }}
+  >{children}</Text>;
+}
 
 function safeT(key: string, lang: AppLanguage, fallback: string) {
   try {
@@ -97,9 +137,38 @@ function displayLemmaWithInfinitiveMarker(lemma: string, pos?: string) {
 }
 
 function relationLabel(type: string, lang: AppLanguage) {
+  if (type === 'one_way_replacement') {
+    return lang === 'ua' ? 'Одностороння заміна' : lang === 'no' ? 'Enveis erstatning' : 'One-way replacement';
+  }
+  // D10 30.10.2026 (stage D): synonym cards (the rest as before).
+  if (type === 'synonym') {
+    return lang === 'ua' ? 'Синонім' : lang === 'no' ? 'Synonym' : 'Synonym';
+  }
+  if (type === 'contextual_synonym') {
+    return lang === 'ua' ? 'Синонім у контексті' : lang === 'no' ? 'Synonym i kontekst' : 'Synonym in context';
+  }
   if (lang === 'ua') return 'Новий сенс';
   if (lang === 'no') return 'Ny betydning';
   return 'New meaning';
+}
+
+// D10 30.10.2026 (stage D): hint line of synonym cards ('' for other cards).
+function synonymHint(type: string, lang: AppLanguage) {
+  if (type === 'synonym') {
+    return lang === 'ua'
+      ? 'Те саме значення — можна вжити замість слова.'
+      : lang === 'no'
+        ? 'Samme betydning — kan brukes i stedet for ordet.'
+        : 'Same meaning — can be used instead of the word.';
+  }
+  if (type === 'contextual_synonym') {
+    return lang === 'ua'
+      ? 'Збігається лише в одному значенні — дивись на контекст.'
+      : lang === 'no'
+        ? 'Samme betydning bare i én sammenheng — se på konteksten.'
+        : 'Same meaning only in one sense — check the context.';
+  }
+  return '';
 }
 
 function stableColorIndex(value: string) {
@@ -111,6 +180,7 @@ function stableColorIndex(value: string) {
 }
 
 function getReadyBorderColor(item: Lexeme360CarouselItem) {
+  if (item.accentColor) return item.accentColor;
   const colors = ['#0EA5E9', '#22C55E', '#F59E0B', '#EC4899', '#8B5CF6'];
   return colors[stableColorIndex(item.id || item.lemma || '')];
 }
@@ -239,9 +309,31 @@ export function Lexeme360Carousel({
   onSelect,
   onAdd,
   highlightId,
+  title,
+  onActiveChange,
+  scrollRequest,
+  fillAvailable = false,
+  pinActions = false,
+  compactFooter = false,
 }: Props) {
+  const window = useWindowDimensions();
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const cardWidth = Math.min(350, Math.max(1, (viewport.width || window.width - 32) - 12));
+  const cardHeight = fillAvailable ? Math.max(1, viewport.height) : Math.min(360, window.height * 0.42);
+  const SNAP = cardWidth + CARD_GAP;
   const listRef = useRef<FlatList<Lexeme360CarouselItem>>(null);
   const [index, setIndex] = useState(0);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const currentIndex = useRef(0);
+  useEffect(() => { currentIndex.current = index; }, [index]);
+
+  // Keep the same card aligned when the window/container width changes.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: currentIndex.current * SNAP, animated: false });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [SNAP]);
 
   const visibleItems = useMemo(
     () =>
@@ -283,7 +375,24 @@ export function Lexeme360Carousel({
     });
   }, [highlightId, visibleItems]);
 
+  // D10 30.10.2026 (point 5): tell the parent which card is in view
+  useEffect(() => {
+    const item = visibleItems[index];
+    if (item && onActiveChange) onActiveChange(item, index);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, visibleItems]);
+
+  // D10 30.10.2026 (point 5): the parent asks to show a card
+  useEffect(() => {
+    if (!scrollRequest) return;
+    const target = visibleItems.findIndex((item) => item.id === scrollRequest.id);
+    if (target < 0) return;
+    setIndex(target);
+    listRef.current?.scrollToOffset({ offset: target * SNAP, animated: true });
+  }, [scrollRequest, SNAP, visibleItems]);
+
   if (!visibleItems.length) return <EmptyState lang={lang} />;
+  const synonymDetails = visibleItems.find(item => item.id === detailsId && item.accentColor);
 
   function handleMomentumEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
     const x = event.nativeEvent.contentOffset.x;
@@ -304,10 +413,10 @@ export function Lexeme360Carousel({
   }
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, fillAvailable && { flex: 1, minHeight: 0 }, compactFooter && { marginBottom: 0 }]}>
       <View style={styles.topRow}>
         <Text style={styles.carouselTitle}>
-          {lang === 'ua'
+          {title ? title : lang === 'ua'
             ? 'Смислові звʼязки'
             : lang === 'no'
               ? 'Betydningsnettverk'
@@ -319,9 +428,12 @@ export function Lexeme360Carousel({
         </Text>
       </View>
 
+      <View style={fillAvailable ? { flex: 1, minHeight: 0 } : { height: cardHeight }}
+        onLayout={({ nativeEvent: { layout } }) => setViewport(current =>
+          current.width === layout.width && current.height === layout.height ? current : { width: layout.width, height: layout.height })}>
       <FlatList
         ref={listRef}
-        style={styles.list}
+        style={{ height: cardHeight, flexGrow: 0 }}
         data={visibleItems}
         keyExtractor={(item) => `${item.relation_type}-${item.id}`}
         horizontal
@@ -358,60 +470,19 @@ export function Lexeme360Carousel({
           const visual = getCardVisual(item);
           const isHighlighted = highlightId != null && item.id === highlightId;
 
-          return (
-            <Pressable
-              style={[
-                styles.card,
-                visual.card,
-                { borderColor: isHighlighted ? '#0EA5E9' : visual.borderColor },
-                isHighlighted && { borderWidth: 2 },
-              ]}
-              disabled={isCandidate}
-              onPress={() => onSelect?.(item.id, displayLemma)}
-            >
-              <GlassOverlay material="card" shape="card" radius={24} />
-              <View style={styles.cardHeader}>
-                <View style={[styles.badge, visual.badge]}>
-                  <Text style={[styles.badgeText, visual.badgeText]}>{label}</Text>
-                </View>
-
-                {item.pos ? (
-                  <View style={styles.posBadge}>
-                    <Text style={styles.posText}>{item.pos}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              <Text style={styles.lemma}>{displayLemma}</Text>
-
-              {translations ? (
-                <Text style={styles.translation} numberOfLines={3}>
-                  {translations}
-                </Text>
-              ) : null}
-
-              {item.example ? (
-                <View style={styles.exampleBox}>
-                  <Text style={styles.exampleText} numberOfLines={3}>
-                    {item.example}
-                  </Text>
-                  {item.example_translation_uk ? (
-                    <Text style={styles.exampleText} numberOfLines={2}>{item.example_translation_uk}</Text>
-                  ) : null}
-                </View>
-              ) : null}
-
-              <View style={styles.actionsRow}>
+          const actions = (
+            <View style={styles.actionsRow}>
                 {onAdd && item.canAdd !== false ? (
                   <Pressable
                     style={[
                       styles.actionButton,
+                      pinActions && { minHeight: 44, justifyContent: 'center' },
                       item.learned && styles.actionButtonDisabled,
                     ]}
                     disabled={item.learned}
                     onPress={(event) => {
                       event.stopPropagation();
-                      onAdd(item.id);
+                      onAdd(item.cardId ?? item.id);
                     }}
                   >
                     <Text style={styles.actionText}>
@@ -430,12 +501,25 @@ export function Lexeme360Carousel({
                   </Pressable>
                 ) : null}
 
-                {item.canOpen !== false ? (
+                {item.details ? (
                   <Pressable
-                    style={[styles.actionButton, styles.openButton]}
+                    style={[styles.infoButton, detailsId === item.id && styles.infoButtonActive]}
+                    hitSlop={8}
                     onPress={(event) => {
                       event.stopPropagation();
-                      onSelect?.(item.id, displayLemma);
+                      setDetailsId((current) => (current === item.id ? null : item.id));
+                    }}
+                  >
+                    <Text style={styles.infoText}>ⓘ</Text>
+                  </Pressable>
+                ) : null}
+
+                {item.canOpen !== false ? (
+                  <Pressable
+                    style={[styles.actionButton, styles.openButton, pinActions && { minHeight: 44, justifyContent: 'center' }]}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      onSelect?.(item.cardId ?? item.id, displayLemma);
                     }}
                   >
                     <Text style={styles.openText}>
@@ -448,6 +532,61 @@ export function Lexeme360Carousel({
                   </Pressable>
                 ) : null}
               </View>
+          );
+
+          return (
+            <Pressable
+              style={[
+                styles.card,
+                { width: cardWidth, height: cardHeight },
+                visual.card,
+                { borderColor: isHighlighted ? '#0EA5E9' : visual.borderColor },
+                isHighlighted && { borderWidth: 2 },
+              ]}
+              disabled={isCandidate}
+              onPress={() => onSelect?.(item.cardId ?? item.id, displayLemma)}
+            >
+              <GlassOverlay material="card" shape="card" radius={24} />
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator contentContainerStyle={{ flexGrow: 1 }} style={{ flex: 1, minHeight: 0 }} >
+              <View style={[styles.cardHeader, item.accentColor ? { flexWrap: 'wrap' } : null]}>
+                <View style={[styles.badge, visual.badge, item.accentColor ? { backgroundColor: `${item.accentColor}20` } : null]}>
+                  <Text style={[styles.badgeText, visual.badgeText, item.accentColor ? { color: item.accentColor } : null]}>{`${item.labelPrefix ?? ''}${label}`}</Text>
+                </View>
+
+                {item.pos ? (
+                  <View style={styles.posBadge}>
+                    <Text style={styles.posText}>{item.pos}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {item.sourceMeaning ? <View style={{marginBottom:8}}>
+                <Text style={{fontSize:11,color:'#6B7280'}}>{item.sourceMeaningCaption}</Text>
+                <Text style={{fontSize:15,lineHeight:20,fontWeight:'700',color:'#374151'}}>{item.sourceMeaning}</Text>
+              </View> : null}
+              <AdaptiveCardText kind="lemma" width={cardWidth}>{displayLemma}</AdaptiveCardText>
+              {item.translationCaption ? <Text style={{ fontSize: 11, color: '#6B7280' }}>{item.translationCaption}</Text> : null}
+
+              {translations ? (
+                <AdaptiveCardText kind="translation" width={cardWidth}>{translations}</AdaptiveCardText>
+              ) : null}
+
+              {item.details && detailsId === item.id && !item.accentColor ? (
+                <View style={styles.exampleBox}>
+                  <Text style={styles.detailsText} numberOfLines={6}>{item.details}</Text>
+                </View>
+              ) : item.example ? (
+                <View style={styles.exampleBox}>
+                  <Text style={styles.exampleText}>
+                    {item.example}
+                  </Text>
+                  {item.example_translation_uk ? (
+                    <Text style={styles.exampleText}>{item.example_translation_uk}</Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {!pinActions ? actions : null}
 
               <Text style={[styles.compactHint, isCandidate && styles.compactHintCandidate]} numberOfLines={3}>
                 {isCandidate
@@ -457,19 +596,25 @@ export function Lexeme360Carousel({
                       : lang === 'no'
                         ? 'Funnet i ordbok · venter på behandling'
                         : 'Found in dictionary · waiting for processing')
-                  : importanceDescription(item.importance_level, lang)}
+                  : item.hint || synonymHint(item.relation_type, lang) || importanceDescription(item.importance_level, lang)}
               </Text>
+              </ScrollView>
+              {pinActions ? <View style={{ flexShrink: 0, marginTop: 8 }}>{actions}</View> : null}
             </Pressable>
           );
         }}
       />
+      </View>
 
-      <View style={styles.navRow}>
+      <View style={[styles.navRow, compactFooter && { paddingBottom: 0, marginTop: 4 }]}>
         <Pressable
           style={[styles.navButton, index === 0 && styles.navButtonDisabled]}
           disabled={index === 0}
+          accessibilityRole="button"
+          accessibilityLabel={lang === 'ua' ? 'Попередня картка' : lang === 'no' ? 'Forrige kort' : 'Previous card'}
           onPress={() => goTo(index - 1)}
         >
+          <GlassOverlay material="button" shape="card" radius={22} />
           <Text style={styles.navText}>‹</Text>
         </Pressable>
 
@@ -491,11 +636,27 @@ export function Lexeme360Carousel({
             index === visibleItems.length - 1 && styles.navButtonDisabled,
           ]}
           disabled={index === visibleItems.length - 1}
+          accessibilityRole="button"
+          accessibilityLabel={lang === 'ua' ? 'Наступна картка' : lang === 'no' ? 'Neste kort' : 'Next card'}
           onPress={() => goTo(index + 1)}
         >
+          <GlassOverlay material="button" shape="card" radius={22} />
           <Text style={styles.navText}>›</Text>
         </Pressable>
       </View>
+      {synonymDetails ? <Modal transparent animationType="fade" onRequestClose={() => setDetailsId(null)}>
+        <Pressable onPress={() => setDetailsId(null)} style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <Pressable onPress={event => event.stopPropagation()} style={{ backgroundColor: '#FFFFFF', padding: 20, borderRadius: 20, maxHeight: '80%' }}>
+            <ScrollView>
+              <Text style={styles.lemma}>{synonymDetails.lemma}</Text>
+              <Text style={styles.detailsText}>{synonymDetails.details}</Text>
+            </ScrollView>
+            <Pressable accessibilityRole="button" onPress={() => setDetailsId(null)} style={{ padding: 12 }}>
+              <Text style={styles.openText}>{lang === 'ua' ? 'Закрити' : lang === 'no' ? 'Lukk' : 'Close'}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal> : null}
     </View>
   );
 }
@@ -523,15 +684,13 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   list: {
-    height: CARD_HEIGHT,
-    maxHeight: CARD_HEIGHT,
+
   },
   listContent: {
     paddingRight: CARD_GAP,
   },
   card: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
+    overflow: 'hidden',
     marginRight: CARD_GAP,
     backgroundColor: 'rgba(248,250,252,0.28)',
     borderRadius: 22,
@@ -660,6 +819,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 8,
   },
+  infoButton: {
+    width: 38,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoButtonActive: {
+    borderColor: '#0EA5E9',
+  },
+  infoText: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0EA5E9',
+  },
+  detailsText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    color: '#374151',
+  },
   compactHintCandidate: {
     color: '#9CA3AF',
   },
@@ -668,15 +850,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    marginTop: NAV_GAP,
+    marginTop: 8,
+    flexShrink: 0,
     paddingBottom: 6,
-    minHeight: 40,
+    minHeight: 48,
   },
   navButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F3F4F6',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },

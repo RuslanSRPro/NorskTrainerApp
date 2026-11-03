@@ -431,3 +431,91 @@ export async function buildPreview(word: string, fetchImpl?: FetchLike): Promise
     .map((c) => ({ ...c, matched_form: normalizeNorwegian(c.lemma) === asked ? null : asked }));
   return { ok: true, word, ordbokene, lexin, cards, naob };
 }
+
+// ---------------------------------------------------------------------------
+// D10 25.10.2026 (agreed): reverse search. A Ukrainian or English word is
+// looked up in Lexin (pair bokmål-ukrainsk with English), and a Norwegian
+// entry is taken ONLY when one of its own translations is exactly that word
+// (same parsing as the Lexin worker: "|", ";", commas). Lexin also returns
+// entries where the word occurs in an example or an explanation (книга ->
+// bibel, billig); those are dropped. Compounds marked with "~" are dropped.
+// Each Norwegian lemma then goes through the same preview (Ordbøkene, rules).
+// ---------------------------------------------------------------------------
+const MAX_REVERSE_LEMMAS = 4;
+
+function foreignKey(value: string, from: 'uk' | 'en'): string {
+  let v = String(value ?? '').normalize('NFC').toLocaleLowerCase(from === 'uk' ? 'uk' : 'en').replace(/\s+/g, ' ').trim();
+  if (from === 'en') v = v.replace(/^to\s+/, '');
+  return v;
+}
+
+export async function reverseLexinLemmas(word: string, from: 'uk' | 'en', fetchImpl: FetchLike = fetch):
+  Promise<{ status: 'found' | 'not_found' | 'error'; lemmas: Array<{ lemma: string; pos: string | null }>; error?: string }> {
+  const url = `${LEXIN_URL}?searchWord=${encodeURIComponent(word)}&lang=bokm%C3%A5l-ukrainsk&page=1&selectLang=bokm%C3%A5l-ukrainsk&includeEngLang=1`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await fetchImpl(url, {
+      headers: { Accept: 'application/json, text/plain, */*', Origin: 'https://lexin.oslomet.no', Referer: 'https://lexin.oslomet.no/' },
+      signal: controller.signal,
+    });
+    if (!response.ok) return { status: 'error', lemmas: [], error: `Lexin HTTP ${response.status}` };
+    const text = await response.text();
+    if (!text || text.length < 5 || text === '[]' || text === '{}') return { status: 'not_found', lemmas: [] };
+    const data = JSON.parse(text);
+    const result = data?.result ?? data?.results ?? data?.data ?? data?.words ?? data;
+    const flat: any[] = (Array.isArray(result) ? result : []).flatMap((s: any) => Array.isArray(s) ? s : []);
+    const order = new Map<number, number>();
+    for (const [key, val] of Object.entries(data?.resArray && typeof data.resArray === 'object' ? data.resArray : {})) {
+      const id = (val as any)?.id;
+      const position = Number(key);
+      if (Number.isFinite(position) && typeof id === 'number' && (!order.has(id) || position < order.get(id)!)) order.set(id, position);
+    }
+    const buckets = new Map<number, any[]>();
+    for (const e of flat) if (e?.id != null) buckets.set(e.id, [...(buckets.get(e.id) ?? []), e]);
+    const wanted = foreignKey(word, from);
+    const found: Array<{ lemma: string; pos: string | null; order: number }> = [];
+    for (const [id, bucket] of buckets) {
+      const head = bucket.find((e) => e.type === 'E-lem' && String(e.text ?? '').trim());
+      if (!head) continue;
+      const lemma = String(head.text).trim().replace(/^å\s+/i, '').toLocaleLowerCase('nb-NO');
+      if (!lemma || lemma.includes('~')) continue;
+      const type = from === 'uk' ? 'Ukr-lem' : 'B-lem';
+      const variants = bucket.filter((e) => e.type === type && e.text?.trim())
+        .flatMap((e) => cleanTranslationSenseGroups(String(e.text)).flat())
+        .map((v) => foreignKey(v, from));
+      if (!variants.includes(wanted)) continue;
+      const cat = bucket.find((e) => ['E-kat', 'N-kat', 'B-kat'].includes(e.type) && e.text?.trim())?.text ?? '';
+      const pos = LEXIN_POS[String(cat).toLowerCase().replace(/[.:;,]+$/, '').trim()] ?? null;
+      found.push({ lemma, pos, order: order.get(id) ?? 100000 + found.length });
+    }
+    found.sort((a, b) => a.order - b.order);
+    const lemmas: Array<{ lemma: string; pos: string | null }> = [];
+    for (const f of found) if (!lemmas.some((l) => l.lemma === f.lemma)) lemmas.push({ lemma: f.lemma, pos: f.pos });
+    return lemmas.length ? { status: 'found', lemmas: lemmas.slice(0, MAX_REVERSE_LEMMAS) } : { status: 'not_found', lemmas: [] };
+  } catch (error) {
+    return { status: 'error', lemmas: [], error: error instanceof Error ? error.message : String(error) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export type ReversePreview = WordPreview & { from: 'uk' | 'en'; reverse: Awaited<ReturnType<typeof reverseLexinLemmas>> };
+
+export async function buildReversePreview(word: string, from: 'uk' | 'en', fetchImpl?: FetchLike): Promise<ReversePreview> {
+  const reverse = await reverseLexinLemmas(word, from, fetchImpl ?? fetch);
+  const previews = await Promise.all(reverse.lemmas.map((l) => buildPreview(l.lemma, fetchImpl)));
+  const cards: PreviewCard[] = [];
+  for (const p of previews) for (const c of p.cards) {
+    // the card is the Norwegian lemma itself (not a form of it)
+    if (cards.length < MAX_CARDS + 2) cards.push({ ...c, matched_form: null });
+  }
+  const first = previews[0];
+  return {
+    ok: true, word, from, reverse,
+    ordbokene: first?.ordbokene ?? { status: 'not_found', scope: null, articles: [], more_articles: 0 },
+    lexin: first?.lexin ?? { status: 'not_found', lemma: null, entries: [] },
+    cards,
+    naob: first?.naob ?? { status: 'not_needed' },
+  };
+}

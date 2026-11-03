@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { parseLexinMorphology, cardFormWords, lexinEntryFitsCard } from '../_shared/d10-lexin-homograph-forms.ts';
 import { selectR9Entries, type R9Entry } from '../_shared/d10-lexin-r9.ts';
 import { cleanTranslationSenseGroups, cleanTranslationText } from '../_shared/lexin-translation-text.ts';
+import { cleanLexinDefinitionText } from '../_shared/lexin-definition-text.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -644,29 +645,29 @@ serve(async (req) => {
             });
           }
 
+          // D10 27.10.2026 (agreed): a Ukr-def definition is ONE row with the
+          // whole text (not split by "," ";" "|" like translations); Lexin
+          // references ^word^ are kept as «word». See lexin-definition-text.ts.
           for (const e of entriesOfType(bucket, 'Ukr-def')) {
             if (!e.text?.trim()) continue;
             const entryIdForRow = e.id ?? entryId;
-            const senseGroups = cleanTranslationSenseGroups(e.text);
+            const definitionText = cleanLexinDefinitionText(e.text);
+            if (!definitionText) continue;
 
-            senseGroups.forEach((group, senseIndex) => {
-              for (const variant of group) {
-                translations.push({
-                  lexeme_id: lexemeId,
-                  expression_id: expressionId,
-                  language_code: 'uk',
-                  translation: variant,
-                  translation_type: 'definition',
-                  translation_rank: 0,
-                  sense_rank: senseIndex + 1,
-                  source: LEXIN_SOURCE,
-                  confidence: 'medium',
-                  surface_form: null,
-                  source_entry_id: entryIdForRow,
-                  source_sub_id: e.sub_id ?? null,
-                  entry_order: resolveEntryOrder(entryIdForRow),
-                });
-              }
+            translations.push({
+              lexeme_id: lexemeId,
+              expression_id: expressionId,
+              language_code: 'uk',
+              translation: definitionText,
+              translation_type: 'definition',
+              translation_rank: 0,
+              sense_rank: 1,
+              source: LEXIN_SOURCE,
+              confidence: 'medium',
+              surface_form: null,
+              source_entry_id: entryIdForRow,
+              source_sub_id: e.sub_id ?? null,
+              entry_order: resolveEntryOrder(entryIdForRow),
             });
           }
 

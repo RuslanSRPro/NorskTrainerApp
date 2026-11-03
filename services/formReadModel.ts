@@ -63,7 +63,8 @@ async function fetchNaobFormsMap(
     const { data, error } = await supabase
       .from('lexeme_naob_forms_v1')
       .select(
-        'lexeme_id, form_key, primary_values, alternative_values, accepted_articles, regularity_marker, display_order',
+        // D10 26.10.2026: derived_rule = a form built from the NAOB forms (≈)
+        'lexeme_id, form_key, primary_values, alternative_values, accepted_articles, regularity_marker, display_order, derived_rule',
       )
       .in('lexeme_id', idBatch)
       .order('lexeme_id', { ascending: true })

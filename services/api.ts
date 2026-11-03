@@ -24,6 +24,8 @@ const LEXEME_SELECT = `
   notes, cefr, status,
   frequency_rank, frequency_level, frequency_source, frequency_note,
   relations_count,
+  homonym_card_count,
+  homonym_card_ids,
   lexeme360_root_lemma,
   lexeme360_ready_count,
   lexeme360_candidate_count,
@@ -123,6 +125,8 @@ function mapLexemeRow(
     // видит trainingEngine.hasRelations(w) — само поле уже запрашивается
     // выше (LEXEME_SELECT), но терялось именно на этом шаге маппинга.
     relations_count: item.relations_count ?? 0,
+    homonym_card_count: Number(item.homonym_card_count ?? 0),
+    homonym_card_ids: item.homonym_card_ids ?? [],
     // Materialized by the expression_catalog trigger; no client family probe.
     lexeme360_root_lemma: item.lexeme360_root_lemma || null,
     lexeme360_ready_count: Number(item.lexeme360_ready_count ?? 0),
@@ -181,6 +185,10 @@ function mapLexemeRow(
     formsByHead: forms?.forms_by_head ?? false,
     // D10 16.10.2026: forms from the NAOB article (shown with "NAOB").
     formsSource: forms?.forms_source ?? null,
+    // D10 26.10.2026: forms built by us from the NAOB forms (shown with "≈").
+    derivedFormKeys: forms?.derived_form_keys ?? [],
+    // D10 27.10.2026: indeclinable word (ubøyelig), shown in the card.
+    indeclinable: forms?.indeclinable ?? false,
   };
 }
 
@@ -202,24 +210,41 @@ async function fetchExampleMap(ids: string[]): Promise<Map<string,any>> {
   return selected;
 }
 
+async function fetchHomonymCards(ids: string[]) {
+  const data: any[] = [];
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const { data: rows, error } = await supabase.rpc('get_homonym_cards_v1', { p_ids: ids.slice(offset, offset + 200) });
+    if (error) throw error;
+    data.push(...(rows ?? []));
+  }
+  return { data, error: null };
+}
+
 // Fetch morphology once for the batch through exactly one configured model.
 async function mapLexemeRows(rows: any[]) {
+  const batchStarted=Date.now();
   const validRows = (rows || []).filter(Boolean);
   const lexemeIds = validRows.map((r) => r.id).filter(Boolean);
+  const homonymIds = [...new Set<string>(validRows.flatMap(r => r.homonym_card_ids ?? []))];
+  const timed=<T>(stage:string,request:PromiseLike<T>):Promise<T>=>Promise.resolve(request).then(value=>{
+    console.info('[card-load]',{stage,elapsed_ms:Date.now()-batchStarted,cards:lexemeIds.length});
+    return value;
+  });
 
-  const [formsState, translationState, exampleState, approxState] = await Promise.allSettled([
-    fetchFormsMap(lexemeIds),
-    lexemeIds.length > 0
+  const [formsState, translationState, exampleState, approxState, homonymState] = await Promise.allSettled([
+    timed('forms',fetchFormsMap(lexemeIds)),
+    timed('translations',lexemeIds.length > 0
       ? supabase.rpc('get_canonical_lexeme_translations_v1', {
           p_lexeme_ids: lexemeIds,
         })
-      : Promise.resolve({ data: [], error: null } as any),
-    fetchExampleMap(lexemeIds),
+      : Promise.resolve({ data: [], error: null } as any)),
+    timed('examples',fetchExampleMap(lexemeIds)),
     // D10 15.10.2026: languages whose translation is only an AI translation
     // without an Ordbøkene article (shown with "≈"). A failure only hides the mark.
-    lexemeIds.length > 0
+    timed('translation_marks',lexemeIds.length > 0
       ? supabase.rpc('get_lexeme_translation_approx_v1', { p_lexeme_ids: lexemeIds })
-      : Promise.resolve({ data: [], error: null } as any),
+      : Promise.resolve({ data: [], error: null } as any)),
+    timed('homonyms',fetchHomonymCards(homonymIds)),
   ]);
 
   const formsMap = formsState.status === 'fulfilled'
@@ -254,6 +279,9 @@ async function mapLexemeRows(rows: any[]) {
   return validRows
     .map((row) => {
       const mapped: any = mapLexemeRow(row, formsMap.get(row.id), translationMap.get(row.id), exampleMap.get(row.id));
+      mapped.homonyms = homonymState.status === 'fulfilled' && !homonymState.value.error
+        ? (homonymState.value.data ?? []).filter((h: any) => (row.homonym_card_ids ?? []).includes(h.id))
+        : undefined;
       if (mapped) {
         mapped.ua_approx = approx.has(`${row.id}:uk`);
         mapped.en_approx = approx.has(`${row.id}:en`);
@@ -673,6 +701,7 @@ async function fetchNewWords(params: {
   userId:         string;
   categoryFilter: string;
   limit:          number;
+  raw?: boolean;
 }) {
   const reviewedIds = await getLearningProgressIds(params.userId);
 
@@ -692,13 +721,14 @@ async function fetchNewWords(params: {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return await mapLexemeRows(data || []);
+  return params.raw ? (data || []) : await mapLexemeRows(data || []);
 }
 
 async function fetchDueWords(params: {
   userId:         string;
   categoryFilter: string;
   limit:          number;
+  raw?: boolean;
 }) {
   const now = new Date().toISOString();
 
@@ -716,7 +746,7 @@ async function fetchDueWords(params: {
 
   if (error) throw new Error(error.message);
 
-  const mapped2 = await mapLexemeRows(attachSrsMetaToLexemeRows(data || []));
+  const mapped2 = (params.raw ? attachSrsMetaToLexemeRows(data || []) : await mapLexemeRows(attachSrsMetaToLexemeRows(data || [])));
   return sortByLearningPriority(
     mapped2.filter((item) => matchesCategoryFilter(item, params.categoryFilter))
   ).slice(0, params.limit);
@@ -726,6 +756,7 @@ async function fetchWeakWords(params: {
   userId:         string;
   categoryFilter: string;
   limit:          number;
+  raw?: boolean;
 }) {
   const { data, error } = await supabase
     .from('learning_progress')
@@ -742,7 +773,7 @@ async function fetchWeakWords(params: {
 
   if (error) throw new Error(error.message);
 
-  const mapped3 = await mapLexemeRows(attachSrsMetaToLexemeRows(data || []));
+  const mapped3 = (params.raw ? attachSrsMetaToLexemeRows(data || []) : await mapLexemeRows(attachSrsMetaToLexemeRows(data || [])));
   return sortByLearningPriority(
     mapped3.filter((item) => matchesCategoryFilter(item, params.categoryFilter))
   ).slice(0, params.limit);
@@ -752,6 +783,7 @@ async function fetchPriorityWords(params: {
   userId:         string;
   categoryFilter: string;
   limit:          number;
+  raw?: boolean;
 }) {
   const { data, error } = await supabase
     .from('learning_progress')
@@ -769,7 +801,7 @@ async function fetchPriorityWords(params: {
 
   if (error) throw new Error(error.message);
 
-  const mapped4 = await mapLexemeRows(attachSrsMetaToLexemeRows(data || []));
+  const mapped4 = (params.raw ? attachSrsMetaToLexemeRows(data || []) : await mapLexemeRows(attachSrsMetaToLexemeRows(data || [])));
   return sortByLearningPriority(
     mapped4
       .filter((item) => matchesCategoryFilter(item, params.categoryFilter))
@@ -788,22 +820,48 @@ async function fetchAllLearningWords(params: {
   const newLimit      = params.limit;
 
   const [dueWords, weakWords, priorityWords, newWords] = await Promise.all([
-    fetchDueWords     ({ ...params, limit: dueLimit }),
-    fetchWeakWords    ({ ...params, limit: weakLimit }),
-    fetchPriorityWords({ ...params, limit: priorityLimit }),
-    fetchNewWords     ({ ...params, limit: newLimit }),
+    fetchDueWords     ({ ...params, limit: dueLimit, raw: true }),
+    fetchWeakWords    ({ ...params, limit: weakLimit, raw: true }),
+    fetchPriorityWords({ ...params, limit: priorityLimit, raw: true }),
+    fetchNewWords     ({ ...params, limit: newLimit, raw: true }),
   ]);
 
-  return uniqueById([
+  return mapLexemeRows(uniqueById([
     ...dueWords, ...weakWords, ...priorityWords, ...newWords,
-  ]).slice(0, params.limit);
+  ]).slice(0, params.limit));
 }
 
 // ============================================================
 // Public: getLearningWordsFromSupabase
 // ============================================================
 
-export async function getLearningWordsFromSupabase(settings?: LearningSettings) {
+// D10 25.10.2026 (agreed, point 4 "B"): a card without a translation (no
+// Lexin, no AI) is not trained until a translation appears. It stays in the
+// database, in search and in the reading-mode list of problem words.
+function hasTranslation(item: any): boolean {
+  return Boolean(String(item?.ua ?? '').trim() || String(item?.en ?? '').trim());
+}
+
+const pendingLearningLoads = new Map<string, Promise<any[]>>();
+export function getLearningWordsFromSupabase(settings?: LearningSettings): Promise<any[]> {
+  const limit = settings?.daily_limit || 50;
+  const key = JSON.stringify([settings?.preferred_user || getCurrentUserId(),settings?.category_filter || 'all',settings?.study_set || 'all',limit]);
+  const pending = pendingLearningLoads.get(key);
+  if (pending) return pending;
+  const started = Date.now();
+  const request = (async()=>{
+    const words = await getLearningWordsUnfiltered({ ...(settings ?? {}), daily_limit: limit * 2 } as LearningSettings);
+    const result = (words as any[]).filter(hasTranslation).slice(0,limit);
+    console.info('[training-load]',{elapsed_ms:Date.now()-started,cards:result.length});
+    return result;
+  })();
+  pendingLearningLoads.set(key,request);
+  const clear = ()=>{if(pendingLearningLoads.get(key)===request)pendingLearningLoads.delete(key);};
+  void request.then(clear,clear);
+  return request;
+}
+
+async function getLearningWordsUnfiltered(settings?: LearningSettings) {
   const userId         = settings?.preferred_user  || getCurrentUserId();
   const categoryFilter = settings?.category_filter || 'all';
   const limit          = settings?.daily_limit      || 50;
@@ -1451,7 +1509,47 @@ export async function analyzeTextViaAppsScript(
 // Deprecated stubs — обратная совместимость
 // ============================================================
 
+// D10 25.10.2026 (agreed): the input language is recognised by itself (no
+// language switch): Cyrillic = Ukrainian; Latin = Norwegian first, English
+// only when nothing Norwegian was found.
+export function isCyrillicWord(query: string): boolean {
+  return /[\u0400-\u04FF]/.test(String(query || ''));
+}
+
+// Learning cards whose translation is exactly the Ukrainian / English word
+// ("книга" -> bok). Each item carries matchedTranslation.
+export async function searchLexemesByTranslationInSupabase(query: string, language: 'uk' | 'en'): Promise<any[]> {
+  const text = String(query || '').trim();
+  if (!text) return [];
+  const { data, error } = await supabase.rpc('d10_lexemes_by_translation_v1', { p_text: text, p_language: language });
+  if (error) throw new Error(error.message);
+  const ids = ((data ?? []) as any[]).map((row) => String(row?.lexeme_id ?? '')).filter(Boolean);
+  if (!ids.length) return [];
+  const items = await getLexemesByIdsFromSupabase(ids);
+  return items.map((item: any) => ({ ...item, matchedTranslation: text, matchedLanguage: language }));
+}
+
+function previewHasContent(preview: any): boolean {
+  return Boolean(preview && ((Array.isArray(preview.variants) && preview.variants.length) ||
+    String(preview.ua || '').trim() || String(preview.en || '').trim() ||
+    preview.previewSource?.ordbokene === 'found'));
+}
+
 export async function inspectWordViaAppsScript(query: string) {
+  // D10 25.10.2026: a Ukrainian word -> reverse preview only (it is never a
+  // Norwegian lemma).
+  if (isCyrillicWord(query)) {
+    try {
+      const preview = await previewWordFromSources(query, 'uk');
+      return previewHasContent(preview)
+        ? { found: false, item: null, items: [], preview: { ...preview, matchedLanguage: 'uk' } }
+        : { found: false, item: null, items: [] };
+    } catch (error) {
+      if ((error as any)?.code === NETWORK_UNAVAILABLE) throw error;
+      console.warn('[reverse preview] unavailable', error);
+      return { found: false, item: null, items: [] };
+    }
+  }
   // enrich-word was deleted — fall back to database search only.
   // Unknown words will no longer get an auto-generated preview;
   // the backend pipeline enriches them asynchronously.
@@ -1464,6 +1562,11 @@ export async function inspectWordViaAppsScript(query: string) {
   // written; saving goes through the usual job.
   try {
     const preview = await previewWordFromSources(query);
+    if (!previewHasContent(preview)) {
+      // D10 25.10.2026: nothing Norwegian -> the same word as English
+      const english = await previewWordFromSources(query, 'en').catch(() => null);
+      if (previewHasContent(english)) return { ...found, found: false, preview: { ...english, matchedLanguage: 'en' } };
+    }
     return { ...found, found: false, preview };
   } catch (error) {
     if ((error as any)?.code === NETWORK_UNAVAILABLE) throw error;
@@ -1478,12 +1581,14 @@ const PREVIEW_POS_LABEL: Record<string, string> = {
 
 // Preview card of a word that is not in the database (shape of a word card:
 // forms through the same read model as the database forms).
-export async function previewWordFromSources(query: string): Promise<any> {
-  let { data, error } = await supabase.functions.invoke('read-word-preview', { body: { word: query } });
+export async function previewWordFromSources(query: string, from?: 'uk' | 'en'): Promise<any> {
+  // from: the word is Ukrainian / English (reverse search through Lexin)
+  const body = from ? { word: query, from } : { word: query };
+  let { data, error } = await supabase.functions.invoke('read-word-preview', { body });
   if (error && isNetworkFailure(error)) {
     // read only: one automatic retry after 1.5 s
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    ({ data, error } = await supabase.functions.invoke('read-word-preview', { body: { word: query } }));
+    ({ data, error } = await supabase.functions.invoke('read-word-preview', { body }));
     if (error && isNetworkFailure(error)) throw networkError('preview', error);
   }
   if (error) throw new Error(error.message);
@@ -1496,6 +1601,8 @@ export async function previewWordFromSources(query: string): Promise<any> {
     const variants = data.cards.map((card: any, index: number) => previewFromCard(card, index, data));
     return { ...variants[0], variants };
   }
+  // a reverse search without an exact Lexin match: nothing to show
+  if (from) return null;
   const article = data.ordbokene?.articles?.[0] ?? null;
   const pos = article?.pos ?? data.lexin?.entries?.[0]?.pos ?? '';
   const lexinEntry = (data.lexin?.entries ?? []).find((e: any) => e.pos && e.pos === pos)
@@ -1536,6 +1643,20 @@ export async function previewWordFromSources(query: string): Promise<any> {
   };
 }
 
+// D10 25.10.2026: the form keys of a preview card whose values equal the asked
+// word (the matched form, or the lemma itself). Read only; empty when unknown.
+function previewMatchedFormKeys(card: any, data: any): string[] {
+  const asked = normalizeLexemeSearchKey(String(card?.matched_form ?? card?.lemma ?? data?.word ?? '').replace(/^å\s+/i, ''));
+  if (!asked) return [];
+  const keys: string[] = [];
+  for (const form of (card?.forms ?? []) as any[]) {
+    const values = [...(form?.primary_values ?? []), ...(form?.alternative_values ?? [])]
+      .map((v: any) => normalizeLexemeSearchKey(String(v ?? '').replace(/^å\s+/i, '')));
+    if (values.includes(asked) && form?.form_key) keys.push(String(form.form_key));
+  }
+  return [...new Set(keys)];
+}
+
 // One preview card (shape of a word card, forms through the same read model
 // as the database forms). No translation (Lexin cannot tell the card) -> the
 // explanation of its own article is shown instead.
@@ -1557,6 +1678,9 @@ function previewFromCard(card: any, index: number, data: any): any {
     // D10 25.10.2026: the asked word is a form of this card (tørker -> tørke);
     // the list row shows "tørker → tørke" like the database matches
     matchedForm: card.matched_form ?? null,
+    // D10 25.10.2026 (agreed): which form of the card matched (for the list
+    // row label "bar (imperativ) → bare"); taken from the card's own forms
+    matchedFormKeys: previewMatchedFormKeys(card, data),
     word: card.lemma ?? data.word,
     lemma: card.lemma ?? data.word,
     pos,
@@ -1624,6 +1748,8 @@ interface JobStatusContractResponse {
   }>;
   quality?: any;
   items?: any[];
+  // D10 25.10.2026 (point 4): words "for review" of a completed job
+  review_items?: Array<{ kind: string; word: string | null; pos: string | null; code: string | null }>;
 }
 
 async function invokeJobStatus(
@@ -1676,6 +1802,59 @@ export async function getJobStatus(
   jobId: string,
 ): Promise<JobStatusContractResponse> {
   return invokeJobStatus(jobId);
+}
+
+// D10 25.10.2026 (agreed, point 4): learning cards without a translation or
+// without an example (reading mode, "problem words"). legacy = old records
+// with an unknown part of speech (they go to the database audit).
+// D10 27.10.2026 (D10_synonym_child_job_v1): v2 adds the cards made from NAOB
+// synonym candidates without family 360 / own synonyms (deferred_by_policy).
+export async function getProblemCardsFromSupabase(limit = 300, offset = 0): Promise<Array<{
+  lexeme_id: string; lemma: string; pos: string | null; display_form: string | null; homograph_key: string;
+  missing_translation: boolean; missing_example: boolean; review_reason: string | null; legacy: boolean;
+  deferred_by_policy?: boolean; deferred_facets?: string[] | null;
+  synonym_status?: string | null; synonym_checked_at?: string | null;
+}>> {
+  const { data, error } = await supabase.rpc('d10_problem_cards_v4', { p_limit: limit, p_offset: offset });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as any[];
+}
+
+// D10 25.10.2026: the real number of problem cards for the button (max 1000).
+export async function getProblemCardsCountFromSupabase(): Promise<number | null> {
+  const { data, error } = await supabase.rpc('d10_problem_cards_count_v3');
+  if (error) { console.warn('[problem cards] count failed', error.message); return null; }
+  return Number(data ?? 0);
+}
+
+// D10 28.10.2026 (D10_synonym_expressions_v1): NAOB synonyms that did not get
+// a card (not dispatched, or the child job ended without a card / catalog
+// entry). One row per synonym text; candidate_ids are used for the re-run.
+export type SynonymProblem = {
+  target_text: string; target_kind: 'lexeme' | 'expression' | string; reason: string;
+  root_lemmas: string[] | null; naob_glosses: string[] | null; candidate_ids: string[];
+  child_job_id: string | null; updated_at: string | null;
+};
+export async function getSynonymProblemsFromSupabase(limit = 300): Promise<SynonymProblem[]> {
+  const pageSize = Math.min(1000, Math.max(1, limit));
+  const found = new Map<string, SynonymProblem>();
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.rpc('d10_synonym_unresolved_v2', { p_limit: pageSize, p_offset: offset });
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as SynonymProblem[];
+    for (const row of rows) found.set(`${row.target_kind}:${row.target_text}`, row);
+    if (rows.length < pageSize) break;
+  }
+  return [...found.values()];
+}
+// The chosen synonyms go to a synonym child job again (same limits as always).
+export async function rerunSynonymCandidates(candidateIds: string[]): Promise<{
+  ok: boolean; reset?: number; error?: string;
+  dispatch?: { child_job_ids?: string[]; daily_limit_reached?: boolean } | null;
+}> {
+  const { data, error } = await supabase.rpc('d10_synonym_rerun_v1', { p_candidate_ids: candidateIds });
+  if (error) throw new Error(error.message);
+  return (data ?? { ok: false }) as any;
 }
 
 export async function getLearningWords() {

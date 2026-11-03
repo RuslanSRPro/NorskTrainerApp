@@ -102,7 +102,10 @@ export type PlannedItem = {
     | 'compound_normalized'
     | 'token'
     | 'candidate_generator'
-    | 'lexeme360_network_candidate';
+    | 'lexeme360_network_candidate'
+    // D10 27.10.2026: added by analyze-text after planning (word_list +
+    // audit), see _shared/d10-surface-probe.ts
+    | 'surface_as_lemma_probe';
   compound_normalized?: string | null;
   network_root_lemma?: string | null;
 };

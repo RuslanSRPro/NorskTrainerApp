@@ -1,6 +1,7 @@
 ﻿import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/components/ui/GlassCard';
+import { Ionicons } from '@expo/vector-icons';
+import { GlassOverlay } from '@/components/ui/glass/GlassOverlay';
 import { visionSpacing } from '@/design-system/vision';
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
   textColor: string;
   mutedColor: string;
   onOpenAnalytics: () => void;
+  analyticsLabel?: string;
 };
 
 export function HomeHeader({
@@ -19,6 +21,7 @@ export function HomeHeader({
   textColor,
   mutedColor,
   onOpenAnalytics,
+  analyticsLabel = 'Analytics',
 }: Props) {
   return (
     <View style={styles.root}>
@@ -32,10 +35,10 @@ export function HomeHeader({
         </Text>
       </View>
 
-      <Pressable onPress={onOpenAnalytics}>
-        <GlassCard dark={dark} intensity={44} style={styles.action}>
-          <Text style={styles.actionIcon}>📊</Text>
-        </GlassCard>
+      <Pressable onPress={onOpenAnalytics} accessibilityRole="button" accessibilityLabel={analyticsLabel}
+        style={({pressed})=>[styles.action,pressed&&{opacity:0.65,transform:[{scale:0.95}]}]}>
+        <GlassOverlay dark={dark} material="button" shape="card" radius={24} />
+        <Ionicons name="stats-chart-outline" size={23} color={textColor} />
       </Pressable>
     </View>
   );
@@ -68,10 +71,9 @@ const styles = StyleSheet.create({
   action: {
     width: 48,
     height: 48,
-  },
-  actionIcon: {
-    fontSize: 20,
-    textAlign: 'center',
-    paddingTop: 13,
+    borderRadius: 24,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

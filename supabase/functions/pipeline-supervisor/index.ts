@@ -10,6 +10,9 @@ import {
   type CompletionEnforcementSummary,
 } from '../_shared/completion-contract/v1/enforcement.ts';
 import { enrichmentPageStep, evaluateEnrichmentPage } from '../_shared/d10-enrichment-page-contract.ts';
+import { isFunctionWordItem, isGateReviewItem, isSurfaceProbeItem } from '../_shared/d10-review-decisions.ts';
+// D10 27.10.2026 (agreed, speed): several steps per tick
+import { continueAfterStep } from '../_shared/d10-supervisor-tick.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -31,6 +34,27 @@ const MAX_JOBS_PER_TICK = 3;
 const LOCK_STALE_SECONDS = 60;
 const WORKER_TIMEOUT_MS = 45000;
 const BATCH_LIMIT = 3;
+
+// D10 27.10.2026 (agreed, speed): the timeline of job 8ae6d6f2 (bar, 26 items)
+// showed 81 ticks in 80 minutes: ONE step per job per tick (cron: every
+// minute), the rest of the minute idle. Now a tick repeats the steps of a job
+// while the tick is young: a new step starts only within STEP_START_BUDGET_MS
+// of the tick start (a step itself may take up to WORKER_TIMEOUT_MS), at most
+// MAX_STEPS_PER_TICK, and only after a step that succeeded and is not waiting
+// (retry cooldown, lock of another run, terminal stage). The jobs of a tick
+// run in parallel, each under its own lock, renewed before every step. The
+// AI calls and dictionary requests per job are exactly the same as before:
+// only the waiting between steps is removed.
+// D10 27.10.2026 (agreed after the step log of job 5c260c10): 25 s -> 40 s.
+// Every tick of that job stopped on the budget after ~25 s of work, the rest
+// of the minute was idle. A step started at 40 s ends within the 45 s worker
+// timeout; the lock is renewed before every step, the cron call waits 120 s.
+const STEP_START_BUDGET_MS = 40000;
+const MAX_STEPS_PER_TICK = 30;
+// Pages of steps that work only in the database: the admission functions
+// accept at most 10 (5 before); the completion auditor at most 18 (3 before).
+const DB_ADMISSION_PAGE_LIMIT = 10;
+const AUDIT_PAGE_LIMIT = 10;
 
 // ДОБАВЛЕНО (05.08.2026): для этих цепочек job-enrichment-batch-worker
 // НЕ использует runChunked/CONCURRENCY=3 (как остальные) — весь список
@@ -62,6 +86,15 @@ const AI_FALLBACK_BATCH_LIMIT = 20;
 // Gemini by 10 itself, but received only 3 words per page (BATCH_LIMIT), so
 // a job paid one AI round-trip per 3 words. Now up to 20 words per page.
 const AI_FALLBACK_CHAINS = new Set(['expression_ai_fallback', 'authoritative_ai_fallback', 'translation_reorder', 'translation_canonicalization']);
+// D10 27.10.2026 (agreed after the step log of job 5c260c10): dictionary chains
+// that need under 1 s per row (ordbokene 0.9, naob_synonyms 0.9,
+// expression_translation 0.4, lexeme_translation 0.8 s/row) get pages of 8
+// (= MAX_BATCH_LIMIT of job-enrichment-batch-worker; 3 rows in parallel ->
+// about 8-10 s per page, well inside the 45 s worker timeout). naob (2.7 s/row)
+// and forms (3 s/row) keep pages of 3. Same requests to the dictionaries,
+// fewer steps.
+const FAST_DICTIONARY_CHAINS = new Set(['ordbokene', 'naob_synonyms', 'expression_translation', 'lexeme_translation']);
+const FAST_DICTIONARY_BATCH_LIMIT = 8;
 
 // ФИКС (20.08.2026, найдено при разборе стоимости): добавлена
 // 'translation_reorder' — раньше эта цепочка была полностью реализована
@@ -107,7 +140,8 @@ const MAX_AUDIT_ATTEMPTS = 3;
 const ADMISSION_PAGE_KEY = '__d10_admission_page_v3__';
 const ADMISSION_ROOT_KEY = '__d10_admission_root_v3__';
 const ADMISSION_COMPLETE_KEY = '__d10_admission_complete_v3__';
-const ADMISSION_PAGE_LIMIT = 5;
+// D10 27.10.2026: 5 -> 10 (the admission page functions accept 1..10)
+const ADMISSION_PAGE_LIMIT = DB_ADMISSION_PAGE_LIMIT;
 const MAX_ORCHESTRATOR_ATTEMPTS = 3;
 const MISSING_OFFICIAL_FORMS_PREFIX = '__d10_missing_official_forms__';
 
@@ -164,6 +198,63 @@ async function jobFailureReport(jobId: string, offsets: Record<string, number>) 
     familySkipped ? 'family injection skipped' : '',
   ].filter(Boolean).join('; ');
   return { hasFailures, summary, message: counts || 'job failure lists could not be read' };
+}
+
+// D10 25.10.2026 (agreed, point 4): words stopped at the admission gate are
+// split into "for review" (a reason from _shared/d10-review-decisions.ts) and
+// real blockers. Function words (rejected by design) are neither. A gate item
+// this read cannot see, or a read error, counts as a blocker (fail closed).
+type ReviewEntry = { kind: 'gate' | 'translation'; item_id?: string; lexeme_id?: string;
+  word: string | null; pos: string | null; code: string };
+
+async function gateReviewSplit(jobId: string, admissionBlocked: number):
+  Promise<{ blocking: number; review: ReviewEntry[]; readError?: string }> {
+  const { data, error } = await supabase.from('lexeme_processing_items')
+    .select('id, status, current_stage, normalized_lemma, pos, lexeme_id, expression_id, result_summary')
+    // D10 28.10.2026 (agreed): rows WITH an expression_id are read too. An
+    // expression from the Lexeme360 network gets a catalog entry
+    // (expression_id) but no card; with NO_CONFIRMED_WHOLE_UNIT_REGISTRATION it
+    // is a review word, not a blocker (dra omsorg for, sette på gata). Before
+    // it was not read here and was counted as an unexplained blocker.
+    .eq('job_id', jobId).eq('current_stage', 'admission_gate')
+    .is('lexeme_id', null).limit(2000);
+  if (error) return { blocking: admissionBlocked, review: [], readError: safeStringify(error) };
+  const review: ReviewEntry[] = [];
+  let blocking = 0;
+  let functionWords = 0;
+  for (const row of (data ?? []) as any[]) {
+    const summary = row?.result_summary ?? {};
+    if (summary.promotion_status !== 'not_promoted') continue;
+    const item = { status: row.status, current_stage: row.current_stage,
+      admission_reason: summary.admission_reason, admission_status: summary.admission_status,
+      promotion_status: summary.promotion_status };
+    if (isFunctionWordItem(item)) { functionWords += 1; continue; }
+    // D10 27.10.2026: a closed surface probe is rejected by design, like a function word
+    if (isSurfaceProbeItem(item)) { functionWords += 1; continue; }
+    if (isGateReviewItem(item)) {
+      review.push({ kind: 'gate', item_id: String(row.id), word: row.normalized_lemma ?? null,
+        pos: row.pos ?? null, code: String(summary.admission_reason) });
+    } else {
+      blocking += 1;
+    }
+  }
+  const seen = review.length + blocking + functionWords;
+  if (admissionBlocked > seen) blocking += admissionBlocked - seen;
+  return { blocking, review };
+}
+
+// Lexemes of the job that carry the "for review" mark (translation).
+async function markedReviewEntries(jobId: string): Promise<ReviewEntry[]> {
+  const { data: rows, error } = await supabase.from('lexeme_processing_items')
+    .select('lexeme_id').eq('job_id', jobId).not('lexeme_id', 'is', null).limit(2000);
+  if (error) return [];
+  const ids = [...new Set(((rows ?? []) as any[]).map((r) => String(r.lexeme_id)))];
+  if (!ids.length) return [];
+  const { data: marked, error: markedError } = await supabase.rpc('d10_ai_review_marked_v1', { p_lexeme_ids: ids });
+  if (markedError || !Array.isArray(marked) || !marked.length) return [];
+  const { data: lexemes } = await supabase.from('lexemes').select('id, lemma, pos').in('id', marked.map(String));
+  return ((lexemes ?? []) as any[]).map((l) => ({ kind: 'translation' as const, lexeme_id: String(l.id),
+    word: l.lemma ?? null, pos: l.pos ?? null, code: 'TRANSLATION_REVIEW' }));
 }
 
 async function countJobItems(jobId: string): Promise<number | null> {
@@ -451,11 +542,44 @@ async function saveState(state: SupervisorState): Promise<boolean> {
   return true;
 }
 
+// D10 02.11.2026 (agreed, D10_lexeme360_queue_v1): family 360 counts are
+// recomputed from a queue (private.lexeme360_refresh_queue_v1), not inside the
+// writers' transactions. Before a job gets its terminal status the queue is
+// drained, so the 360 icons of the job's cards are stored when the status
+// changes. Bounded (6 rounds); a card held by a running writer is finished by
+// the pg_cron drain (every 10 s). Never breaks the job: errors are only logged.
+async function drainLexeme360Queue(jobId: string): Promise<void> {
+  for (let round = 0; round < 6; round++) {
+    try {
+      const { data, error } = await supabase.rpc('lexeme360_refresh_drain_v1', { p_max_lexemes: 500 });
+      if (error) {
+        console.warn('[lexeme360-queue] drain failed', jobId, safeStringify(error));
+        return;
+      }
+      const pending = Number(data?.pending ?? 0);
+      if (pending === 0) return;
+      if (data?.busy === true) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } else if (Number(data?.processed ?? 0) === 0) {
+        return;
+      }
+    } catch (drainThrow) {
+      console.warn('[lexeme360-queue] drain threw', jobId, drainThrow instanceof Error ? drainThrow.message : String(drainThrow));
+      return;
+    }
+  }
+  console.warn('[lexeme360-queue] cards still queued after drain rounds (pg_cron finishes them)', jobId);
+}
+
 async function updateJobStatus(
   jobId: string,
   status: string,
   summaryPatch?: Record<string, unknown>,
 ): Promise<boolean> {
+  if (status === 'completed' || status === 'needs_manual_review') {
+    await drainLexeme360Queue(jobId);
+  }
+
   const payload: Record<string, unknown> = {
     status,
     updated_at: new Date().toISOString(),
@@ -482,6 +606,62 @@ async function updateJobStatus(
   if (error) {
     console.error('pipeline-supervisor: failed to update job status', jobId, status, safeStringify(error));
     return false;
+  }
+
+  // D10 26.10.2026 (agreed, variant 1): a card of the job without an accepted
+  // verification but with an Ordbøkene article of its part of speech bound
+  // (old record on the grey path) gets its verification written, before the
+  // completion check looks at the cards. Never breaks the job.
+  if (status === 'completed' || status === 'needs_manual_review') {
+    try {
+      const { data, error: verifyError } = await supabase.rpc('d10_verify_bound_gray_cards_v1', { p_job_id: jobId });
+      if (verifyError) console.warn('[bound-gray-verify] failed', jobId, safeStringify(verifyError));
+      else if (data === -1) console.warn('[bound-gray-verify] returned -1', jobId);
+    } catch (verifyThrow) {
+      console.warn('[bound-gray-verify] threw', jobId, verifyThrow instanceof Error ? verifyThrow.message : String(verifyThrow));
+    }
+  }
+
+  // D10 25.10.2026 (agreed): content versioning "after" (translations, forms,
+  // examples) when the job ends; only changed parts, change_type
+  // 'content_version'. Repeating it for the same job replaces its rows.
+  // Never breaks the job: an error is only logged.
+  if (status === 'completed' || status === 'needs_manual_review') {
+    try {
+      const { data, error: versionError } = await supabase.rpc('d10_log_job_content_changes_v1', { p_job_id: jobId });
+      if (versionError) console.warn('[content-versioning] log failed', jobId, safeStringify(versionError));
+      else if (data === -1) console.warn('[content-versioning] log returned -1', jobId);
+    } catch (versionThrow) {
+      console.warn('[content-versioning] log threw', jobId, versionThrow instanceof Error ? versionThrow.message : String(versionThrow));
+    }
+  }
+
+  // D10 27.10.2026 (agreed, D10_synonym_child_job_v1): NAOB synonym
+  // candidates of the finished job are collected; a finished child job
+  // ('synonym_candidate') records its target cards; the next child job is
+  // created only when synonym_pipeline_config.pipeline_enabled. Idempotent
+  // (it may run for the provisional and the final status). Never breaks the
+  // job: an error is only logged.
+  if (status === 'completed' || status === 'needs_manual_review') {
+    try {
+      const { data, error: synonymError } = await supabase.rpc('d10_synonym_after_job_v1', { p_job_id: jobId });
+      if (synonymError) console.warn('[synonym-child-job] failed', jobId, safeStringify(synonymError));
+      else if (data?.ok === false) console.warn('[synonym-child-job] returned error', jobId, safeStringify(data));
+    } catch (synonymThrow) {
+      console.warn('[synonym-child-job] threw', jobId, synonymThrow instanceof Error ? synonymThrow.message : String(synonymThrow));
+    }
+    // D10 28.10.2026 (agreed, stage B): wake the synonym verifier when pairs
+    // wait (dry-run; it answers at once and works in the background). No cron.
+    try {
+      const { data: pendingPairs, error: pendingError } = await supabase.rpc('d10_synonym_verifier_pending_v1');
+      if (pendingError) console.warn('[synonym-verifier] pending check failed', jobId, safeStringify(pendingError));
+      else if (Number(pendingPairs ?? 0) > 0) {
+        const woke = await callWorker('synonym-verifier', { reason: 'after_job', job_id: jobId }, 15_000);
+        if (!woke.ok) console.warn('[synonym-verifier] wake failed', jobId, safeStringify(woke.data));
+      }
+    } catch (verifierThrow) {
+      console.warn('[synonym-verifier] wake threw', jobId, verifierThrow instanceof Error ? verifierThrow.message : String(verifierThrow));
+    }
   }
 
   return true;
@@ -749,7 +929,9 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         // The orchestrator may mark the legacy job done after its last
         // promotion page. Done items still need every enrichment chain and
         // the job-scoped expression admission at audit offset zero.
-        const remaining = await countItemsAtStage(jobId, 'source_checks');
+        // D10 27.10.2026: a waiting surface probe is unfinished work too
+        const remaining = await countItemsAtStage(jobId, 'source_checks') +
+          await countItemsAtStage(jobId, 'surface_probe');
         if (remaining === 0) {
           const promoted = await countItemsAtStage(jobId, 'semantic_audit');
           const enrichmentPending = await checkEnrichmentPending(jobId);
@@ -968,7 +1150,8 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
 
     // ДОБАВЛЕНО (05.08.2026): точечно больший limit для двух AI-цепочек —
     // см. комментарий у AI_FALLBACK_BATCH_LIMIT/AI_FALLBACK_CHAINS выше.
-    const effectiveLimit = AI_FALLBACK_CHAINS.has(chain) ? AI_FALLBACK_BATCH_LIMIT : BATCH_LIMIT;
+    const effectiveLimit = AI_FALLBACK_CHAINS.has(chain) ? AI_FALLBACK_BATCH_LIMIT
+      : FAST_DICTIONARY_CHAINS.has(chain) ? FAST_DICTIONARY_BATCH_LIMIT : BATCH_LIMIT;
     const pageRetryKey = networkRetryKey(chain, offset);
 
     // A page that cannot be processed at all (worker crash, page load error,
@@ -1232,7 +1415,8 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
     const result = await callWorker('job-completion-auditor', {
       job_id: jobId,
       heal: true,
-      limit: BATCH_LIMIT,
+      // D10 27.10.2026: 3 -> 10 (the auditor accepts up to 18; one heal call per page)
+      limit: AUDIT_PAGE_LIMIT,
       offset: state.audit_offset,
     });
 
@@ -1331,7 +1515,12 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       }
 
       const admissionBlocked = Number(result.data?.admission_blocked_items ?? 0);
-      if (admissionBlocked > 0) {
+      // D10 25.10.2026 (point 4): only real blockers stop the job; words with a
+      // review reason are listed when the job completes.
+      const gateSplit = admissionBlocked > 0
+        ? await gateReviewSplit(jobId, admissionBlocked)
+        : { blocking: 0, review: [] as ReviewEntry[] };
+      if (admissionBlocked > 0 && gateSplit.blocking > 0) {
         const report = await jobFailureReport(jobId, state.enrichment_offsets);
         state.stage = 'needs_manual_review';
         state.last_error = `${admissionBlocked} items ended at admission_gate without promotion`;
@@ -1340,6 +1529,9 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
           ...report.summary,
           supervisor_last_error: state.last_error,
           admission_blocked_items: admissionBlocked,
+          admission_blocking_items: gateSplit.blocking,
+          review_items: gateSplit.review,
+          ...(gateSplit.readError ? { review_split_read_error: gateSplit.readError } : {}),
         });
         return {
           job_id: jobId,
@@ -1408,8 +1600,16 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
         state.stage = 'done';
         state.last_error = null;
 
+        // D10 25.10.2026 (point 4): words "for review" are listed with the
+        // completed job (admission gate + translation marks).
+        const reviewItems = [
+          ...(admissionBlocked > 0 ? gateSplit.review : (await gateReviewSplit(jobId, 0)).review),
+          ...(await markedReviewEntries(jobId)),
+        ];
         await updateJobStatus(jobId, 'completed', {
           supervisor_completed_at: new Date().toISOString(),
+          review_items: reviewItems,
+          review_count: reviewItems.length,
         });
 
         // Package 3B shadow observation is deliberately post-terminal:
@@ -1493,6 +1693,78 @@ async function processOneStepWithLock(jobId: string): Promise<Record<string, unk
   }
 }
 
+type StepLogRow = {
+  job_id: string; tick_id: string; step_no: number; started_at: string; duration_ms: number;
+  stage: string | null; step: string | null; classification: string | null;
+  processed: number | null; result: Record<string, unknown>;
+};
+
+// one row per step, written once per job per tick (never breaks the tick)
+async function writeStepLog(rows: StepLogRow[]): Promise<void> {
+  if (!rows.length) return;
+  const { error } = await supabase.rpc('d10_log_pipeline_steps_v1', { p_rows: rows });
+  if (error) console.warn('pipeline-supervisor: step log failed', safeStringify(error));
+}
+
+function compactResult(result: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(result ?? {})) {
+    if (['enrichment_failed_items', 'promotion_failed_items', 'detail', 'assessments', 'report',
+      'review_items', 'results'].includes(key)) continue;
+    const text = typeof value === 'string' ? value : JSON.stringify(value ?? null);
+    out[key] = text && text.length > 300 ? `${text.slice(0, 300)}…` : value;
+  }
+  return out;
+}
+
+// All steps of one job within one tick (under one lock, renewed per step).
+async function processJobForTick(jobId: string, tickId: string, tickStart: number):
+  Promise<Record<string, unknown>> {
+  const claimed = await claimJob(jobId);
+  if (!claimed) {
+    return { job_id: jobId, action: 'skipped', reason: 'locked by another in-flight tick' };
+  }
+  const steps: Record<string, unknown>[] = [];
+  const log: StepLogRow[] = [];
+  try {
+    for (let stepNo = 1; stepNo <= MAX_STEPS_PER_TICK; stepNo++) {
+      if (stepNo > 1) {
+        if (Date.now() - tickStart > STEP_START_BUDGET_MS) break;
+        // renew the lock: the next tick must not take the job while a step runs
+        const { error: renewError } = await supabase.from('pipeline_supervisor_state')
+          .update({ locked_at: new Date().toISOString() }).eq('job_id', jobId);
+        if (renewError) break;
+      }
+      const startedAt = Date.now();
+      let result: Record<string, unknown>;
+      try {
+        result = await processOneStep(jobId);
+      } catch (stepError) {
+        result = { job_id: jobId, error: safeStringify(stepError) };
+      }
+      steps.push(result);
+      log.push({
+        job_id: jobId, tick_id: tickId, step_no: stepNo,
+        started_at: new Date(startedAt).toISOString(), duration_ms: Date.now() - startedAt,
+        stage: typeof result.stage === 'string' ? result.stage : null,
+        step: typeof result.step === 'string' ? result.step : (typeof result.action === 'string' ? result.action : null),
+        classification: typeof result.classification === 'string' ? result.classification : null,
+        processed: Number.isFinite(Number(result.processed)) ? Number(result.processed)
+          : Number.isFinite(Number(result.items_checked)) ? Number(result.items_checked) : null,
+        result: compactResult(result),
+      });
+      if (!continueAfterStep(result)) break;
+    }
+  } finally {
+    await releaseJob(jobId);
+    await writeStepLog(log);
+  }
+  // the last step as before (same shape for anyone reading the tick response),
+  // plus how many steps this tick made
+  return { ...(steps[steps.length - 1] ?? { job_id: jobId }), steps_this_tick: steps.length,
+    steps: steps.length > 1 ? steps.map(compactResult) : undefined };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -1532,18 +1804,20 @@ serve(async (req) => {
       };
     }
 
-    const results: Record<string, unknown>[] = [];
-
-    for (const jobId of jobIds) {
+    // D10 27.10.2026 (agreed, speed): the jobs of a tick in parallel, each
+    // with several steps (processJobForTick). An explicit job_id (manual call)
+    // keeps the old single step.
+    const tickStart = Date.now();
+    const tickId = crypto.randomUUID();
+    const results: Record<string, unknown>[] = await Promise.all(jobIds.map(async (jobId) => {
       try {
-        results.push(await processOneStepWithLock(jobId));
+        return explicitJobId
+          ? await processOneStepWithLock(jobId)
+          : await processJobForTick(jobId, tickId, tickStart);
       } catch (err) {
-        results.push({
-          job_id: jobId,
-          error: safeStringify(err),
-        });
+        return { job_id: jobId, error: safeStringify(err) };
       }
-    }
+    }));
 
     return jsonResponse({
       ok: true,

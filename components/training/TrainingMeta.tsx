@@ -58,6 +58,8 @@ export function TrainingMeta({
         {/* D10 16.10.2026 (agreed): right to left: help (always), 360, homonyms, (synonyms) */}
         {/* D10 stage E (R5): other cards with the same lemma; hidden when none */}
         <HomonymsButton
+          cardCount={current.homonym_card_count}
+          cards={current.homonyms}
           lexemeId={current.id}
           lemma={current.lemma || current.word}
           lang={appLanguage as any}

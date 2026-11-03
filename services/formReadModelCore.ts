@@ -20,6 +20,14 @@ export type FormsBundle = {
   // D10 16.10.2026: forms NAOB lists in the article of a noun without
   // Ordbøkene forms (brenne, noun). Shown with "NAOB" next to the label.
   forms_source?: 'naob';
+  // D10 26.10.2026: display keys of forms built by us from the NAOB forms
+  // (presens = infinitive + r, bestemt superlativ = superlativ + e). Shown
+  // with "≈" next to that form only.
+  derived_form_keys?: string[];
+  // D10 27.10.2026: the article marks the word as indeclinable (ubøyelig):
+  // its only form row is the unmarked one (spille I, noun). Shown as
+  // "ubøyelig" in the card instead of an empty forms table.
+  indeclinable?: boolean;
 };
 
 export type V2FormRow = {
@@ -34,6 +42,8 @@ export type V2FormRow = {
   compound_parts?: string[] | null;
   headword?: string | null;
   morphology_source_lemma?: string | null;
+  // D10 26.10.2026: lexeme_naob_forms_v1 only; set = built, not from NAOB.
+  derived_rule?: string | null;
 };
 
 const FORM_KEY_ALIASES: Record<string, string> = {
@@ -106,6 +116,12 @@ export function buildV2Bundles(rows: V2FormRow[]): Map<string, FormsBundle> {
 
   for (const { row } of orderedRows) {
     const canonical = canonicalFormKey(row.form_key);
+    if (!canonical && /_unmarked$/.test(String(row.form_key ?? ''))) {
+      const unmarked = result.get(row.lexeme_id) ?? emptyBundle('v2');
+      unmarked.indeclinable = true;
+      result.set(row.lexeme_id, unmarked);
+      continue;
+    }
     if (!canonical) continue;
     const bundle = result.get(row.lexeme_id) ?? emptyBundle('v2');
     const primary = uniqueStrings(row.primary_values ?? []);
@@ -141,6 +157,9 @@ export function buildV2Bundles(rows: V2FormRow[]): Map<string, FormsBundle> {
     // primary value. The complete source-backed arrays remain available via
     // form_primary/form_alternatives for a later, explicit UI design.
     setCompatibilityValue(bundle, canonical, mergedPrimary[0] ?? '');
+    if (row.derived_rule) {
+      bundle.derived_form_keys = uniqueStrings([...(bundle.derived_form_keys ?? []), canonical]);
+    }
     result.set(row.lexeme_id, bundle);
   }
 

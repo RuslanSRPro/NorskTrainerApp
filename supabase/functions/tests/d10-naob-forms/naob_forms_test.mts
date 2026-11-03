@@ -162,9 +162,11 @@ test('worker: own Ordbøkene forms or compound forms -> left alone, no request',
   }
 });
 
-test('worker: verbs and adjectives are not handled yet', async () => {
+// D10 26.10.2026: verbs and adjectives are handled now (tests in
+// naob_verb_adjective_test.mts); other parts of speech still are not.
+test('worker: other parts of speech (adverb) are not handled', async () => {
   const db = fakeDb(tables());
-  const r = await worker.processLexeme(db.client, { id: 'v', lemma: 'brenne', pos: 'verb' }, site({}));
+  const r = await worker.processLexeme(db.client, { id: 'v', lemma: 'brenne', pos: 'adverb' }, site({}));
   assert.equal(r.status, 'pos_not_supported');
 });
 
@@ -193,8 +195,8 @@ test('worker: listing with more pages -> review (not all articles seen)', async 
 });
 
 test('worker: NAOB outage -> error for that word, nothing written; next word still processed', async () => {
-  const db = fakeDb({ ...tables(), lexemes: [BRENNE, { id: 'v', lemma: 'brenne', pos: 'verb' }] });
-  const results = await worker.processAll(db.client, [BRENNE, { id: 'v', lemma: 'brenne', pos: 'verb' }],
+  const db = fakeDb({ ...tables(), lexemes: [BRENNE, { id: 'v', lemma: 'brenne', pos: 'adverb' }] });
+  const results = await worker.processAll(db.client, [BRENNE, { id: 'v', lemma: 'brenne', pos: 'adverb' }],
     site({ [SEARCH]: SEARCH_BRENNE, '/ordbok/brenne_2': 503 }));
   assert.equal(results[0].status, 'error');
   assert.match(String(results[0].detail), /HTTP 503/);
@@ -215,7 +217,7 @@ test('worker: time budget -> remaining words deferred', async () => {
   const db = fakeDb(tables());
   let t = 0;
   const results = await worker.processAll(db.client,
-    [{ id: 'v1', lemma: 'a', pos: 'verb' }, { id: 'v2', lemma: 'b', pos: 'verb' }],
+    [{ id: 'v1', lemma: 'a', pos: 'adverb' }, { id: 'v2', lemma: 'b', pos: 'adverb' }],
     site({}), () => { t += 30_000; return t; });
   assert.deepEqual(results.map((r: any) => r.status), ['pos_not_supported', 'deferred']);
 });

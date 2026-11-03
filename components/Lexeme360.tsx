@@ -34,6 +34,7 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/services/supabase';
 import { t, AppLanguage } from '@/services/i18n';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -964,6 +965,7 @@ function Lexeme360Content({
   onSelectWord?: (id: string, lemma: string) => void;
   onAddToLearning?: (id: string) => void;
 }) {
+  const insets = useSafeAreaInsets();
   const meaningExtensions = useMemo(
     () => getMeaningExtensions(data, learnedRelationIds),
     [data, learnedRelationIds],
@@ -988,8 +990,9 @@ function Lexeme360Content({
   const headerExampleTranslation = normalizeText(data?.examples?.[0]?.translation_uk);
 
   return (
-    <View style={styles.sheet}>
+    <View style={[styles.sheet, { paddingBottom: Math.max(8, insets.bottom) }]}>
       <GlassOverlay material="overlay" shape="sheet" radius={24} />
+      <ScrollView style={{ maxHeight: '35%', flexGrow: 0 }} nestedScrollEnabled>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.headerTop}>
@@ -1037,6 +1040,7 @@ function Lexeme360Content({
         </View>
       ) : null}
 
+      </ScrollView>
       <View style={styles.divider} />
 
       {loading ? (
@@ -1065,15 +1069,9 @@ function Lexeme360Content({
           </Text>
         </View>
       ) : (
-        <ScrollView
-          style={styles.body}
-          contentContainerStyle={styles.bodyContent}
-          showsVerticalScrollIndicator={false}
-          bounces
-          nestedScrollEnabled
-          scrollEnabled
-        >
-          <View style={styles.section}>
+        <View style={[styles.body, { minHeight: 0, paddingHorizontal: 16, paddingTop: 8 }]}>
+          <View style={{ flex: 1, minHeight: 0 }}>
+            <ScrollView style={{ maxHeight: '22%', flexGrow: 0 }} nestedScrollEnabled>
             <SectionHeader
               icon="🔀"
               title={getMeaningExtensionTitle(lang)}
@@ -1094,7 +1092,9 @@ function Lexeme360Content({
               </View>
             ) : null}
 
+            </ScrollView>
             <Lexeme360Carousel
+              fillAvailable
               items={meaningExtensions}
               lang={lang}
               highlightId={data?.requestedId ?? data?.id}
@@ -1105,7 +1105,7 @@ function Lexeme360Content({
               onAdd={onAddToLearning}
             />
           </View>
-        </ScrollView>
+        </View>
       )}
     </View>
   );

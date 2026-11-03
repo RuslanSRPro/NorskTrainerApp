@@ -1,8 +1,21 @@
+import { publicationProofs, PUBLISHED_WITHOUT_EXPLANATION } from '../_shared/ai-review-binding.ts';
 import { norwegianExample, createAiExampleBinding } from '../_shared/example-evidence.ts';
 import { QUALITY_VERSION, loadSelectedContext, reviewGenerated, buildEnrichmentEvidence,
-  noArticleBlocker, noArticleContext, isNoArticleContext, selectedArticle } from './pos-sense-guard.ts';
+  noArticleBlocker, noArticleContext, isNoArticleContext, selectedArticle,
+  ARTICLE_WITHOUT_EXPLANATION } from './pos-sense-guard.ts';
+// D10 26.10.2026: source cascade for an article without an explanation
+import { NORWEGIAN_POS, lexinPosExcerpt, selectNaobSenses, wiktionaryPosExcerpt,
+  type CascadeStep } from './source-cascade.ts';
+import { loadNaobArticles } from '../naob-forms-worker/index.ts';
+// D10 27.10.2026 (agreed): homograph cards must not share an AI translation
+import { HOMOGRAPH_SAME_TRANSLATION, homographConstraint, mergeSiblings, sameAsSibling,
+  withHomographConstraint, type SiblingCard } from './homograph-translation-guard.ts';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { aiContextReviewCode } from '../_shared/d10-review-decisions.ts';
+// D10 27.10.2026 (agreed): two-gender nouns in AI examples
+import { applyGenderAlternatives, genderAlternativeLabels, genderRuleFromForms,
+  type GenderRule, type V2FormRow } from '../_shared/d10-example-gender.ts';
 
 // ============================================================================
 // ai-enrichment-worker (v6 — + per-kind MAX_TRANSLATION_VARIANTS)
@@ -266,6 +279,31 @@ function extractWiktionaryRawPreview(verificationEvidence: unknown): string | nu
 //      speech + NAOB / Lexin / Wiktionary excerpts, translations only
 //      (no example, no notes), low reliability. See noArticleBlocker().
 // Returns the fields that may be requested from AI.
+// D10 25.10.2026 (agreed, point 4): no unique article of the part of speech
+// (SELECTED_BM_ARTICLE_REQUIRED) or an article without an explanation
+// (SELECTED_ARTICLE_DEFINITION_MISSING) is a decision about this word: it gets
+// the same "for review" mark as a translation rejected by the review (table of
+// 15.10.2026), so it does not stop the job. The error itself is unchanged.
+async function loadLexemeContextOrMark(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+  missing: string[],
+): Promise<string[]> {
+  try {
+    return await loadLexemeContext(supabase, candidate, missing);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = aiContextReviewCode(message);
+    if (code && !candidate.diagnoseOnly) {
+      const { error: markError } = await supabase.rpc('d10_record_ai_review_rejection_v1', {
+        p_lexeme_id: candidate.id, p_reason: code, p_detail: { message: message.slice(0, 500) },
+      });
+      if (markError) console.error('ai-enrichment-worker: review mark failed', candidate.id, safeStringify(markError));
+    }
+    throw error;
+  }
+}
+
 async function loadLexemeContext(
   supabase: ReturnType<typeof createEnrichmentClient>,
   candidate: EntityCandidate,
@@ -276,6 +314,10 @@ async function loadLexemeContext(
     return missing;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // D10 26.10.2026 (agreed): own article without an explanation -> cascade
+    if (message.startsWith('SELECTED_ARTICLE_DEFINITION_MISSING')) {
+      return await definitionMissingContext(supabase, candidate, missing, message);
+    }
     if (!message.startsWith('SELECTED_BM_ARTICLE_REQUIRED')) throw error;
     // D10 15.10.2026: the Ordbøkene check saw several articles (styr I/II),
     // but the card is already bound to ONE of them (homograph step
@@ -317,12 +359,98 @@ async function loadLexemeContext(
     try {
       candidate.selectedContext = noArticleContext(candidate.lemma, candidate.pos, {
         NAOB: candidate.naobContext, Lexin: candidate.lexinContext, Wiktionary: candidate.wiktionaryContext ?? null,
-      });
+      }, (() => {
+        const publications = publicationProofs(candidate.verificationEvidence, candidate.lemma, candidate.pos);
+        return publications.length ? { allowEmpty: true, note: PUBLISHED_WITHOUT_EXPLANATION, publications } : undefined;
+      })());
     } catch (contextError) {
       throw new Error(`${message}; no-article path: ${contextError instanceof Error ? contextError.message : String(contextError)}`);
     }
     return requested;
   }
+}
+
+// D10 26.10.2026 (agreed): the card has its own Ordbøkene article of its part
+// of speech, but the article has no explanation (bare verb, spille noun).
+// Translations only (no example), marked "≈" like R12, from the first step of
+// the source cascade that gives something for the SAME part of speech:
+// NAOB -> Wiktionary -> Lexin -> nothing (AI from lemma + POS). Not for a
+// second homograph card or a word with a sibling card of the same POS (the
+// sources would describe another meaning). A refusal keeps the original
+// message first, so the word gets the same "for review" mark as before.
+// Returns [] when no translation is missing (nothing to ask AI).
+async function definitionMissingContext(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+  missing: string[],
+  message: string,
+): Promise<string[]> {
+  const refuse = (reason: string) => new Error(`${message}; definition-missing path: ${reason}`);
+  if (!candidate.pos || !NORWEGIAN_POS[candidate.pos]) throw refuse('NO_ARTICLE_POS_REQUIRED');
+  if (candidate.homographKey) throw refuse('NO_ARTICLE_NOT_FOR_SECOND_CARD');
+  const { data: siblings, error: siblingError } = await supabase.from('lexemes')
+    .select('id').eq('lemma', candidate.lemma).eq('pos', candidate.pos)
+    .neq('id', candidate.id).limit(1);
+  if (siblingError) throw refuse(`SIBLING_READ_FAILED ${siblingError.message}`);
+  if ((siblings ?? []).length > 0) throw refuse('NO_ARTICLE_NOT_FOR_HOMOGRAPH_GROUP');
+  // D10 27.10.2026 (agreed, a2): in the Audit (audit_rewrite_ai) the example is
+  // written again together with the translation, in the same meaning (one
+  // NAOB article, see below), marked like the translation ("≈", low
+  // reliability). Outside the Audit: translations only, as before.
+  const requested = missing.filter((field) => field === 'translation_ua' || field === 'translation_en' ||
+    (field === 'example' && candidate.revalidateAi === true));
+  if (!requested.length) return [];
+  const subArticles = (() => {
+    const m = message.match(/sub_articles=(\[.*\])/);
+    if (!m) return [] as string[];
+    try { const list = JSON.parse(m[1]); return Array.isArray(list) ? list.map(String) : []; } catch { return []; }
+  })();
+  let naobChoice: { slug: string; reason: string; all_slugs: string[] } | undefined;
+
+  let step: CascadeStep = 'none';
+  const sources: Record<string, string | null> = {};
+  // 2. NAOB, the articles of the same part of speech (read from naob.no)
+  const naobPos = NORWEGIAN_POS[candidate.pos];
+  try {
+    const loaded = await loadNaobArticles(String(candidate.lemma ?? '').toLowerCase(), naobPos, fetch);
+    if (loaded.status === 'ok') {
+      // D10 27.10.2026 (agreed, variant B): an R8 group gives ONE article,
+      // the same every run (sub-article word, else the lowest number)
+      const senses = selectNaobSenses(candidate.lemma, candidate.pos, loaded.parsed,
+        { chooseOne: true, subArticles });
+      if (senses.status === 'several') throw refuse(`NAOB_SEVERAL_MEANINGS ${senses.slugs.join(',')}`);
+      if (senses.status === 'one' || senses.status === 'r8') {
+        sources.NAOB = senses.text;
+        step = senses.status === 'one' ? 'naob' : 'naob_r8';
+        if (senses.status === 'r8' && senses.choice) naobChoice = senses.choice;
+      }
+    }
+  } catch (naobError) {
+    const text = naobError instanceof Error ? naobError.message : String(naobError);
+    if (text.includes('NAOB_SEVERAL_MEANINGS')) throw naobError;
+    // NAOB not reachable: the next steps decide (never a wrong source)
+    console.warn('ai-enrichment-worker: NAOB step skipped', candidate.id, text.slice(0, 200));
+  }
+  // 3. Wiktionary, only a Norwegian section with this part of speech alone
+  if (step === 'none') {
+    const wiki = wiktionaryPosExcerpt(candidate.wiktionaryContext ?? null, candidate.pos);
+    if (wiki) { sources.Wiktionary = wiki; step = 'wiktionary'; }
+  }
+  // 4. Lexin, only the entries of this word class
+  if (step === 'none') {
+    const lexin = lexinPosExcerpt(candidate.lexinContext, candidate.pos);
+    if (lexin) { sources.Lexin = lexin; step = 'lexin'; }
+  }
+  // 5. the sentence of the text: not used yet. 6. nothing: AI from lemma + POS.
+  // D10 27.10.2026 (agreed): the card's own article that has no explanation
+  // (the one loadSelectedContext chose); recorded so the completion check
+  // accepts this translation while the card has only this article. When it
+  // cannot be read, nothing is recorded (the old behaviour).
+  let articleIds: string[] | undefined;
+  try { articleIds = [selectedArticle(candidate.verificationEvidence, candidate.pos)]; } catch { articleIds = undefined; }
+  candidate.selectedContext = noArticleContext(candidate.lemma, candidate.pos, sources,
+    { allowEmpty: true, step, note: ARTICLE_WITHOUT_EXPLANATION, naobChoice, articleIds });
+  return requested;
 }
 
 // D10 24.10.2026: the NAOB article a card is bound to (division of a noun
@@ -846,6 +974,11 @@ type EntityCandidate = {
   naobBinding?: { slug: string; definition: string | null } | null;
   selectedContext?: string;
   revalidateAi?: boolean;
+  // D10 27.10.2026: two-gender noun rule for its AI example (undefined = not read)
+  genderRule?: GenderRule | null;
+  // D10 27.10.2026: other cards of the same lemma and part of speech
+  // (undefined = not read; [] = none)
+  homographSiblings?: SiblingCard[];
   qualityReview?: Record<string, unknown>;
   qualityDiagnostic?: Record<string, unknown>;
   diagnoseOnly?: boolean;
@@ -952,8 +1085,14 @@ async function writeExample(
     writeExpressionId: string | null;
   },
 ): Promise<{ written: boolean; error?: string }> {
+  // D10 27.10.2026 (a2): an example made without an Ordbøkene explanation has
+  // no article to bind to; it carries the same low-reliability evidence as
+  // its translation ("≈") and no example_binding (example audit: needs review)
+  const noArticleExample = candidate.kind === 'lexeme' && isNoArticleContext(candidate.selectedContext);
   const enrichmentEvidence = candidate.kind === 'lexeme'
-    ? { ...buildEnrichmentEvidence(candidate.selectedContext!, candidate.qualityReview),
+    ? noArticleExample
+      ? { ...buildEnrichmentEvidence(candidate.selectedContext!, candidate.qualityReview), example_basis: 'no_article' }
+      : { ...buildEnrichmentEvidence(candidate.selectedContext!, candidate.qualityReview),
         example_binding: createAiExampleBinding(candidate.selectedContext!,candidate.qualityReview,
           {lexemeId:candidate.id,exampleNb:params.exampleNb,translationUk:params.exampleTranslationUa}) } : null;
   await applyOwnKeyEq(
@@ -1077,7 +1216,7 @@ async function writeAiResult(
         buildEnrichmentEvidence(candidate.selectedContext!, candidate.qualityReview, {lexemeId: candidate.id, languageCode, value});
       }
     }
-    if (missing.includes('example')) createAiExampleBinding(candidate.selectedContext!,candidate.qualityReview,
+    if (missing.includes('example') && !isNoArticleContext(candidate.selectedContext)) createAiExampleBinding(candidate.selectedContext!,candidate.qualityReview,
       {lexemeId:candidate.id,exampleNb:ai.example_nb as string,translationUk:ai.example_translation_ua as string});
     const checks = await Promise.all(['entity_translations', 'entity_examples'].map(table =>
       supabase.from(table).select('enrichment_evidence').limit(0)));
@@ -1151,6 +1290,21 @@ async function writeAiResult(
     if (result.error) writeErrors.push(result.error);
   }
 
+  // D10 27.10.2026 (agreed, a2): in the Audit an AI example is rewritten with
+  // its translation. A path that makes no example (no Ordbøkene article,
+  // R12 / NAOB-bound) removes the earlier AI example instead, which was made
+  // for another meaning (bare "only"). Only after the translations were written.
+  let staleExampleRemoved = false;
+  if (candidate.kind === 'lexeme' && candidate.revalidateAi === true && !missing.includes('example') &&
+      isNoArticleContext(candidate.selectedContext) && translationsWritten > 0 && writeErrors.length === 0) {
+    const { error: staleError } = await applyOwnKeyEq(
+      supabase.from('entity_examples').delete().eq('source', AI_SOURCE),
+      candidate,
+    );
+    if (staleError) writeErrors.push(`stale AI example delete failed: ${staleError.message}`);
+    else staleExampleRemoved = true;
+  }
+
   const updatedFields: string[] = [];
 
   if (candidate.kind === 'lexeme' && missing.includes('notes') && ai.notes_ua && String(ai.notes_ua).trim()) {
@@ -1190,9 +1344,94 @@ async function writeAiResult(
     existing_english_translation: existingEnglishTranslation,
     translations_written: translationsWritten,
     example_written: exampleWritten,
+    ...(staleExampleRemoved ? { stale_ai_example_removed: true } : {}),
     [fieldsKey]: updatedFields,
     write_errors: writeErrors.length ? writeErrors : undefined,
   };
+}
+
+// D10 27.10.2026 (agreed): the two-gender rule of noun cards whose example
+// is requested (V2 forms of Ordbøkene). A read error only means no rule.
+async function attachGenderRules(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  items: Array<{ candidate: EntityCandidate; missing: string[] }>,
+): Promise<void> {
+  const nouns = items.filter((i) => i.candidate.kind === 'lexeme' && i.candidate.pos === 'noun' &&
+    i.missing.includes('example') && i.candidate.genderRule === undefined).map((i) => i.candidate);
+  if (!nouns.length) return;
+  const { data, error } = await supabase.from('lexeme_form_display_v2')
+    .select('lexeme_id, form_key, primary_values, alternative_values, accepted_articles')
+    .in('lexeme_id', nouns.map((c) => c.id)).eq('dictionary_code', 'bm');
+  if (error) {
+    console.warn('ai-enrichment-worker: gender forms read failed', safeStringify(error));
+    return;
+  }
+  for (const candidate of nouns) {
+    const rows = ((data ?? []) as Array<V2FormRow & { lexeme_id: string }>).filter((r) => r.lexeme_id === candidate.id);
+    candidate.genderRule = genderRuleFromForms(rows);
+  }
+}
+
+// The AI example with the two-gender convention (before the review).
+function withGenderConvention<T extends { example_nb?: unknown }>(candidate: EntityCandidate, missing: string[], ai: T | undefined): T | undefined {
+  if (!ai || !missing.includes('example') || !candidate.genderRule || typeof ai.example_nb !== 'string') return ai;
+  return { ...ai, example_nb: applyGenderAlternatives(ai.example_nb, candidate.genderRule) };
+}
+
+// D10 27.10.2026 (agreed): the other (not excluded) cards of the same lemma
+// and part of speech with their rank-1 translations (any source). Read once
+// per candidate. A read error stops this candidate (the job retries it).
+async function loadHomographSiblings(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+): Promise<SiblingCard[]> {
+  if (candidate.homographSiblings) return candidate.homographSiblings;
+  if (candidate.kind !== 'lexeme' || !candidate.pos) return (candidate.homographSiblings = []);
+  const { data: cards, error } = await supabase.from('lexemes')
+    .select('id, homograph_key, dictionary_status')
+    .eq('lemma', candidate.lemma).eq('pos', candidate.pos).neq('id', candidate.id);
+  if (error) throw new Error(`HOMOGRAPH_SIBLINGS_READ_FAILED ${error.message}`);
+  const others = (cards ?? []).filter((c: any) => c.dictionary_status !== 'excluded');
+  if (!others.length) return (candidate.homographSiblings = []);
+  const { data: rows, error: trError } = await supabase.from('entity_translations')
+    .select('lexeme_id, language_code, translation')
+    .in('lexeme_id', others.map((c: any) => c.id)).is('expression_id', null)
+    .eq('translation_type', 'primary').eq('translation_rank', 1).in('language_code', ['uk', 'en']);
+  if (trError) throw new Error(`HOMOGRAPH_SIBLINGS_READ_FAILED ${trError.message}`);
+  return (candidate.homographSiblings = others.map((c: any) => {
+    const own = (rows ?? []).filter((r: any) => r.lexeme_id === c.id && typeof r.translation === 'string' && r.translation.trim());
+    const pick = (lang: string) => [...new Set(own.filter((r: any) => r.language_code === lang).map((r: any) => r.translation.trim()))];
+    return { id: c.id, label: c.homograph_key ? `card ${c.homograph_key}` : 'main card', uk: pick('uk'), en: pick('en') };
+  }));
+}
+
+// Adds the homograph constraint to the source context of a card with
+// siblings (translations requested only). No siblings -> context unchanged.
+async function applyHomographConstraint(
+  supabase: ReturnType<typeof createEnrichmentClient>,
+  candidate: EntityCandidate,
+  missing: string[],
+  written?: Map<string, { uk?: string[]; en?: string[] }>,
+): Promise<void> {
+  if (candidate.kind !== 'lexeme' || !candidate.selectedContext) return;
+  if (!missing.includes('translation_ua') && !missing.includes('translation_en')) return;
+  const siblings = await loadHomographSiblings(supabase, candidate);
+  if (!siblings.length) return;
+  const current = mergeSiblings(siblings, written ?? new Map());
+  candidate.selectedContext = withHomographConstraint(candidate.selectedContext,
+    homographConstraint(candidate.lemma, candidate.pos, current));
+}
+
+// Values of the answer that equal another card's translation ([] = none).
+function homographClash(candidate: EntityCandidate, missing: string[],
+  ai: { translation_ua?: unknown; translation_en?: unknown },
+  written?: Map<string, { uk?: string[]; en?: string[] }>) {
+  if (candidate.kind !== 'lexeme' || !candidate.homographSiblings?.length) return [];
+  const maxVariants = maxVariantsFor(candidate.kind);
+  return sameAsSibling({
+    uk: missing.includes('translation_ua') ? cleanList(ai.translation_ua, maxVariants) : [],
+    en: missing.includes('translation_en') ? cleanList(ai.translation_en, maxVariants) : [],
+  }, mergeSiblings(candidate.homographSiblings, written ?? new Map()));
 }
 
 async function processCandidatesBatch(
@@ -1256,7 +1495,22 @@ async function processCandidatesBatch(
 
       let requested = missing;
       if (candidate.kind === 'lexeme') {
-        requested = await loadLexemeContext(supabase, candidate, missing);
+        requested = await loadLexemeContextOrMark(supabase, candidate, missing);
+        // D10 27.10.2026 (agreed): homograph cards -> translation constraint
+        await applyHomographConstraint(supabase, candidate, requested);
+      }
+      // D10 26.10.2026: article without an explanation, translations present:
+      // only the example is missing, which AI makes here only in the Audit
+      // (27.10.2026, a2)
+      if (!requested.length) {
+        processed.push({
+          ...baseEntry,
+          skipped: true,
+          reason: 'definition_missing_translations_complete',
+          needs_review: needsReview.length > 0,
+          needs_review_fields: needsReview.length > 0 ? needsReview : undefined,
+        });
+        continue;
       }
       pending.push({ candidate, missing: requested, needsReview, existingEnglishTranslation });
     } catch (rowError) {
@@ -1272,6 +1526,12 @@ async function processCandidatesBatch(
   if (dryRun || pending.length === 0) {
     return { processed, errors };
   }
+
+  await attachGenderRules(supabase, pending);
+
+  // D10 27.10.2026: AI translations written in this run, per card id; the
+  // homograph check compares with these (both bar cards in one Audit)
+  const writtenThisRun = new Map<string, { uk?: string[]; en?: string[] }>();
 
   // D10 15.10.2026: one chunk = one generation call + one review call.
   // attempt 1 is the single retry of translations rejected by the review.
@@ -1293,6 +1553,11 @@ async function processCandidatesBatch(
 
     try {
       byRef = await callGeminiBatch(batchInput);
+      // D10 27.10.2026: two-gender nouns, before the review
+      for (let ref = 0; ref < chunk.length; ref++) {
+        const fixed = withGenderConvention(chunk[ref].candidate, chunk[ref].missing, byRef.get(ref));
+        if (fixed) byRef.set(ref, fixed);
+      }
     } catch (batchError) {
       for (const p of chunk) {
         errors.push({
@@ -1309,7 +1574,9 @@ async function processCandidatesBatch(
     try {
       reviews = await reviewGenerated(chunk.flatMap((p, ref) =>
         p.candidate.kind === 'lexeme' ? [{ ref, lemma: p.candidate.lemma, pos: p.candidate.pos,
-          context: p.candidate.selectedContext!, missing: p.missing, answer: byRef.get(ref) }] : []),
+          context: p.candidate.selectedContext!, missing: p.missing, answer: byRef.get(ref),
+          ...(p.missing.includes('example') && p.candidate.genderRule
+            ? { gender_alternatives: genderAlternativeLabels(p.candidate.genderRule) } : {}) }] : []),
         (ref, evidence) => { chunk[ref].candidate.qualityReview = evidence; },
         (ref, evidence) => { chunk[ref].candidate.qualityDiagnostic = evidence; });
     } catch (e) {
@@ -1392,9 +1659,42 @@ async function processCandidatesBatch(
         continue;
       }
 
+      // D10 27.10.2026 (agreed): the same translation as another homograph
+      // card -> one more generation with the updated list, then "for review";
+      // an identical translation is never written.
+      const clash = homographClash(p.candidate, p.missing, ai, writtenThisRun);
+      if (clash.length) {
+        if (attempt === 0) {
+          await applyHomographConstraint(supabase, p.candidate, p.missing, writtenThisRun);
+          p.candidate.qualityReview = undefined;
+          p.candidate.qualityDiagnostic = undefined;
+          retry.push(p);
+          continue;
+        }
+        processed.push({ kind: p.candidate.kind, id: p.candidate.id, lemma: p.candidate.lemma,
+          needs_review: true, needs_review_fields: p.missing, quality_version: QUALITY_VERSION,
+          quality_reason: HOMOGRAPH_SAME_TRANSLATION, homograph_clash: clash,
+          translations_written: 0, example_written: false });
+        errors.push({ id: p.candidate.id, error: `${HOMOGRAPH_SAME_TRANSLATION} ${JSON.stringify(clash)}` });
+        const { error: markError } = await supabase.rpc('d10_record_ai_review_rejection_v1', {
+          p_lexeme_id: p.candidate.id, p_reason: HOMOGRAPH_SAME_TRANSLATION,
+          p_detail: { clash, attempts: attempt + 1 },
+        });
+        if (markError) errors.push({ id: p.candidate.id, error: `review_mark_failed: ${safeStringify(markError)}` });
+        continue;
+      }
+
       try {
         const entry = await writeAiResult(supabase, p.candidate, p.missing, p.needsReview, p.existingEnglishTranslation, ai);
         processed.push(entry);
+        // D10 27.10.2026: remember what this card got (homograph check)
+        if (p.candidate.kind === 'lexeme' && Number(entry.translations_written ?? 0) > 0) {
+          const maxVariants = maxVariantsFor(p.candidate.kind);
+          writtenThisRun.set(p.candidate.id, {
+            ...(p.missing.includes('translation_ua') ? { uk: cleanList(ai.translation_ua, maxVariants) } : {}),
+            ...(p.missing.includes('translation_en') ? { en: cleanList(ai.translation_en, maxVariants) } : {}),
+          });
+        }
         // D10 15.10.2026: an accepted translation removes a "for review" mark.
         if (p.candidate.kind === 'lexeme' && Number(entry.translations_written ?? 0) > 0) {
           const { error: clearError } = await supabase.rpc('d10_clear_ai_review_rejection_v1', { p_lexeme_id: p.candidate.id });
@@ -1499,9 +1799,18 @@ async function processSingleCandidate(
   }
 
   if (candidate.kind === 'lexeme') {
-    missing = await loadLexemeContext(supabase, candidate, missing);
+    missing = await loadLexemeContextOrMark(supabase, candidate, missing);
+    // D10 27.10.2026 (agreed): homograph cards -> translation constraint
+    await applyHomographConstraint(supabase, candidate, missing);
+    // D10 26.10.2026: article without an explanation, translations present
+    if (!missing.length) {
+      return { ...baseEntry, skipped: true, reason: 'definition_missing_translations_complete',
+        needs_review: needsReview.length > 0,
+        needs_review_fields: needsReview.length > 0 ? needsReview : undefined };
+    }
   }
-  const ai = await callGeminiSingle({
+  await attachGenderRules(supabase, [{ candidate, missing }]);
+  const generated = await callGeminiSingle({
     lemma: candidate.lemma,
     display_form: candidate.displayForm ?? candidate.lemma,
     pos: candidate.pos,
@@ -1510,12 +1819,26 @@ async function processSingleCandidate(
     authoritative_dictionary_context: candidate.kind === 'lexeme' ? candidate.selectedContext! : buildDictionaryContext(candidate.naobContext, candidate.lexinContext),
     max_variants: maxVariantsFor(candidate.kind),
   });
+  // D10 27.10.2026: two-gender nouns, before the review
+  const ai = withGenderConvention(candidate, missing, generated) ?? generated;
 
   if (candidate.kind === 'lexeme') {
     const decisions = await reviewGenerated([{ ref: 0, lemma: candidate.lemma, pos: candidate.pos,
-      context: candidate.selectedContext!, missing, answer: ai }],
+      context: candidate.selectedContext!, missing, answer: ai,
+      ...(missing.includes('example') && candidate.genderRule
+        ? { gender_alternatives: genderAlternativeLabels(candidate.genderRule) } : {}) }],
       (_ref, evidence) => { candidate.qualityReview = evidence; });
     if (decisions.get(0) !== null) throw new Error(decisions.get(0) ?? 'AI_POS_SENSE_REVIEW_MISSING');
+    // D10 27.10.2026 (agreed): never write the same translation as another
+    // homograph card; the card is marked "for review"
+    const clash = homographClash(candidate, missing, ai);
+    if (clash.length) {
+      const { error: markError } = await supabase.rpc('d10_record_ai_review_rejection_v1', {
+        p_lexeme_id: candidate.id, p_reason: HOMOGRAPH_SAME_TRANSLATION, p_detail: { clash, attempts: 1 },
+      });
+      if (markError) console.error('ai-enrichment-worker: review mark failed', candidate.id, safeStringify(markError));
+      throw new Error(`${HOMOGRAPH_SAME_TRANSLATION} ${JSON.stringify(clash)}`);
+    }
   }
   return writeAiResult(supabase, candidate, missing, needsReview, existingEnglishTranslation, ai);
 }
@@ -1535,6 +1858,14 @@ serve(async (req) => {
       return jsonResponse({ ok: false, error: 'diagnose_only requires 1–2 explicit lexeme_ids' }, 400);
     }
     const revalidateAi = body.revalidate_ai === true || diagnoseOnly;
+    // D10 26.10.2026 (agreed: audit rewrites everything): a job's AI-fallback
+    // chain sends audit_rewrite_ai. Then earlier AI rows of a lexeme do not
+    // count as present even with accepted review evidence, so AI writes them
+    // again for this card (its POS and article context) and replaces them
+    // (the existing per-language delete of ai_fallback rows). Lexin / manual
+    // rows are untouched; a language that has them gets no AI call. The 1-2
+    // id limit below stays for the manual revalidate_ai / diagnose_only.
+    const auditRewriteAi = body.audit_rewrite_ai === true && !diagnoseOnly && body.revalidate_ai !== true;
     const targetedIds = [...(Array.isArray(body.lexeme_ids) ? body.lexeme_ids : []),
       ...(body.lexeme_id ? [body.lexeme_id] : [])];
     if (revalidateAi && (targetedIds.length < 1 || targetedIds.length > 2 ||
@@ -1577,7 +1908,7 @@ serve(async (req) => {
             displayForm: row.display_form ?? null,
             pos: row.pos ?? null,
             verificationEvidence: row.verification_evidence,
-            revalidateAi,
+            revalidateAi: revalidateAi || auditRewriteAi,
             diagnoseOnly,
             notes: row.notes ?? null,
             verificationStatus: row.verification_status ?? null,
@@ -1654,7 +1985,7 @@ serve(async (req) => {
             displayForm: data.display_form ?? null,
             pos: data.pos ?? null,
             verificationEvidence: data.verification_evidence,
-            revalidateAi,
+            revalidateAi: revalidateAi || auditRewriteAi,
             diagnoseOnly,
             notes: data.notes ?? null,
             verificationStatus: data.verification_status ?? null,
@@ -1744,7 +2075,7 @@ serve(async (req) => {
           displayForm: row.display_form ?? null,
           pos: row.pos ?? null,
             verificationEvidence: row.verification_evidence,
-            revalidateAi,
+            revalidateAi: revalidateAi || auditRewriteAi,
             diagnoseOnly,
           notes: row.notes ?? null,
           verificationStatus: row.verification_status ?? null,

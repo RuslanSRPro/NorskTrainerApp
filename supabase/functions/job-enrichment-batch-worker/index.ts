@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {isResidueRetryable,residueRetryDelaySeconds} from '../_shared/d10-enrichment-residue-policy.ts';
 import {aggregateItemOutcome,selectAggregateBatch} from '../_shared/d10-enrichment-page-contract.ts';
+import { ENRICHMENT_REVIEW_PATTERN } from '../_shared/d10-review-decisions.ts';
 
 // ============================================================================
 // job-enrichment-batch-worker (v3)
@@ -490,7 +491,9 @@ async function residueAttempts(jobId: string, chain: Chain, ids: string[]) {
 // D10 15.10.2026: review rejections (after the one retry in ai-enrichment-worker).
 // D10 17.10.2026: + pos_mismatch_filtered (an answer of another part of speech,
 // nothing written; ai-enrichment-worker marks the word "for review").
-const AI_REVIEW_REJECTION=/AI_POS_SENSE_REVIEW_REJECTED|AI_SINGLE_TRANSLATION_REQUIRED|AI_REQUESTED_EXAMPLE_MISSING|AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON|pos_mismatch_filtered/;
+// D10 25.10.2026 (agreed, point 4): the list moved to _shared/d10-review-decisions.ts
+// (the same five codes + SELECTED_BM_ARTICLE_REQUIRED, SELECTED_ARTICLE_DEFINITION_MISSING).
+const AI_REVIEW_REJECTION=ENRICHMENT_REVIEW_PATTERN;
 
 async function runAggregateResidue<T extends { id: string }>(params: {
   jobId: string; chain: Chain; items: T[];
@@ -973,7 +976,8 @@ async function enqueueAiFallbackEnrichment(jobId: string, offset: number, limit:
   const stats = await runAggregateResidue({jobId,chain:'authoritative_ai_fallback',items,
     identity:(item)=>item.lexeme_id as string,
     invoke:(selected)=>callWorkerJson('ai-enrichment-worker',{
-      lexeme_ids:selected.map((item)=>item.lexeme_id),dry_run:false})});
+      // D10 26.10.2026 (agreed): audit rewrites earlier AI translations/examples
+      lexeme_ids:selected.map((item)=>item.lexeme_id),dry_run:false,audit_rewrite_ai:true})});
 
   return buildResult(items.length, stats, count, offset, limit);
 }

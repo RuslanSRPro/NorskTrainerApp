@@ -311,7 +311,8 @@ async function countUnpromotedItems(jobId: string): Promise<number> {
     .from('lexeme_processing_items')
     .select('id', { count: 'exact', head: true })
     .eq('job_id', jobId)
-    .eq('current_stage', 'source_checks');
+    // D10 27.10.2026: a waiting surface probe also needs the orchestrator stage
+    .in('current_stage', ['source_checks', 'surface_probe']);
 
   if (error) {
     console.error('job-completion-auditor: countUnpromotedItems failed', jobId, safeStringify(error));
@@ -565,6 +566,7 @@ serve(async (req) => {
     };
 
     const workItems: AuditWorkItem[] = [];
+    const reviewMarkedIds: string[] = [];
 
     for (const item of eligibleItems) {
       const isExpression = item.match_type === 'expression' && Boolean(item.expression_id);
@@ -600,6 +602,32 @@ serve(async (req) => {
         missingFields,
         onlyMissingIsForms: false, // уточняется ниже, после проверки форм
       });
+    }
+
+    // D10 25.10.2026 (agreed, point 4): a lexeme marked "for review" (AI
+    // translation rejected, or no unique article / no explanation for AI)
+    // whose ONLY gaps are the translation and the example is not healed again
+    // and does not keep the job incomplete: the same rule as the completion
+    // contract (review-marked word, only TRANSLATION_MISSING). Forms are still
+    // checked below. A failure to read the marks changes nothing.
+    const reviewCandidates = workItems.filter((w) => w.kind === 'lexeme' && !w.isComplete &&
+      w.missingFields.length > 0 &&
+      w.missingFields.every((f) => f === 'translation_ua' || f === 'translation_en' || f === 'example'));
+    if (reviewCandidates.length > 0) {
+      const { data: markedIds, error: markedError } = await supabase.rpc('d10_ai_review_marked_v1', {
+        p_lexeme_ids: reviewCandidates.map((w) => w.id),
+      });
+      if (markedError) {
+        console.error('job-completion-auditor: review marks read failed', safeStringify(markedError));
+      } else {
+        const marked = new Set(((markedIds ?? []) as unknown[]).map((id) => String(id)));
+        for (const w of reviewCandidates) {
+          if (!marked.has(w.id)) continue;
+          w.isComplete = true;
+          w.missingFields = [];
+          reviewMarkedIds.push(w.id);
+        }
+      }
     }
 
     // Независимая проверка форм — ТОЛЬКО для lexeme-items, как раньше.
@@ -748,6 +776,7 @@ serve(async (req) => {
           batch_checked: audited.length,
           batch_complete: audited.length - incomplete.length,
           batch_incomplete: incomplete.length,
+          review_marked_items: reviewMarkedIds.length,
           batch_healed: healedCount,
           batch_still_incomplete_after_heal: stillIncompleteAfterHeal.length,
           unpromoted_items_remaining: unpromotedItemsRemaining,
@@ -757,6 +786,13 @@ serve(async (req) => {
           next_offset: nextOffset,
           total_items_in_job: totalCount ?? null,
           audited_at: new Date().toISOString(),
+          // D10 28.10.2026 (agreed): WHICH words of this page are incomplete
+          // and what they miss (the app shows them in "recent analyses");
+          // before only the counts above were kept. At most 20.
+          incomplete_items: incomplete.slice(0, 20).map((a) => ({
+            kind: a.kind, id: a.id, lemma: a.lemma, missing: a.missing ?? [],
+            healed: a.healed ?? null, heal_error: a.heal_error ? String(a.heal_error).slice(0, 300) : null,
+          })),
         },
       })
       .then(
@@ -783,6 +819,7 @@ serve(async (req) => {
       items_checked: audited.length,
       items_complete: audited.length - incomplete.length,
       items_incomplete: incomplete.length,
+      review_marked_items: reviewMarkedIds.length,
       items_healed: healedCount,
       items_still_incomplete_after_heal: stillIncompleteAfterHeal.length,
       unpromoted_items_remaining: unpromotedItemsRemaining,

@@ -130,6 +130,7 @@ export default function HomeScreen() {
             textColor={textColor}
             mutedColor={mutedColor}
             onOpenAnalytics={() => setShowAnalytics(true)}
+            analyticsLabel={isUa ? 'Статистика' : lang === 'no' ? 'Statistikk' : 'Statistics'}
           />
 
           <ProgressHeroCard
@@ -171,6 +172,7 @@ export default function HomeScreen() {
       </SafeAreaView>
 
       <AnalyticsSheet
+        lang={lang}
         visible={showAnalytics}
         onClose={() => setShowAnalytics(false)}
         dark={isDark}

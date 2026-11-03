@@ -26,6 +26,12 @@ import {
   selectByContext,
   type SurfaceCandidateV2,
 } from './surface-resolver-v2.ts';
+// D10 27.10.2026 (agreed): "surface as lemma" probe, see the shared module.
+import {
+  planSurfaceLemmaProbes,
+  SURFACE_PROBE_STAGE,
+  SURFACE_PROBE_STRATEGY,
+} from '../_shared/d10-surface-probe.ts';
 
 declare const EdgeRuntime: {
   waitUntil(promise: Promise<unknown>): void;
@@ -981,6 +987,7 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
   let generatedExpressionCandidates = 0;
   let skippedAlreadyVerified = 0;
   let homonymRechecksForced = 0;
+  let surfaceProbeItems = 0;
 
   const sourceCheckRows: Array<{
     itemId: string;
@@ -993,6 +1000,40 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
   const enrichmentQueue: Array<{ kind: 'lexeme' | 'expression'; id: string }> = [];
 
   for (const item of items) {
+    // D10 27.10.2026 (agreed): a surface probe waits at its own stage without
+    // source checks; job-orchestrator asks Ordbøkene once and either splits
+    // it into part-of-speech items (normal path) or closes it.
+    if (item.match_strategy === SURFACE_PROBE_STRATEGY) {
+      const { error: probeError } = await supabase
+        .from('lexeme_processing_items')
+        .insert({
+          job_id: jobId,
+          expression_id: null,
+          lexeme_id: null,
+          raw_input: item.raw_input,
+          normalized_input: item.normalized_input,
+          normalized_lemma: item.normalized_lemma,
+          surface_form: item.surface_form,
+          pos: null,
+          match_type: 'token',
+          status: 'pending',
+          current_stage: SURFACE_PROBE_STAGE,
+          attempt_count: 0,
+          max_attempts: 3,
+          result_summary: {
+            ingestion_version: INGESTION_VERSION,
+            token_start: item.token_start,
+            token_end: item.token_end,
+            match_strategy: SURFACE_PROBE_STRATEGY,
+            probe_version: 'd10_surface_probe_v1',
+          },
+        });
+      if (probeError) throw probeError;
+      tokenItems++;
+      surfaceProbeItems++;
+      continue;
+    }
+
     const skip = Boolean((item as any).skip_source_checks);
     const isExpressionPath = item.match_type === 'expression';
 
@@ -1103,6 +1144,7 @@ async function insertItems(jobId: string, items: PlannedItem[]) {
     generatedExpressionCandidates,
     skippedAlreadyVerified,
     homonymRechecksForced,
+    surfaceProbeItems,
   };
 }
 
@@ -1320,6 +1362,26 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
       );
     }
 
+    // D10 27.10.2026 (agreed): a single word / selected words (word_list,
+    // audit only) that the database knows only as a form of other lemmas is
+    // also asked as a headword of its own (bar -> bar noun / adjective).
+    // Whole-text analysis is not affected.
+    if (isolatedMode) {
+      const probes = planSurfaceLemmaProbes(plannedItems, normalizeExpression);
+      for (const probe of probes) {
+        plannedItems.push({
+          ...probe,
+          pos: null,
+          match_type: 'token',
+          expression_id: null,
+          resolved: null,
+          match_strategy: SURFACE_PROBE_STRATEGY,
+          compound_normalized: null,
+          network_root_lemma: null,
+        });
+      }
+    }
+
     // Audit mode: the job is created only after planning succeeded, so a
     // planning error no longer leaves an empty job behind.
     const { data: jobId, error: jobError } = await supabase.rpc(
@@ -1344,6 +1406,7 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
       generatedExpressionCandidates,
       skippedAlreadyVerified,
       homonymRechecksForced,
+      surfaceProbeItems,
     } = await insertItems(jobId, plannedItems);
 
     const { error: jobUpdateError } = await supabase
@@ -1366,6 +1429,7 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
           source_checks_per_item: SOURCES.length,
           skipped_already_verified: skippedAlreadyVerified,
           homonym_rechecks_forced: homonymRechecksForced,
+          surface_probe_items: surfaceProbeItems,
           homonym_recheck_probability: 1,
           isolated_mode: isolatedMode,
           surface_resolver: true,
@@ -1454,6 +1518,7 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
           lexeme360_candidates_added: lexeme360Network.added,
           skipped_already_verified: skippedAlreadyVerified,
           homonym_rechecks_forced: homonymRechecksForced,
+          surface_probe_items: surfaceProbeItems,
         },
         orchestrator: orchestratorResult,
       },

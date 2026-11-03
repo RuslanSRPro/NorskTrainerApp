@@ -79,6 +79,24 @@ export function boundAiReviewReason(entity: {entity_id: string; lemma: string; p
 // translation stops counting (AI_NO_ARTICLE_ARTICLE_NOW_EXISTS) and the next
 // audit translates the word from its article.
 export const NO_ARTICLE_BASIS = 'no_article';
+// D10 27.10.2026 (agreed): the card HAS an Ordbøkene article, but it has no
+// explanation (bare, 4507: only the sub-article "bare seg"); the translation
+// is made like a no-article one (source cascade) and marked with this note
+// (same value as ARTICLE_WITHOUT_EXPLANATION in pos-sense-guard.ts).
+const ARTICLE_WITHOUT_EXPLANATION_NOTE = 'ordbokene_article_without_explanation';
+
+// The card's current articles are exactly articles recorded as "without an
+// explanation" when the translation was made -> the translation still counts.
+// A new article (another number) -> it does not (the Audit translates by it).
+function onlyArticlesWithoutExplanation(source: any, context: any, current: string[]): boolean {
+  if (source?.basis_note !== ARTICLE_WITHOUT_EXPLANATION_NOTE) return false;
+  const recorded = source?.article_without_explanation_ids;
+  if (!Array.isArray(recorded) || !recorded.length || !recorded.every((id: unknown) => /^\d+$/.test(String(id)))) return false;
+  if (context?.basis_note !== ARTICLE_WITHOUT_EXPLANATION_NOTE ||
+      JSON.stringify(context?.article_without_explanation_ids ?? null) !== JSON.stringify(recorded)) return false;
+  const allowed = new Set(recorded.map(String));
+  return current.every((id) => allowed.has(String(id)));
+}
 export const AI_NO_ARTICLE_BINDING_VERSION = 'd10_ai_review_binding_no_article_v1';
 
 function sameSources(a: unknown, b: unknown): boolean {
@@ -88,6 +106,32 @@ function sameSources(a: unknown, b: unknown): boolean {
 function validSources(sources: any): boolean {
   return !!sources && typeof sources === 'object' && !Array.isArray(sources) &&
     Object.values(sources).some(nonempty);
+}
+
+// Publication proves lemma + POS, not the accuracy of the provisional translation.
+export type PublicationProof = { source: string; lemma: string; pos: string; registered_entry: true; pos_match: 'match' };
+export const PUBLISHED_WITHOUT_EXPLANATION = 'published_entry_without_explanation';
+export function publicationProofs(evidence: any, lemma: string, pos: string | null): PublicationProof[] {
+  if (!pos || ['unknown', 'expression', ''].includes(pos)) return [];
+  return ['Ordbokene', 'NAOB', 'Lexin', 'Wiktionary'].flatMap(source => {
+    const row = evidence?.[source], ev = row?.evidence;
+    return row?.status === 'done' && (row.registered_entry === true || ev?.registered_entry === true)
+      && ev?.pos_match === 'match' && ev?.requested_pos === pos && norm(ev?.canonical_query) === norm(lemma)
+      ? [{ source, lemma, pos, registered_entry: true as const, pos_match: 'match' as const }] : [];
+  });
+}
+function validPublication(source: any): boolean {
+  return Array.isArray(source?.publication_evidence) && source.publication_evidence.some((p: any) =>
+    ['Ordbokene', 'NAOB', 'Lexin', 'Wiktionary'].includes(p?.source) && p.registered_entry === true &&
+    p.pos_match === 'match' && norm(p.lemma) === norm(source.lemma) && p.pos === source.pos);
+}
+function validFallbackBasis(source: any): boolean {
+  if (validSources(source?.sources)) return true;
+  if (source?.basis_note === ARTICLE_WITHOUT_EXPLANATION_NOTE) {
+    const ids = source.article_without_explanation_ids;
+    return Array.isArray(ids) && ids.length > 0 && ids.every((id: unknown) => /^\d+$/.test(String(id)));
+  }
+  return source?.basis_note === PUBLISHED_WITHOUT_EXPLANATION && validPublication(source);
 }
 
 function createNoArticleTranslationBinding(source: any, review: any,
@@ -103,8 +147,9 @@ function createNoArticleTranslationBinding(source: any, review: any,
       !Array.isArray(values) || values.length !== 1 || !nonempty(values[0]) ||
       values[0].trim() !== identity.value.trim() || !nonempty(identity.lexemeId) ||
       source.basis !== NO_ARTICLE_BASIS || source.article_id !== null ||
-      !nonempty(source.lemma) || !nonempty(source.pos) || !validSources(source.sources))
-    throw new Error('AI_REVIEWED_CONTENT_MISMATCH');
+      !nonempty(source.lemma) || !nonempty(source.pos))
+    throw new Error('AI_REVIEWED_CONTENT_MISMATCH: PROPOSAL_OR_IDENTITY_MISMATCH');
+  if (!validFallbackBasis(source)) throw new Error('AI_REVIEWED_FALLBACK_BASIS_MISSING');
   return { version: AI_NO_ARTICLE_BINDING_VERSION, kind: 'translation',
     lexeme_id: identity.lexemeId, language_code: identity.languageCode,
     value: identity.value.trim(), lemma: source.lemma, pos: source.pos,
@@ -135,15 +180,18 @@ function noArticleReviewReason(entity: {entity_id: string; lemma: string; pos: s
   if (!nonempty(b.value) || b.value !== translation.value?.trim() ||
       b.value !== translation.original_value?.trim()) return 'AI_REVIEW_TEXT_CHANGED';
   if (b.basis !== NO_ARTICLE_BASIS || b.article_id !== null || s?.basis !== NO_ARTICLE_BASIS ||
-      s?.article_id !== null || !validSources(s?.sources)) return 'AI_REVIEW_BINDING_INVALID';
-  if (!Array.isArray(translation.current_article_ids) || translation.current_article_ids.length > 0)
-    return 'AI_NO_ARTICLE_ARTICLE_NOW_EXISTS';
+      s?.article_id !== null || !validFallbackBasis(s)) return 'AI_REVIEW_BINDING_INVALID';
   const context = r.approved_proposal?.context;
+  if (!Array.isArray(translation.current_article_ids) || (translation.current_article_ids.length > 0 &&
+      !onlyArticlesWithoutExplanation(s, context, translation.current_article_ids)))
+    return 'AI_NO_ARTICLE_ARTICLE_NOW_EXISTS';
   const field = translation.locale === 'uk' ? 'translation_ua' : 'translation_en';
   const values = r.approved_proposal?.answer?.[field];
   if (!context || context.basis !== NO_ARTICLE_BASIS || context.article_id !== null ||
       norm(context.lemma) !== norm(entity.lemma) || context.pos !== entity.pos ||
       !sameSources(context.sources, s.sources) ||
+      !sameSources(context.publication_evidence, s.publication_evidence) ||
+      context.basis_note !== s.basis_note || context.basis_step !== s.basis_step ||
       (!Array.isArray(r.approved_proposal.missing) || !r.approved_proposal.missing.includes(field)) ||
       !Array.isArray(values) || values.length !== 1 || !nonempty(values[0]) || values[0].trim() !== b.value)
     return 'AI_REVIEW_PROPOSAL_MISMATCH';

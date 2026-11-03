@@ -7,6 +7,7 @@ import type {
   QualityStage,
 } from "./contract.ts";
 import { evaluateCompletion } from "./evaluator.ts";
+import { isGateReviewItem } from "../../d10-review-decisions.ts";
 
 export interface SnapshotRpcResult {
   snapshot_version: string;
@@ -51,6 +52,12 @@ export interface CompletionEvaluation {
   // D10 15.10.2026: words marked "for review" (AI translation rejected twice)
   // that do not block the job; the words themselves stay not ready.
   review_marked_entities?: string[];
+  // D10 25.10.2026 (point 4): words stopped at the admission gate with a
+  // review reason (_shared/d10-review-decisions.ts). They are listed for
+  // review and do not block the job; any other unresolved item still does.
+  review_items?: unknown[];
+  // D10 25.10.2026 (variant A): NAOB-form cards accepted with a mark
+  naob_accepted_entities?: string[];
 }
 
 // D10 15.10.2026 (agreed "a + b"): a lexeme whose AI translation was rejected
@@ -65,6 +72,29 @@ export function reviewMarkedEntityKeys(
     markedKeys.has(assessment.entity_key) &&
     assessment.blockers.length > 0 &&
     assessment.blockers.every((issue) => issue.code === "TRANSLATION_MISSING")
+  ).map((assessment) => assessment.entity_key).sort();
+}
+
+// D10 25.10.2026 (agreed, variant A): a card without an Ordbøkene article
+// but with NAOB forms (identity.naob_forms) is "ready with a mark", like an
+// AI translation with "≈". It does not block the job when its ONLY gaps are
+// these (no Ordbøkene identity / Ordbøkene forms, AI-only translation).
+const NAOB_ACCEPTED_CODES = new Set([
+  "IDENTITY_NOT_VERIFIED",
+  "REQUIRED_FORMS_MISSING",
+  "PARADIGM_UNKNOWN",
+  "AI_ONLY_TRANSLATION",
+]);
+
+export function naobAcceptedEntityKeys(
+  assessments: AggregateAssessment["assessments"],
+  naobKeys: ReadonlySet<string>,
+): string[] {
+  return assessments.filter((assessment) =>
+    assessment.quality_stage !== "ready" &&
+    naobKeys.has(assessment.entity_key) &&
+    assessment.blockers.length > 0 &&
+    assessment.blockers.every((issue) => NAOB_ACCEPTED_CODES.has(issue.code))
   ).map((assessment) => assessment.entity_key).sort();
 }
 
@@ -113,6 +143,7 @@ export async function evaluateJobCompletion(
   let sourceCounts: SnapshotRpcResult["counts"] | null = null;
   let unresolvedItems: unknown[] = [];
   const reviewMarkedKeys = new Set<string>();
+  const naobKeys = new Set<string>();
 
   for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
     const snapshot = await fetchPage({
@@ -151,6 +182,9 @@ export async function evaluateJobCompletion(
       if ((entity.identity as unknown as { ai_review_rejected?: unknown })?.ai_review_rejected === true) {
         reviewMarkedKeys.add(entity.entity_key);
       }
+      if ((entity.identity as unknown as { naob_forms?: unknown })?.naob_forms === true) {
+        naobKeys.add(entity.entity_key);
+      }
     }
 
     if (!snapshot.page.has_more) break;
@@ -166,14 +200,19 @@ export async function evaluateJobCompletion(
   }
 
   const report = aggregateAssessmentPages(pages);
-  const reviewMarked = reviewMarkedEntityKeys(report.assessments, reviewMarkedKeys);
-  const unresolvedItemsBlockCompletion = unresolvedItems.length > 0;
+  const reviewMarkedOnly = reviewMarkedEntityKeys(report.assessments, reviewMarkedKeys);
+  const naobAccepted = naobAcceptedEntityKeys(report.assessments, naobKeys);
+  // both kinds do not block the job; the words themselves keep their marks
+  const reviewMarked = [...new Set([...reviewMarkedOnly, ...naobAccepted])].sort();
+  const reviewItems = unresolvedItems.filter((item) => isGateReviewItem(item as never));
+  const blockingUnresolved = unresolvedItems.filter((item) => !isGateReviewItem(item as never));
+  const unresolvedItemsBlockCompletion = blockingUnresolved.length > 0;
   // Every not-ready entity is a review-marked word -> the job counts as ready.
   const onlyReviewMarked = reviewMarked.length > 0 &&
     report.learner_ready_entities + reviewMarked.length === report.total_entities;
   const qualityState = onlyReviewMarked && !unresolvedItemsBlockCompletion
     ? "ready" as QualityStage
-    : deriveQualityState(report, unresolvedItems);
+    : deriveQualityState(report, blockingUnresolved);
   const learnerReady = executionState === "completed" &&
     !unresolvedItemsBlockCompletion && qualityState === "ready" &&
     report.learner_ready_entities + (onlyReviewMarked ? reviewMarked.length : 0) ===
@@ -187,6 +226,8 @@ export async function evaluateJobCompletion(
     unresolved_items: unresolvedItems,
     unresolved_items_block_completion: unresolvedItemsBlockCompletion,
     report,
-    review_marked_entities: reviewMarked,
+    review_marked_entities: reviewMarkedOnly,
+    naob_accepted_entities: naobAccepted,
+    review_items: reviewItems,
   };
 }

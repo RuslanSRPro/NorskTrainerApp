@@ -7,12 +7,15 @@
 // speech, word, translation in the interface language); tap a row -> the full
 // card opens in Read, as from the search. Article numbers are not shown.
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/contexts/ThemeContext';
+import { GlassOverlay } from '@/components/ui/glass/GlassOverlay';
 
 import { router } from 'expo-router';
 
-import { supabase } from '@/services/supabase';
+
 
 type Lang = 'ua' | 'en' | 'no';
 
@@ -26,6 +29,8 @@ type Neighbour = {
 };
 
 type Props = {
+  cardCount?: number;
+  cards?: Neighbour[];
   lexemeId?: string | null;
   lemma?: string | null;
   lang?: string | null;
@@ -52,8 +57,8 @@ const POS_NAMES: Record<string, Record<Lang, string>> = {
 
 const POS_ORDER = ['verb', 'noun', 'adjective', 'adverb'];
 
-// Neighbours per lemma for the session (a training run shows many cards).
-const cache = new Map<string, Neighbour[]>();
+// Explicit linked cards are supplied by the batch read model. No requests on mount or open.
+
 
 function normLang(lang?: string | null): Lang {
   return lang === 'en' || lang === 'no' || lang === 'ua' ? lang : 'ua';
@@ -74,61 +79,20 @@ function translationOf(n: Neighbour, lang: Lang): string {
   return lang === 'ua' ? (ua || en) : (en || ua);
 }
 
-async function loadNeighbours(lemma: string): Promise<Neighbour[]> {
-  if (cache.has(lemma)) return cache.get(lemma)!;
-  const { data, error } = await supabase
-    .from('lexemes')
-    .select('id, lemma, pos, dictionary_status')
-    .eq('lemma', lemma)
-    .limit(12);
-  if (error) throw error;
-  const listed = ((data ?? []) as Neighbour[])
-    .filter((n) => n.pos !== 'expression' && n.dictionary_status !== 'excluded');
-  // D10 17.10.2026 (agreed: one source of translations): the same canonical
-  // translation as the card itself, never the old lexemes.translation_* columns.
-  // Unreadable -> the rows are shown without a translation.
-  const canonical = new Map<string, { ua: string; en: string }>();
-  if (listed.length) {
-    const { data: tr, error: trError } = await supabase.rpc('get_canonical_lexeme_translations_v1', {
-      p_lexeme_ids: listed.map((n) => n.id),
-    });
-    if (!trError) {
-      for (const row of (tr ?? []) as any[]) {
-        const id = String(row?.lexeme_id ?? '');
-        const cur = canonical.get(id) ?? { ua: '', en: '' };
-        if (row?.language_code === 'uk') cur.ua = String(row?.translation ?? '').trim();
-        if (row?.language_code === 'en') cur.en = String(row?.translation ?? '').trim();
-        canonical.set(id, cur);
-      }
-    }
-  }
-  const rows = listed
-    .map((n) => ({ ...n, translation_ua: canonical.get(n.id)?.ua || null, translation_en: canonical.get(n.id)?.en || null }))
-    .sort((a, b) => {
-      const ia = POS_ORDER.indexOf(String(a.pos)); const ib = POS_ORDER.indexOf(String(b.pos));
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    });
-  cache.set(lemma, rows);
-  return rows;
-}
-
-export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
+export function HomonymsButton({ lexemeId, lemma, lang, cardCount = 0, cards }: Props) {
+  const { theme: T, themeName } = useTheme();
+  const insets = useSafeAreaInsets();
+  const dark = themeName === 'dark';
   const safeLang = normLang(lang);
   const key = cleanLemma(lemma);
-  const [rows, setRows] = useState<Neighbour[]>(() => (key && cache.get(key)) || []);
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    if (!key) { setRows([]); return; }
-    loadNeighbours(key)
-      .then((list) => { if (alive) setRows(list); })
-      .catch(() => { if (alive) setRows([]); });   // no icon if unreadable
-    return () => { alive = false; };
-  }, [key]);
-
+  const rows = [...(cards ?? [])].sort((a,b) => {
+    const pa=POS_ORDER.indexOf(String(a.pos)),pb=POS_ORDER.indexOf(String(b.pos));
+    return (pa<0?99:pa)-(pb<0?99:pb)||a.id.localeCompare(b.id);
+  });
+  const [open,setOpen]=useState(false);
+  const failed = !cards;
   const others = rows.filter((n) => n.id !== lexemeId);
-  if (!lexemeId || others.length === 0) return null;
+  if (!lexemeId || cardCount < 2) return null;
   const t = UI[safeLang];
 
   return (
@@ -136,33 +100,36 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
       <TouchableOpacity
         onPress={() => setOpen(true)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        accessibilityLabel={`${t.a11y}: ${others.length + 1}`}
+        accessibilityLabel={`${t.a11y}: ${cardCount}`}
         activeOpacity={0.7}
         style={styles.icon}
       >
-        <View style={styles.circle}>
-          <Text style={styles.letter}>A</Text>
-          <Text style={styles.sup}>{'¹²'}</Text>
+        <View style={[styles.circle,{backgroundColor:'transparent',borderColor:T.border,overflow:'hidden'}]}>
+          <GlassOverlay dark={dark} material="button" shape="card" radius={13} />
+          <Text style={[styles.letter,{color:T.accent}]}>A</Text>
+          <Text style={[styles.sup,{color:T.accent}]}>{'¹²'}</Text>
         </View>
-        <Text style={styles.count}>{others.length + 1}</Text>
+        <Text style={[styles.count,{color:T.accent}]}>{cardCount}</Text>
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         {/* D10 16.10.2026: scrolling fix - the popup is a View, not a Pressable; a tap outside closes */}
-        <View style={styles.overlay}>
+        <View style={[styles.overlay,{paddingBottom:Math.max(insets.bottom,12),paddingTop:insets.top+12}]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
-          <View style={styles.popup}>
-            <View style={styles.header}>
-              <Text style={styles.title}>{t.title}</Text>
-              <Text style={styles.lemma}>«{key}»</Text>
+          <View style={[styles.popup,{backgroundColor:'transparent',borderRadius:28}]}>
+            <GlassOverlay dark={dark} material="overlay" shape="sheet" radius={28} />
+            <View style={[styles.header,{backgroundColor:'transparent'}]}>
+              <Text style={[styles.title,{color:T.textPrimary}]}>{t.title}</Text>
+              <Text style={[styles.lemma,{color:T.textMuted}]}>«{key}»</Text>
             </View>
             <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+              {failed ? <Text style={{color:T.textSecondary,padding:12}}>{safeLang==='ua'?'Не вдалося завантажити. Онови список навчання.':safeLang==='no'?'Kunne ikke laste. Last inn treningen på nytt.':'Could not load. Reload the training list.'}</Text> : null}
               {others.map((n) => {
                 const tr = translationOf(n, safeLang);
                 return (
                   <TouchableOpacity
                     key={n.id}
-                    style={styles.row}
+                    style={[styles.row,{borderBottomWidth:0,borderRadius:18,overflow:'hidden',marginBottom:8,paddingHorizontal:14,minHeight:48}]}
                     activeOpacity={0.7}
                     accessibilityLabel={`${t.open}: ${n.lemma} ${posLabel(n.pos, safeLang)}`}
                     onPress={() => {
@@ -171,16 +138,18 @@ export function HomonymsButton({ lexemeId, lemma, lang }: Props) {
                       router.push({ pathname: '/reading', params: { openLexemeId: n.id, t: String(Date.now()) } });
                     }}
                   >
-                    <Text style={styles.rowTitle}>
+                    <GlassOverlay dark={dark} material="card" shape="card" radius={18} />
+                    <Text style={[styles.rowTitle,{color:T.textPrimary}]}>
                       {`${n.lemma} — ${posLabel(n.pos, safeLang)}`}{tr ? ` · ${tr}` : ''}
                     </Text>
-                    <Text style={styles.rowOpen}>›</Text>
+                    <Text style={[styles.rowOpen,{color:T.accent}]}>›</Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setOpen(false)}>
-              <Text style={styles.closeText}>{t.close}</Text>
+            <TouchableOpacity style={[styles.closeBtn,{backgroundColor:'transparent',overflow:'hidden',borderRadius:18,minHeight:48}]} onPress={() => setOpen(false)}>
+              <GlassOverlay dark={dark} material="button" shape="card" radius={18} />
+              <Text style={[styles.closeText,{color:T.textPrimary}]}>{t.close}</Text>
             </TouchableOpacity>
           </View>
         </View>

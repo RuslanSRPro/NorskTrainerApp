@@ -224,6 +224,42 @@ async function loadLearnerItems(
   });
 }
 
+// D10 28.10.2026 (agreed): child jobs of a job (synonym candidates, see
+// synonym_candidate_queue.source_job_id -> child_job_id), only those of the
+// same owner; and how many candidates have no job yet. Read errors give an
+// empty list (the status itself is not affected).
+const WAITING_DISPATCH = new Set(["pending", "awaiting_parent"]);
+
+async function loadChildJobs(admin: any, jobId: string, userId: string, parentCreatedAt: string): Promise<{
+  child_jobs: Array<Record<string, unknown>>; synonym_candidates_without_job: number;
+}> {
+  try {
+    const { data: queue, error } = await admin.from("synonym_candidate_queue")
+      .select("child_job_id, dispatch_status").eq("source_job_id", jobId);
+    if (error) throw error;
+    const rows = (queue ?? []) as Array<{ child_job_id: string | null; dispatch_status: string | null }>;
+    const ids = [...new Set(rows.map((r) => r.child_job_id).filter(Boolean))] as string[];
+    // D10 30.10.2026 (agreed): only candidates still waiting for a job; final ones
+    // (not_dispatchable = NAOB explanation, skipped_ready, enrichment_done, deferred_depth) are not counted.
+    const withoutJob = rows.filter((r) => !r.child_job_id &&
+      WAITING_DISPATCH.has(String(r.dispatch_status ?? "pending"))).length;
+    if (!ids.length) return { child_jobs: [], synonym_candidates_without_job: withoutJob };
+    const { data: jobs, error: jobsError } = await admin.from("lexeme_processing_jobs")
+      .select("id, user_id, status, total_items, created_at").in("id", ids);
+    if (jobsError) throw jobsError;
+    const child_jobs = ((jobs ?? []) as Array<Record<string, any>>)
+      .filter((j) => ownsJob(j.user_id, userId))
+      .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+      .map((j) => ({ id: j.id, kind: "synonyms", status: j.status, total_items: j.total_items, created_at: j.created_at,
+        // A candidate retains the job that originally produced its card after a later audit.
+        relationship: Date.parse(j.created_at) < Date.parse(parentCreatedAt) ? "reused_prior" : "child" }));
+    return { child_jobs, synonym_candidates_without_job: withoutJob };
+  } catch (error) {
+    console.warn("get-job-status: child jobs read failed", error instanceof Error ? error.message : String(error));
+    return { child_jobs: [], synonym_candidates_without_job: 0 };
+  }
+}
+
 Deno.serve(
   withSupabase(
     { auth: "user" },
@@ -255,6 +291,8 @@ Deno.serve(
         if (!job || !ownsJob(job.user_id, userId)) {
           throw new Error("JOB_NOT_FOUND");
         }
+        // D10 28.10.2026: child jobs, added to every answer below
+        const children = await loadChildJobs(admin, jobId, userId, job.created_at);
 
         const { data: progressData, error: progressError } = await admin.rpc(
           "get_job_progress",
@@ -290,6 +328,7 @@ Deno.serve(
           : null;
         if (supervisorStillRunning(job.status, inferredExecutionState, supervisorStage)) {
           return json({
+            ...children,
             ok: true,
             status: "processing",
             ready: false,
@@ -312,6 +351,7 @@ Deno.serve(
             ? "needs_manual_review"
             : "processing";
           return json({
+            ...children,
             ok: true,
             status,
             ready: false,
@@ -358,6 +398,7 @@ Deno.serve(
             : String(error);
           if (message.includes("TERMINAL_JOB_REQUIRED")) {
             return json({
+              ...children,
               ok: true,
               status: "processing",
               ready: false,
@@ -386,11 +427,48 @@ Deno.serve(
         }
         const auditReport = buildAuditReport(completion, candidateReviews, content);
 
+        // D10 25.10.2026 (agreed, point 4): words "for review" (they did not
+        // become learning cards, the job is not stopped by them): admission
+        // gate items with a review reason + lexemes with the translation mark.
+        const reviewItems: Array<Record<string, unknown>> =
+          ((completion.review_items ?? []) as Array<Record<string, unknown>>).map((item) => ({
+            kind: "gate", item_id: item.item_id ?? null,
+            word: item.normalized_lemma ?? item.normalized_input ?? item.raw_input ?? null,
+            pos: item.pos ?? null, code: item.admission_reason ?? null,
+          }));
+        // D10 28.10.2026 (agreed): the supervisor also lists gate items that
+        // HAVE an expression_id (an expression without a card, e.g. "dra
+        // omsorg for"); the completion snapshot does not return them, so they
+        // are taken from the job summary (no duplicates by item id).
+        const summaryReview = Array.isArray((job.summary as any)?.review_items)
+          ? ((job.summary as any).review_items as Array<Record<string, unknown>>) : [];
+        const listedItemIds = new Set(reviewItems.map((item) => String(item.item_id ?? "")));
+        for (const item of summaryReview) {
+          if (item?.kind !== "gate") continue;
+          const itemId = String(item.item_id ?? "");
+          if (itemId && listedItemIds.has(itemId)) continue;
+          if (itemId) listedItemIds.add(itemId);
+          reviewItems.push({ kind: "gate", item_id: item.item_id ?? null, word: item.word ?? null,
+            pos: item.pos ?? null, code: item.code ?? null });
+        }
+        const markedIds = (completion.review_marked_entities ?? [])
+          .filter((key) => key.startsWith("lexeme:")).map((key) => key.slice("lexeme:".length));
+        if (markedIds.length > 0) {
+          const { data: marked, error: markedError } = await admin.from("lexemes")
+            .select("id,lemma,pos").in("id", markedIds);
+          if (markedError) throw new Error(`REVIEW_LEXEMES_READ_FAILED:${markedError.message}`);
+          for (const l of (marked ?? []) as Array<Record<string, unknown>>) {
+            reviewItems.push({ kind: "translation", lexeme_id: l.id, word: l.lemma ?? null,
+              pos: l.pos ?? null, code: "TRANSLATION_REVIEW" });
+          }
+        }
+
         const report = {
           ...completion.report,
           assessments: undefined,
         };
         const response: Record<string, unknown> = {
+          ...children,
           ok: true,
           status: completion.learner_ready
             ? "completed"
@@ -404,6 +482,7 @@ Deno.serve(
           progress,
           chain_progress: chainProgress,
           completion_report: auditReport,
+          review_items: reviewItems,
           quality: {
             snapshot_token: completion.report.snapshot_token,
             source_counts: completion.source_counts,

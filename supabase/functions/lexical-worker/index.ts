@@ -129,7 +129,19 @@ Deno.serve(async (req) => {
             .from('lexeme_processing_items').select('expression_id')
             .eq('id', check.item_id).single();
           if (itemError) throw itemError;
-          if (!item?.expression_id) throw new Error('Expression check without its own expression_id');
+          // D10 28.10.2026 (agreed, variant B): an expression without a catalog
+          // entry (a NAOB synonym, an analyze-text expression candidate) has no
+          // own Ordbøkene article bound. Before, this threw here, the check
+          // stayed 'processing' and failed only after three timeouts; now it is
+          // answered at once: no bound own article -> not found (the adapter's
+          // existing expression path, no network call).
+          if (!item?.expression_id) {
+            check.expected_expression_article = null;
+            await processSourceCheck(supabase, check);
+            results.push({ id: check.id, job_id: check.job_id, item_id: check.item_id, source: check.source,
+              query: check.query, ok: true, without_expression_id: true });
+            continue;
+          }
           check.expression_id = item.expression_id;
           const { data: expression, error: expressionError } = await supabase
             .from('expression_catalog').select('lemma, normalized_key')
