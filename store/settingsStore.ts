@@ -19,6 +19,8 @@ import type { FontSizeName, ThemeName } from '@/services/theme';
 import { getCurrentUserId } from '@/store/authStore';
 
 const TRAINING_LAYOUT_KEY = 'norsk_trainer_training_layout';
+// D10 05.11.2026: show contextual synonyms in the synonym window (local to this device, default off)
+const CONTEXTUAL_SYNONYMS_KEY = 'norsk_trainer_show_contextual_synonyms';
 const AUTO_SAVE_DELAY_MS = 450;
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -26,6 +28,10 @@ let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 type SettingsState = UserSettings & {
   loading: boolean;
   saving: boolean;
+
+  // D10 05.11.2026: clean synonyms are always shown; contextual ones only when this is on
+  show_contextual_synonyms: boolean;
+  setShowContextualSynonyms: (value: boolean) => void;
 
   loadSettings: () => Promise<void>;
   updateSetting: <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => void;
@@ -148,6 +154,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   ...DEFAULT_SETTINGS,
   loading: false,
   saving: false,
+  show_contextual_synonyms: false,
+
+  setShowContextualSynonyms(value) {
+    set({ show_contextual_synonyms: value });
+    void AsyncStorage.setItem(CONTEXTUAL_SYNONYMS_KEY, value ? '1' : '0').catch(() => {});
+  },
 
   async loadSettings() {
     try {
@@ -170,6 +182,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
       const normalizedSettings = normalizeSettings(settings, userId);
       const storedLayout = await AsyncStorage.getItem(TRAINING_LAYOUT_KEY);
+      const storedContextual = await AsyncStorage.getItem(CONTEXTUAL_SYNONYMS_KEY).catch(() => null);
 
       const trainingLayout: TrainingLayout =
         storedLayout === 'sentence_first'
@@ -180,6 +193,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         ...normalizedSettings,
         preferred_user: userId,
         training_layout: trainingLayout,
+        show_contextual_synonyms: storedContextual === '1',
         loading: false,
       });
 

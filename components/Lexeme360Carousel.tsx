@@ -56,6 +56,9 @@ export type Lexeme360CarouselItem = {
   // proof shown by the ⓘ button in place of the example; both optional.
   labelPrefix?: string;
   details?: string;
+  // D10_synonym_nuance_chip_v1 (05.11.2026, agreed): a short second chip next to the badge (label of a contextual
+  // synonym, e.g. "Close meaning · colloquial"); with it the hint line under the card is not shown (it stays in details)
+  tag?: string;
 };
 
 type Props = {
@@ -558,6 +561,12 @@ export function Lexeme360Carousel({
                     <Text style={styles.posText}>{item.pos}</Text>
                   </View>
                 ) : null}
+
+                {item.tag ? (
+                  <View style={[styles.tagChip, item.accentColor ? { borderColor: `${item.accentColor}66` } : null]}>
+                    <Text style={[styles.tagText, item.accentColor ? { color: item.accentColor } : null]}>{item.tag}</Text>
+                  </View>
+                ) : null}
               </View>
 
               {item.sourceMeaning ? <View style={{marginBottom:8}}>
@@ -588,7 +597,7 @@ export function Lexeme360Carousel({
 
               {!pinActions ? actions : null}
 
-              <Text style={[styles.compactHint, isCandidate && styles.compactHintCandidate]} numberOfLines={3}>
+              {item.tag && !isCandidate ? null : <Text style={[styles.compactHint, isCandidate && styles.compactHintCandidate]} numberOfLines={3}>
                 {isCandidate
                   ? item.sourceLabel ||
                     (lang === 'ua'
@@ -597,7 +606,7 @@ export function Lexeme360Carousel({
                         ? 'Funnet i ordbok · venter på behandling'
                         : 'Found in dictionary · waiting for processing')
                   : item.hint || synonymHint(item.relation_type, lang) || importanceDescription(item.importance_level, lang)}
-              </Text>
+              </Text>}
               </ScrollView>
               {pinActions ? <View style={{ flexShrink: 0, marginTop: 8 }}>{actions}</View> : null}
             </Pressable>
@@ -731,6 +740,21 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 4,
+  },
+  // D10_synonym_nuance_chip_v1: second chip (label of a contextual synonym); wraps to its own line when long
+  tagChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    maxWidth: '100%',
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0284C7',
   },
   posText: {
     fontSize: 10,

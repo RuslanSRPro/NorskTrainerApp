@@ -119,7 +119,7 @@ function SynonymsBadgeContent({
   const safeLang = normalizeLang(lang);
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
-  const { preferred_user } = useSettingsStore();
+  const { preferred_user, show_contextual_synonyms } = useSettingsStore();
   // D10 stage D: 360-style carousel data (loaded when the window opens)
   const [items, setItems] = useState<SynonymCarouselItem[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -136,7 +136,11 @@ function SynonymsBadgeContent({
     (bodyHeight || window.height * 0.6) - 300 * Math.min(window.fontScale, 1.3) - 84));
   const labels = SYNONYM_TEXT[safeLang];
 
-  const list = Array.isArray(synonyms) ? synonyms.filter((item) => item?.text && item.resolved && item.decision === 'verified_synonym') : [];
+  // D10 05.11.2026: clean synonyms always; contextual ones only when the setting is on
+  const list = Array.isArray(synonyms)
+    ? synonyms.filter((item) => item?.text && item.resolved && (item.decision === 'verified_synonym'
+      || (show_contextual_synonyms && item.decision === 'contextual_synonym')))
+    : [];
 
   // Іконка з'являється тільки якщо реально є дані — сама видимість це
   // сигнал, а не декоративний елемент.
@@ -156,7 +160,7 @@ function SynonymsBadgeContent({
     if (lexemeId && !loading) {
       setLoading(true);
       setLoadError(false);
-      fetchSynonymSenseCarousel(lexemeId, lemma, safeLang)
+      fetchSynonymSenseCarousel(lexemeId, lemma, safeLang, { includeContextual: show_contextual_synonyms })
         .then((result) => {
           setItems(result.items);
           setSenses(result.senses);
@@ -185,7 +189,7 @@ function SynonymsBadgeContent({
     }
   }
 
-  const carouselItems = filterSynonyms(items ?? [], selectedSense, ['strict'])
+  const carouselItems = filterSynonyms(items ?? [], selectedSense, show_contextual_synonyms ? ['strict', 'contextual'] : ['strict'])
     .map(item => ({ ...item, learned: Boolean(item.learned || learnedIds.has(item.cardId ?? item.id)) }));
   const showCarousel360 = Boolean(lexemeId);
 

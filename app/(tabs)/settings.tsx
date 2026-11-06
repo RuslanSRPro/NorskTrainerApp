@@ -11,6 +11,7 @@ import { SettingsLearningSection } from '@/components/settings/SettingsLearningS
 import { SettingsNotificationsSection } from '@/components/settings/SettingsNotificationsSection';
 import { SettingsProfileSection } from '@/components/settings/SettingsProfileSection';
 import { SettingsPronunciationSection } from '@/components/settings/SettingsPronunciationSection';
+import { SettingsSynonymsSection } from '@/components/settings/SettingsSynonymsSection';
 import { SettingsTrainingSection } from '@/components/settings/SettingsTrainingSection';
 import { SettingsWallpaperSection } from '@/components/settings/SettingsWallpaperSection';
 
@@ -52,6 +53,7 @@ export default function SettingsScreen() {
           <SettingsAppearanceSection lang={lang} />
           <SettingsWallpaperSection lang={lang} />
           <SettingsLearningSection lang={lang} />
+          <SettingsSynonymsSection lang={lang} />
           <SettingsTrainingSection lang={lang} />
           <SettingsPronunciationSection lang={lang} />
           <SettingsNotificationsSection lang={lang} />
