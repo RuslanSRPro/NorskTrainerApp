@@ -23,7 +23,8 @@ export type TargetSense = { n: number; text: string; path?: string | null; group
 export type TargetGroup = { sense: string; definitions: { n: number; text: string; selectable: boolean }[]; examples: string[] };
 export type EvalCase = { case_id: string; snapshot: any; target_senses?: TargetSense[]; target_groups?: TargetGroup[] };
 export type PairDecisionV11 = PairDecision & { added_component: AddedComponent; component_note: string | null;
-  forward_example: string | null; reverse_example: string | null; meaning_difference: string | null };
+  forward_example: string | null; reverse_example: string | null; meaning_difference: string | null;
+  register_kind?: RegisterKind | 'unknown' };
 
 const text = (v: unknown, max = 300): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const list = (v: unknown, max = 8): string[] =>
@@ -150,6 +151,9 @@ export function parseDecisionsV11(raw: string, n: number): Map<number, PairDecis
       added_component: added, component_note: text(row?.component_note, 120) || null,
       forward_example: text(row?.forward_example, 300) || null, reverse_example: text(row?.reverse_example, 300) || null,
       meaning_difference: text(row?.meaning_difference, 160) || null,
+      // D10_synonym_r13_v1: register_kind only in v11c answers (a v11b answer stays exactly as before)
+      ...(row?.register_kind == null ? {} : { register_kind: (REGISTER_KINDS as readonly string[]).includes(row.register_kind)
+        ? row.register_kind as RegisterKind : 'unknown' }),
     } as PairDecisionV11);
   }
   return out;
@@ -180,4 +184,44 @@ export function applyGuardsV11(d: PairDecisionV11, definitions: string[], select
   }
   return { ...base, final, guard, added_component: d.added_component, component_note: d.component_note,
     forward_example: d.forward_example, reverse_example: d.reverse_example, meaning_difference: d.meaning_difference };
+}
+
+// D10_synonym_r13_v1 (05.11.2026, agreed): v11c - the same relation check as v11b plus register_kind. A difference
+// ONLY in how informal the word sounds (neutral vs colloquial) is reported as register / colloquial and does not count
+// as another construction or a restriction; formal, literary or archaic, regional and technical stay restrictions.
+// The class is decided by rules_v13 in index.ts. v11b (rules_v12) is unchanged.
+export const PROMPT_VERSION_V11C = 'v11c';
+export const REGISTER_KINDS = ['none', 'colloquial', 'formal', 'literary_or_archaic', 'regional', 'technical'] as const;
+export type RegisterKind = typeof REGISTER_KINDS[number];
+const V11C_EDITS: [string, string][] = [
+  ['  same_construction: same construction (valency, prepositions, typical nouns) and register.',
+   '  same_construction: same construction (valency, prepositions, typical nouns). A difference only in how informal\n' +
+   '  the word sounds does not count here (it goes to register_kind).'],
+  ['  If something is added or lost, it is not a clean synonym. component_note: the component in a few words, or null.\n' +
+   '  additional_restriction: true if the replacement needs a special collocation, construction, register or situation.',
+   '  A difference ONLY in how informal or everyday the word sounds (neutral word vs a colloquial, chatty word for the\n' +
+   '  same thing) is register, not manner_or_attitude. If anything else is added or lost, it is not a clean synonym.\n' +
+   '  component_note: the component in a few words, or null.\n' +
+   '  register_kind: how the two words differ in register: none (both sound the same) | colloquial (one is only more\n' +
+   '  informal or everyday) | formal | literary_or_archaic (old-fashioned, bookish, poetic) | regional (dialect) |\n' +
+   '  technical. Answer it independently of added_component.\n' +
+   '  additional_restriction: true if the replacement needs a special collocation, construction or situation, or a\n' +
+   '  formal, literary, archaic, regional or technical register. NOT for a word that is only more colloquial.'],
+  ['  verified_synonym: same meaning, both replacements work, same construction, nothing added or lost.',
+   '  verified_synonym: same meaning, both replacements work, same construction, nothing added or lost (a word that is\n' +
+   '  only more colloquial can still be verified_synonym).'],
+];
+export function buildPromptV11c(cases: EvalCase[]): string {
+  let s = buildPromptV11(cases);
+  for (const [a, b] of V11C_EDITS) {
+    if (s.split(a).length !== 2) throw new Error('v11c prompt edit not found: ' + a.slice(0, 60));
+    s = s.replace(a, b);
+  }
+  return s;
+}
+export function responseSchemaV11c() {
+  const s: any = responseSchemaV11();
+  s.items.properties.register_kind = { type: 'STRING', enum: [...REGISTER_KINDS] };
+  s.items.required = [...s.items.required, 'register_kind'];
+  return s;
 }
