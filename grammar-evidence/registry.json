@@ -2088,6 +2088,96 @@
       "invalidation": "Recheck after any grant/revoke on public functions.",
       "notes": "Recorded from session 2026-10-25/26 summary. Not a blocker for activation work.",
       "next_action": "One read-only ACL query listing anon/authenticated EXECUTE on promote/golden/analyzer functions; then a revoke draft with gate."
+    },
+    {
+      "proof_id": "R138_RELEASE_LIFECYCLE_SCHEMA_RECON",
+      "status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "claim": "Release lifecycle schema exists (build/golden/shadow/canary/active/retired/failed, one-active unique index, golden_passed_at/activated_at/retired_at) but no release is canary or active and no function promotes to canary/active.",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "evidence_runs": [
+        "R138-RELEASE-LIFECYCLE-SCHEMA-RECON-2026-11-06"
+      ],
+      "result": "2026-11-06: 40 releases; v1.0-v1.37 shadow, v1.38 build, none canary/active, activated_at null everywhere; only promote_*_to_shadow functions exist; v1.37 pinned as argument DEFAULT in 5 functions (v140 RPC, build_structural_tokens_v140, analyze_text_structural_shadow_v37, 2 golden); 49 golden functions, grammar_golden_tests ~394. Confirms R129 on current DB.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R138-release-lifecycle-schema-recon.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Session step S-P1-R138b.",
+      "next_action": "Dry run of the release lifecycle mechanism (R139)."
+    },
+    {
+      "proof_id": "R139_RELEASE_LIFECYCLE_DRYRUN",
+      "status": "INFERRED",
+      "proof_kind": "DRYRUN",
+      "claim": "A gated release lifecycle (selector + promote with checks in one transaction) works as designed in a rolled-back Production dry run, with three constraints of existing functions found.",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "evidence_runs": [
+        "R139-RELEASE-LIFECYCLE-DRYRUN-2026-11-06"
+      ],
+      "result": "Golden v1.38 pronoun 63/63; forbidden transitions rejected; no switch while any check failed. Constraints: v140 needs legacy_index from 1; v140 rejects status retired (displaced active -> shadow); promote_runtime_release_to_shadow_v2 needs parent in shadow (v1.38 -> shadow before v1.37 -> active). Baseline parity 16/34 (see R140). Raw output not preserved: summary of parallel chat.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R139-release-lifecycle-dryrun.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Session step S-P1-R139.",
+      "next_action": "Corrected dry run (new number) with dictionary-independent gate per R144."
+    },
+    {
+      "proof_id": "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE",
+      "status": "INFERRED",
+      "proof_kind": "DIAGNOSTIC",
+      "claim": "v1.37 parity with the 2026-09-01 baseline fell from 34/34 to 16/34 because of dictionary changes (extra NP readings), not an engine break.",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "evidence_runs": [
+        "R140-BASELINE-PARITY-16-OF-34-LEXICON-CHANGE-2026-11-06"
+      ],
+      "result": "All 18 diverging cases: an added NP next to the existing VP on reiser/reise/virker; nothing else changed. Mechanism per R143: d10_homograph_rank_v1 inside the v140 chain. Raw output not preserved: summary of parallel chat.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R140-baseline-parity-lexicon-change.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Session step S-P1-R140.",
+      "next_action": "Keep 34/34 as diagnostic only; graph independence seam (package 1b)."
+    },
+    {
+      "proof_id": "R143_GRAPH_CHAIN_DICTIONARY_DEPENDENCY",
+      "status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "claim": "The v140 RPC chain (115 functions) reads dictionary tables in 8 places, including D10 homograph ranking, and all golden tests start from sentence text, so graph output is not independent of the dictionary.",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "evidence_runs": [
+        "R143-GRAPH-CHAIN-DICTIONARY-DEPENDENCY-2026-11-06"
+      ],
+      "result": "Readers: collect_surface_candidates (candidates, legitimate); noun_gender_evidence_v1 (gender, legitimate per R128); d10_homograph_rank_v1 via resolve_lexeme_for_surface_v1 <- dispatch_morphological_rules_v3 (ranking, violates boundary); dispatch_morphological_rules_v3 and normalize_morph_readings_v1 read lexeme_form_variants/noun_forms (R098/R130); build_early_source_expression_candidates_v1, build_shadow_token_v1 (resolve_surface_form). grammar_golden_tests 394 rows, input_fixture mostly empty.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R143-graph-chain-dictionary-dependency.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Session step S-P1-R143.",
+      "next_action": "Package 1b: v140 bypasses d10_homograph_rank_v1 and target-form reads; golden with frozen input_fixture."
+    },
+    {
+      "proof_id": "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE",
+      "status": "PROVEN",
+      "proof_kind": "DECISION",
+      "claim": "Owner decision 2026-11-06: release mechanism first with dictionary-independent gates (34/34 diagnostic only), then graph independence seam, then mass activation; the graph does not call d10_homograph_rank_v1 while the dictionary keeps it; v1.37 becomes baseline active after v1.38 reaches shadow; displaced active returns to shadow.",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "evidence_runs": [
+        "R144-DECISION-P1-ORDER-AND-GRAPH-INDEPENDENCE-2026-11-06"
+      ],
+      "result": "Decisions 1-6 in the artifact. Gender from lexemes is a legitimate input (R128). d10_homograph_rank_v1 and its dictionary/text-analysis use are not changed.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R144-decision-p1-order-graph-independence.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Activating rules before the seam would let every dictionary change break the checks again (R140). Session step S-P1-R144.",
+      "next_action": "Corrected release lifecycle dry run with gates per this decision."
     }
   ]
 }

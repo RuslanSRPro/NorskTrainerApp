@@ -498,7 +498,18 @@ export function useLectureRecorder(
           catch (error) { reason = `Audio validation requires retry: ${String(error)}`; }
         }
         if (!current()) continue;
-        inventory = inspectDurableTranscriptInventory(entry, initial.durationMillis ?? 0);
+        // After native crash recovery verifies the durable committed prefix,
+        // its duration is authoritative. The pre-crash UI elapsed time may
+        // include an incomplete terminal tail that could not be recovered.
+        const expectedInventoryMillis =
+          interrupted && nativeVerified
+            ? 0
+            : initial.durationMillis ?? 0;
+
+        inventory = inspectDurableTranscriptInventory(
+          entry,
+          expectedInventoryMillis
+        );
         latest = readMetadata(entry); // Preserve rename and derived-text writers that completed during await.
         if ((latest.createdAt ?? null) !== initialIdentity) continue;
         const playable = valid?.valid === true && valid.playable === true;
@@ -509,7 +520,20 @@ export function useLectureRecorder(
         const verifiedInventory = inventory.complete && (!interrupted || nativeVerified);
         const ready = playable && !incomplete && finalCoversInventory && (!inventory.present || !interrupted || nativeVerified);
         const state = ready ? 'ready' : verifiedInventory && !inventory.unresolved ? 'saved' : 'interrupted';
-        const duration = ready ? valid!.durationMillis : Math.max(latest.durationMillis ?? 0, inventory.durationMillis);
+        const recoveredDurablePrefix =
+          interrupted &&
+          nativeVerified &&
+          inventory.complete;
+
+        const duration =
+          recoveredDurablePrefix
+            ? inventory.durationMillis
+            : ready
+              ? valid!.durationMillis
+              : Math.max(
+                  latest.durationMillis ?? 0,
+                  inventory.durationMillis
+                );
         const transcript = new File(entry, 'transcript.txt');
         writeMetadata(entry, {...latest,
           id: latest.id || entry.name, createdAt: inferRecoveredCreatedAt(latest.id || entry.name, latest.createdAt),

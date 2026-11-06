@@ -1,0 +1,15 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "proof_id": "R139_RELEASE_LIFECYCLE_DRYRUN",
+ "recorded_at_utc": "2026-11-06T14:01:51Z",
+ "summary": "Golden v1.38 pronoun 63/63; forbidden transitions rejected; no switch while any check failed. Constraints: v140 needs legacy_index from 1; v140 rejects status retired (displaced active -> shadow); promote_runtime_release_to_shadow_v2 needs parent in shadow (v1.38 -> shadow before v1.37 -> active). Baseline parity 16/34 (see R140). Raw output not preserved: summary of parallel chat.",
+ "applied_sql": null,
+ "captured_results": [
+  {
+   "session_step": "S-P1-R139",
+   "source_file": "R139_dryrun_summary_from_parallel_chat.txt",
+   "raw_result": "R139 DRY RUN — release lifecycle mechanism (R139_DRYRUN_release_lifecycle_ALWAYS_ROLLS_BACK.sql, everything rolled back)\nNOTE: the raw \"R139_DRYRUN_RESULT (rolled back): {...}\" text was not preserved; this file is the parallel chat's report of 2026-11-06, copied verbatim in substance. Status INFERRED for that reason.\n\nLocal PostgreSQL 16 with stubs (logic only): v1.37 -> active, selector switched from fallback to active; v1.38 -> canary, owner gets v1.38, others v1.37; v1.38 -> active, v1.37 displaced; rollback restored v1.37 active; forbidden transitions rejected; 6 transitions logged.\n\nProduction run (rolled back):\n- golden v1.38 pronoun subject: 63/63;\n- forbidden transitions rejected;\n- no transition happened while any gate check failed.\nErrors / limitations found:\n- RPC v140 requires legacy_index starting at 1, not 0 (the probe used 0, the RPC-path check failed);\n- RPC v140 does not accept release status 'retired' -> a displaced active release must return to 'shadow' with a \"displaced by X\" mark, not 'retired';\n- promote_runtime_release_to_shadow_v2(p_batch_id) requires the parent release to be 'shadow' -> order: v1.38 -> shadow by the standard path first, then v1.37 -> active and v1.38 -> canary;\n- baseline parity v1.37 vs stored 2026-09-01 projections: 16/34 (26 Oct it was 34/34, R128/R134) -> see R140.\n"
+  }
+ ]
+}

@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+  "head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
-  "source_head": "442c6ab90307f7d6e0987decb543c9e04de5cf3c",
+  "archive_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+  "source_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 210,
-  "history_event_count": 196,
-  "strict_history_event_count": 149,
+  "history_event_count": 201,
+  "strict_history_event_count": 154,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -205,7 +205,12 @@
     "R131-TEXT-ANALYSIS-GRAPH-CONSUMER-DECISION-2026-10-26",
     "R132-DUPLICATE-PRONOUN-IMPLEMENTATION-TS-SQL-2026-10-26",
     "R133-PRONOUN-SINGLE-SOURCE-TS-READS-RELEASE-TABLE-2026-10-26",
-    "R134-CANONICAL-SHADOW-LIVE-SINGLE-PRONOUN-SOURCE-2026-10-26"
+    "R134-CANONICAL-SHADOW-LIVE-SINGLE-PRONOUN-SOURCE-2026-10-26",
+    "R138-RELEASE-LIFECYCLE-SCHEMA-RECON-2026-11-06",
+    "R139-RELEASE-LIFECYCLE-DRYRUN-2026-11-06",
+    "R140-BASELINE-PARITY-16-OF-34-LEXICON-CHANGE-2026-11-06",
+    "R143-GRAPH-CHAIN-DICTIONARY-DEPENDENCY-2026-11-06",
+    "R144-DECISION-P1-ORDER-AND-GRAPH-INDEPENDENCE-2026-11-06"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -371,7 +376,12 @@
     "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": [],
     "R135_MODAL_INVERSION_SUBJECT_GAP": [],
     "R136_VAR_LEMMA_AFTER_MORPH_REPAIR": [],
-    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": []
+    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": [],
+    "R138_RELEASE_LIFECYCLE_SCHEMA_RECON": [],
+    "R139_RELEASE_LIFECYCLE_DRYRUN": [],
+    "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE": [],
+    "R143_GRAPH_CHAIN_DICTIONARY_DEPENDENCY": [],
+    "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": []
   },
   "proof_source_dependencies": {
     "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": [
@@ -1011,7 +1021,22 @@
       "grammar-evidence/contracts/analyze-text-graph-integration-v3.md",
       "grammar-evidence/artifacts/R128-morphology-form-key-regression-repair.json"
     ],
-    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": []
+    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": [],
+    "R138_RELEASE_LIFECYCLE_SCHEMA_RECON": [
+      "grammar-evidence/artifacts/R138-release-lifecycle-schema-recon.json"
+    ],
+    "R139_RELEASE_LIFECYCLE_DRYRUN": [
+      "grammar-evidence/artifacts/R139-release-lifecycle-dryrun.json"
+    ],
+    "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE": [
+      "grammar-evidence/artifacts/R140-baseline-parity-lexicon-change.json"
+    ],
+    "R143_GRAPH_CHAIN_DICTIONARY_DEPENDENCY": [
+      "grammar-evidence/artifacts/R143-graph-chain-dictionary-dependency.json"
+    ],
+    "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": [
+      "grammar-evidence/artifacts/R144-decision-p1-order-graph-independence.json"
+    ]
   },
   "proof_next_actions": {
     "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": "Run the saved R068 corpus as one current-source batch and compare clause, predicate and subject edges.",
@@ -1151,7 +1176,12 @@
     "R134_CANONICAL_SHADOW_LIVE_SINGLE_PRONOUN_SOURCE": "Add active-release selection and the shadow->canary gate (owner first) with RPC-path checks; then the graph section in the text-analysis result per contract v3.",
     "R135_MODAL_INVERSION_SUBJECT_GAP": "One read-only SQL over v1.38 with modal+inversion sentences; decide whether a source-backed modal predicate rule is needed.",
     "R136_VAR_LEMMA_AFTER_MORPH_REPAIR": "Run the contract v3 acceptance corpus through v1.38 in one read-only query.",
-    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": "One read-only ACL query listing anon/authenticated EXECUTE on promote/golden/analyzer functions; then a revoke draft with gate."
+    "R137_SECURITY_ANON_EXECUTE_RESIDUAL": "One read-only ACL query listing anon/authenticated EXECUTE on promote/golden/analyzer functions; then a revoke draft with gate.",
+    "R138_RELEASE_LIFECYCLE_SCHEMA_RECON": "Dry run of the release lifecycle mechanism (R139).",
+    "R139_RELEASE_LIFECYCLE_DRYRUN": "Corrected dry run (new number) with dictionary-independent gate per R144.",
+    "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE": "Keep 34/34 as diagnostic only; graph independence seam (package 1b).",
+    "R143_GRAPH_CHAIN_DICTIONARY_DEPENDENCY": "Package 1b: v140 bypasses d10_homograph_rank_v1 and target-form reads; golden with frozen input_fixture.",
+    "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": "Corrected release lifecycle dry run with gates per this decision."
   },
   "files": [
     {
@@ -4544,7 +4574,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=100.47 max=24"
+        "DB snapshot expired: age_hours=359.59 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4564,7 +4594,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=100.42 max=24"
+        "DB snapshot expired: age_hours=359.54 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4771,7 +4801,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=98.59 max=24"
+        "DB snapshot expired: age_hours=357.71 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4792,7 +4822,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=98.59 max=24"
+        "DB snapshot expired: age_hours=357.71 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4893,7 +4923,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=99.33 max=24"
+        "DB snapshot expired: age_hours=358.45 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -6006,7 +6036,7 @@
     {
       "proof_id": "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT",
       "declared_status": "PROVEN",
-      "effective_status": "PROVEN",
+      "effective_status": "STALE",
       "proof_kind": "SOURCE_INSPECTION",
       "proved_at_head": "ad2e5fb",
       "claim": "Current analyze-text selects a first lexeme per POS before grammar-parser; a source-backed graph shadow input retaining all same-POS candidates must be captured before selectByContext.",
@@ -6021,7 +6051,11 @@
         "supabase/functions/analyze-text/grammar-parser.ts"
       ],
       "blocked_by": [],
-      "stale_reasons": [],
+      "stale_reasons": [
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/analyze-text/index.ts",
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/analyze-text/surface-resolver-v2.ts",
+        "SOURCE_DEPENDENCY_CHANGED: supabase/functions/analyze-text/grammar-parser.ts"
+      ],
       "notes": "Source facts and the read-only bok snapshot are evidenced. Preselection shadow seam, isolation gates and unknown-word behavior are recommendations pending agreement with the analyze-text team; no integration or app output was changed."
     },
     {
@@ -6244,6 +6278,96 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Recorded from session 2026-10-25/26 summary. Not a blocker for activation work."
+    },
+    {
+      "proof_id": "R138_RELEASE_LIFECYCLE_SCHEMA_RECON",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "claim": "Release lifecycle schema exists (build/golden/shadow/canary/active/retired/failed, one-active unique index, golden_passed_at/activated_at/retired_at) but no release is canary or active and no function promotes to canary/active.",
+      "result": "2026-11-06: 40 releases; v1.0-v1.37 shadow, v1.38 build, none canary/active, activated_at null everywhere; only promote_*_to_shadow functions exist; v1.37 pinned as argument DEFAULT in 5 functions (v140 RPC, build_structural_tokens_v140, analyze_text_structural_shadow_v37, 2 golden); 49 golden functions, grammar_golden_tests ~394. Confirms R129 on current DB.",
+      "evidence_runs": [
+        "R138-RELEASE-LIFECYCLE-SCHEMA-RECON-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R138-release-lifecycle-schema-recon.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R138b."
+    },
+    {
+      "proof_id": "R139_RELEASE_LIFECYCLE_DRYRUN",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "DRYRUN",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "claim": "A gated release lifecycle (selector + promote with checks in one transaction) works as designed in a rolled-back Production dry run, with three constraints of existing functions found.",
+      "result": "Golden v1.38 pronoun 63/63; forbidden transitions rejected; no switch while any check failed. Constraints: v140 needs legacy_index from 1; v140 rejects status retired (displaced active -> shadow); promote_runtime_release_to_shadow_v2 needs parent in shadow (v1.38 -> shadow before v1.37 -> active). Baseline parity 16/34 (see R140). Raw output not preserved: summary of parallel chat.",
+      "evidence_runs": [
+        "R139-RELEASE-LIFECYCLE-DRYRUN-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R139-release-lifecycle-dryrun.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R139."
+    },
+    {
+      "proof_id": "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "proof_kind": "DIAGNOSTIC",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "claim": "v1.37 parity with the 2026-09-01 baseline fell from 34/34 to 16/34 because of dictionary changes (extra NP readings), not an engine break.",
+      "result": "All 18 diverging cases: an added NP next to the existing VP on reiser/reise/virker; nothing else changed. Mechanism per R143: d10_homograph_rank_v1 inside the v140 chain. Raw output not preserved: summary of parallel chat.",
+      "evidence_runs": [
+        "R140-BASELINE-PARITY-16-OF-34-LEXICON-CHANGE-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R140-baseline-parity-lexicon-change.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R140."
+    },
+    {
+      "proof_id": "R143_GRAPH_CHAIN_DICTIONARY_DEPENDENCY",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "claim": "The v140 RPC chain (115 functions) reads dictionary tables in 8 places, including D10 homograph ranking, and all golden tests start from sentence text, so graph output is not independent of the dictionary.",
+      "result": "Readers: collect_surface_candidates (candidates, legitimate); noun_gender_evidence_v1 (gender, legitimate per R128); d10_homograph_rank_v1 via resolve_lexeme_for_surface_v1 <- dispatch_morphological_rules_v3 (ranking, violates boundary); dispatch_morphological_rules_v3 and normalize_morph_readings_v1 read lexeme_form_variants/noun_forms (R098/R130); build_early_source_expression_candidates_v1, build_shadow_token_v1 (resolve_surface_form). grammar_golden_tests 394 rows, input_fixture mostly empty.",
+      "evidence_runs": [
+        "R143-GRAPH-CHAIN-DICTIONARY-DEPENDENCY-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R143-graph-chain-dictionary-dependency.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R143."
+    },
+    {
+      "proof_id": "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DECISION",
+      "proved_at_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+      "claim": "Owner decision 2026-11-06: release mechanism first with dictionary-independent gates (34/34 diagnostic only), then graph independence seam, then mass activation; the graph does not call d10_homograph_rank_v1 while the dictionary keeps it; v1.37 becomes baseline active after v1.38 reaches shadow; displaced active returns to shadow.",
+      "result": "Decisions 1-6 in the artifact. Gender from lexemes is a legitimate input (R128). d10_homograph_rank_v1 and its dictionary/text-analysis use are not changed.",
+      "evidence_runs": [
+        "R144-DECISION-P1-ORDER-AND-GRAPH-INDEPENDENCE-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R144-decision-p1-order-graph-independence.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Activating rules before the seam would let every dictionary change break the checks again (R140). Session step S-P1-R144."
     }
   ],
   "policy": {

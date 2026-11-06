@@ -1,0 +1,15 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "proof_id": "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE",
+ "recorded_at_utc": "2026-11-06T14:03:42Z",
+ "summary": "Decisions 1-6 in the artifact. Gender from lexemes is a legitimate input (R128). d10_homograph_rank_v1 and its dictionary/text-analysis use are not changed.",
+ "applied_sql": null,
+ "captured_results": [
+  {
+   "session_step": "S-P1-R144",
+   "source_file": "R144_decision_package1_order_and_graph_independence.md",
+   "raw_result": "# R144 — решения владельца по пакету 1 (2026-11-06)\n\n1. Порядок (вариант A): сначала механизм релизов с проверками, не зависящими от словаря\n   (golden по местоимениям v1.38 63/63, путь RPC v140, строгая структура предложения);\n   паритет 34/34 с эталоном 1 сентября — только диагностика, не gate.\n   Сразу после — пакет 1b «шов независимости графа»; массовая активация правил — только после него.\n2. Граница независимости: граф получает от словаря всех кандидатов без ранжирования и не читает целевые формы.\n   d10_homograph_rank_v1: граф её НЕ вызывает (обход в цепочке v140: resolve_lexeme_for_surface_v1 ← dispatch_morphological_rules_v3);\n   саму функцию и её использование в словаре и анализе текста НЕ трогаем (нужна приложению, D10).\n3. Род из lexemes (noun_gender_evidence_v1) — законный вход: род — свойство слова по NRG (R128).\n4. v1.37 становится официальным active-релизом (базовая точка и откат), но только после перевода v1.38 в shadow\n   штатным promote_runtime_release_to_shadow_v2 (он требует родителя в статусе shadow).\n5. Вытесненный active-релиз возвращается в shadow с пометкой «вытеснен релизом X», не в retired\n   (RPC v140 не принимает retired — пропали бы проверки и откат).\n6. Работа по графу ведётся в одном чате; номера R139–R141 из параллельного чата: R139 и R140 записываются по их результатам,\n   R141 (reise) не выполнялся и не записывается; R142 — неудачный запуск (ошибка collation), заменён R143.\n"
+  }
+ ]
+}

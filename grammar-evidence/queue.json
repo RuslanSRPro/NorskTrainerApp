@@ -361,6 +361,16 @@
       "queue_priority": 100
     },
     {
+      "proof_id": "R093_ANALYZE_TEXT_PRESELECTION_BOUNDARY_AUDIT",
+      "declared_status": "PROVEN",
+      "effective_status": "STALE",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Agree on a versioned preselection batch interface preserving candidate identities and provenance, plus separate gates for internal shadow observation and app-visible use.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
       "proof_id": "R095_PRONOUN_FORM_CANDIDATE_PRODUCER_ACCEPTANCE",
       "declared_status": "PROVEN",
       "effective_status": "STALE",
@@ -547,6 +557,26 @@
       "blocked_by": [],
       "ready_for_next_action": true,
       "next_action": "One read-only ACL query listing anon/authenticated EXECUTE on promote/golden/analyzer functions; then a revoke draft with gate.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R139_RELEASE_LIFECYCLE_DRYRUN",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Corrected dry run (new number) with dictionary-independent gate per R144.",
+      "search_gate": null,
+      "queue_priority": 100
+    },
+    {
+      "proof_id": "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE",
+      "declared_status": "INFERRED",
+      "effective_status": "INFERRED",
+      "blocked_by": [],
+      "ready_for_next_action": true,
+      "next_action": "Keep 34/34 as diagnostic only; graph independence seam (package 1b).",
       "search_gate": null,
       "queue_priority": 100
     },

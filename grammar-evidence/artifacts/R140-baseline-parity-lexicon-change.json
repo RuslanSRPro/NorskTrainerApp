@@ -1,0 +1,15 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "proof_id": "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE",
+ "recorded_at_utc": "2026-11-06T14:02:28Z",
+ "summary": "All 18 diverging cases: an added NP next to the existing VP on reiser/reise/virker; nothing else changed. Mechanism per R143: d10_homograph_rank_v1 inside the v140 chain. Raw output not preserved: summary of parallel chat.",
+ "applied_sql": null,
+ "captured_results": [
+  {
+   "session_step": "S-P1-R140",
+   "source_file": "R140_parity_diagnostic_summary_from_parallel_chat.txt",
+   "raw_result": "R140 DIAGNOSTIC — v1.37 baseline parity 16/34 (R140_baseline_parity_regression_readonly.sql, read-only)\nNOTE: the raw JSON cell was not preserved; this file is the parallel chat's report of 2026-11-06. Status INFERRED for that reason.\n\nAll 18 diverging cases show the same pattern: tokens that had only a verbal reading now also get a noun phrase (NP) next to the verb phrase (VP); nothing else in these sentences changed.\n  Han reiser.            2026-09-01: VP(reiser)     today: NP(reiser) + VP(reiser)\n  Han vil ikke reise.    2026-09-01: VP(vil)        today: NP(reise) + VP(vil)\n  Det virker bra nå.     2026-09-01: 2 groups       today: 3 groups (new NP on \"virker\")\nMechanism (R143): d10_homograph_rank_v1 is called inside the v140 chain\n(dispatch_morphological_rules_v3 -> resolve_lexeme_for_surface_v1 -> d10_homograph_rank_v1), so the D10 dictionary work\nof the 2026-11-03 Production checkpoint (commit 4c7abc2: homonym/NAOB forms migrations) changed graph output.\nConclusion: a lexicon change, not an engine break; parity with the 1 Sept baseline is a whole-system diagnostic, not an activation gate (R144).\n"
+  }
+ ]
+}

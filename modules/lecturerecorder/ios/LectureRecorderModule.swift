@@ -1127,54 +1127,94 @@ public final class LectureRecorderModule: Module {
             in: segmentsDirectoryURL
           )
 
-        guard unresolvedPartialURLs.isEmpty else {
-          let unresolvedNames =
-            unresolvedPartialURLs
-              .map {
-                $0.lastPathComponent
-              }
-              .joined(
-                separator: ", "
+        if !unresolvedPartialURLs.isEmpty {
+          let finalizedSegmentURLs =
+            self.completedSegmentURLs(
+              in: segmentsDirectoryURL
+            )
+
+          let finalizedIndices =
+            finalizedSegmentURLs.compactMap {
+              self.segmentIndex(from: $0)
+            }
+
+          let expectedFinalizedIndices =
+            finalizedSegmentURLs.indices.map {
+              $0 + 1
+            }
+
+          let isContinuousFinalizedPrefix =
+            !finalizedSegmentURLs.isEmpty &&
+            finalizedIndices ==
+              expectedFinalizedIndices
+
+          let terminalPartialIndex =
+            unresolvedPartialURLs.count == 1
+              ? self.partialSegmentIndex(
+                  from: unresolvedPartialURLs[0]
+                )
+              : nil
+
+          let canRecoverCommittedPrefix =
+            isContinuousFinalizedPrefix &&
+            unresolvedPartialURLs.count == 1 &&
+            terminalPartialIndex ==
+              finalizedSegmentURLs.count + 1
+
+          guard canRecoverCommittedPrefix else {
+            let unresolvedNames =
+              unresolvedPartialURLs
+                .map {
+                  $0.lastPathComponent
+                }
+                .joined(
+                  separator: ", "
+                )
+
+            let manifest =
+              self.loadRecordingManifest(
+                for: destinationURL
               )
 
-          let manifest =
-            self.loadRecordingManifest(
-              for: destinationURL
-            )
+            let committedDurationMillis =
+              manifest?
+                .committedDurationMillis ??
+              0
 
-          let committedDurationMillis =
-            manifest?
-              .committedDurationMillis ??
-            0
+            let committedBytes =
+              manifest?
+                .segments
+                .reduce(
+                  0
+                ) {
+                  $0 + $1.bytes
+                } ??
+              0
 
-          let committedBytes =
-            manifest?
-              .segments
-              .reduce(
-                0
-              ) {
-                $0 + $1.bytes
-              } ??
-            0
+            let result =
+              self.makeValidationResult(
+                valid: false,
+                playable: false,
+                durationMillis: committedDurationMillis,
+                uri: destinationURL.absoluteString,
+                bytes: committedBytes,
+                code: "ERR_UNRESOLVED_PARTIAL_SEGMENT",
+                message: "Recovery preserved unresolved lecture audio data because it could not be proven to be a single terminal crash tail: \(unresolvedNames)"
+              )
 
-          let result =
-            self.makeValidationResult(
-              valid: false,
-              playable: false,
-              durationMillis: committedDurationMillis,
-              uri: destinationURL.absoluteString,
-              bytes: committedBytes,
-              code: "ERR_UNRESOLVED_PARTIAL_SEGMENT",
-              message: "Recovery preserved an unresolved lecture audio tail instead of assembling an incomplete recording: \(unresolvedNames)"
-            )
+            DispatchQueue.main.async {
+              request.finish(result)
+            }
 
-          DispatchQueue.main.async {
-            request.finish(result)
+            return
           }
 
-          return
+          self.appendTimingEvent(
+            "RECOVERY_TERMINAL_PARTIAL_PRESERVED",
+            destinationURL: destinationURL,
+            details: "file=\(unresolvedPartialURLs[0].lastPathComponent);committedSegments=\(finalizedSegmentURLs.count)"
+          )
         }
-
         let reconciledManifest: RecordingManifest
 
         do {
@@ -1219,6 +1259,63 @@ public final class LectureRecorderModule: Module {
           }
 
           return
+        }
+
+        if unresolvedPartialURLs.count == 1 {
+          let terminalPartialURL =
+            unresolvedPartialURLs[0]
+
+          let preservedTailURL =
+            terminalPartialURL
+              .deletingLastPathComponent()
+              .appendingPathComponent(
+                "crash-tail-\(terminalPartialURL.lastPathComponent)"
+              )
+
+          do {
+            guard
+              !FileManager.default.fileExists(
+                atPath: preservedTailURL.path
+              )
+            else {
+              throw self.makeNSError(
+                code: "ERR_RECOVERY_TAIL_PRESERVE",
+                message: "A preserved crash-tail file already exists. Recovery stopped without overwriting audio."
+              )
+            }
+
+            try FileManager.default.moveItem(
+              at: terminalPartialURL,
+              to: preservedTailURL
+            )
+
+            self.appendTimingEvent(
+              "RECOVERY_TERMINAL_PARTIAL_QUARANTINED",
+              destinationURL: destinationURL,
+              details: "source=\(terminalPartialURL.lastPathComponent);preserved=\(preservedTailURL.lastPathComponent)"
+            )
+          } catch {
+            let result =
+              self.makeValidationResult(
+                valid: false,
+                playable: false,
+                durationMillis:
+                  reconciledManifest.committedDurationMillis,
+                uri: destinationURL.absoluteString,
+                bytes:
+                  reconciledManifest.segments.reduce(0) {
+                    $0 + $1.bytes
+                  },
+                code: "ERR_RECOVERY_TAIL_PRESERVE",
+                message: "Committed lecture checkpoints were verified, but the unresolved terminal crash tail could not be preserved outside the active segment inventory: \(error.localizedDescription)"
+              )
+
+            DispatchQueue.main.async {
+              request.finish(result)
+            }
+
+            return
+          }
         }
 
         self.appendTimingEvent(
@@ -4311,6 +4408,32 @@ public final class LectureRecorderModule: Module {
         )
         .replacingOccurrences(
           of: ".m4a",
+          with: ""
+        )
+
+    return Int(raw)
+  }
+
+  private func partialSegmentIndex(
+    from url: URL
+  ) -> Int? {
+    let name = url.lastPathComponent
+
+    guard
+      name.hasPrefix("segment-"),
+      name.hasSuffix(".part.m4a")
+    else {
+      return nil
+    }
+
+    let raw =
+      name
+        .replacingOccurrences(
+          of: "segment-",
+          with: ""
+        )
+        .replacingOccurrences(
+          of: ".part.m4a",
           with: ""
         )
 
