@@ -1,0 +1,15 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "proof_id": "R153_SQL_EDITOR_EXPLICIT_COMMIT_NOT_ATOMIC",
+ "recorded_at_utc": "2026-11-06T14:46:21Z",
+ "summary": "After failed R150: 3 tables, 6 functions and the widened guard exist. R154 (no BEGIN/COMMIT) created public.r154_txn_probe_v1 then raised: probe does not exist afterwards (to_regclass null). Rule added to WORKFLOW: apply scripts without explicit BEGIN/COMMIT, no temp tables, array_append in PL/pgSQL.",
+ "applied_sql": null,
+ "captured_results": [
+  {
+   "session_step": "S-P1-R153",
+   "source_file": "R153_editor_atomicity_evidence.txt",
+   "raw_result": "R153 leftovers after failed R150 (script with explicit BEGIN ... COMMIT, gate failed with 42P01 before COMMIT):\n{\n    \"gates_table\": true,\n    \"guard_widened\": true,\n    \"new_functions\": [\n        \"demote_runtime_release_v1\",\n        \"promote_runtime_release_v1\",\n        \"runtime_release_baseline_parity_v1\",\n        \"runtime_release_gate_report_v1\",\n        \"runtime_release_rpc_path_check_v1\",\n        \"select_runtime_release_v1\"\n    ],\n    \"transitions_table\": true,\n    \"canary_users_table\": true\n}\n\nR154 probe (script WITHOUT BEGIN/COMMIT, created table public.r154_txn_probe_v1, then raise exception):\nselect to_regclass('public.r154_txn_probe_v1') -> null (rolled back as a whole)\n"
+  }
+ ]
+}

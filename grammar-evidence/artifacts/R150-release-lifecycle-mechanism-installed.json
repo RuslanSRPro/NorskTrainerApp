@@ -1,0 +1,15 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "proof_id": "R150_RELEASE_LIFECYCLE_MECHANISM_INSTALLED",
+ "recorded_at_utc": "2026-11-06T14:45:42Z",
+ "summary": "R154 verification (rolled back): verdict INSTALLED_OK, failed=[]; 6 function texts md5-equal to the approved R150 text; anon/authenticated no EXECUTE, service_role EXECUTE; 3 tables RLS on, no anon/authenticated access; gates: v1.38 run_pronoun_case_authority_golden_v1 for canary/active; transitions 0, canary users 0; guard widened once, old guard absent; statuses build 1 / golden 1 / shadow 38, v1.37 shadow, v1.38 build; rpc v1.37 ok, rpc v1.38 ok, golden v1.38 63/63; selector v1.37 fallback_no_active_release. R150 own final gate failed (42P01 temp table) after its objects had been committed - see R153.",
+ "applied_sql": "grammar-evidence/patches/2026-11-06_S-P1-R150-R154_DRAFT_R150_release_lifecycle_mechanism_apply_REVIEW_ONLY.sql",
+ "captured_results": [
+  {
+   "session_step": "S-P1-R150-R154",
+   "source_file": "R154_verify_result.txt",
+   "raw_result": "Failed to run sql query: ERROR:  P0001: R154_VERIFY_RESULT (rolled back): {\"v137\": \"shadow\", \"v138\": \"build\", \"guard\": {\"new_count\": 1, \"old_present\": false}, \"failed\": [], \"tables\": {\"grammar_runtime_release_gates_v1\": {\"rls\": true, \"anon_any\": false, \"auth_any\": false}, \"grammar_runtime_release_transitions_v1\": {\"rls\": true, \"anon_any\": false, \"auth_any\": false}, \"grammar_runtime_release_canary_users_v1\": {\"rls\": true, \"anon_any\": false, \"auth_any\": false}}, \"verdict\": \"INSTALLED_OK\", \"rpc_v137\": {\"ok\": true, \"release_code\": \"runtime-structural-v1.37\"}, \"rpc_v138\": {\"ok\": true, \"release_code\": \"runtime-structural-v1.38\"}, \"selector\": {\"origin\": \"fallback_no_active_release\", \"release_code\": \"runtime-structural-v1.37\"}, \"statuses\": {\"build\": 1, \"golden\": 1, \"shadow\": 38}, \"functions\": {\"demote_runtime_release_v1\": {\"secdef\": false, \"text_ok\": true, \"anon_exec\": false, \"auth_exec\": false, \"service_exec\": true}, \"select_runtime_release_v1\": {\"secdef\": false, \"text_ok\": true, \"anon_exec\": false, \"auth_exec\": false, \"service_exec\": true}, \"promote_runtime_release_v1\": {\"secdef\": false, \"text_ok\": true, \"anon_exec\": false, \"auth_exec\": false, \"service_exec\": true}, \"runtime_release_gate_report_v1\": {\"secdef\": false, \"text_ok\": true, \"anon_exec\": false, \"auth_exec\": false, \"service_exec\": true}, \"runtime_release_rpc_path_check_v1\": {\"secdef\": false, \"text_ok\": true, \"anon_exec\": false, \"auth_exec\": false, \"service_exec\": true}, \"runtime_release_baseline_parity_v1\": {\"secdef\": false, \"text_ok\": true, \"anon_exec\": false, \"auth_exec\": false, \"service_exec\": true}}, \"gates_rows\": [{\"for\": [\"canary\", \"active\"], \"gate\": \"run_pronoun_case_authority_golden_v1\", \"release\": \"runtime-structural-v1.38\"}], \"golden_v138\": {\"ok\": true, \"total\": 63, \"passed\": 63}, \"transitions_rows\": 0, \"canary_users_rows\": 0}\nCONTEXT:  PL/pgSQL function inline_code_block line 77 at RAISE\n"
+  }
+ ]
+}

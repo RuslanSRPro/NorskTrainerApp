@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+  "head": "b3a3d964492a295bc73420b8a12993c01fdaee27",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
-  "source_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+  "archive_head": "b3a3d964492a295bc73420b8a12993c01fdaee27",
+  "source_head": "b3a3d964492a295bc73420b8a12993c01fdaee27",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 210,
-  "history_event_count": 204,
-  "strict_history_event_count": 157,
+  "history_event_count": 207,
+  "strict_history_event_count": 160,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -213,7 +213,10 @@
     "R144-DECISION-P1-ORDER-AND-GRAPH-INDEPENDENCE-2026-11-06",
     "R146-ACTIVE-STATUS-BREAKS-CONSTRUCTION-RECOGNITION-2026-11-06",
     "R147-RELEASE-STATUS-GUARDS-RECON-2026-11-06",
-    "R148-RELEASE-LIFECYCLE-DRYRUN-V3-PASSES-2026-11-06"
+    "R148-RELEASE-LIFECYCLE-DRYRUN-V3-PASSES-2026-11-06",
+    "R150-RELEASE-LIFECYCLE-MECHANISM-INSTALLED-2026-11-06",
+    "R153-SQL-EDITOR-EXPLICIT-COMMIT-NOT-ATOMIC-2026-11-06",
+    "R151-V138-SHADOW-PATH-RECON-2026-11-06"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -387,7 +390,10 @@
     "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": [],
     "R146_ACTIVE_STATUS_BREAKS_CONSTRUCTION_RECOGNITION": [],
     "R147_RELEASE_STATUS_GUARDS_RECON": [],
-    "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": []
+    "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": [],
+    "R150_RELEASE_LIFECYCLE_MECHANISM_INSTALLED": [],
+    "R153_SQL_EDITOR_EXPLICIT_COMMIT_NOT_ATOMIC": [],
+    "R151_V138_SHADOW_PATH_RECON": []
   },
   "proof_source_dependencies": {
     "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": [
@@ -1051,6 +1057,16 @@
     ],
     "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": [
       "grammar-evidence/artifacts/R148-release-lifecycle-dryrun-v3.json"
+    ],
+    "R150_RELEASE_LIFECYCLE_MECHANISM_INSTALLED": [
+      "grammar-evidence/artifacts/R150-release-lifecycle-mechanism-installed.json",
+      "grammar-evidence/patches/2026-11-06_S-P1-R150-R154_DRAFT_R150_release_lifecycle_mechanism_apply_REVIEW_ONLY.sql"
+    ],
+    "R153_SQL_EDITOR_EXPLICIT_COMMIT_NOT_ATOMIC": [
+      "grammar-evidence/artifacts/R153-sql-editor-explicit-commit-not-atomic.json"
+    ],
+    "R151_V138_SHADOW_PATH_RECON": [
+      "grammar-evidence/artifacts/R151-v138-shadow-path-recon.json"
     ]
   },
   "proof_next_actions": {
@@ -1199,7 +1215,10 @@
     "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": "Corrected release lifecycle dry run with gates per this decision.",
     "R146_ACTIVE_STATUS_BREAKS_CONSTRUCTION_RECOGNITION": "Find all release-status guards that reject active/canary (R147).",
     "R147_RELEASE_STATUS_GUARDS_RECON": "Dry run v3 with the one guard widened (R148).",
-    "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": "Owner review and apply DRAFT_R150 (mechanism only, no status change)."
+    "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": "Owner review and apply DRAFT_R150 (mechanism only, no status change).",
+    "R150_RELEASE_LIFECYCLE_MECHANISM_INSTALLED": "Bring v1.38 to shadow by the standard path (R151/R155), then bootstrap v1.37 active and v1.38 canary for the owner.",
+    "R153_SQL_EDITOR_EXPLICIT_COMMIT_NOT_ATOMIC": "All later apply scripts follow the WORKFLOW rule.",
+    "R151_V138_SHADOW_PATH_RECON": "Key-line recon of the shadow promotion functions (R155)."
   },
   "files": [
     {
@@ -4592,7 +4611,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=359.93 max=24"
+        "DB snapshot expired: age_hours=360.32 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4612,7 +4631,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=359.88 max=24"
+        "DB snapshot expired: age_hours=360.27 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4819,7 +4838,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=358.05 max=24"
+        "DB snapshot expired: age_hours=358.44 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4840,7 +4859,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=358.05 max=24"
+        "DB snapshot expired: age_hours=358.44 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4941,7 +4960,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=358.78 max=24"
+        "DB snapshot expired: age_hours=359.17 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -6440,6 +6459,61 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Session step S-P1-R148."
+    },
+    {
+      "proof_id": "R150_RELEASE_LIFECYCLE_MECHANISM_INSTALLED",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "SQL_GATE",
+      "proved_at_head": "b3a3d964492a295bc73420b8a12993c01fdaee27",
+      "claim": "The release lifecycle mechanism is installed in Production exactly as approved: canary_users/gates/transitions tables, select/promote/demote/gate-report/rpc-check/parity-diagnostic functions (service_role only), widened resolve_construction_recognition_v1 status guard; no release status changed.",
+      "result": "R154 verification (rolled back): verdict INSTALLED_OK, failed=[]; 6 function texts md5-equal to the approved R150 text; anon/authenticated no EXECUTE, service_role EXECUTE; 3 tables RLS on, no anon/authenticated access; gates: v1.38 run_pronoun_case_authority_golden_v1 for canary/active; transitions 0, canary users 0; guard widened once, old guard absent; statuses build 1 / golden 1 / shadow 38, v1.37 shadow, v1.38 build; rpc v1.37 ok, rpc v1.38 ok, golden v1.38 63/63; selector v1.37 fallback_no_active_release. R150 own final gate failed (42P01 temp table) after its objects had been committed - see R153.",
+      "evidence_runs": [
+        "R150-RELEASE-LIFECYCLE-MECHANISM-INSTALLED-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R150-release-lifecycle-mechanism-installed.json",
+        "grammar-evidence/patches/2026-11-06_S-P1-R150-R154_DRAFT_R150_release_lifecycle_mechanism_apply_REVIEW_ONLY.sql"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R150-R154."
+    },
+    {
+      "proof_id": "R153_SQL_EDITOR_EXPLICIT_COMMIT_NOT_ATOMIC",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "proved_at_head": "b3a3d964492a295bc73420b8a12993c01fdaee27",
+      "claim": "In the Supabase SQL Editor a script with explicit BEGIN/COMMIT is not atomic (R150 objects persisted although its gate failed before COMMIT), while a script without BEGIN/COMMIT that ends in raise exception is rolled back as a whole.",
+      "result": "After failed R150: 3 tables, 6 functions and the widened guard exist. R154 (no BEGIN/COMMIT) created public.r154_txn_probe_v1 then raised: probe does not exist afterwards (to_regclass null). Rule added to WORKFLOW: apply scripts without explicit BEGIN/COMMIT, no temp tables, array_append in PL/pgSQL.",
+      "evidence_runs": [
+        "R153-SQL-EDITOR-EXPLICIT-COMMIT-NOT-ATOMIC-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R153-sql-editor-explicit-commit-not-atomic.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R153."
+    },
+    {
+      "proof_id": "R151_V138_SHADOW_PATH_RECON",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "proved_at_head": "b3a3d964492a295bc73420b8a12993c01fdaee27",
+      "claim": "v1.38 is build with no golden_passed_at and no shadow-v2 batch; the only shadow-v2 batch touching v1.37/v1.38 is the 2026-09-01 v1.37 promotion batch; no generic build-to-golden function exists for current releases.",
+      "result": "v1.38 status build, golden_passed_at null, metadata inherited from parent (parent key null). v1.37 shadow, golden_passed_at 2026-09-01. Batches: 90e7c9c2 (reviewed, 34/34 parity vs v1.36, promotion golden_to_shadow). Shadow functions: create_grammar_shadow_v2_batch(release, corpus), finalize_grammar_shadow_v2_batch(batch), grammar_shadow_v2_batch_evaluation_v2_2(batch). Functions setting golden are old era-specific suites (v0_1, v1, v1.1, v1.2, v1.3). grammar_golden_tests rows for v1.38: 0.",
+      "evidence_runs": [
+        "R151-V138-SHADOW-PATH-RECON-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R151-v138-shadow-path-recon.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R151."
     }
   ],
   "policy": {
