@@ -1,0 +1,15 @@
+{
+ "schema": "grammar-evidence-session-artifact-v1",
+ "project_ref": "kevpkawrbtovrgyjkkvu",
+ "proof_id": "R147_RELEASE_STATUS_GUARDS_RECON",
+ "recorded_at_utc": "2026-11-06T14:23:01Z",
+ "summary": "Accept active in chain: run_canonical_legacy_compatibility_v140, build_structural_tokens_v140, analyze_text_structural_shadow_core_v32_tokenized, analyze_text_structural_shadow_v32_document. Reject in chain: resolve_construction_recognition_v1 only. Outside chain: 45 (e.g. run_clause_build_golden_v1, run_construction_recognition_golden_v1, create_grammar_shadow_v2_batch) - known limitation, unchanged.",
+ "applied_sql": null,
+ "captured_results": [
+  {
+   "session_step": "S-P1-R147",
+   "source_file": "R147_status_guards_result.json",
+   "raw_result": "{\n \"observed_at_utc\": \"2026-11-06T14:14:14.411885+00:00\",\n \"chain_function_count\": 168,\n \"not_available_raisers\": [\n  {\n   \"fn\": \"resolve_construction_recognition_v1\",\n   \"line\": \"raise exception 'Construction Recognition release % not available',p_release_code;\",\n   \"in_chain\": true\n  }\n ],\n \"sample_rejecting_outside_chain\": [\n  \"create_grammar_shadow_v2_batch\",\n  \"create_runtime_child_release_v1\",\n  \"run_clause_attachment_function_resolution_shadow_comparator_v1\",\n  \"run_clause_build_golden_v1\",\n  \"run_clause_build_shadow_comparator_v1\",\n  \"run_compiler_execution_closure_shadow_comparator_v2\",\n  \"run_construction_recognition_golden_v1\",\n  \"run_construction_recognition_shadow_comparator_v1\",\n  \"run_construction_resolution_golden_v1\",\n  \"run_construction_resolution_shadow_comparator_v1\",\n  \"run_dependency_build_golden_v2\",\n  \"run_dependency_build_shadow_comparator_v2\",\n  \"run_grammar_runtime_golden_suite_v0_1\",\n  \"run_grammar_validation_golden_v2\",\n  \"run_grammar_validation_shadow_comparator_v2\"\n ],\n \"guards_accepting_active_in_chain\": [\n  \"analyze_text_structural_shadow_core_v32_tokenized\",\n  \"analyze_text_structural_shadow_v32_document\",\n  \"build_structural_tokens_v140\",\n  \"run_canonical_legacy_compatibility_v140\"\n ],\n \"guards_rejecting_active_in_chain\": [\n  {\n   \"fn\": \"resolve_construction_recognition_v1\",\n   \"line\": \"if not exists(select 1 from public.grammar_runtime_releases r where r.code=p_release_code and r.status in ('build','golden','shadow')) then\",\n   \"canary_ok\": false\n  }\n ],\n \"count_rejecting_active_outside_chain\": 45\n}"
+  }
+ ]
+}

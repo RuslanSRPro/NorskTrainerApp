@@ -2178,6 +2178,60 @@
       "invalidation": "Recheck after any dependency changes.",
       "notes": "Activating rules before the seam would let every dictionary change break the checks again (R140). Session step S-P1-R144.",
       "next_action": "Corrected release lifecycle dry run with gates per this decision."
+    },
+    {
+      "proof_id": "R146_ACTIVE_STATUS_BREAKS_CONSTRUCTION_RECOGNITION",
+      "status": "PROVEN",
+      "proof_kind": "DRYRUN",
+      "claim": "Setting runtime-structural-v1.37 to status active breaks the v140 chain: resolve_construction_recognition_v1 reports the release as not available, failing the RPC path, the v1.38 pronoun golden (baseline v1.37) and the parity diagnostic.",
+      "proved_at_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+      "evidence_runs": [
+        "R146-ACTIVE-STATUS-BREAKS-CONSTRUCTION-RECOGNITION-2026-11-06"
+      ],
+      "result": "Rolled-back Production dry run: bootstrap v1.37 active passed its gate, then rpc_v137_as_active ok=false; v1.38 canary gate failed with Construction Recognition release runtime-structural-v1.37 not available; v1.38 rpc as shadow ok (tokens preserved); forbidden transitions refused; 1 transition logged, all rolled back. Jeg sover: subject authority not_applied (known gap).",
+      "dependencies": [
+        "grammar-evidence/artifacts/R146-active-status-breaks-construction-recognition.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Session step S-P1-R146.",
+      "next_action": "Find all release-status guards that reject active/canary (R147)."
+    },
+    {
+      "proof_id": "R147_RELEASE_STATUS_GUARDS_RECON",
+      "status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "claim": "In the 168-function v140/golden/parity chain exactly one function rejects release status canary/active: resolve_construction_recognition_v1 (status in build/golden/shadow); 45 component golden/comparator functions outside the chain also reject active.",
+      "proved_at_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+      "evidence_runs": [
+        "R147-RELEASE-STATUS-GUARDS-RECON-2026-11-06"
+      ],
+      "result": "Accept active in chain: run_canonical_legacy_compatibility_v140, build_structural_tokens_v140, analyze_text_structural_shadow_core_v32_tokenized, analyze_text_structural_shadow_v32_document. Reject in chain: resolve_construction_recognition_v1 only. Outside chain: 45 (e.g. run_clause_build_golden_v1, run_construction_recognition_golden_v1, create_grammar_shadow_v2_batch) - known limitation, unchanged.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R147-release-status-guards-recon.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Session step S-P1-R147.",
+      "next_action": "Dry run v3 with the one guard widened (R148)."
+    },
+    {
+      "proof_id": "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES",
+      "status": "PROVEN",
+      "proof_kind": "DRYRUN",
+      "claim": "With only the resolve_construction_recognition_v1 status guard widened to canary/active, the gated release lifecycle passes end to end in a rolled-back Production dry run.",
+      "proved_at_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+      "evidence_runs": [
+        "R148-RELEASE-LIFECYCLE-DRYRUN-V3-PASSES-2026-11-06"
+      ],
+      "result": "Guard patched (exactly one occurrence). v1.37 baseline active: rpc ok; v1.38 shadow->canary: golden 63/63, rpc ok; selector owner=v1.38 canary, others/no user=v1.37 active; v1.38 active: v1.37 displaced to shadow (displaced_by v1.38), rpc ok on both; demote: v1.37 restored active, rpc ok; forbidden transitions refused; 6 transitions logged. Parity diagnostic 16/34 (18 shadow_more_conservative), not a gate per R144. All rolled back.",
+      "dependencies": [
+        "grammar-evidence/artifacts/R148-release-lifecycle-dryrun-v3.json"
+      ],
+      "blocked_by": [],
+      "invalidation": "Recheck after any dependency changes.",
+      "notes": "Session step S-P1-R148.",
+      "next_action": "Owner review and apply DRAFT_R150 (mechanism only, no status change)."
     }
   ]
 }

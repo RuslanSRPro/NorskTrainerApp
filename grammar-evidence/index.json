@@ -1,14 +1,14 @@
 {
   "schema_version": "grammar-evidence-index-v2",
-  "head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+  "head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
   "branch": "fix/audio-runtime-completion-p1",
-  "archive_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
-  "source_head": "0ff6f5c56d126368fe0f6a533eba9881f48af5bb",
+  "archive_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+  "source_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
   "source_revision": "HEAD",
   "registry_baseline_head": "23a692da386380c7b0ed349c732dca55e7464175",
   "file_count": 210,
-  "history_event_count": 201,
-  "strict_history_event_count": 154,
+  "history_event_count": 204,
+  "strict_history_event_count": 157,
   "history_runs": [
     "A3.8F-R15D",
     "A3.8F-R16",
@@ -210,7 +210,10 @@
     "R139-RELEASE-LIFECYCLE-DRYRUN-2026-11-06",
     "R140-BASELINE-PARITY-16-OF-34-LEXICON-CHANGE-2026-11-06",
     "R143-GRAPH-CHAIN-DICTIONARY-DEPENDENCY-2026-11-06",
-    "R144-DECISION-P1-ORDER-AND-GRAPH-INDEPENDENCE-2026-11-06"
+    "R144-DECISION-P1-ORDER-AND-GRAPH-INDEPENDENCE-2026-11-06",
+    "R146-ACTIVE-STATUS-BREAKS-CONSTRUCTION-RECOGNITION-2026-11-06",
+    "R147-RELEASE-STATUS-GUARDS-RECON-2026-11-06",
+    "R148-RELEASE-LIFECYCLE-DRYRUN-V3-PASSES-2026-11-06"
   ],
   "history_policy": {
     "legacy_events_preserved": true,
@@ -381,7 +384,10 @@
     "R139_RELEASE_LIFECYCLE_DRYRUN": [],
     "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE": [],
     "R143_GRAPH_CHAIN_DICTIONARY_DEPENDENCY": [],
-    "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": []
+    "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": [],
+    "R146_ACTIVE_STATUS_BREAKS_CONSTRUCTION_RECOGNITION": [],
+    "R147_RELEASE_STATUS_GUARDS_RECON": [],
+    "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": []
   },
   "proof_source_dependencies": {
     "R126_SUBJECT_CURRENT_SOURCE_PREFLIGHT": [
@@ -1036,6 +1042,15 @@
     ],
     "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": [
       "grammar-evidence/artifacts/R144-decision-p1-order-graph-independence.json"
+    ],
+    "R146_ACTIVE_STATUS_BREAKS_CONSTRUCTION_RECOGNITION": [
+      "grammar-evidence/artifacts/R146-active-status-breaks-construction-recognition.json"
+    ],
+    "R147_RELEASE_STATUS_GUARDS_RECON": [
+      "grammar-evidence/artifacts/R147-release-status-guards-recon.json"
+    ],
+    "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": [
+      "grammar-evidence/artifacts/R148-release-lifecycle-dryrun-v3.json"
     ]
   },
   "proof_next_actions": {
@@ -1181,7 +1196,10 @@
     "R139_RELEASE_LIFECYCLE_DRYRUN": "Corrected dry run (new number) with dictionary-independent gate per R144.",
     "R140_BASELINE_PARITY_16_OF_34_LEXICON_CHANGE": "Keep 34/34 as diagnostic only; graph independence seam (package 1b).",
     "R143_GRAPH_CHAIN_DICTIONARY_DEPENDENCY": "Package 1b: v140 bypasses d10_homograph_rank_v1 and target-form reads; golden with frozen input_fixture.",
-    "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": "Corrected release lifecycle dry run with gates per this decision."
+    "R144_DECISION_P1_ORDER_AND_GRAPH_INDEPENDENCE": "Corrected release lifecycle dry run with gates per this decision.",
+    "R146_ACTIVE_STATUS_BREAKS_CONSTRUCTION_RECOGNITION": "Find all release-status guards that reject active/canary (R147).",
+    "R147_RELEASE_STATUS_GUARDS_RECON": "Dry run v3 with the one guard widened (R148).",
+    "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES": "Owner review and apply DRAFT_R150 (mechanism only, no status change)."
   },
   "files": [
     {
@@ -4574,7 +4592,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=359.59 max=24"
+        "DB snapshot expired: age_hours=359.93 max=24"
       ],
       "notes": "Do not label the rule activated from shadow execution or rr.is_enabled alone. R048M zero structural S0 seeds are a separate canonical-scheduler blocker, not proof of a SQL-pilot blocker."
     },
@@ -4594,7 +4612,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=359.54 max=24"
+        "DB snapshot expired: age_hours=359.88 max=24"
       ],
       "notes": "Readiness functions do not activate rules. Current release remains shadow; candidate readiness is not proof of app isolation or one-rule grant."
     },
@@ -4801,7 +4819,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=357.71 max=24"
+        "DB snapshot expired: age_hours=358.05 max=24"
       ],
       "notes": "Dormant installation does not activate subject_of_predicate or expose output to the app."
     },
@@ -4822,7 +4840,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=357.71 max=24"
+        "DB snapshot expired: age_hours=358.05 max=24"
       ],
       "notes": "This closes public writes on four tables, not all possible control-plane tables. Public SELECT remains intentionally for compatibility."
     },
@@ -4923,7 +4941,7 @@
       ],
       "blocked_by": [],
       "stale_reasons": [
-        "DB snapshot expired: age_hours=358.45 max=24"
+        "DB snapshot expired: age_hours=358.78 max=24"
       ],
       "notes": "Do not claim successful anon/auth comparator execution or app graph leakage from grants alone. Review this surface separately before Production pilot."
     },
@@ -6368,6 +6386,60 @@
       "blocked_by": [],
       "stale_reasons": [],
       "notes": "Activating rules before the seam would let every dictionary change break the checks again (R140). Session step S-P1-R144."
+    },
+    {
+      "proof_id": "R146_ACTIVE_STATUS_BREAKS_CONSTRUCTION_RECOGNITION",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DRYRUN",
+      "proved_at_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+      "claim": "Setting runtime-structural-v1.37 to status active breaks the v140 chain: resolve_construction_recognition_v1 reports the release as not available, failing the RPC path, the v1.38 pronoun golden (baseline v1.37) and the parity diagnostic.",
+      "result": "Rolled-back Production dry run: bootstrap v1.37 active passed its gate, then rpc_v137_as_active ok=false; v1.38 canary gate failed with Construction Recognition release runtime-structural-v1.37 not available; v1.38 rpc as shadow ok (tokens preserved); forbidden transitions refused; 1 transition logged, all rolled back. Jeg sover: subject authority not_applied (known gap).",
+      "evidence_runs": [
+        "R146-ACTIVE-STATUS-BREAKS-CONSTRUCTION-RECOGNITION-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R146-active-status-breaks-construction-recognition.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R146."
+    },
+    {
+      "proof_id": "R147_RELEASE_STATUS_GUARDS_RECON",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DB_READONLY_RECON",
+      "proved_at_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+      "claim": "In the 168-function v140/golden/parity chain exactly one function rejects release status canary/active: resolve_construction_recognition_v1 (status in build/golden/shadow); 45 component golden/comparator functions outside the chain also reject active.",
+      "result": "Accept active in chain: run_canonical_legacy_compatibility_v140, build_structural_tokens_v140, analyze_text_structural_shadow_core_v32_tokenized, analyze_text_structural_shadow_v32_document. Reject in chain: resolve_construction_recognition_v1 only. Outside chain: 45 (e.g. run_clause_build_golden_v1, run_construction_recognition_golden_v1, create_grammar_shadow_v2_batch) - known limitation, unchanged.",
+      "evidence_runs": [
+        "R147-RELEASE-STATUS-GUARDS-RECON-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R147-release-status-guards-recon.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R147."
+    },
+    {
+      "proof_id": "R148_RELEASE_LIFECYCLE_DRYRUN_V3_PASSES",
+      "declared_status": "PROVEN",
+      "effective_status": "PROVEN",
+      "proof_kind": "DRYRUN",
+      "proved_at_head": "4fd374558a2364f803003bb90f6a16e1b4fa84e1",
+      "claim": "With only the resolve_construction_recognition_v1 status guard widened to canary/active, the gated release lifecycle passes end to end in a rolled-back Production dry run.",
+      "result": "Guard patched (exactly one occurrence). v1.37 baseline active: rpc ok; v1.38 shadow->canary: golden 63/63, rpc ok; selector owner=v1.38 canary, others/no user=v1.37 active; v1.38 active: v1.37 displaced to shadow (displaced_by v1.38), rpc ok on both; demote: v1.37 restored active, rpc ok; forbidden transitions refused; 6 transitions logged. Parity diagnostic 16/34 (18 shadow_more_conservative), not a gate per R144. All rolled back.",
+      "evidence_runs": [
+        "R148-RELEASE-LIFECYCLE-DRYRUN-V3-PASSES-2026-11-06"
+      ],
+      "dependencies": [
+        "grammar-evidence/artifacts/R148-release-lifecycle-dryrun-v3.json"
+      ],
+      "blocked_by": [],
+      "stale_reasons": [],
+      "notes": "Session step S-P1-R148."
     }
   ],
   "policy": {
