@@ -5,6 +5,8 @@ import { GlassSurface } from '@/components/ui/glass/GlassSurface';
 
 import type { TrainingDensity } from './TrainingCard';
 import type { TrainingFormItem } from './types';
+// D10 07.11.2026 (agreed, D10_compound_colors_v1): compound colours in the forms
+import { compoundFormSegments } from '../compoundFormSegments';
 
 type Props = {
   forms: TrainingFormItem[];
@@ -15,6 +17,9 @@ type Props = {
   mutedColor: string;
   fonts: any;
   density?: TrainingDensity;
+  // D10 07.11.2026: the card; a compound word (isCompound + compoundParts)
+  // gets the same colours as its title. Not given -> plain, as before.
+  word?: any;
 };
 
 export function TrainingFormsList({
@@ -26,12 +31,26 @@ export function TrainingFormsList({
   mutedColor,
   fonts,
   density = 'normal',
+  word,
 }: Props) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   if (!forms.length) return null;
 
   const alternativeColor = isDark ? '#64B5FF' : '#0A84FF';
+  const compoundParts: string[] = (word?.isCompound === true || word?.is_compound === true)
+    ? (Array.isArray(word?.compoundParts ?? word?.compound_parts) ? (word?.compoundParts ?? word?.compound_parts).map(String) : [])
+    : [];
+  const headColor = isDark ? '#FF6B6B' : '#D92D20';
+  const renderValue = (value: string) => {
+    const segments = compoundParts.length >= 2 ? compoundFormSegments(value, compoundParts) : null;
+    if (!segments) return value;
+    return segments.map((segment, i) => (
+      <Text key={`${i}-${segment.text}`} style={segment.kind === 'head' ? { color: headColor } : undefined}>
+        {segment.text}
+      </Text>
+    ));
+  };
 
   return (
     <GlassSurface
@@ -82,7 +101,7 @@ export function TrainingFormsList({
                     },
                   ]}
                 >
-                  {form.value}
+                  {renderValue(form.value)}
                 </Text>
 
                 {alternatives.length > 0 ? (

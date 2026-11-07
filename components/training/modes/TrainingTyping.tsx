@@ -65,10 +65,11 @@ export function TrainingTyping({
       {answerVisible ? (
         <TrainingFormsList
           forms={getAllForms(current)}
+          word={current}
           title={ui('forms')}
           alternativeLabel={ui('alternative_forms')}
           isDark={isDark}
-          textColor={isIrregularMorphology(current) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
+          textColor={isIrregularMorphology(current) && !(current?.isCompound || current?.is_compound) ? (isDark ? '#FF6B6B' : '#D92D20') : textColor}
           mutedColor={mutedColor}
           fonts={fonts}
         />

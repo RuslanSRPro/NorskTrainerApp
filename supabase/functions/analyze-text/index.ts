@@ -32,6 +32,9 @@ import {
   SURFACE_PROBE_STAGE,
   SURFACE_PROBE_STRATEGY,
 } from '../_shared/d10-surface-probe.ts';
+// D10 07.11.2026 (agreed, D10_analysis_skip_since_v1): skip cards fully
+// processed by a text analysis since the configured date.
+import { collectSkipIds, skippedWords, splitSkipped } from '../_shared/d10-analysis-skip.ts';
 
 declare const EdgeRuntime: {
   waitUntil(promise: Promise<unknown>): void;
@@ -1382,6 +1385,65 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
       }
     }
 
+    // D10 07.11.2026 (agreed, D10_analysis_skip_since_v1): whole-text
+    // analysis only. Cards fully processed by a text analysis on or after
+    // analysis_skip_config_v1.skip_since are not written again (no source
+    // checks, no enrichment, no semantic-audit queue). The SQL function
+    // decides; when it fails or the setting is empty nothing is skipped.
+    // Word lists (Check, saving selected words) always run in full.
+    const allPlannedItems: PlannedItem[] = [...plannedItems];
+    let skippedSince: PlannedItem[] = [];
+    let skipSince: string | null = null;
+    let skipError: string | null = null;
+    if (!isolatedMode) {
+      const ids = collectSkipIds(plannedItems as any[], SURFACE_PROBE_STRATEGY);
+      if (ids.lexemeIds.length || ids.expressionIds.length) {
+        const { data: skipRows, error: skipRpcError } = await supabase.rpc('d10_analysis_skip_cards_v1', {
+          p_lexeme_ids: ids.lexemeIds,
+          p_expression_ids: ids.expressionIds,
+        });
+        if (skipRpcError) {
+          skipError = skipRpcError.message ?? String(skipRpcError);
+          console.warn('[analysis-skip-since] check failed, nothing skipped:', skipError);
+        } else {
+          const skipLexemes = new Set<string>();
+          const skipExpressions = new Set<string>();
+          for (const row of (skipRows ?? []) as any[]) {
+            if (row?.skip_since && !skipSince) skipSince = String(row.skip_since);
+            if (row?.kind === 'lexeme' && row?.id) skipLexemes.add(String(row.id));
+            if (row?.kind === 'expression' && row?.id) skipExpressions.add(String(row.id));
+          }
+          const split = splitSkipped(plannedItems, skipLexemes, skipExpressions, SURFACE_PROBE_STRATEGY);
+          skippedSince = split.skipped;
+          plannedItems.splice(0, plannedItems.length, ...split.keep);
+        }
+      }
+    }
+    const skipSummary = {
+      skipped_processed_since: skippedSince.length,
+      skipped_processed_since_date: skipSince,
+      skipped_processed_since_words: skippedWords(skippedSince as any[]),
+      ...(skipError ? { skipped_processed_since_error: skipError } : {}),
+    };
+
+    // Every word of the text was already processed since the date: no job.
+    if (!plannedItems.length && skippedSince.length) {
+      return Response.json(
+        {
+          ok: true,
+          analysis_mode: 'audit',
+          job: null,
+          all_skipped_processed_since: true,
+          message: `All ${skippedSince.length} items were already processed since ${skipSince ?? 'the configured date'}`,
+          ingestion: {
+            planned_items: allPlannedItems,
+            ...skipSummary,
+          },
+        },
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     // Audit mode: the job is created only after planning succeeded, so a
     // planning error no longer leaves an empty job behind.
     const { data: jobId, error: jobError } = await supabase.rpc(
@@ -1430,6 +1492,7 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
           skipped_already_verified: skippedAlreadyVerified,
           homonym_rechecks_forced: homonymRechecksForced,
           surface_probe_items: surfaceProbeItems,
+          ...skipSummary,
           homonym_recheck_probability: 1,
           isolated_mode: isolatedMode,
           surface_resolver: true,
@@ -1503,7 +1566,8 @@ serve(withSupabase({ auth: 'user' }, async (req, context) => {
         analysis_mode: 'audit',
         job,
         ingestion: {
-          planned_items: plannedItems,
+          planned_items: allPlannedItems,
+          ...skipSummary,
           expression_items: expressionItems,
           parser_expression_items: expressionItems,
           token_items: tokenItems,

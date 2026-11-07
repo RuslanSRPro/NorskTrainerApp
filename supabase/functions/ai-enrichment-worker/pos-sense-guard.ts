@@ -295,7 +295,8 @@ export async function reviewGenerated(inputs: ReviewInput[],
   const noArticleNote = eligible.some(input => isNoArticleContext(input.context))
     ? `Some inputs have context.basis "no_article": that word has NO Ordbøkene article.
 For those inputs context.sources (NAOB, Lexin, Wiktionary excerpts; Lexin is raw JSON and may be
-truncated) is the ONLY allowed evidence instead of an article. Check each requested translation
+truncated; Lexin_ru is the Lexin Norwegian-Russian entry of exactly this headword and POS with its
+Russian and English translations) is the ONLY allowed evidence instead of an article. Check each requested translation
 against a sense in those sources that matches the input's POS. A sense of another POS, another
 word or a homonym is insufficient. If the sources do not support the meaning, reject.
 `

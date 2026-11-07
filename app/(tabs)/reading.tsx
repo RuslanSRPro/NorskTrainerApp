@@ -1451,16 +1451,17 @@ export default function ReadingScreen() {
         {visible:!!previewWord,onClose:()=>{stopSpeech();setPreviewWord(null);},content:(
           <>
             <Text style={[s.modalLabel,{color:T.textMuted,fontSize:F.meta}]}>{tr("word_preview_modal")}</Text>
-            <CompoundWordText value={formatDisplayLemma(previewWord?.word||previewWord?.lemma||wordQuery,previewWord)} word={previewWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={previewWord?.isCompound||previewWord?.is_compound||isIrregularMorphology(previewWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
+            <CompoundWordText value={formatDisplayLemma(previewWord?.word||previewWord?.lemma||wordQuery,previewWord)} word={previewWord} style={[s.modalWord,{fontSize:F.word}]} mainColor={previewWord?.isCompound||previewWord?.is_compound||isIrregularMorphology(previewWord)?T.danger:T.textPrimary} componentColor={T.textPrimary} separatorColor={T.danger} plainColor={T.textPrimary} />
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{bothTranslations(previewWord,lang)}</Text>
             <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord?.type||previewWord?.category||""}{previewWord?.gender?` · ${previewWord.gender}`:""}</Text>
             {previewWord?.previewSource?<Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewSourceLabel(previewWord,lang)}</Text>:null}
             <TrainingFormsList
               forms={getFormLabels(previewWord||{})}
+              word={previewWord}
               title={tr("forms")}
               alternativeLabel={lang==="ua"?"Альтернативні":lang==="no"?"Alternative former":"Alternatives"}
               isDark={themeName==="dark"}
-              textColor={isIrregularMorphology(previewWord) ? T.danger : T.textPrimary}
+              textColor={isIrregularMorphology(previewWord)&&!(previewWord?.isCompound||previewWord?.is_compound) ? T.danger : T.textPrimary}
               mutedColor={T.textMuted}
               fonts={F}
             />
@@ -1480,7 +1481,7 @@ export default function ReadingScreen() {
             onClose={()=>{stopSpeech();setSelectedWord(null);}} />
         ),content:(
           <>
-            <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:searchCardFonts.word,lineHeight:Math.ceil(searchCardFonts.word*1.15)}]} mainColor={selectedWord?.isCompound||selectedWord?.is_compound||isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={themeName==="dark"?'#D69A72':'#A85F38'} separatorColor={T.danger} />
+            <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:searchCardFonts.word,lineHeight:Math.ceil(searchCardFonts.word*1.15)}]} mainColor={selectedWord?.isCompound||selectedWord?.is_compound||isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={T.textPrimary} separatorColor={T.danger} plainColor={T.textPrimary} />
             <Text style={[s.modalTrans,{color:T.accent,fontSize:searchCardFonts.translation,lineHeight:Math.ceil(searchCardFonts.translation*1.25)}]}>{bothTranslations(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
               <Text style={[s.modalCat,{color:T.textMuted,fontSize:searchCardFonts.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
@@ -1529,10 +1530,11 @@ export default function ReadingScreen() {
             {getFormLabels(selectedWord||{}).length>0?(
               <TrainingFormsList
                 forms={getFormLabels(selectedWord||{})}
+                word={selectedWord}
                 title={tr("forms")}
                 alternativeLabel={lang==="ua"?"Альтернативні":lang==="no"?"Alternative former":"Alternatives"}
                 isDark={themeName==="dark"}
-                textColor={isIrregularMorphology(selectedWord) ? T.danger : T.textPrimary}
+                textColor={isIrregularMorphology(selectedWord)&&!(selectedWord?.isCompound||selectedWord?.is_compound) ? T.danger : T.textPrimary}
                 mutedColor={T.textMuted}
                 fonts={searchCardFonts} density="dense"
               />

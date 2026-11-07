@@ -13,6 +13,8 @@ import { HOMOGRAPH_SAME_TRANSLATION, homographConstraint, mergeSiblings, sameAsS
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { aiContextReviewCode } from '../_shared/d10-review-decisions.ts';
+// D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1): Russian Lexin hint for "≈" translations.
+import { cardPosForLexin, lexinNodes, lexinUrl, russianHint, LEXIN_RU_LANG } from '../_shared/d10-lexin-ru.ts';
 // D10 27.10.2026 (agreed): two-gender nouns in AI examples
 import { applyGenderAlternatives, genderAlternativeLabels, genderRuleFromForms,
   type GenderRule, type V2FormRow } from '../_shared/d10-example-gender.ts';
@@ -357,8 +359,12 @@ async function loadLexemeContext(
     const requested = missing.filter((field) => field === 'translation_ua' || field === 'translation_en');
     if (!requested.length) throw new Error(`${message}; no-article path: NO_ARTICLE_NOTHING_TO_TRANSLATE`);
     try {
+      // D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1): + the Russian Lexin
+      // entry of this headword and POS as a hint (Lexin_ru); "≈" stays.
+      const lexinRu = await lexinRuHintOf(candidate);
       candidate.selectedContext = noArticleContext(candidate.lemma, candidate.pos, {
         NAOB: candidate.naobContext, Lexin: candidate.lexinContext, Wiktionary: candidate.wiktionaryContext ?? null,
+        ...(lexinRu ? { Lexin_ru: lexinRu } : {}),
       }, (() => {
         const publications = publicationProofs(candidate.verificationEvidence, candidate.lemma, candidate.pos);
         return publications.length ? { allowEmpty: true, note: PUBLISHED_WITHOUT_EXPLANATION, publications } : undefined;
@@ -441,6 +447,12 @@ async function definitionMissingContext(
     const lexin = lexinPosExcerpt(candidate.lexinContext, candidate.pos);
     if (lexin) { sources.Lexin = lexin; step = 'lexin'; }
   }
+  // D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1): the Russian Lexin entry
+  // of this headword and POS is added as a hint whatever step gave the sources
+  // (step 'lexin_ru' when it is the only one); "≈" stays.
+  const lexinRu = await lexinRuHintOf(candidate);
+  if (lexinRu) sources.Lexin_ru = lexinRu;
+  const evidenceStep: string = step === 'none' && lexinRu ? 'lexin_ru' : step;
   // 5. the sentence of the text: not used yet. 6. nothing: AI from lemma + POS.
   // D10 27.10.2026 (agreed): the card's own article that has no explanation
   // (the one loadSelectedContext chose); recorded so the completion check
@@ -449,8 +461,36 @@ async function definitionMissingContext(
   let articleIds: string[] | undefined;
   try { articleIds = [selectedArticle(candidate.verificationEvidence, candidate.pos)]; } catch { articleIds = undefined; }
   candidate.selectedContext = noArticleContext(candidate.lemma, candidate.pos, sources,
-    { allowEmpty: true, step, note: ARTICLE_WITHOUT_EXPLANATION, naobChoice, articleIds });
+    { allowEmpty: true, step: evidenceStep, note: ARTICLE_WITHOUT_EXPLANATION, naobChoice, articleIds });
   return requested;
+}
+
+// D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1): the Lexin bokmål-russisk
+// entry of this headword and POS (Russian + English) as a hint text for AI.
+// Read once per candidate; Lexin not reachable or nothing found = no hint
+// (the old behaviour). Only used on the "≈" paths.
+const LEXIN_FINDWORDS_URL = 'https://editorportal.oslomet.no/api/v1/findwords';
+async function lexinRuHintOf(candidate: EntityCandidate): Promise<string | null> {
+  if (candidate.lexinRuHint !== undefined) return candidate.lexinRuHint;
+  candidate.lexinRuHint = null;
+  const lemma = String(candidate.lemma ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+  if (!lemma) return null;
+  try {
+    const response = await fetch(lexinUrl(LEXIN_FINDWORDS_URL, lemma, LEXIN_RU_LANG, false), {
+      headers: { Accept: 'application/json, text/plain, */*', Origin: 'https://lexin.oslomet.no',
+        Referer: 'https://lexin.oslomet.no/', 'Cache-Control': 'no-cache',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return null;
+    const text = await response.text();
+    if (!text || text.length < 5 || text === '[]' || text === '{}') return null;
+    candidate.lexinRuHint = russianHint(lexinNodes(JSON.parse(text)), lemma, cardPosForLexin(candidate.pos));
+  } catch (error) {
+    console.warn('ai-enrichment-worker: Lexin ru hint skipped', candidate.id,
+      (error instanceof Error ? error.message : String(error)).slice(0, 200));
+  }
+  return candidate.lexinRuHint;
 }
 
 // D10 24.10.2026: the NAOB article a card is bound to (division of a noun
@@ -972,6 +1012,8 @@ type EntityCandidate = {
   wiktionaryContext?: string | null;
   // D10 24.10.2026: own NAOB article (undefined = not read yet)
   naobBinding?: { slug: string; definition: string | null } | null;
+  // D10 07.11.2026: Lexin bokmål-russisk hint (undefined = not read yet)
+  lexinRuHint?: string | null;
   selectedContext?: string;
   revalidateAi?: boolean;
   // D10 27.10.2026: two-gender noun rule for its AI example (undefined = not read)

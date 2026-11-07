@@ -5,6 +5,9 @@ import { parseLexinMorphology, cardFormWords, lexinEntryFitsCard } from '../_sha
 import { selectR9Entries, type R9Entry } from '../_shared/d10-lexin-r9.ts';
 import { cleanTranslationSenseGroups, cleanTranslationText } from '../_shared/lexin-translation-text.ts';
 import { cleanLexinDefinitionText } from '../_shared/lexin-definition-text.ts';
+// D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1): English of the Russian
+// Lexin when the Ukrainian Lexin has no entry of this headword.
+import { englishFallback, lexinNodes, lexinUrl, LEXIN_RU_LANG, LEXIN_UK_LANG } from '../_shared/d10-lexin-ru.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -227,9 +230,10 @@ function collectRawPosSignals(bucket: LexinEntry[]): Array<{
     }));
 }
 
-async function fetchLexin(query: string): Promise<{ ok: boolean; data: unknown; url: string }> {
-  const encoded = encodeURIComponent(query);
-  const url = `${LEXIN_BASE_URL}?searchWord=${encoded}&lang=bokm%C3%A5l-ukrainsk&page=1&selectLang=bokm%C3%A5l-ukrainsk&includeEngLang=1`;
+// D10 07.11.2026: lang / includeEng parameters; the default call is exactly
+// the old Ukrainian request (bokmål-ukrainsk + includeEngLang=1).
+async function fetchLexin(query: string, lang: string = LEXIN_UK_LANG, includeEng = true): Promise<{ ok: boolean; data: unknown; url: string }> {
+  const url = lexinUrl(LEXIN_BASE_URL, query, lang, includeEng);
 
   const response = await fetch(url, {
     method: 'GET',
@@ -431,15 +435,37 @@ serve(async (req) => {
     const queryWord = lemma;
 
     const lexin = await fetchLexin(queryWord);
+    // D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1): the Ukrainian Lexin
+    // gave nothing -> the Russian Lexin may still give English (below). Only
+    // when that gives nothing either is the old "no results" answer returned.
+    let ruData: any = null;
+    let ruUrl: string | null = null;
+    let ruError: string | null = null;
+    const loadRu = async () => {
+      if (ruUrl !== null || ruError !== null) return;
+      try {
+        const ru = await fetchLexin(queryWord, LEXIN_RU_LANG, false);
+        ruUrl = ru.url;
+        ruData = ru.ok ? ru.data : null;
+      } catch (error) {
+        ruError = safeStringify(error);
+      }
+    };
     if (!lexin.ok || !lexin.data) {
-      return jsonResponse({
-        ok: true, skipped: true,
-        reason: 'Lexin returned no results',
-        lemma, url: lexin.url,
-      });
+      await loadRu();
+      const ruRows = ruData ? englishFallback(lexinNodes(ruData), normalizeKey(lemma), requestedPos,
+        { cardForms: homographCardForms, allowUnknownPos }) : [];
+      if (!ruRows.length) {
+        return jsonResponse({
+          ok: true, skipped: true,
+          reason: 'Lexin returned no results',
+          lemma, url: lexin.url,
+          ru_fallback: { url: ruUrl, error: ruError, english_rows: 0 },
+        });
+      }
     }
 
-    const data = lexin.data as any;
+    const data = (lexin.ok && lexin.data ? lexin.data : { result: [] }) as any;
     const result = data?.result ?? data?.results ?? data?.data ?? data?.words ?? data;
 
     const rawSections: LexinEntry[][] = Array.isArray(result) ? result : [];
@@ -846,6 +872,40 @@ serve(async (req) => {
     // "подсмыслы" внутри одной статьи (source_entry_id) делили один
     // rank-счётчик, из-за чего разные значения слова (см. cleanTranslation
     // SenseGroups выше) смешивались в общее ранжирование.
+    // D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1, variant A): the
+    // Ukrainian Lexin has NO entry of this headword (no headword match, no
+    // expression match): the English (B-lem / B-idi) of the Russian Lexin is
+    // written as an ordinary Lexin en translation. Same headword and POS rule
+    // (and the homograph forms rule) as above; nothing else is taken from the
+    // Russian response (no examples, no definitions). A dictionary en row
+    // removes "≈" for en and AI no longer translates en for this card.
+    let ruFallback: Record<string, unknown> = { used: false };
+    if (lemMatches === 0 && idiomMatches === 0) {
+      await loadRu();
+      const ruRows = ruData ? englishFallback(lexinNodes(ruData), normalizedLemma, requestedPos,
+        { cardForms: homographCardForms, allowUnknownPos }) : [];
+      const ruOrder = extractEntryOrderFromResArray(ruData);
+      for (const row of ruRows) {
+        translations.push({
+          lexeme_id: row.via === 'idi' && expressionId ? null : lexemeId,
+          expression_id: expressionId,
+          language_code: 'en',
+          translation: row.translation,
+          translation_type: expressionId ? 'expression_primary' : 'primary',
+          translation_rank: 0,
+          sense_rank: row.sense_rank,
+          source: LEXIN_SOURCE,
+          confidence: 'high',
+          surface_form: row.surface_form,
+          source_entry_id: row.source_entry_id,
+          source_sub_id: row.source_sub_id,
+          entry_order: ruOrder.has(row.source_entry_id) ? ruOrder.get(row.source_entry_id)! : fallbackOrderCounter++,
+        });
+      }
+      ruFallback = { used: ruRows.length > 0, dictionary: LEXIN_RU_LANG, url: ruUrl, error: ruError,
+        english_rows: ruRows.length, entry_ids: [...new Set(ruRows.map((r) => r.source_entry_id))] };
+    }
+
     const seenPerEntry = new Map<string, Set<string>>();
     const rankPerEntry = new Map<string, number>();
 
@@ -908,6 +968,7 @@ serve(async (req) => {
         idiom_matches: idiomMatches,
         matched_via_lem: lemMatches > 0,
         matched_via_idi: idiomMatches > 0,
+        ru_fallback: ruFallback,
         would_upsert: {
           entity_translations: dedupedTranslations.length,
           expression_source_evidence: sourceEvidence.length,
@@ -1042,6 +1103,7 @@ serve(async (req) => {
       matched_entry_ids: [...new Set(matchedEntryIds)],
       lem_matches: lemMatches,
       idiom_matches: idiomMatches,
+      ru_fallback: ruFallback,
       results,
       errors: totalErrors.length > 0 ? totalErrors : undefined,
     });
