@@ -858,6 +858,8 @@ type BatchInputItem = {
   existing_english_translation: string | null;
   authoritative_dictionary_context: string | null;
   max_variants: number;
+  // D10 10.11.2026: reason of the review that rejected the first answer (retry only)
+  previous_rejection?: string | null;
 };
 
 type BatchOutputItem = {
@@ -871,6 +873,13 @@ type BatchOutputItem = {
   example_highlights_uk?: string[];
   notes_ua?: string | null;
 };
+
+// D10 10.11.2026: the review's reason as a short text for the retry prompt
+function rejectionReason(diagnostic: unknown): string {
+  const d: any = diagnostic;
+  const reason = d?.reason ?? d?.review?.reason ?? null;
+  return String(reason ?? safeStringify(diagnostic)).slice(0, 500);
+}
 
 async function callGeminiBatch(items: BatchInputItem[]): Promise<Map<number, BatchOutputItem>> {
   const apiKey = Deno.env.get('GEMINI_API_KEY');
@@ -890,6 +899,7 @@ async function callGeminiBatch(items: BatchInputItem[]): Promise<Map<number, Bat
       existing_english_translation: it.existing_english_translation,
       authoritative_dictionary_context: it.authoritative_dictionary_context,
       max_variants: it.max_variants,
+      ...(it.previous_rejection ? { previous_rejection: it.previous_rejection } : {}),
     })),
     null,
     2,
@@ -912,6 +922,12 @@ extract and translate ONLY the sense matching that item's own "pos" field,
 ignore senses belonging to a different part of speech. Lexin entries are raw
 JSON and may be truncated mid-entry. If "authoritative_dictionary_context"
 is null, rely on your own knowledge but stay conservative.
+
+Translate ONLY the meaning given in the item's own dictionary context. A list of
+translations of OTHER homograph cards (HOMOGRAPH_CARDS) is there only so you do not
+repeat them: those are OTHER meanings and are never a source of meaning for this item.
+If an item has "previous_rejection", a reviewer rejected your earlier answer for that
+reason: do not repeat the rejected translation; translate the meaning of the context.
 
 CRITICAL: each item's translation_ua/translation_en MUST be grammatically
 the same part of speech as that item's own "pos". A noun translation must be
@@ -1659,6 +1675,9 @@ async function processCandidatesBatch(
       existing_english_translation: p.existingEnglishTranslation,
       authoritative_dictionary_context: p.candidate.selectedContext!,
       max_variants: maxVariantsFor(p.candidate.kind),
+      // D10 10.11.2026 (agreed): the retry of a WORD also gets the review's reason (hete II: twice
+      // «називатися» for 'varme opp', the retry was blind). Expressions get it below as before.
+      ...(attempt > 0 && p.candidate.qualityDiagnostic ? { previous_rejection: rejectionReason(p.candidate.qualityDiagnostic) } : {}),
     }));
 
     let byRef: Map<number, BatchOutputItem>;

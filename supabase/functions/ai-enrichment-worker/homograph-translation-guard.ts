@@ -46,7 +46,8 @@ export function homographConstraint(lemma: string, pos: string | null, siblings:
   if (!siblings.length) return null;
   const list = siblings.map((s) => `${s.label}: uk ${quote(s.uk)}; en ${quote(s.en)}`).join(' | ');
   return `${HOMOGRAPH_CONSTRAINT_MARK} «${lemma}» (${pos ?? '?'}) has other homograph cards of the same part of speech ` +
-    `with OTHER meanings. Their current translations: ${list}. The translation of THIS card must not be identical ` +
+    `with OTHER meanings. Their current translations: ${list}. These describe OTHER meanings: never take a meaning ` +
+    `from them, translate only the meaning of THIS card's own dictionary context. The translation of THIS card must not be identical ` +
     `to a translation of another card. If the same base word is the right translation, or another card's ` +
     `translation has the same base word (with or without a clarification), add a short clarification of THIS ` +
     `meaning in parentheses, 1-4 words, in the language of the translation: «бар (заклад)», «бар (одиниця тиску)», ` +
