@@ -32,6 +32,7 @@ export function normalizeAudioUiLanguage(
 const COPY = {
   ua: {
     captureTitle: '🎙 Запис аудіо',
+    audioHelp: 'Довідка про аудіо',
     startRecording: 'Почати запис',
     startingRecording: 'Запускаємо…',
     savingRecording: 'Зберігаємо…',
@@ -215,6 +216,7 @@ const COPY = {
   },
   en: {
     captureTitle: '🎙 Audio recording',
+    audioHelp: 'Audio help',
     startRecording: 'Start recording',
     startingRecording: 'Starting…',
     savingRecording: 'Saving…',
@@ -398,6 +400,7 @@ const COPY = {
   },
   no: {
     captureTitle: '🎙 Lydopptak',
+    audioHelp: 'Hjelp med lydopptak',
     startRecording: 'Start opptak',
     startingRecording: 'Starter…',
     savingRecording: 'Lagrer…',

@@ -96,6 +96,14 @@ type WhisperKitLocalEvents = {
 declare class WhisperKitLocalNativeModule
   extends NativeModule<WhisperKitLocalEvents> {
 
+  diarizeWindow(audioUri: string, startSeconds: number, endSeconds: number): Promise<{
+    ok: boolean;
+    startSeconds: number; endSeconds: number;
+    turns: { start: number; end: number; speakerIds: number[] }[];
+    centroids: { id: number; values: number[] }[];
+  }>;
+  releaseSpeakerModels(): Promise<boolean>;
+
   prepareModel(
     model: string
   ): Promise<{

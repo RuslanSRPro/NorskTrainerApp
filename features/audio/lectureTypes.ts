@@ -1,4 +1,4 @@
-import {
+﻿import {
   Directory,
   File,
 } from 'expo-file-system';
@@ -57,6 +57,9 @@ export type SavedTranscriptSegment = {
   text: string;
   noSpeechProb?: number;
   avgLogProb?: number;
+  // Derived from the separate speaker sidecar; absent for original transcripts.
+  speakerId?: number | null;
+  speakerName?: string;
 };
 
 export type LectureSourceLanguage =
@@ -82,6 +85,7 @@ export type LectureMetadata = {
     | 'interrupted'
     | 'saved';
   interruptionReason?: string | null;
+  partialRecovery?: boolean;
   transcription?: LectureTranscription;
 };
 
@@ -103,6 +107,7 @@ export type LectureItem = {
     | 'interrupted'
     | 'saved';
   interruptionReason: string | null;
+  partialRecovery?: boolean;
   transcription: LectureTranscription;
   markers: LectureMarker[];
   transcriptSegments: SavedTranscriptSegment[];

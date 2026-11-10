@@ -647,15 +647,21 @@ export function useLecturePlayback({
         let finalAudioUsable = false;
 
         if (lecture.audioUri.length > 0) {
-          const validation =
-            await validateLectureAudio(lecture.audioUri);
-          if (!requestIsCurrent()) return;
-
-          finalAudioUsable =
-            validation.valid &&
-            validation.playable &&
-            validation.bytes >= 4096 &&
-            validation.durationMillis >= 500;
+          try {
+            const validation = await validateLectureAudio(lecture.audioUri);
+            if (!requestIsCurrent()) return;
+            const expectedSavedMillis = lecture.recordingState === 'saved' ? lecture.durationMillis : 0;
+            const coversSavedPrefix = !Number.isFinite(expectedSavedMillis) || expectedSavedMillis <= 0 ||
+              Math.abs(validation.durationMillis - expectedSavedMillis) <=
+                Math.max(2000, Math.min(10000, Math.round(expectedSavedMillis * 0.0015)));
+            finalAudioUsable = validation.valid && validation.playable && coversSavedPrefix &&
+              validation.bytes >= 4096 && validation.durationMillis >= 500;
+          } catch (error) {
+            if (!requestIsCurrent()) return;
+            if (lecture.recordingState !== 'saved') throw error;
+            // Native segment playback verifies the saved manifest and every source.
+            finalAudioUsable = false;
+          }
         }
 
         if (

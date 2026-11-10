@@ -28,6 +28,8 @@ import type {
 
 import {
   buildTimestampText,
+  buildSpeakerText,
+  buildSpeakerExportText,
   formatLectureDate,
   getLectureDirectory,
   recoverPendingTextTransaction,
@@ -292,11 +294,15 @@ export function useLectureExport() {
               'transcript.txt'
             );
 
-          const shareFile =
-            await copyToCacheForShare(
-              source,
-              `${stem}-transcript.txt`
-            );
+          const segments = readTranscriptSegments(directory);
+          let shareFile: File;
+          if (segments.some(segment => segment.speakerId !== undefined)) {
+            shareFile = new File(Paths.cache, `${stem}-transcript.txt`);
+            shareFile.create({ overwrite: true, intermediates: true });
+            shareFile.write(buildSpeakerExportText(segments, source.textSync(), String(app_language)));
+          } else {
+            shareFile = await copyToCacheForShare(source, `${stem}-transcript.txt`);
+          }
 
           await shareLocalFile(
             shareFile,
@@ -437,6 +443,10 @@ export function useLectureExport() {
               )
             );
 
+          if (segments.some(segment => segment.speakerId !== undefined)) {
+            zipEntries['transcript-speakers.txt'] = strToU8(buildSpeakerText(segments, String(app_language)));
+          }
+          // Voice embeddings are local resumable state, never exported.
           const segmentsFile =
             new File(
               directory,

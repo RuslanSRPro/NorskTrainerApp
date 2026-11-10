@@ -1,3 +1,4 @@
+import { stitchTranscriptSegments } from '@/features/audio/transcriptQuality';
 import {
   useEffect,
   useRef,
@@ -158,79 +159,13 @@ function segmentKey(
   ].join('|');
 }
 
-function normalizeLiveTranscriptKey(
-  value: string
-) {
-  return value
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim();
-}
-
 function mergeLiveTailSegments(
   confirmed: SavedTranscriptSegment[],
   tail: SavedTranscriptSegment[],
-  processedUntilSeconds: number
+  _processedUntilSeconds: number
 ) {
-  const merged = [...confirmed]
-    .sort((a, b) => a.start - b.start);
-
-  const candidates = tail
-    .filter(
-      segment =>
-        segment.end >
-          processedUntilSeconds + 0.05 &&
-        isMeaningfulTranscriptText(
-          segment.text
-        )
-    )
-    .sort((a, b) => a.start - b.start);
-
-  for (const candidate of candidates) {
-    const previous = merged.at(-1);
-
-    if (previous) {
-      const previousKey =
-        normalizeLiveTranscriptKey(
-          previous.text
-        );
-      const candidateKey =
-        normalizeLiveTranscriptKey(
-          candidate.text
-        );
-      const overlapsInTime =
-        candidate.start <=
-        previous.end + 0.35;
-      const sameBoundaryText =
-        previousKey.length > 0 &&
-        candidateKey.length > 0 &&
-        (
-          previousKey === candidateKey ||
-          previousKey.endsWith(candidateKey) ||
-          candidateKey.startsWith(previousKey)
-        );
-
-      if (
-        overlapsInTime &&
-        sameBoundaryText
-      ) {
-        if (candidate.end > previous.end) {
-          merged[merged.length - 1] = {
-            ...candidate,
-            start: Math.min(
-              previous.start,
-              candidate.start
-            ),
-          };
-        }
-        continue;
-      }
-    }
-
-    merged.push(candidate);
-  }
-
-  return merged;
+  return stitchTranscriptSegments([...confirmed,
+    ...tail.filter(segment => isMeaningfulTranscriptText(segment.text))]);
 }
 
 // The native operation keeps its inference lease after this UI deadline.
@@ -1020,11 +955,31 @@ export function useLiveLecture({
       return recordingState === 'ready' && audioBytes > 0 && active.audioFile.exists;
     };
 
-  const liveDiagnosticRef = useRef<{ id: string; startedAt: string; t0: number; startupMs?: number } | null>(null);
+  const liveDiagnosticRef = useRef<{ id: string; startedAt: string; t0: number; startupMs?: number; lectureId?: string; events?: { name: string; at_ms: number; segment_index?: number }[] } | null>(null);
   useEffect(() => {
     retryAudioDiagnostics();
     // Prewarm is opportunistic; never delay Start for this request.
     void WhisperKitLocal.prepareModel(WHISPERKIT_DEFAULT_MODEL).catch(() => {});
+  }, []);
+  const addLiveDiagnosticEvent = (name: string, segmentIndex?: number) => {
+    const item = liveDiagnosticRef.current;
+    if (!item) return;
+    item.events ??= [{ name: 'START_TAPPED', at_ms: 0 }];
+    item.events.push({ name, at_ms: Math.max(0, Date.now() - item.t0), segment_index: segmentIndex });
+    void enqueueAudioDiagnostic({
+      session_id: item.id, mode: 'live', status: 'failed',
+      started_at: item.startedAt, finished_at: new Date().toISOString(),
+      startup_ms: item.startupMs ?? null, error_code: 'CAPTURE_PENDING',
+      events: [{ name: 'LECTURE_CONTEXT', at_ms: 0, lecture_id: item.lectureId }, ...item.events],
+    }).catch(() => {});
+  };
+  useEffect(() => {
+    const subscription = LectureRecorder.addListener('onRecorderCheckpoint', event => {
+      const uri = activeRef.current?.audioFile.uri;
+      if (!uri || !event.uri.startsWith(uri.slice(0, uri.lastIndexOf('/') + 1) + '.audio-segments/')) return;
+      addLiveDiagnosticEvent(event.index === 1 ? 'FIRST_SEGMENT_COMMITTED' : 'SEGMENT_COMMITTED', event.index);
+    });
+    return () => subscription.remove();
   }, []);
   const finishLiveDiagnostic = (status: 'saved' | 'failed' | 'cancelled', errorCode?: string) => {
     const item = liveDiagnosticRef.current;
@@ -1034,7 +989,7 @@ export function useLiveLecture({
       session_id: item.id, mode: 'live', status,
       started_at: item.startedAt, finished_at: new Date().toISOString(),
       startup_ms: item.startupMs ?? null, error_code: errorCode ?? null,
-      events: [{ name: 'START_TAPPED', at_ms: 0 }, { name: status.toUpperCase(), at_ms: Date.now() - item.t0 }],
+      events: [{ name: 'LECTURE_CONTEXT', at_ms: 0, lecture_id: item.lectureId }, ...(item.events ?? [{ name: 'START_TAPPED', at_ms: 0 }]), { name: status.toUpperCase(), at_ms: Date.now() - item.t0 }],
     });
   };
 
@@ -1155,6 +1110,9 @@ export function useLiveLecture({
         }
       );
 
+      if (liveDiagnosticRef.current) liveDiagnosticRef.current.lectureId = id;
+      addLiveDiagnosticEvent('CAPTURE_PREPARED');
+
       /*
        * Attach Whisper's PCM consumer first, then start the one durable
        * LectureRecorder engine. startLive() begins listening immediately
@@ -1217,6 +1175,7 @@ export function useLiveLecture({
       if (liveDiagnosticRef.current && generationRef.current === generation) {
         liveDiagnosticRef.current.startupMs = Date.now() - liveDiagnosticRef.current.t0;
       }
+      addLiveDiagnosticEvent('START_VERIFIED');
 
       if (
         generationRef.current ===
@@ -1805,7 +1764,7 @@ export function useLiveLecture({
       if (durableStopped && !assembledAudioReady) {
         try { checkpointSegments(`Audio preparation failed: ${message}. Saved segments remain available for transcription and retry.`); }
         catch { /* Existing manifest/checkpoints remain the authority. */ }
-        permanentAudioCreated = durableStopped.segmentCount > 0;
+        permanentAudioCreated = (durableStopped.segmentCount ?? 0) > 0;
       }
 
       /*

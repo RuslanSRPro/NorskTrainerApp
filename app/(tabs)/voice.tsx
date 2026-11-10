@@ -1,3 +1,6 @@
+import { useSpeakerDiarization } from '@/hooks/audio/useSpeakerDiarization';
+import { SpeakerAnalysisControls } from '@/components/audio/SpeakerAnalysisControls';
+import { readSpeakerAnalysis } from '@/features/audio/lectureStorage';
 // app/(tabs)/voice.tsx
 
 import { useEffect, useRef, useState } from 'react';
@@ -86,6 +89,7 @@ import {
 
 import {
   useLectureRecorder,
+  observeStartupLectureRecovery,
 } from '@/hooks/audio/useLectureRecorder';
 
 import {
@@ -146,18 +150,22 @@ function getAudioPreparationText(language: string) {
   if (code.startsWith('ru')) return {
     failed: 'Не удалось подготовить аудиофайл. Запись сохранена в частях.',
     retry: 'Повторить подготовку аудио',
+    partialRecovery: 'Запись восстановлена. Последние секунды могли быть потеряны.',
   };
   if (code.startsWith('uk')) return {
     failed: 'Не вдалося підготувати аудіофайл. Запис збережено частинами.',
     retry: 'Повторити підготовку аудіо',
+    partialRecovery: 'Запис відновлено. Останні секунди могли бути втрачені.',
   };
   if (code.startsWith('nb') || code.startsWith('no') || code.startsWith('nn')) return {
     failed: 'Lydfilen kunne ikke klargjøres. Opptaket er lagret i deler.',
     retry: 'Prøv å klargjøre lyden på nytt',
+    partialRecovery: 'Opptaket er gjenopprettet. De siste sekundene kan ha gått tapt.',
   };
   return {
     failed: 'Could not prepare the audio file. The recording is saved in parts.',
     retry: 'Retry audio preparation',
+    partialRecovery: 'Recording recovered. The final seconds may be missing.',
   };
 }
 
@@ -231,12 +239,20 @@ export default function VoiceScreen() {
 
 
 
-  const normalDiagnosticRef = useRef<{ id: string; startedAt: string; t0: number; startupMs?: number; events: { name: string; at_ms: number }[] } | null>(null);
+  const normalDiagnosticRef = useRef<{ id: string; startedAt: string; t0: number; startupMs?: number; lectureId?: string; events: { name: string; at_ms: number; segment_index?: number }[] } | null>(null);
 
-  const addNormalDiagnosticEvent = (name: string) => {
+  const addNormalDiagnosticEvent = (name: string, segmentIndex?: number) => {
     const item = normalDiagnosticRef.current;
     if (!item) return;
-    item.events.push({ name, at_ms: Math.max(0, Date.now() - item.t0) });
+    item.events.push({ name, at_ms: Math.max(0, Date.now() - item.t0), segment_index: segmentIndex });
+    // Persist each lifecycle/checkpoint snapshot locally without awaiting it on
+    // the capture path. CAPTURE_PENDING is an unfinished report, not corruption.
+    void enqueueAudioDiagnostic({
+      session_id: item.id, mode: 'normal', status: 'failed',
+      started_at: item.startedAt, finished_at: new Date().toISOString(),
+      startup_ms: item.startupMs ?? null, error_code: 'CAPTURE_PENDING',
+      events: [{ name: 'LECTURE_CONTEXT', at_ms: 0, lecture_id: item.lectureId }, ...item.events],
+    }).catch(() => {});
   };
 
   const {
@@ -259,10 +275,13 @@ export default function VoiceScreen() {
         status ===
           'recording',
       onCheckpointCommitted: event => {
+        const uri = activeRecordingRef.current?.audioFile.uri;
+        if (!uri || !event.uri.startsWith(uri.slice(0, uri.lastIndexOf('/') + 1) + '.audio-segments/')) return;
         addNormalDiagnosticEvent(
           event.index === 1
             ? 'FIRST_SEGMENT_COMMITTED'
-            : 'SEGMENT_COMMITTED'
+            : 'SEGMENT_COMMITTED',
+          event.index
         );
       },
     });
@@ -272,6 +291,9 @@ export default function VoiceScreen() {
     useState<LectureItem[]>([]);
   const [audioAssemblyStates, setAudioAssemblyStates] = useState<Record<string, string>>({});
   const audioPreparationRequestsRef = useRef(new Set<string>());
+  const recoveryInFlightRef = useRef(new Set<string>());
+  const startupRecoveryPendingRef = useRef(true);
+  const recoveryCompletedRef = useRef(new Set<string>());
   const [audioValidation] = useState(() => new LectureAudioValidationQueue(
     uri => LectureRecorder.validateRecording(uri), () => loadLectures()
   ));
@@ -485,6 +507,15 @@ export default function VoiceScreen() {
           const durableInventory = inspectDurableTranscriptInventory(entry);
           if (metadata.recordingState === 'interrupted' && durableInventory.present) assemblyStates[metadata.id || entry.name] = 'recovery_failed';
           let recordingState = metadata.recordingState ?? 'ready';
+          const nativeUri = LectureRecorder.getStatus().uri;
+          const nativeOwnsEntry = !!nativeUri && nativeUri.startsWith(entry.uri.replace(/\/$/, '') + '/');
+          // A stale 'recording' shell must be visible before native recovery.
+          // This is presentation only; never promote it to saved or enable audio.
+          if (recordingState === 'recording') {
+            if (nativeOwnsEntry) continue;
+            recordingState = 'interrupted';
+          }
+          const recoveryActive = recoveryInFlightRef.current.has(entry.name);
           let validatedAudio = true;
           if (audio) {
             const id = metadata.id || entry.name;
@@ -495,6 +526,10 @@ export default function VoiceScreen() {
               assemblyStates[id] = 'assembly_failed';
               if (recordingState === 'ready') recordingState = 'saved';
             }
+          }
+
+          if (recoveryActive || startupRecoveryPendingRef.current && !recoveryCompletedRef.current.has(entry.name) && recordingState === 'interrupted') {
+            assemblyStates[metadata.id || entry.name] = 'recovering';
           }
 
           /*
@@ -510,7 +545,7 @@ export default function VoiceScreen() {
 
           if (
             !audio &&
-            !isSegmentBackedSavedLecture && !(metadata.recordingState === 'interrupted' && durableInventory.present)
+            !isSegmentBackedSavedLecture && !(recordingState === 'interrupted' && durableInventory.present)
           ) {
             continue;
           }
@@ -613,6 +648,10 @@ export default function VoiceScreen() {
               metadata.interruptionReason ??
               null,
 
+           partialRecovery:
+              metadata.partialRecovery === true ||
+              durableInventory.partialRecovery,
+
             transcription,
             markers,
             transcriptSegments,
@@ -677,7 +716,7 @@ export default function VoiceScreen() {
       status: 'saved' as const,
       started_at: new Date().toISOString(), finished_at: new Date().toISOString(),
       error_code: 'ASSEMBLY_PENDING',
-      events: [{ name: 'ASSEMBLY_RETRY_BEGIN', at_ms: 0 }],
+      events: [{ name: 'ASSEMBLY_RETRY_BEGIN', at_ms: 0, lecture_id: lecture.id }],
     };
     try {
       await enqueueAudioDiagnostic(report);
@@ -871,9 +910,18 @@ export default function VoiceScreen() {
     lectureExport;
 
 
+  const speakerJob = useSpeakerDiarization({
+    processingLockRef,
+    onChanged: id => {
+      loadLectures();
+      if (openedLectureId === id) setOpenedTranscriptSegments(readTranscriptSegments(getLectureDirectory(id)));
+    },
+  });
+
   const isLectureProcessing =
     !!(
       transcribingLectureId ||
+      speakerJob.lectureId ||
       translatingLectureId
     );
 
@@ -884,22 +932,38 @@ export default function VoiceScreen() {
   }, [isLectureProcessing, liveBusy, status, recordingActionPhase]);
 
   useEffect(() => {
+    startupRecoveryPendingRef.current = true;
+    recoveryInFlightRef.current.clear();
+    recoveryCompletedRef.current.clear();
     loadLectures();
-
-    void (
-      async () => {
-        try {
-          await recoverInterruptedRecordings();
-        } catch (error) {
-          devConsole.error(
-            'Startup lecture recovery error:',
-            error
-          );
-        }
-
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (refreshTimer !== undefined) return;
+      refreshTimer = setTimeout(() => {
+        refreshTimer = undefined;
         loadLectures();
-      }
-    )();
+      }, 0);
+    };
+    const unsubscribe = observeStartupLectureRecovery(recoverInterruptedRecordings, {
+      progress: (id, active) => {
+        if (active) {
+          recoveryInFlightRef.current.add(id);
+          recoveryCompletedRef.current.delete(id);
+        } else {
+          recoveryInFlightRef.current.delete(id);
+          recoveryCompletedRef.current.add(id);
+        }
+        refresh();
+      },
+      settled: () => {
+        startupRecoveryPendingRef.current = false;
+        refresh();
+      },
+    });
+    return () => {
+      unsubscribe();
+      if (refreshTimer !== undefined) clearTimeout(refreshTimer);
+    };
   }, []);
 
   const resetRecordingState =
@@ -968,7 +1032,7 @@ export default function VoiceScreen() {
       session_id: item.id, mode: 'normal' as const, status,
       started_at: item.startedAt, finished_at: new Date().toISOString(),
       startup_ms: item.startupMs ?? null, error_code: errorCode ?? null,
-      events: [...item.events, { name: errorCode === 'ASSEMBLY_PENDING' ? 'ASSEMBLY_PENDING' : status.toUpperCase(), at_ms: Date.now() - item.t0 }],
+      events: [{ name: 'LECTURE_CONTEXT', at_ms: 0, lecture_id: item.lectureId }, ...item.events, { name: errorCode === 'ASSEMBLY_PENDING' ? 'ASSEMBLY_PENDING' : status.toUpperCase(), at_ms: Date.now() - item.t0 }],
     };
     const persisted = enqueueAudioDiagnostic(report);
     return { report, t0: item.t0, persisted };
@@ -998,7 +1062,7 @@ export default function VoiceScreen() {
       try {
 
         if (
-          isLectureProcessing
+          isLectureProcessing || processingLockRef.current
         ) {
 
           finishNormalDiagnostic('cancelled', 'PROCESSING_IN_PROGRESS');
@@ -1118,6 +1182,9 @@ export default function VoiceScreen() {
           }
         );
 
+
+        if (normalDiagnosticRef.current) normalDiagnosticRef.current.lectureId = id;
+        addNormalDiagnosticEvent('CAPTURE_PREPARED');
 
         // UI starts on the first successfully written buffer. The first
         // committed checkpoint is reported independently; never wait five seconds.
@@ -2122,19 +2189,13 @@ export default function VoiceScreen() {
       }
     >
 
-      <Text
-        style={[
-          styles.title,
-          {
-            color:
-              T.textPrimary,
-            fontSize:
-              22,
-          },
-        ]}
-      >
-        {audioUi.captureTitle}
-      </Text>
+      <View style={styles.audioHeader}>
+        <Text style={[styles.title, { color: T.textPrimary, fontSize: 22 }]}>{audioUi.captureTitle}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={audioUi.audioHelp}
+          style={styles.audioHelpButton} onPress={() => Alert.alert(audioUi.audioHelp, audioUi.idleInfo)}>
+          <Text style={{ fontSize: 22 }}>💡</Text>
+        </Pressable>
+      </View>
 
 
       <GlassSurface
@@ -2349,23 +2410,7 @@ export default function VoiceScreen() {
           </Text>
         </View>
 
-        {status ===
-          'idle' && (
 
-          <Text
-            style={[
-              styles.info,
-              {
-                color:
-                  T.textSecondary,
-                fontSize:
-                  F.base,
-              },
-            ]}
-          >
-            {audioUi.idleInfo}
-          </Text>
-        )}
 
 
         {status ===
@@ -2436,9 +2481,13 @@ export default function VoiceScreen() {
             </View>
 
             <View
-              style={
-                styles.micMeterBox
-              }
+              accessible
+              accessibilityLabel={micNoSignalWarning
+                ? audioUi.microphoneNoSound
+                : Number(recorderState.levelDb ?? -160) < -50
+                  ? audioUi.microphoneQuiet
+                  : audioUi.microphoneLevel}
+              style={styles.micMeterBox}
             >
 
               <View
@@ -2448,6 +2497,7 @@ export default function VoiceScreen() {
               >
 
                 <Text
+                  numberOfLines={1}
                   style={[
                     styles.micMeterTitle,
                     {
@@ -2462,6 +2512,7 @@ export default function VoiceScreen() {
                 </Text>
 
                 <Text
+                  numberOfLines={1}
                   style={[
                     styles.micMeterValue,
                     {
@@ -2565,48 +2616,6 @@ export default function VoiceScreen() {
               </View>
 
 
-              {micNoSignalWarning
-                ? (
-
-                  <Text
-                    style={[
-                      styles.micWarning,
-                      {
-                        color:
-                          '#D92D20',
-                        fontSize:
-                          F.base - 2,
-                      },
-                    ]}
-                  >
-                    {audioUi.microphoneNoSound}
-                  </Text>
-
-                )
-                : (
-                  !recorderState
-                    .isPausedForInterruption &&
-                  Number(
-                    recorderState.levelDb ??
-                    -160
-                  ) <
-                    -50 && (
-
-                    <Text
-                      style={[
-                        styles.micQuiet,
-                        {
-                          color:
-                            '#B7791F',
-                          fontSize:
-                            F.base - 3,
-                        },
-                      ]}
-                    >
-                      {audioUi.microphoneQuiet}
-                    </Text>
-                  )
-                )}
 
             </View>
 
@@ -2800,6 +2809,8 @@ export default function VoiceScreen() {
                 lecture.recordingState ===
                   'interrupted';
 
+              const isRecovering = audioAssemblyStates[lecture.id] === 'recovering';
+
               const hasPlayableAudio =
                 lecture.audioUri.length > 0;
 
@@ -2811,8 +2822,7 @@ export default function VoiceScreen() {
                 audioAssemblyStates[lecture.id] === 'assembly_failed' || isInterrupted && audioAssemblyStates[lecture.id] === 'recovery_failed';
 
               const canPlayAudio =
-                hasPlayableAudio ||
-                isAudioPending;
+                !isRecovering && !isInterrupted && (hasPlayableAudio || isAudioPending);
 
               // Saved committed segments are independently transcribable.
               // A derived audio.m4a that is still assembling must not block
@@ -2820,7 +2830,7 @@ export default function VoiceScreen() {
               const canTranscribeAudio =
                 lecture.transcriptReady ||
                 (
-                  !isInterrupted &&
+                  !isInterrupted && !isRecovering &&
                   (
                     hasPlayableAudio ||
                     lecture.recordingState === 'saved'
@@ -2918,7 +2928,7 @@ export default function VoiceScreen() {
                             <>
                               {lectureLanguageUi.flag} {lectureLanguageUi.code}
                               {'  ·  '}
-                              {audioUi.interrupted}
+                              {isRecovering ? audioUi.preparingAudio : audioUi.interrupted}
                             </>
                           )
                           : (
@@ -3013,6 +3023,25 @@ export default function VoiceScreen() {
 
                   </View>
 
+                  {!isInterrupted && lecture.partialRecovery && (
+                    <Text
+                      accessibilityRole="text"
+                      style={{
+                        color: T.textSecondary,
+                        fontSize: F.base - 2,
+                        marginTop: 6,
+                        marginBottom: 6,
+                      }}
+                    >
+                      ⚠ {audioPreparationText.partialRecovery}
+                    </Text>
+                  )}
+
+                  {isRecovering && !isInterrupted && (
+                    <Text style={{ color: T.textSecondary, fontSize: F.base - 2 }}>
+                      {audioUi.preparingAudio}
+                    </Text>
+                  )}
 
                   {isCurrent && (
 
@@ -3236,7 +3265,7 @@ export default function VoiceScreen() {
                     }
                   />
 
-                  {audioPreparationFailed && (
+                  {audioPreparationFailed && !isRecovering && (
                     <AudioActionButton
                       accent={T.accent}
                       fontSize={F.base - 1}
@@ -3826,10 +3855,30 @@ export default function VoiceScreen() {
                       </View>
 
 
+                      {openedTextTab === 'source' && lecture.transcriptReady && openedTranscriptSegments.length > 0 && (
+                        <SpeakerAnalysisControls
+                          language={String(app_language)}
+                          analysis={readSpeakerAnalysis(getLectureDirectory(lecture.id), openedTranscriptSegments)}
+                          busy={speakerJob.lectureId === lecture.id}
+                          blocked={isLectureProcessing || liveBusy || status === 'recording' || recordingActionPhase !== 'idle' || isRecovering || isInterrupted}
+                          progress={speakerJob.progress}
+                          error={speakerJob.error}
+                          accent={T.accent} textColor={T.textSecondary} fontSize={F.base - 1}
+                          onRun={() => {
+                            if (isLectureProcessing || processingLockRef.current || liveBusy || recordingActionPendingRef.current || isRecovering || isInterrupted) return;
+                            pauseIfLecturePlaying(lecture.id);
+                            void speakerJob.run(lecture);
+                          }}
+                          onCancel={speakerJob.cancel}
+                          onRename={(id, name) => speakerJob.rename(lecture, id, name)}
+                        />
+                      )}
+
                       {openedTextTab ===
                         'source' ? (
 
                         <TranscriptView
+                          reviewDurationSeconds={lecture.durationMillis / 1000}
                           segments={
                             openedTranscriptSegments
                           }
@@ -3964,9 +4013,11 @@ const styles =
       paddingBottom: 210,
     },
 
+    audioHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    audioHelpButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
     title: {
+      flex: 1,
       fontWeight: '900',
-      marginBottom: 20,
     },
 
     card: {
@@ -4043,10 +4094,13 @@ const styles =
     },
 
     micMeterTitle: {
+      flex: 1,
       fontWeight: '900',
     },
 
     micMeterValue: {
+      flexShrink: 0,
+      fontVariant: ['tabular-nums'],
       fontWeight: '900',
     },
 
@@ -4062,16 +4116,6 @@ const styles =
       flex: 1,
       minWidth: 5,
       borderRadius: 4,
-    },
-
-    micWarning: {
-      marginTop: 8,
-      fontWeight: '900',
-    },
-
-    micQuiet: {
-      marginTop: 8,
-      fontWeight: '700',
     },
 
     recordingMarkersBox: {

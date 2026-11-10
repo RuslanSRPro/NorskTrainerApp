@@ -1,140 +1,30 @@
-const TRANSLATION_CHUNK_MAX_CHARS =
-  1200;
+const TRANSLATION_CHUNK_MAX_CHARS = 1200;
 
-export function splitTextForTranslation(
-  rawText: string,
-  maxChars =
-    TRANSLATION_CHUNK_MAX_CHARS
-) {
-  const text =
-    rawText
-      .replace(
-        /\r\n/g,
-        '\n'
-      )
-      .replace(
-        /[ \t]+/g,
-        ' '
-      )
-      .trim();
-
-  if (!text) {
-    return [];
-  }
-
-  if (
-    text.length <=
-      maxChars
-  ) {
-    return [text];
-  }
-
-  const sentenceCandidates =
-    text.match(
-      /[^.!?…]+(?:[.!?…]+|$)/g
-    ) ??
-    [text];
-
-  const pieces:
-    string[] = [];
-
-  for (
-    const rawSentence
-    of sentenceCandidates
-  ) {
-    const sentence =
-      rawSentence.trim();
-
-    if (!sentence) {
-      continue;
+// Bound actual translation requests, including a single unbroken token. Keep
+// every non-whitespace character, and never cut a UTF-16 surrogate pair.
+export function splitTextForTranslation(rawText: string, maxChars = TRANSLATION_CHUNK_MAX_CHARS): string[] {
+  if (!Number.isSafeInteger(maxChars) || maxChars < 2) throw new Error('Translation chunk size must be an integer of at least 2.');
+  let remaining = rawText.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').trim();
+  const chunks: string[] = [];
+  while (remaining.length > maxChars) {
+    let cut = maxChars;
+    // A high surrogate at the boundary belongs to the following low surrogate.
+    const code = remaining.charCodeAt(cut - 1);
+    if (code >= 0xD800 && code <= 0xDBFF) cut -= 1;
+    const head = remaining.slice(0, cut);
+    const sentences = [...head.matchAll(/[.!?…][”"'»’)]*(?:\s+|$)/gu)];
+    const lastSentence = sentences.at(-1);
+    const sentenceEnd = lastSentence ? lastSentence.index! + lastSentence[0].length : 0;
+    if (sentenceEnd >= Math.floor(maxChars / 2)) cut = sentenceEnd;
+    else {
+      const spaces = [...head.matchAll(/\s+/gu)];
+      const lastSpace = spaces.at(-1);
+      if (lastSpace && lastSpace.index! > 0) cut = lastSpace.index! + lastSpace[0].length;
     }
-
-    if (
-      sentence.length <=
-        maxChars
-    ) {
-      pieces.push(
-        sentence
-      );
-      continue;
-    }
-
-    const words =
-      sentence.split(
-        /\s+/
-      );
-
-    let wordChunk =
-      '';
-
-    for (
-      const word
-      of words
-    ) {
-      const candidate =
-        wordChunk
-          ? `${wordChunk} ${word}`
-          : word;
-
-      if (
-        candidate.length >
-          maxChars &&
-        wordChunk
-      ) {
-        pieces.push(
-          wordChunk
-        );
-        wordChunk =
-          word;
-      } else {
-        wordChunk =
-          candidate;
-      }
-    }
-
-    if (wordChunk) {
-      pieces.push(
-        wordChunk
-      );
-    }
+    const piece = remaining.slice(0, cut).trim();
+    if (piece) chunks.push(piece);
+    remaining = remaining.slice(cut).trim();
   }
-
-  const chunks:
-    string[] = [];
-
-  let current =
-    '';
-
-  for (
-    const piece
-    of pieces
-  ) {
-    const candidate =
-      current
-        ? `${current} ${piece}`
-        : piece;
-
-    if (
-      candidate.length >
-        maxChars &&
-      current
-    ) {
-      chunks.push(
-        current
-      );
-      current =
-        piece;
-    } else {
-      current =
-        candidate;
-    }
-  }
-
-  if (current) {
-    chunks.push(
-      current
-    );
-  }
-
+  if (remaining) chunks.push(remaining);
   return chunks;
 }

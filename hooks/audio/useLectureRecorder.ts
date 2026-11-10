@@ -82,6 +82,47 @@ type UseLectureRecorderOptions = {
 };
 
 
+type RecoveryObserver = {
+  progress: (id: string, active: boolean) => void;
+  settled: () => void;
+};
+let startupRecoveryScan: {
+  observers: Set<RecoveryObserver>;
+  active: Set<string>;
+  completed: Set<string>;
+} | null = null;
+
+/** Share an in-flight startup scan across screen remounts; observers own no files. */
+export function observeStartupLectureRecovery(
+  run: (onlyId?: string, progress?: (id: string, active: boolean) => void) => Promise<void>,
+  observer: RecoveryObserver,
+): () => void {
+  const notify = (work: () => void) => { try { work(); } catch { /* UI is advisory. */ } };
+  let scan = startupRecoveryScan;
+  if (!scan) {
+    scan = { observers: new Set(), active: new Set(), completed: new Set() };
+    startupRecoveryScan = scan;
+    const ownedScan = scan;
+    // Yield once so the first observer is registered before native work starts.
+    void Promise.resolve().then(() => run(undefined, (id, active) => {
+      if (active) { ownedScan.active.add(id); ownedScan.completed.delete(id); }
+      else { ownedScan.active.delete(id); ownedScan.completed.add(id); }
+      for (const item of ownedScan.observers) notify(() => item.progress(id, active));
+    })).catch(error => {
+      devConsole.warn('Startup lecture recovery failed; source files preserved:', error);
+    }).finally(() => {
+      if (startupRecoveryScan === ownedScan) startupRecoveryScan = null;
+      for (const item of ownedScan.observers) notify(item.settled);
+      ownedScan.observers.clear();
+    });
+  }
+  scan.observers.add(observer);
+  for (const id of scan.completed) notify(() => observer.progress(id, false));
+  for (const id of scan.active) notify(() => observer.progress(id, true));
+  const subscribedScan = scan;
+  return () => { subscribedScan.observers.delete(observer); };
+}
+
 export function useLectureRecorder(
   {
     pollingActive,
@@ -444,13 +485,21 @@ export function useLectureRecorder(
     };
 
 
-  const recoverInterruptedRecordings = async (onlyLectureId?: string) => {
+  const recoverInterruptedRecordings = async (
+    onlyLectureId?: string,
+    onProgress?: (lectureId: string, active: boolean) => void,
+  ) => {
     const root = new Directory(Paths.document, 'lectures');
     if (!root.exists) return;
     for (const entry of root.list()) {
       if (!(entry instanceof Directory) || (onlyLectureId && entry.name !== onlyLectureId)) continue;
       if (!claimLectureRecovery(entry.uri)) continue;
       const generation = lectureWorkGeneration(entry.name);
+      let announced = false;
+      const notify = (active: boolean) => {
+        try { onProgress?.(entry.name, active); }
+        catch { /* Presentation must not interrupt recovery or release. */ }
+      };
       try {
         const initial = readMetadata(entry);
         const nativeOwnsEntry = () => { const status = LectureRecorder.getStatus(); return !!status.uri && status.uri.startsWith(entry.uri.replace(/\/$/, "") + "/"); };
@@ -460,24 +509,54 @@ export function useLectureRecorder(
         const interrupted = initial.recordingState === 'recording' || initial.recordingState === 'interrupted';
         const existing = findAudioFile(entry, initial);
         const rollback = entry.list().find(item => item instanceof File && /^audio-rollback-.*\.m4a$/.test(item.name)) as File | undefined;
-        const needsAssembly = initial.recordingState === 'saved' && !existing && inventory.present;
+        let assemblyFailed = false;
+        let publishedManifestPending = false;
+        let savedWithReadyManifest = false;
+        try {
+          const manifest = new File(entry, 'recording-manifest.json');
+          const assembly = manifest.exists ? JSON.parse(manifest.textSync())?.assembly : null;
+          savedWithReadyManifest = initial.recordingState === 'saved' && !!existing && assembly?.state === 'ready';
+          assemblyFailed = assembly?.state === 'assembly_failed';
+          publishedManifestPending = !!existing && assembly?.state === 'assembling' && typeof assembly.publicationID === 'string';
+        } catch { /* A damaged manifest must still go through native recovery. */ }
+        if (!onlyLectureId && initial.recordingState === 'saved' && inventory.complete &&
+            !inventory.unresolved && assemblyFailed && !rollback) continue;
+        const needsAssembly = publishedManifestPending || savedWithReadyManifest ||
+          (initial.recordingState === 'saved' && !existing && inventory.present);
         if (!interrupted && !needsAssembly && !rollback && initial.id) continue;
+        announced = true;
+        notify(true);
         const current = () => entry.exists && lectureWorkGeneration(entry.name) === generation && !nativeOwnsEntry();
         let reason: string | null = null;
         let nativeVerified = false;
+        let nativeOutputVerified = false;
         if (interrupted || needsAssembly || inventory.unresolved) {
           const destination = new File(entry, initial.audioFile || 'audio.m4a');
           const diagnosticId = newAudioDiagnosticId(), startedAt = new Date().toISOString(), t0 = Date.now();
           const begin = interrupted ? 'RECOVERY_BEGIN' : 'RECOVERY_ASSEMBLY_BEGIN';
-          void enqueueAudioDiagnostic({session_id:diagnosticId,mode:'normal',status:'failed',started_at:startedAt,finished_at:startedAt,error_code:'RECOVERY_PENDING',events:[{name:begin,at_ms:0}]}).catch(() => {});
+          void enqueueAudioDiagnostic({session_id:diagnosticId,mode:'normal',status:'failed',started_at:startedAt,finished_at:startedAt,error_code:'RECOVERY_PENDING',events:[{name:begin,at_ms:0,lecture_id:entry.name}]}).catch(() => {});
           try {
             const result = await withAudioOperationDeadline(
-              interrupted || inventory.unresolved ? LectureRecorder.recoverRecording(destination.uri) : LectureRecorder.assembleRecording(destination.uri),
+              (async () => {
+                const recovered = interrupted || inventory.unresolved
+                  ? await LectureRecorder.recoverRecording(destination.uri)
+                  : await LectureRecorder.assembleRecording(destination.uri);
+                if (onlyLectureId && recovered.durableSegmentsVerified === true &&
+                    recovered.code === 'ERR_ASSEMBLY_RETRY_REQUIRED') {
+                  const assembled = await LectureRecorder.assembleRecording(destination.uri);
+                  return { ...assembled, durableSegmentsVerified: true };
+                }
+                return recovered;
+              })(),
               135000, 'Audio preparation/recovery');
+            nativeOutputVerified = result.valid && result.playable;
             nativeVerified = result.valid || result.durableSegmentsVerified === true;
             reason = result.valid && result.playable ? null : (result.message || 'Audio preparation requires retry.');
-            void enqueueAudioDiagnostic({session_id:diagnosticId,mode:'normal',status:result.valid && result.playable ? 'saved':'failed',started_at:startedAt,finished_at:new Date().toISOString(),error_code:result.valid && result.playable ? null:(result.code || 'RECOVERY_NOT_READY'),events:[{name:begin,at_ms:0},{name:result.valid && result.playable ? 'RECOVERY_AUDIO_READY':'RECOVERY_FAILED',at_ms:Date.now()-t0}]}).catch(() => {});
-          } catch (error) { reason = `Audio recovery requires retry: ${String(error)}`; }
+            void enqueueAudioDiagnostic({session_id:diagnosticId,mode:'normal',status:result.valid && result.playable ? 'saved':'failed',started_at:startedAt,finished_at:new Date().toISOString(),error_code:result.valid && result.playable ? null:(result.code || 'RECOVERY_NOT_READY'),events:[{name:begin,at_ms:0,lecture_id:entry.name},{name:result.valid && result.playable ? 'RECOVERY_AUDIO_READY':'RECOVERY_FAILED',at_ms:Date.now()-t0}]}).catch(() => {});
+          } catch (error) {
+            reason = `Audio recovery requires retry: ${String(error)}`;
+            void enqueueAudioDiagnostic({session_id:diagnosticId,mode:'normal',status:'failed',started_at:startedAt,finished_at:new Date().toISOString(),error_code:'RECOVERY_EXCEPTION',events:[{name:begin,at_ms:0,lecture_id:entry.name},{name:'RECOVERY_EXCEPTION',at_ms:Date.now()-t0}]}).catch(() => {});
+          }
         }
         if (!current()) continue;
         inventory = inspectDurableTranscriptInventory(entry);
@@ -516,9 +595,11 @@ export function useLectureRecorder(
         // A playable old output is not proof that all captured material was recovered.
         const incomplete = inventory.unresolved || (inventory.present && !inventory.complete);
         const finalCoversInventory = !inventory.present || !inventory.complete ||
-          Math.abs((valid?.durationMillis ?? 0) - inventory.durationMillis) <= Math.max(1000, inventory.sources.length);
+          Math.abs((valid?.durationMillis ?? 0) - inventory.durationMillis) <=
+            Math.max(2000, Math.min(10000, Math.round(inventory.durationMillis * 0.0015)));
         const verifiedInventory = inventory.complete && (!interrupted || nativeVerified);
-        const ready = playable && !incomplete && finalCoversInventory && (!inventory.present || !interrupted || nativeVerified);
+        const ready = playable && !incomplete && finalCoversInventory && (!inventory.present || !interrupted || nativeVerified) &&
+          (!(publishedManifestPending || savedWithReadyManifest) || nativeOutputVerified);
         const state = ready ? 'ready' : verifiedInventory && !inventory.unresolved ? 'saved' : 'interrupted';
         const recoveredDurablePrefix =
           interrupted &&
@@ -545,11 +626,15 @@ export function useLectureRecorder(
             (latest.transcription?.status === undefined || latest.transcription.status === 'done'),
           characters:transcript.exists ? (latest.characters || transcript.textSync().length):0,
           recordingState:state,
+          partialRecovery: latest.partialRecovery === true || inventory.partialRecovery,
           interruptionReason:ready ? null : inventory.error || reason || 'Audio preparation is incomplete. Source audio was preserved; retry recovery.',
           transcription:latest.transcription || getDefaultTranscription(duration),source:latest.source || 'recorded',
         });
       } catch (error) { devConsole.warn('Lecture recovery failed; original files were preserved:', error); }
-      finally { releaseLectureRecovery(entry.uri); }
+      finally {
+        releaseLectureRecovery(entry.uri);
+        if (announced) notify(false);
+      }
     }
   };
 
@@ -642,7 +727,11 @@ export function useLectureRecorder(
         null;
 
       requestedAudioUriRef.current = audioUri;
-      const started = await withAudioOperationDeadline(LectureRecorder.start(audioUri), 10000, 'Native recorder Start');
+      const started = await withAudioOperationDeadline(
+        typeof LectureRecorder.startWithoutLivePCM === 'function'
+          ? LectureRecorder.startWithoutLivePCM(audioUri)
+          : LectureRecorder.start(audioUri),
+        10000, 'Native recorder Start');
 
       /*
        * Native start() now means "the engine accepted the start request".

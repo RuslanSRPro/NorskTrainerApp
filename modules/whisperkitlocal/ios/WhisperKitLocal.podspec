@@ -24,7 +24,7 @@ Pod::Spec.new do |s|
   s.source_files = '**/*.{h,m,mm,swift,hpp,cpp}'
 
   # React Native 0.75+ SPM bridge.
-  # We link only the WhisperKit product, not TTSKit/SpeakerKit.
+  # Saved-transcript speaker analysis uses SpeakerKit; TTSKit stays unlinked.
   spm_dependency(
     s,
     url: 'https://github.com/argmaxinc/argmax-oss-swift.git',
@@ -32,6 +32,6 @@ Pod::Spec.new do |s|
       kind: 'exactVersion',
       version: '1.1.1'
     },
-    products: ['WhisperKit']
+    products: ['WhisperKit', 'SpeakerKit']
   )
 end

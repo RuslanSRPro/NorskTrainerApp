@@ -2,6 +2,7 @@ import AVFoundation
 import ExpoModulesCore
 import Foundation
 import WhisperKit
+import SpeakerKit
 
 private final class WhisperWindowExportGate: @unchecked Sendable {
   private let lock = NSLock()
@@ -175,11 +176,28 @@ private actor WhisperModelLoadCoordinator<Model: Sendable> {
   private let timeoutNanoseconds: UInt64
   private var cached: Model?
   private var cachedModel: String?
+  private var cacheAdmissionBlock: UUID?
   private var active: Operation?
 
   init(timeoutNanoseconds: UInt64 = 40_000_000_000, factory: @escaping Factory) {
     self.timeoutNanoseconds = timeoutNanoseconds
     self.factory = factory
+  }
+
+  // Caller must own inference admission before detaching an in-use model.
+  func takeCachedIfIdle(blockRequestsFor token: UUID? = nil) throws -> Model? {
+    guard active == nil else {
+      throw NSError(domain: "WhisperKitLocal", code: 101,
+        userInfo: [NSLocalizedDescriptionKey: "A model is still preparing or cancelling. Retry after it finishes."])
+    }
+    if let token { cacheAdmissionBlock = token }
+    let result = cached
+    cached = nil; cachedModel = nil
+    return result
+  }
+
+  func resumeCacheRequests(_ token: UUID) {
+    if cacheAdmissionBlock == token { cacheAdmissionBlock = nil }
   }
 
   var cleanupPending: Bool { active?.cancelling == true }
@@ -188,6 +206,10 @@ private actor WhisperModelLoadCoordinator<Model: Sendable> {
   func load(model: String, request: WhisperModelLoadRequest) async throws -> Model {
     try Task.checkCancellation()
     try request.checkCancellation()
+    guard cacheAdmissionBlock == nil else {
+      throw NSError(domain: "WhisperKitLocal", code: 104,
+        userInfo: [NSLocalizedDescriptionKey: "Speaker analysis is using model memory. Retry after it finishes."])
+    }
     if let cached, cachedModel == model { return cached }
     return try await withTaskCancellationHandler(operation: {
       try await withCheckedThrowingContinuation { continuation in
@@ -348,6 +370,22 @@ private final class WhisperInferenceAdmission: @unchecked Sendable {
 public class WhisperKitLocalModule: Module {
   private let modelLoader = WhisperModelLoadCoordinator<WhisperPreparedModel> {
     try await prepareWhisperModel($0)
+  }
+  // Same pinned SDK, a separate isolated preparation generation. A model-load
+  // deadline quarantines the worker; it never publishes a late cancelled kit.
+  private let speakerLoader = WhisperModelLoadCoordinator<SpeakerKit>(
+    timeoutNanoseconds: 120_000_000_000
+  ) { _ in
+    let config = PyannoteConfig(
+      downloadRevision: "556fc52a13327837688f02289457cded017802e9",
+      load: false, verbose: false,
+      concurrentSegmenterWorkers: 1, concurrentEmbedderWorkers: 1
+    )
+    let kit = try await SpeakerKit(config)
+    try Task.checkCancellation()
+    try await kit.ensureModelsLoaded()
+    try Task.checkCancellation()
+    return kit
   }
   private let inferenceAdmission = WhisperInferenceAdmission()
   private let liveStateLock = NSLock()
@@ -1074,6 +1112,56 @@ public class WhisperKitLocalModule: Module {
         "overlapSeconds": window.actualOverlapSeconds,
         "requestedStartSeconds": max(0, startSeconds)
       ]
+    }
+
+    AsyncFunction("diarizeWindow") {
+      (audioUri: String, startSeconds: Double, endSeconds: Double) async throws -> [String: Any] in
+      guard startSeconds.isFinite, endSeconds.isFinite, startSeconds >= 0,
+        endSeconds > startSeconds, endSeconds - startSeconds <= 60.001 else {
+        throw NSError(domain: "WhisperKitLocal", code: 102,
+          userInfo: [NSLocalizedDescriptionKey: "Speaker analysis requires an audio window of at most 60 seconds."])
+      }
+      let lease = try self.inferenceAdmission.acquire()
+      defer { lease.release() } // Real native completion, never a JS deadline.
+      // Do not keep the large ASR model resident alongside the speaker models.
+      // A model currently loading is not detached or mistaken for an idle cache.
+      let cacheToken = UUID()
+      let previous = try await self.modelLoader.takeCachedIfIdle(blockRequestsFor: cacheToken)
+      defer { Task { await self.modelLoader.resumeCacheRequests(cacheToken) } }
+      if let previous { await previous.kit.unloadModels() }
+      let request = WhisperModelLoadRequest()
+      let kit = try await self.speakerLoader.load(model: "speakerkit-v1.1.1-pyannote-v3", request: request)
+      let window = try await self.makeTailTranscriptionWindow(
+        audioPath: self.filePath(from: audioUri), requestedStartSeconds: startSeconds,
+        requestedOverlapSeconds: 0, requestedEndSeconds: endSeconds
+      )
+      defer { try? FileManager.default.removeItem(at: window.url) }
+      let samples = try AudioProcessor.loadAudioAsFloatArray(fromPath: window.url.path)
+      guard !samples.isEmpty, samples.count <= 16_000 * 61 else {
+        throw NSError(domain: "WhisperKitLocal", code: 103,
+          userInfo: [NSLocalizedDescriptionKey: "Speaker audio window is empty or exceeds its memory limit."])
+      }
+      let result = try await kit.diarize(audioArray: samples,
+        options: PyannoteDiarizationOptions(useExclusiveReconciliation: false, centroidSource: .trainableOnly))
+      let turns: [[String: Any]] = result.segments.map { segment in
+        ["start": Double(segment.startTime) + window.globalOffsetSeconds,
+         "end": Double(segment.endTime) + window.globalOffsetSeconds,
+         "speakerIds": segment.speaker.speakerIds]
+      }
+      let centroids: [[String: Any]] = result.speakerCentroidEmbeddings.keys.sorted().compactMap { id in
+        guard let values = result.speakerCentroidEmbeddings[id],
+          !values.isEmpty, values.count <= 1024, values.allSatisfy({ $0.isFinite }) else { return nil }
+        return ["id": id, "values": values.map { Double($0) }]
+      }
+      return ["ok": true, "turns": turns, "centroids": centroids,
+        "startSeconds": startSeconds, "endSeconds": min(endSeconds, window.globalOffsetSeconds + Double(samples.count) / 16000)]
+    }
+
+    AsyncFunction("releaseSpeakerModels") { () async throws -> Bool in
+      let lease = try self.inferenceAdmission.acquire()
+      defer { lease.release() }
+      if let kit = try await self.speakerLoader.takeCachedIfIdle() { await kit.unloadModels() }
+      return true
     }
 
     AsyncFunction("startLive") {

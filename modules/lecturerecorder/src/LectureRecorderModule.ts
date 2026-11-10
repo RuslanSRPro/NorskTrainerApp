@@ -40,6 +40,7 @@ export type LectureAudioInfo = {
 
 export type LectureRecordingValidation = {
   durableSegmentsVerified?: boolean;
+  partialRecovery?: boolean;
   valid: boolean;
   playable: boolean;
   durationMillis: number;
@@ -104,6 +105,8 @@ declare class LectureRecorderNativeModule
   start(
     destinationUri: string
   ): Promise<LectureRecorderResult>;
+
+  startWithoutLivePCM?(destinationUri: string): Promise<LectureRecorderResult>;
 
   stop(): Promise<LectureRecorderResult>;
 

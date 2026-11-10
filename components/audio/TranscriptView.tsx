@@ -1,3 +1,5 @@
+import { useMemo, useState } from 'react';
+import { stitchTranscriptSegments, transcriptReviewGaps, transcriptNeedsReview } from '@/features/audio/transcriptQuality';
 import {
   Pressable,
   StyleSheet,
@@ -11,6 +13,7 @@ import type {
 
 import {
   formatPlaybackTime,
+  speakerLabel,
 } from '@/features/audio/lectureStorage';
 
 import {
@@ -22,6 +25,7 @@ import {
 } from '@/store/settingsStore';
 
 type Props = {
+  reviewDurationSeconds?: number;
   segments:
     SavedTranscriptSegment[];
   fallbackText:
@@ -46,7 +50,8 @@ type Props = {
 };
 
 export function TranscriptView({
-  segments,
+  segments: originalSegments,
+  reviewDurationSeconds,
   fallbackText,
   isCurrent,
   isLoaded,
@@ -63,6 +68,27 @@ export function TranscriptView({
     getAudioUiText(
       app_language
     );
+
+  const [showGaps, setShowGaps] = useState(false);
+  const segments = useMemo(() => reviewDurationSeconds === undefined
+    ? originalSegments : stitchTranscriptSegments(originalSegments), [originalSegments, reviewDurationSeconds]);
+  const gaps = useMemo(() => transcriptReviewGaps(segments, reviewDurationSeconds ?? 0),
+    [segments, reviewDurationSeconds]);
+  const language = app_language === 'no' ? 'no' : app_language === 'en' ? 'en' : 'ua';
+  const gapCopy = {
+    ua: ['Інтервали без тексту', 'Це можуть бути паузи. Натисніть на час, щоб прослухати й перевірити, чи була мова.'],
+    en: ['Intervals without text', 'These may be pauses. Tap a time to listen and check whether anyone was speaking.'],
+    no: ['Intervaller uten tekst', 'Dette kan være pauser. Trykk på et tidspunkt for å lytte og sjekke om noen snakket.'],
+  }[language];
+
+  const reviewFlags = useMemo(() => segments.map(segment =>
+    reviewDurationSeconds !== undefined && transcriptNeedsReview(segment)), [segments, reviewDurationSeconds]);
+  const reviewCount = reviewFlags.filter(Boolean).length;
+  const reviewCopy = {
+    ua: ['Варто прослухати', 'Розпізнавання менш упевнене. Це не обов’язково помилка. Натисніть на позначений фрагмент, щоб прослухати; текст збережено повністю.'],
+    en: ['Worth checking', 'Recognition is less confident, which does not necessarily mean an error. Tap a marked passage to listen; all text is preserved.'],
+    no: ['Bør lyttes gjennom', 'Gjenkjenningen er mindre sikker, men teksten er ikke nødvendigvis feil. Trykk på et merket avsnitt for å lytte; all tekst er bevart.'],
+  }[language];
 
   if (
     segments.length ===
@@ -92,11 +118,30 @@ export function TranscriptView({
         styles.list
       }
     >
+      {reviewCount > 0 && <View style={{gap: 4, paddingVertical: 8}}>
+        <Text style={{color: accent, fontSize: fontBase, fontWeight: '700'}}>{reviewCopy[0]} ({reviewCount})</Text>
+        <Text style={{color: textSecondary, fontSize: fontBase - 2}}>{reviewCopy[1]}</Text>
+      </View>}
+      {gaps.length > 0 && <View style={{gap: 8}}>
+        <Pressable accessibilityRole="button" accessibilityState={{expanded: showGaps}}
+          onPress={() => setShowGaps(value => !value)} style={{minHeight: 44, justifyContent: 'center'}}>
+          <Text style={{color: accent, fontSize: fontBase}}>{gapCopy[0]} ({gaps.length})</Text>
+        </Pressable>
+        {showGaps && <>
+          <Text style={{color: textSecondary}}>{gapCopy[1]}</Text>
+          {gaps.map(gap => <Pressable key={`${gap.start}-${gap.end}`} accessibilityRole="button"
+            onPress={() => onSeek(Math.max(0, gap.start - 1))}
+            style={{minHeight: 44, justifyContent: 'center'}}>
+            <Text style={{color: accent}}>{formatPlaybackTime(gap.start)}–{formatPlaybackTime(gap.end)}</Text>
+          </Pressable>)}
+        </>}
+      </View>}
       {segments.map(
         (
           segment,
           index
         ) => {
+          const needsReview = reviewFlags[index];
           const active =
             isCurrent &&
             isLoaded &&
@@ -121,11 +166,11 @@ export function TranscriptView({
               }
               accessibilityRole="button"
               accessibilityLabel={
-                `${audioUi.playTranscriptFrom} ${timestamp}: ${segment.text}`
+                `${needsReview ? `${reviewCopy[0]}. ` : ''}${audioUi.playTranscriptFrom} ${timestamp}: ${speakerLabel(segment, String(app_language))} ${segment.text}`
               }
               onPress={() =>
                 onSeek(
-                  segment.start
+                  needsReview ? Math.max(0, segment.start - 1) : segment.start
                 )
               }
               style={[
@@ -152,6 +197,10 @@ export function TranscriptView({
                 {timestamp}
               </Text>
 
+              <View style={{flex: 1}}>
+              {needsReview && <Text style={{color: accent, fontSize: fontBase - 3, fontWeight: '700'}}>
+                ◇ {reviewCopy[0]}
+              </Text>}
               <Text
                 selectable
                 style={[
@@ -164,8 +213,9 @@ export function TranscriptView({
                   },
                 ]}
               >
-                {segment.text}
+                {speakerLabel(segment, String(app_language)) ? `${speakerLabel(segment, String(app_language))}: ` : ''}{segment.text}
               </Text>
+              </View>
             </Pressable>
           );
         }
@@ -180,6 +230,7 @@ const styles =
       gap: 3,
     },
     row: {
+      minHeight: 44,
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 10,
@@ -193,7 +244,6 @@ const styles =
       paddingTop: 2,
     },
     text: {
-      flex: 1,
       lineHeight: 24,
       fontWeight: '500',
     },

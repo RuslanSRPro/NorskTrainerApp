@@ -1,5 +1,6 @@
 import ExpoModulesCore
 @preconcurrency import AVFoundation
+import Darwin
 import UIKit
 import Foundation
 
@@ -66,7 +67,10 @@ private final class LectureAssemblyOperation: @unchecked Sendable {
   private var deadlineWork: DispatchWorkItem?
   private var completion: ((Result<[String: Any], Error>) -> Void)?
 
-  init(completion: @escaping (Result<[String: Any], Error>) -> Void) {
+  let publicationID: String
+
+  init(publicationID: String = UUID().uuidString, completion: @escaping (Result<[String: Any], Error>) -> Void) {
+    self.publicationID = publicationID
     self.completion = completion
   }
 
@@ -345,6 +349,14 @@ public final class LectureRecorderModule: Module {
     qos: .utility
   )
 
+  // Stop owns the recording lease until cleanup. Its explicit destination
+  // cannot be archived concurrently; old lectures may recover independently.
+  // Never queue the current durable commit behind background archive validation.
+  private let stopCommitQueue = DispatchQueue(
+    label: "com.norsktrainer.lecture-recorder.stop-commit",
+    qos: .userInitiated
+  )
+
   private let timingQueue = DispatchQueue(
     label: "com.norsktrainer.audio-timing",
     qos: .utility
@@ -378,6 +390,8 @@ public final class LectureRecorderModule: Module {
   // Writer-queue-owned state.
   private var currentSegmentFile: AVAudioFile?
   private var currentPartURL: URL?
+  private var segmentWriteAttempted = false // writerQueue only; includes failed writes.
+  private var livePCMEnabled = true // stateLock; legacy start keeps Live compatibility.
   private var nextSegmentIndex = 1
   private var currentSegmentDurationSeconds = 0.0
 
@@ -467,7 +481,15 @@ public final class LectureRecorderModule: Module {
   private struct RecordingManifestAssembly: Codable {
     var state: String
     var generation: Int
+    var publicationID: String? = nil
     var output: String?
+  }
+
+  private struct RecordingManifestRecovery: Codable {
+    var partial: Bool
+    var reason: String
+    var preservedTailFile: String
+    var recoveredAt: String
   }
 
   private struct RecordingManifest: Codable {
@@ -480,6 +502,7 @@ public final class LectureRecorderModule: Module {
     var committedDurationMillis: Int
     var activeSegmentIndex: Int
     var assembly: RecordingManifestAssembly
+    var recovery: RecordingManifestRecovery? = nil
   }
 
   public func definition() -> ModuleDefinition {
@@ -504,6 +527,11 @@ public final class LectureRecorderModule: Module {
 
     AsyncFunction("start") { (destinationUri: String) async throws -> [String: Any] in
       try await self.startRecorderRequest(destinationUri)
+    }
+
+    // Explicit opt-out for Normal capture. Legacy callers and Live retain PCM.
+    AsyncFunction("startWithoutLivePCM") { (destinationUri: String) async throws -> [String: Any] in
+      try await self.startRecorderRequest(destinationUri, enableLivePCM: false)
     }
 
     AsyncFunction("stop") { (promise: Promise) in
@@ -1031,24 +1059,9 @@ public final class LectureRecorderModule: Module {
           return
         }
 
-        let existingValidation =
-          self.validateAudioFile(
-            destinationURL
-          )
-
-        if
-          manifest.assembly.state == "ready",
-          (try? self.verifyRecordingManifestInventoryForStop(
-            segmentURLs: self.completedSegmentURLs(in: self.segmentsDirectoryURL(for: destinationURL)),
-            destinationURL: destinationURL)) != nil,
-          self.unresolvedPartialSegmentURLs(in: self.segmentsDirectoryURL(for: destinationURL)).isEmpty,
-          manifest.assembly.output == destinationURL.lastPathComponent,
-          (existingValidation["valid"] as? Bool) == true,
-          (existingValidation["playable"] as? Bool) == true
-        {
-          DispatchQueue.main.async {
-            request.finish(existingValidation)
-          }
+        if let ready = self.verifiedReadyRecordingResult(for: destinationURL) {
+          self.appendTimingEvent("ASSEMBLY_EXISTING_READY", destinationURL: destinationURL)
+          request.finish(ready)
           return
         }
 
@@ -1110,6 +1123,13 @@ public final class LectureRecorderModule: Module {
           !hasSegmentsDirectory
         {
           request.finish(existingValidation)
+          return
+        }
+
+        // A native success may precede JS session.json publication when the app is killed.
+        if let ready = self.verifiedReadyRecordingResult(for: destinationURL) {
+          self.appendTimingEvent("RECOVERY_EXISTING_READY", destinationURL: destinationURL)
+          request.finish(ready)
           return
         }
 
@@ -1273,6 +1293,18 @@ public final class LectureRecorderModule: Module {
               )
 
           do {
+            let existingRecovery =
+              self.loadRecordingManifest(
+                for: destinationURL
+              )?.recovery
+
+            let markerMatchesTail =
+              existingRecovery?.partial == true &&
+              existingRecovery?.reason ==
+                "terminal_crash_tail" &&
+              existingRecovery?.preservedTailFile ==
+                preservedTailURL.lastPathComponent
+
             guard
               !FileManager.default.fileExists(
                 atPath: preservedTailURL.path
@@ -1282,6 +1314,21 @@ public final class LectureRecorderModule: Module {
                 code: "ERR_RECOVERY_TAIL_PRESERVE",
                 message: "A preserved crash-tail file already exists. Recovery stopped without overwriting audio."
               )
+            }
+
+            if !markerMatchesTail {
+              try self.updateRecordingManifestDurably(
+                for: destinationURL
+              ) {
+                $0.recovery =
+                  RecordingManifestRecovery(
+                    partial: true,
+                    reason: "terminal_crash_tail",
+                    preservedTailFile:
+                      preservedTailURL.lastPathComponent,
+                    recoveredAt: self.isoTimestamp()
+                  )
+              }
             }
 
             try FileManager.default.moveItem(
@@ -1323,6 +1370,33 @@ public final class LectureRecorderModule: Module {
           destinationURL: destinationURL,
           details: "segments=\(reconciledManifest.segments.count);durationMillis=\(reconciledManifest.committedDurationMillis)"
         )
+        // A verified prefix is available even when a previous derived export failed.
+        // Only explicit assembleRecording retries that known failure.
+        if reconciledManifest.assembly.state == "assembly_failed" {
+          do {
+            try self.updateRecordingManifestDurably(for: destinationURL) { $0.state = "saved" }
+            var saved = self.makeValidationResult(
+              valid: false, playable: false,
+              durationMillis: reconciledManifest.committedDurationMillis,
+              uri: destinationURL.absoluteString,
+              bytes: reconciledManifest.segments.reduce(0) { $0 + $1.bytes },
+              code: "ERR_ASSEMBLY_RETRY_REQUIRED",
+              message: "Verified audio segments are saved. Retry audio preparation explicitly to repeat the failed export."
+            )
+            saved["durableSegmentsVerified"] = true
+            saved["partialRecovery"] = self.loadRecordingManifest(for: destinationURL)?.recovery?.partial == true
+            self.appendTimingEvent("RECOVERY_PREFIX_READY_RETRY_DEFERRED", destinationURL: destinationURL)
+            request.finish(saved)
+          } catch {
+            request.finish(self.makeValidationResult(
+              valid: false, playable: false, durationMillis: reconciledManifest.committedDurationMillis,
+              uri: destinationURL.absoluteString, bytes: 0,
+              code: "ERR_RECOVERY_SAVED_MANIFEST", message: error.localizedDescription
+            ))
+          }
+          return
+        }
+
         self.assembleRecordingFromManifest(
           reconciledManifest,
           destinationURL: destinationURL,
@@ -1333,12 +1407,96 @@ public final class LectureRecorderModule: Module {
           // Reconciliation independently verified the complete durable inventory.
           // A derived exporter failure must not block segment transcription.
           recovered["durableSegmentsVerified"] = true
+
+          let latestManifest =
+            self.loadRecordingManifest(
+              for: destinationURL
+            )
+
+          recovered["partialRecovery"] =
+            latestManifest?.recovery?.partial == true
+
           DispatchQueue.main.async {
             request.finish(recovered)
           }
         }
       }
     }
+  }
+
+  private static let publicationAttribute = "com.norsktrainer.audio.publication"
+
+  private func matchesPublishedGeneration(_ url: URL, id: String) -> Bool {
+    guard UUID(uuidString: id) != nil else { return false }
+    let expected = Array(id.utf8)
+    var bytes = [UInt8](repeating: 0, count: expected.count)
+    let count = bytes.withUnsafeMutableBytes { buffer in
+      getxattr(url.path, Self.publicationAttribute, buffer.baseAddress, buffer.count, 0, 0)
+    }
+    return count == expected.count && bytes == expected
+  }
+
+  // Archive admission excludes a concurrent writer for this destination.
+  private func verifiedReadyRecordingResult(for destinationURL: URL) -> [String: Any]? {
+    guard let manifest = loadRecordingManifest(for: destinationURL) else { return nil }
+    let alreadyReady = manifest.state == "ready" && manifest.assembly.state == "ready"
+      && manifest.assembly.output == destinationURL.lastPathComponent
+    if !alreadyReady {
+      guard manifest.state == "saved", manifest.assembly.state == "assembling",
+            let id = manifest.assembly.publicationID,
+            matchesPublishedGeneration(destinationURL, id: id) else { return nil }
+    }
+    let directory = segmentsDirectoryURL(for: destinationURL)
+    guard unresolvedPartialSegmentURLs(in: directory).isEmpty else { return nil }
+    let urls = completedSegmentURLs(in: directory)
+    guard (try? verifyRecordingManifestInventoryForStop(
+      segmentURLs: urls, destinationURL: destinationURL)) != nil else { return nil }
+    var measuredDurationMillis = 0
+    for (offset, url) in urls.enumerated() {
+      let entry = manifest.segments[offset]
+      guard fileSize(url) == entry.bytes else { return nil }
+      let validation = validateAudioFile(url)
+      guard (validation["valid"] as? Bool) == true,
+            (validation["playable"] as? Bool) == true,
+            let duration = validation["durationMillis"] as? Int, duration > 0 else { return nil }
+      measuredDurationMillis += duration
+    }
+    let committedSum = manifest.segments.reduce(0) { $0 + $1.durationMillis }
+    guard committedSum == manifest.committedDurationMillis,
+          abs(measuredDurationMillis - committedSum) <= max(1000, urls.count) else { return nil }
+    var output = validateAudioFile(destinationURL)
+    // Match the existing successful-export coverage tolerance, including AAC priming.
+    let outputToleranceMillis = max(2000, min(10000, Int((Double(measuredDurationMillis) * 0.0015).rounded())))
+    guard (output["valid"] as? Bool) == true, (output["playable"] as? Bool) == true,
+          let duration = output["durationMillis"] as? Int,
+          abs(duration - measuredDurationMillis) <= outputToleranceMillis else { return nil }
+    output["durableSegmentsVerified"] = true
+    output["partialRecovery"] = manifest.recovery?.partial == true
+    if !alreadyReady {
+      do {
+        try commitReadyManifest(for: destinationURL)
+        appendTimingEvent("ASSEMBLY_READY_MANIFEST_REPAIRED", destinationURL: destinationURL)
+      } catch {
+        return publishedWithPendingManifest(output, destinationURL: destinationURL)
+      }
+    }
+    return output
+  }
+
+  private func commitReadyManifest(for url: URL) throws {
+    try updateRecordingManifestDurably(for: url) {
+      $0.state = "ready"
+      $0.assembly.state = "ready"
+      $0.assembly.output = url.lastPathComponent
+    }
+  }
+
+  private func publishedWithPendingManifest(_ validation: [String: Any], destinationURL: URL) -> [String: Any] {
+    var result = validation
+    result["code"] = "AUDIO_PUBLISHED_MANIFEST_PENDING"
+    result["durableSegmentsVerified"] = true
+    appendTimingEvent("AUDIO_PUBLISHED_MANIFEST_PENDING", destinationURL: destinationURL)
+    return result
   }
 
   private func beginArchiveRequest(
@@ -1422,6 +1580,7 @@ public final class LectureRecorderModule: Module {
           )
       }
 
+    let publicationID = UUID().uuidString
     do {
       let actualSegments = self.completedSegmentURLs(in: segmentsDirectoryURL)
       _ = try self.verifyRecordingManifestInventoryForStop(
@@ -1436,6 +1595,7 @@ public final class LectureRecorderModule: Module {
         $0.state = "saved"
         $0.assembly.state = "assembling"
         $0.assembly.generation += 1
+        $0.assembly.publicationID = publicationID
       }
     } catch {
       completion(
@@ -1462,31 +1622,16 @@ public final class LectureRecorderModule: Module {
       segmentURLs,
       to: destinationURL,
       protectExistingRecording: true,
+      publicationID: publicationID,
       archiveLease: archiveLease
     ) { result in
       self.recoveryQueue.async {
         switch result {
         case .success(let validation):
           do {
-            try self.updateRecordingManifestDurably(
-              for: destinationURL
-            ) {
-              $0.state = "ready"
-              $0.assembly.state = "ready"
-              $0.assembly.output = destinationURL.lastPathComponent
-            }
+            try self.commitReadyManifest(for: destinationURL)
           } catch {
-            completion(
-              self.makeValidationResult(
-                valid: false,
-                playable: false,
-                durationMillis: manifest.committedDurationMillis,
-                uri: destinationURL.absoluteString,
-                bytes: committedBytes,
-                code: "ERR_ASSEMBLY_READY_MANIFEST",
-                message: "The audio file was assembled, but its ready state could not be committed durably: \(error.localizedDescription)"
-              )
-            )
+            completion(self.publishedWithPendingManifest(validation, destinationURL: destinationURL))
             return
           }
 
@@ -2101,7 +2246,7 @@ public final class LectureRecorderModule: Module {
       // Fan out a separate immutable copy off the realtime tap callback.
       // Whisper may be cold/loading/slow; none of that is allowed to block
       // durable segment writes or own a second microphone engine.
-      let deliverLive = self.withStateLock { self.livePCMFailureGeneration != captureGeneration }
+      let deliverLive = self.withStateLock { self.livePCMEnabled && self.livePCMFailureGeneration != captureGeneration }
       if deliverLive {
         if self.livePCMBudget.reserve(duration) {
           if let liveBuffer = self.copyPCMBuffer(buffer) {
@@ -2555,11 +2700,13 @@ public final class LectureRecorderModule: Module {
         )
       )
 
+    // Never overwrite an unresolved checkpoint when reusing an empty slot.
+    guard !FileManager.default.fileExists(atPath: partURL.path),
+          !FileManager.default.fileExists(atPath: finalizedSegmentURL(forPartURL: partURL).path) else {
+      throw makeNSError(code: "ERR_SEGMENT_DESTINATION_EXISTS",
+        message: "Checkpoint slot is occupied. Existing source audio was preserved.")
+    }
     nextSegmentIndex += 1
-
-    removeFileIfPresent(
-      partURL
-    )
 
     let channelCount = max(
       1,
@@ -2626,6 +2773,7 @@ public final class LectureRecorderModule: Module {
       )
     }
 
+    segmentWriteAttempted = false
     currentSegmentFile = file
     currentPartURL = partURL
     currentSegmentDurationSeconds = 0
@@ -2733,6 +2881,7 @@ public final class LectureRecorderModule: Module {
       )
     }
 
+    segmentWriteAttempted = true
     try file.write(
       from: buffer
     )
@@ -2782,10 +2931,10 @@ public final class LectureRecorderModule: Module {
     // critical writer queue: that can stall microphone buffers and can turn a
     // transient container-readability delay into a fatal segment-sequence gap.
     let measuredDurationSeconds = currentSegmentDurationSeconds
-    let measuredDurationMillis = max(
-      0,
-      Int((measuredDurationSeconds * 1000.0).rounded())
-    )
+    // A positive sub-millisecond write is not an empty checkpoint.
+    let measuredDurationMillis = measuredDurationSeconds > 0
+      ? max(1, Int((measuredDurationSeconds * 1000.0).rounded())) : 0
+    let attemptedWrite = segmentWriteAttempted
 
     currentSegmentFile = nil
     currentPartURL = nil
@@ -2799,18 +2948,33 @@ public final class LectureRecorderModule: Module {
     // accepts it; the final assembled lecture retains its normal 500ms minimum.
     let bytes = fileSize(partURL)
     guard measuredDurationMillis > 0 else {
-      appendTimingEvent("SEGMENT_ZERO_DURATION_PRESERVED", destinationURL: currentDestinationURL)
-      return // Keep the raw .part for explicit recovery; never silently delete it.
+      guard !attemptedWrite else {
+        appendTimingEvent("SEGMENT_ZERO_DURATION_PRESERVED", destinationURL: currentDestinationURL)
+        reportWriterFailure("A checkpoint write was attempted but its duration is unknown. Source audio was preserved for recovery.")
+        return
+      }
+      // No write was ever attempted: preserve the empty container outside the
+      // segment namespace BEFORE reusing its index. A failed move must stop
+      // admission of later checkpoints instead of introducing a hidden gap.
+      do {
+        let preserved = partURL.deletingLastPathComponent().appendingPathComponent(
+          "empty-checkpoint-\(UUID().uuidString).part.m4a")
+        try FileManager.default.moveItem(at: partURL, to: preserved)
+        nextSegmentIndex = max(1, nextSegmentIndex - 1)
+        appendTimingEvent("SEGMENT_UNUSED_SLOT_PRESERVED", destinationURL: currentDestinationURL,
+          details: "file=\(preserved.lastPathComponent)")
+      } catch {
+        reportWriterFailure("Unable to preserve an unused checkpoint: \(error.localizedDescription). Source audio was not removed.")
+      }
+      return
     }
 
     guard bytes > 0 else {
-      appendTimingEvent(
-        "SEGMENT_REJECTED",
-        destinationURL: currentDestinationURL,
-        details: "durationMillis=\(measuredDurationMillis);bytes=\(bytes)"
-      )
-      removeFileIfPresent(partURL)
-      nextSegmentIndex = max(1, nextSegmentIndex - 1)
+      // Positive captured duration with no payload is a storage failure, not
+      // an empty slot. Do not renumber later audio to hide missing speech.
+      appendTimingEvent("SEGMENT_REJECTED", destinationURL: currentDestinationURL,
+        details: "durationMillis=\(measuredDurationMillis);bytes=\(bytes)")
+      reportWriterFailure("A written checkpoint has no readable payload. Recording stopped; existing checkpoints were preserved.")
       return
     }
 
@@ -2902,6 +3066,7 @@ public final class LectureRecorderModule: Module {
     currentSegmentFile = nil
     currentPartURL = nil
     nextSegmentIndex = 1
+    segmentWriteAttempted = false
     currentSegmentDurationSeconds = 0
     timingFirstWriterAttemptLogged = false
   }
@@ -2985,7 +3150,7 @@ public final class LectureRecorderModule: Module {
   // MARK: - Stop / merge / recovery
 
   // Public async functions never synchronously wait for the serial writer.
-  private func startRecorderRequest(_ uri: String) async throws -> [String: Any] {
+  private func startRecorderRequest(_ uri: String, enableLivePCM: Bool = true) async throws -> [String: Any] {
     guard let destination = URL(string: uri), destination.isFileURL else {
       throw makeException(code: "ERR_INVALID_DESTINATION", message: "Invalid local recording destination.")
     }
@@ -3052,6 +3217,7 @@ public final class LectureRecorderModule: Module {
               self.recordingFileLease = lease
               self.pendingStartLease = nil
               self.beginRecordingSession()
+              self.withStateLock { self.livePCMEnabled = enableLivePCM }
               self.isStopping = false; self.isPausedForInterruption = false
               self.resumeToken = nil; self.lifecycleRestartPending = false
               self.resetLiveState()
@@ -3228,7 +3394,9 @@ public final class LectureRecorderModule: Module {
       return
     }
 
-    recoveryQueue.async {
+    appendTimingEvent("STOP_VERIFY_QUEUED", destinationURL: destinationURL)
+    stopCommitQueue.async {
+      self.appendTimingEvent("STOP_VERIFY_BEGIN", destinationURL: destinationURL)
       let outcome: Result<[String: Any], Error> = Result {
         // Full validation is deliberately off main and off writerQueue. It also
         // repairs a checkpoint whose manifest update failed during capture.
@@ -3263,6 +3431,7 @@ public final class LectureRecorderModule: Module {
           "segmentCount": manifest.segments.count
         ]
       }
+      self.appendTimingEvent("STOP_VERIFY_END", destinationURL: destinationURL)
       DispatchQueue.main.async {
         guard self.pendingStopPromise != nil else { return }
         self.pendingStopPromise = nil
@@ -3287,10 +3456,11 @@ public final class LectureRecorderModule: Module {
     _ segmentURLs: [URL],
     to destinationURL: URL,
     protectExistingRecording: Bool = false,
+    publicationID: String,
     archiveLease: LectureFileAdmission.Lease,
     completion: @escaping (Result<[String: Any], Error>) -> Void
   ) {
-    let operation = LectureAssemblyOperation(completion: completion)
+    let operation = LectureAssemblyOperation(publicationID: publicationID, completion: completion)
     operation.armDeadline(after: 120.0) {
       if operation.finish(.failure(self.makeNSError(
         code: "ERR_ASSEMBLY_TIMEOUT",
@@ -3652,6 +3822,14 @@ public final class LectureRecorderModule: Module {
             }
 
             do {
+              // Attach provenance to the temporary inode before the atomic move.
+              // If tagging is unavailable, keep the ordinary verified export path.
+              let tagged = Array(operation.publicationID.utf8).withUnsafeBytes { buffer in
+                setxattr(temporaryURL.path, Self.publicationAttribute, buffer.baseAddress, buffer.count, 0, 0)
+              }
+              if tagged != 0 {
+                self.appendTimingEvent("ASSEMBLY_PUBLICATION_TAG_UNAVAILABLE", destinationURL: destinationURL)
+              }
               let published = try LectureFilePublication.publish(
                 temporaryURL: temporaryURL, destinationURL: destinationURL,
                 validation: temporaryValidation, operation: operation,
@@ -3787,9 +3965,7 @@ public final class LectureRecorderModule: Module {
 
     let partials = entries
       .filter {
-        $0.lastPathComponent.hasSuffix(
-          ".part.m4a"
-        )
+        self.partialSegmentIndex(from: $0) != nil
       }
       .sorted {
         $0.lastPathComponent <
@@ -4770,6 +4946,59 @@ public final class LectureRecorderModule: Module {
           status: "committed"
         )
       )
+    }
+
+    let previouslyCommittedSegments =
+      repaired.segments
+        .filter {
+          $0.status == "committed"
+        }
+        .sorted {
+          $0.index < $1.index
+        }
+
+    guard
+      rebuiltSegments.count >=
+        previouslyCommittedSegments.count
+    else {
+      throw makeNSError(
+        code: "ERR_MANIFEST_COMMITTED_SEGMENT_LOSS",
+        message: "The recording manifest declares \(previouslyCommittedSegments.count) committed checkpoints, but only \(rebuiltSegments.count) finalized checkpoints were found on disk. Recovery stopped without shrinking the committed manifest."
+      )
+    }
+
+    for previousSegment in
+      previouslyCommittedSegments
+    {
+      let offset =
+        previousSegment.index - 1
+
+      guard
+        offset >= 0,
+        offset < rebuiltSegments.count
+      else {
+        throw makeNSError(
+          code: "ERR_MANIFEST_COMMITTED_SEGMENT_LOSS",
+          message: "Committed checkpoint \(previousSegment.index) declared by the recording manifest is missing from the finalized checkpoint inventory. Recovery stopped without rewriting the manifest."
+        )
+      }
+
+      let rebuiltSegment =
+        rebuiltSegments[offset]
+
+      guard
+        rebuiltSegment.index ==
+          previousSegment.index,
+        rebuiltSegment.file ==
+          previousSegment.file,
+        rebuiltSegment.bytes ==
+          previousSegment.bytes
+      else {
+        throw makeNSError(
+          code: "ERR_MANIFEST_COMMITTED_SEGMENT_MISMATCH",
+          message: "Committed checkpoint \(previousSegment.index) does not match the finalized checkpoint inventory. Recovery stopped without rewriting the manifest."
+        )
+      }
     }
 
     repaired.segments =

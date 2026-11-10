@@ -1,3 +1,4 @@
+import { translationBlocks } from '@/features/audio/transcriptQuality';
 import {
   useState,
   type MutableRefObject,
@@ -299,24 +300,19 @@ export function useLectureTranslation({
           SavedTranscriptSegment[] =
             [];
 
-        /*
-         * Prefer the timestamped Whisper segments. Translating
-         * each segment independently preserves an exact
-         * source-time -> translated-text mapping, so tapping a
-         * translated timestamp can seek the same audio position.
-         *
-         * Older lectures without segment JSON fall back to the
-         * previous paragraph/chunk translation path.
-         */
+        // Use adjacent source context while preserving block-level seek times.
+        const normalizeSource = (value: string) => value.replace(/\s+/g, ' ').trim();
+        const timestampsCoverText = normalizeSource(sourceSegments.map(segment => segment.text).join(' ')) ===
+          normalizeSource(sourceText);
+        const sourceBlocks = timestampsCoverText ? translationBlocks(sourceSegments) : [];
         if (
-          sourceSegments.length >
+          sourceBlocks.length >
             0
         ) {
-          const sourceSegmentTexts =
-            sourceSegments.map(
-              segment =>
-                segment.text
-            );
+          // Keep timestamped blocks intact in storage/UI; only requests are
+          // split. A single long Whisper segment may exceed the merge budget.
+          const sourceParts = sourceBlocks.map(segment => splitTextForTranslation(segment.text, 600));
+          const sourceSegmentTexts = sourceParts.flat();
 
           const result =
             await OfflineTranslator
@@ -337,7 +333,7 @@ export function useLectureTranslation({
 
           if (
             translations.length !==
-              sourceSegments.length ||
+              sourceSegmentTexts.length ||
             translations.some(
               value =>
                 !value
@@ -348,22 +344,13 @@ export function useLectureTranslation({
             );
           }
 
-          translatedSegments =
-            sourceSegments.map(
-              (
-                segment,
-                index
-              ) => ({
-                start:
-                  segment.start,
-                end:
-                  segment.end,
-                text:
-                  translations[
-                    index
-                  ],
-              })
-            );
+          let translatedOffset = 0;
+          translatedSegments = sourceBlocks.map((segment, index) => {
+            const end = translatedOffset + sourceParts[index].length;
+            const text = translations.slice(translatedOffset, end).join(' ');
+            translatedOffset = end;
+            return { start: segment.start, end: segment.end, text };
+          });
 
           translatedText =
             translatedSegments

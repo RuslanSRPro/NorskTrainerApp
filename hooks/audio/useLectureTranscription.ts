@@ -1,3 +1,4 @@
+import { stitchTranscriptSegments } from '@/features/audio/transcriptQuality';
 import {
   useEffect,
   useRef,
@@ -94,148 +95,12 @@ type Params = {
 
 const SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS = 3;
 
-function normalizeTranscriptKey(
-  value: string
-) {
-  return value
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim();
-}
-
-function appendTextWithBoundaryDedup(
-  existing: string,
-  incoming: string
-) {
-  const left = existing.trim();
-  const right = incoming.trim();
-
-  if (!left) {
-    return right;
-  }
-
-  if (!right) {
-    return left;
-  }
-
-  const leftWords = left.split(/\s+/);
-  const rightWords = right.split(/\s+/);
-  const maxOverlap = Math.min(
-    16,
-    leftWords.length,
-    rightWords.length
-  );
-
-  for (
-    let count = maxOverlap;
-    count >= 1;
-    count -= 1
-  ) {
-    const leftTail = normalizeTranscriptKey(
-      leftWords.slice(-count).join(' ')
-    );
-    const rightHead = normalizeTranscriptKey(
-      rightWords.slice(0, count).join(' ')
-    );
-
-    if (
-      leftTail &&
-      leftTail === rightHead
-    ) {
-      return [
-        left,
-        rightWords.slice(count).join(' '),
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-    }
-  }
-
-  return `${left} ${right}`.trim();
-}
-
 function mergeSegmentTranscriptWindows(
-  windows: Array<{
-    currentStartSeconds: number;
-    segments: SavedTranscriptSegment[];
-  }>
+  windows: Array<{ currentStartSeconds: number; segments: SavedTranscriptSegment[] }>
 ) {
-  const merged: SavedTranscriptSegment[] = [];
-
-  for (const window of windows) {
-    const candidates = window.segments
-      .filter(
-        segment =>
-          segment.end >
-            window.currentStartSeconds - 0.05 &&
-          isMeaningfulTranscriptText(
-            segment.text
-          )
-      )
-      .sort(
-        (a, b) =>
-          a.start - b.start
-      );
-
-    for (const candidate of candidates) {
-      const previous = merged.at(-1);
-
-      if (previous) {
-        const previousKey = normalizeTranscriptKey(
-          previous.text
-        );
-        const candidateKey = normalizeTranscriptKey(
-          candidate.text
-        );
-        const overlapsInTime =
-          candidate.start <=
-          previous.end + 0.35;
-        const sameBoundaryText =
-          previousKey.length > 0 &&
-          candidateKey.length > 0 &&
-          (
-            previousKey === candidateKey ||
-            previousKey.endsWith(candidateKey) ||
-            candidateKey.startsWith(previousKey)
-          );
-
-        if (
-          overlapsInTime &&
-          sameBoundaryText
-        ) {
-          if (
-            candidate.end > previous.end
-          ) {
-            merged[merged.length - 1] = {
-              ...candidate,
-              start: Math.min(
-                previous.start,
-                candidate.start
-              ),
-            };
-          }
-          continue;
-        }
-      }
-
-      merged.push(candidate);
-    }
-  }
-
-  let text = '';
-
-  for (const segment of merged) {
-    text = appendTextWithBoundaryDedup(
-      text,
-      segment.text
-    );
-  }
-
-  return {
-    text,
-    segments: merged,
-  };
+  const segments = stitchTranscriptSegments(windows.flatMap(window =>
+    window.segments.filter(segment => isMeaningfulTranscriptText(segment.text))));
+  return { segments, text: segments.map(segment => segment.text).join(' ').trim() };
 }
 
 export function useLectureTranscription({
@@ -546,7 +411,7 @@ export function useLectureTranscription({
                   rangeStart, rangeEnd, index > 0 ? SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS : 0)
               : WhisperKitLocal.transcribeSegment(previous?.uri ?? '', segmentSources[index].uri, whisperLanguage,
                   WHISPERKIT_DEFAULT_MODEL, current.globalStartSeconds, index > 0 ? SEGMENT_TRANSCRIPTION_OVERLAP_SECONDS : 0);
-            const segmentResult = await withAudioOperationDeadline(operation, 180000, 'Whisper bounded window');
+            const segmentResult = await withAudioOperationDeadline<Awaited<typeof operation>>(operation, 180000, 'Whisper bounded window');
             assertCurrent();
             if (!segmentResult.ok) throw new Error('Whisper window did not complete. Previous transcript is preserved.');
 
@@ -658,7 +523,7 @@ export function useLectureTranscription({
                   segment.start
             );
 
-        const transcriptSegments =
+        const meaningfulSegments =
           rawTranscriptSegments
             .filter(
               segment =>
@@ -672,8 +537,13 @@ export function useLectureTranscription({
                 b.start
             );
 
-        finalText =
-          rawWhisperText;
+        const transcriptSegments = stitchTranscriptSegments(meaningfulSegments);
+        const normalizedText = (text: string) => text.replace(/\s+/g, ' ').trim();
+        // Keep text that the model returned without timestamp coverage.
+        finalText = normalizedText(meaningfulSegments.map(segment => segment.text).join(' ')) ===
+          normalizedText(rawWhisperText)
+          ? transcriptSegments.map(segment => segment.text).join(' ').trim()
+          : rawWhisperText;
 
         const doneTranscription:
           LectureTranscription = {

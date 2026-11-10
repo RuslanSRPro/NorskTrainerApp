@@ -12,7 +12,7 @@ export type AudioDiagnosticReport = {
   startup_ms?: number | null;
   model_load_ms?: number | null;
   error_code?: string | null;
-  events?: { name: string; at_ms: number }[];
+  events?: { name: string; at_ms: number; lecture_id?: string; segment_index?: number }[];
 };
 const KEY = '@norsktrainer/audio_diagnostics_queue/v2';
 let storageOperation: Promise<void> = Promise.resolve();
@@ -25,6 +25,9 @@ function compactEvents(events: NonNullable<AudioDiagnosticReport['events']>) {
   const cleaned = events.map(e => ({
     name: e.name.replace(/[^A-Z0-9_]/g, '').slice(0, 60),
     at_ms: cleanNumber(e.at_ms) ?? 0,
+    ...(cleanNumber(e.segment_index) !== null ? { segment_index: cleanNumber(e.segment_index)! } : {}),
+    ...(typeof e.lecture_id === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(e.lecture_id)
+      ? { lecture_id: e.lecture_id } : {}),
   }));
   // A long lecture can produce hundreds of checkpoints. Keep the lifecycle
   // events and aggregate only the repetitive checkpoint notifications.
