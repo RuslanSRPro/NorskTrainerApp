@@ -361,6 +361,129 @@ async function runSemanticAuditWorker(jobId: string) {
   return batches;
 }
 
+// D10 07.11.2026 (agreed, variant A, D10_family_dictionary_first_v1): the family 360
+// of a verb seen for the first time. Its expressions and bindings were created only
+// by the ordbokene enrichment chain, i.e. after family injection, so they never got
+// into a job. Right before family injection: for promoted verb roots of the job
+// without bindings, run ordbokene-lexeme-pipeline-worker (the same call the ordbokene
+// chain makes); the injection then adds the expressions to this job (total_items
+// grows). Up to 2 roots per call, the rest on the next call; a root is retried at
+// most 3 times. A failure never fails the job (the step is then skipped).
+// D10 07.11.2026 (agreed, D10_naob_family_v1): the same step also takes the NAOB
+// expressions of the verb (naob-family-expressions-worker), once per verb, for old
+// verbs too; Ordbøkene is called only when the verb has no Ordbøkene bindings yet.
+const FAMILY_DICTIONARY_ROOTS_PER_CALL = 2;
+const FAMILY_DICTIONARY_TIMEOUT_MS = 40000;
+const FAMILY_NAOB_TIMEOUT_MS = 30000;
+const FAMILY_DICTIONARY_BUDGET_MS = 25000;
+
+async function callFamilyWorker(name: string, payload: Record<string, unknown>, timeoutMs: number): Promise<{
+  ok: boolean;
+  json: unknown;
+  detail: Record<string, unknown>;
+}> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const json = await safeJson(response);
+    const ok = response.ok && (json as { ok?: unknown } | null)?.ok !== false;
+    return {
+      ok,
+      json,
+      detail: ok
+        ? { http_status: response.status }
+        : { http_status: response.status, body: safeStringify(json).slice(0, 2000) },
+    };
+  } catch (workerError) {
+    return { ok: false, json: null, detail: { error: safeStringify(workerError).slice(0, 2000) } };
+  }
+}
+
+async function runFamilyDictionaryStep(jobId: string): Promise<{
+  processed: number;
+  remaining: number;
+  roots: string[];
+}> {
+  const started = Date.now();
+  let page: {
+    ok?: boolean;
+    roots?: Array<{
+      lexeme_id: string; lemma: string; pos: string; article_id: number;
+      need_ordbokene: boolean; need_naob: boolean;
+    }>;
+    remaining?: number;
+  } | null = null;
+  try {
+    const { data, error } = await supabase.rpc('d10_family_dictionary_roots_page_v2', {
+      p_job_id: jobId,
+      p_limit: FAMILY_DICTIONARY_ROOTS_PER_CALL,
+    });
+    if (error) throw error;
+    page = data;
+  } catch (pageError) {
+    console.error('job-orchestrator: family dictionary roots failed for job', jobId, safeStringify(pageError));
+    return { processed: 0, remaining: 0, roots: [] };
+  }
+  const roots = page?.ok === true && Array.isArray(page.roots) ? page.roots : [];
+  let processed = 0;
+  const done: string[] = [];
+  for (const root of roots) {
+    if (processed > 0 && Date.now() - started > FAMILY_DICTIONARY_BUDGET_MS) break;
+    const outcome: string[] = [];
+    if (root.need_ordbokene) {
+      const result = await callFamilyWorker('ordbokene-lexeme-pipeline-worker', {
+        lemma: root.lemma, parent_lexeme_id: root.lexeme_id, entity_mode: 'lexeme',
+        pos: root.pos, expression_id: null, article_id: root.article_id,
+        parent_article_id: null, dictionary_code: 'bm', dry_run: false, force_refresh: false,
+      }, FAMILY_DICTIONARY_TIMEOUT_MS);
+      try {
+        await rpcOrThrow('d10_family_dictionary_record_v1', {
+          p_job_id: jobId,
+          p_root_lexeme_id: root.lexeme_id,
+          p_article_id: root.article_id,
+          p_ok: result.ok,
+          p_detail: result.detail,
+        });
+      } catch (recordError) {
+        console.error('job-orchestrator: family dictionary record failed for job', jobId, safeStringify(recordError));
+      }
+      if (!result.ok) console.warn('job-orchestrator: family dictionary step failed for root', jobId, root.lemma, safeStringify(result.detail));
+      outcome.push(`ordbokene:${result.ok ? 'ok' : 'retry'}`);
+    }
+    if (root.need_naob) {
+      const result = await callFamilyWorker('naob-family-expressions-worker', {
+        lexeme_id: root.lexeme_id, lemma: root.lemma,
+      }, FAMILY_NAOB_TIMEOUT_MS);
+      const answer = result.json as { slugs?: unknown; bind?: unknown; status?: unknown } | null;
+      try {
+        await rpcOrThrow('d10_family_naob_record_v1', {
+          p_job_id: jobId,
+          p_root_lexeme_id: root.lexeme_id,
+          p_ok: result.ok,
+          p_slugs: Array.isArray(answer?.slugs) ? answer!.slugs : [],
+          p_detail: result.ok
+            ? { status: answer?.status ?? null, bind: answer?.bind ?? null }
+            : result.detail,
+        });
+      } catch (recordError) {
+        console.error('job-orchestrator: family NAOB record failed for job', jobId, safeStringify(recordError));
+      }
+      if (!result.ok) console.warn('job-orchestrator: family NAOB step failed for root', jobId, root.lemma, safeStringify(result.detail));
+      outcome.push(`naob:${result.ok ? 'ok' : 'retry'}`);
+    }
+    processed++;
+    done.push(`${root.lemma}:${root.article_id}:${outcome.join(',')}`);
+  }
+  return { processed, remaining: Number(page?.remaining ?? 0), roots: done };
+}
+
 async function rpcOrThrow<T = unknown>(
   name: string,
   args: Record<string, unknown>,
@@ -450,8 +573,24 @@ serve(async (req) => {
           .in('current_stage', ['source_checks', SURFACE_PROBE_STAGE]);
         if (error) throw error;
         if (!count) {
-          processedJobs.push({ job_id: jobId, action: 'skipped', reason: 'no unpromoted items' });
-          continue;
+          // D10 09.11.2026 (D10_family_dictionary_continue_v1): the dictionary step of family 360 adds no
+          // items until it is finished, so a done job whose verb roots still wait for it (Ordbøkene / NAOB)
+          // is not skipped: the call goes on to the dictionary step. Test f1eaa6b8: 2 of 21 verbs, then skipped.
+          let dictionaryWaiting = false;
+          if (job.input_type !== 'synonym_candidate' && !skipFamilyInjection) {
+            const { data: waitPage, error: waitError } = await supabase.rpc('d10_family_dictionary_roots_page_v2', {
+              p_job_id: jobId,
+              p_limit: 1,
+            });
+            if (waitError) {
+              console.warn('job-orchestrator: family dictionary wait check failed for job', jobId, safeStringify(waitError));
+            }
+            dictionaryWaiting = !waitError && waitPage?.ok === true && Array.isArray(waitPage.roots) && waitPage.roots.length > 0;
+          }
+          if (!dictionaryWaiting) {
+            processedJobs.push({ job_id: jobId, action: 'skipped', reason: 'no unpromoted items' });
+            continue;
+          }
         }
       }
 
@@ -687,6 +826,20 @@ serve(async (req) => {
         // family 360 (the cards are marked deferred_by_policy and can be
         // processed again in full from "Problem words").
         if (!skipFamilyInjection && job.input_type !== 'synonym_candidate') {
+          // D10 07.11.2026 (D10_family_dictionary_first_v1): dictionary expressions of
+          // new verb roots first, so the injection below can add them to this job.
+          const familyDictionary = await runFamilyDictionaryStep(jobId);
+          if (familyDictionary.processed > 0) {
+            processedJobs.push({
+              job_id: jobId,
+              promoted_count: promotedCount,
+              family_dictionary_roots: familyDictionary.roots,
+              family_dictionary_remaining: familyDictionary.remaining,
+              orchestrator_incomplete: true,
+              enrichment_pending: false,
+            });
+            continue;
+          }
           let familyPage!: { ok: boolean; added: number; has_more: boolean };
           try {
             familyPage = await rpcOrThrow<{

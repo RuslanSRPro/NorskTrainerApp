@@ -231,7 +231,7 @@ async function mapLexemeRows(rows: any[]) {
     return value;
   });
 
-  const [formsState, translationState, exampleState, approxState, homonymState] = await Promise.allSettled([
+  const [formsState, translationState, exampleState, approxState, homonymState, expressionCategoryState] = await Promise.allSettled([
     timed('forms',fetchFormsMap(lexemeIds)),
     timed('translations',lexemeIds.length > 0
       ? supabase.rpc('get_canonical_lexeme_translations_v1', {
@@ -245,6 +245,13 @@ async function mapLexemeRows(rows: any[]) {
       ? supabase.rpc('get_lexeme_translation_approx_v1', { p_lexeme_ids: lexemeIds })
       : Promise.resolve({ data: [], error: null } as any)),
     timed('homonyms',fetchHomonymCards(homonymIds)),
+    // D10 10.11.2026 (D10_expression_category_label_v2): category of expression
+    // cards (expression_catalog.category). A failure only falls back to the old label.
+    timed('expression_categories',validRows.some((r) => r.pos === 'expression')
+      ? supabase.rpc('get_expression_card_categories_v1', {
+          p_lexeme_ids: validRows.filter((r) => r.pos === 'expression').map((r) => r.id),
+        })
+      : Promise.resolve({ data: [], error: null } as any)),
   ]);
 
   const formsMap = formsState.status === 'fulfilled'
@@ -276,6 +283,14 @@ async function mapLexemeRows(rows: any[]) {
     if (row?.lexeme_id && row?.language_code) approx.add(`${row.lexeme_id}:${row.language_code}`);
   }
 
+  const expressionCategoryResult = expressionCategoryState.status === 'fulfilled'
+    ? expressionCategoryState.value : { data: [], error: expressionCategoryState.reason } as any;
+  if (expressionCategoryResult.error) console.error('Expression categories load failed:', expressionCategoryResult.error);
+  const expressionCategories = new Map<string, string>();
+  for (const row of expressionCategoryResult.data || []) {
+    if (row?.lexeme_id && row?.category) expressionCategories.set(String(row.lexeme_id), String(row.category));
+  }
+
   return validRows
     .map((row) => {
       const mapped: any = mapLexemeRow(row, formsMap.get(row.id), translationMap.get(row.id), exampleMap.get(row.id));
@@ -285,6 +300,7 @@ async function mapLexemeRows(rows: any[]) {
       if (mapped) {
         mapped.ua_approx = approx.has(`${row.id}:uk`);
         mapped.en_approx = approx.has(`${row.id}:en`);
+        mapped.expression_category = expressionCategories.get(row.id) || '';
       }
       return mapped;
     })

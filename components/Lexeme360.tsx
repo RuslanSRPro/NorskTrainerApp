@@ -1,3 +1,4 @@
+import { HighlightedExample } from './HighlightedExample';
 import { linguisticText } from '../supabase/functions/_shared/example-evidence';
 // components/Lexeme360.tsx
 // Norsk Trainer App — Lexeme 360° v2
@@ -80,6 +81,7 @@ const LEXEME360_ALLOWED_TYPES = [
   // topic-relations — see LEXEME360_EXCLUDED_TYPES below), not against
   // noun-rooted proverbs — that problem is already solved upstream.
   'ordbokene_sub_article',
+  'naob_expression',
 
   // authoritative_semantic_relations relation type
   'has_expression',
@@ -155,6 +157,7 @@ type DefinitionRow = {
 };
 
 type ExampleRow = {
+  enrichment_evidence?: unknown;
   text: string;
   translation_uk?: string | null;
   cefr_level?: string | null;
@@ -514,6 +517,7 @@ async function fetchLexeme360(effectiveId: string, requestedId: string): Promise
     .slice(0,3)
     .map((row: any) => ({
       text: normalizeText(row.example_text),
+      enrichment_evidence: row.enrichment_evidence,
       translation_uk: row.translation_uk ?? null,
       cefr_level: row.cefr_level ?? null,
       source: row.source ?? null,
@@ -562,13 +566,13 @@ async function fetchLexeme360(effectiveId: string, requestedId: string): Promise
 
     // Canonical translations are keyed by lexeme ID; examples by expression ID.
     const translationMap = new Map<string, { uk: string; en: string }>();
-    const exampleMap = new Map<string, {text:string;translationUk:string}>();
+    const exampleMap = new Map<string, {text:string;translationUk:string;evidence:unknown}>();
 
     for (const ex of targetExamples ?? []) {
       const key = normalizeText((ex as any).lexeme_id);
       const text = normalizeText((ex as any).example_text);
       if (key && text && !exampleMap.has(key)) {
-        exampleMap.set(key, {text,translationUk:normalizeText((ex as any).translation_uk)});
+        exampleMap.set(key, {text,translationUk:normalizeText((ex as any).translation_uk),evidence:(ex as any).enrichment_evidence});
       }
     }
 
@@ -623,6 +627,7 @@ async function fetchLexeme360(effectiveId: string, requestedId: string): Promise
           expressionId: expressionKey,
           example: exampleMap.get(id)?.text || '',
           example_translation_uk: exampleMap.get(id)?.translationUk || '',
+          example_evidence: exampleMap.get(id)?.evidence,
           expression_subtype: subtype || 'has_expression',
           relation_type: subtype || 'has_expression',
           confidence: 1,
@@ -684,7 +689,7 @@ async function fetchLexeme360(effectiveId: string, requestedId: string): Promise
           ? 'Knyttet til verifisert oppslagsord'
           : normalizeText(row.verification_reason) === 'verified'
             ? 'Verifisert'
-            : 'Ordbokene · venter på kildeverifisering',
+            : `${subtype === 'naob_expression' ? 'NAOB' : 'Ordbøkene'} · venter på kildeverifisering`,
       } as RelatedItem;
     })
     .filter((item): item is RelatedItem => Boolean(item));
@@ -935,7 +940,7 @@ function SectionHeader({
         {count != null ? <Text style={styles.sectionCount}>{count}</Text> : null}
       </View>
 
-      {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+      {subtitle ? <ScrollView horizontal showsHorizontalScrollIndicator style={{ maxHeight: 26 }}><Text style={styles.sectionSubtitle} numberOfLines={1}>{subtitle}</Text></ScrollView> : null}
     </View>
   );
 }
@@ -1029,13 +1034,9 @@ function Lexeme360Content({
 
       {headerExample ? (
         <View style={styles.headerExampleBox}>
-          <Text style={styles.headerExampleText} numberOfLines={2}>
-            {headerExample}
-          </Text>
+          <HighlightedExample textStyle={styles.headerExampleText} numberOfLines={2} text={headerExample} phrase={data?.lemma||lemma||""} evidence={data?.examples?.[0]?.enrichment_evidence} />
           {headerExampleTranslation ? (
-            <Text style={styles.headerExampleTranslation} numberOfLines={2}>
-              {headerExampleTranslation}
-            </Text>
+            <HighlightedExample textStyle={styles.headerExampleTranslation} numberOfLines={2} text={headerExampleTranslation} phrase={data?.translation_ua||""} evidence={data?.examples?.[0]?.enrichment_evidence} language="uk" />
           ) : null}
         </View>
       ) : null}
@@ -1095,6 +1096,10 @@ function Lexeme360Content({
             </ScrollView>
             <Lexeme360Carousel
               fillAvailable
+              pinActions
+              compactFooter
+              highlightExamples
+              hideTitle
               items={meaningExtensions}
               lang={lang}
               highlightId={data?.requestedId ?? data?.id}
@@ -1423,7 +1428,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalSheetWrapper: {
-    height: '93%',
+    height: '95%',
   },
   sheet: {
     backgroundColor: 'transparent',
@@ -1436,8 +1441,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 16,
+    padding: 16,
+    paddingBottom: 10,
   },
   headerLeft: {
     flex: 1,

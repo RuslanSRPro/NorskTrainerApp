@@ -80,3 +80,6 @@ _audio_prebuild_backup_*/
 *.bak-*
 *.before-ts-fix
 .easignore.bak-*
+
+# Historical D10 source snapshots; retain locally, exclude from EAS uploads.
+.d10-v12-backup-*/

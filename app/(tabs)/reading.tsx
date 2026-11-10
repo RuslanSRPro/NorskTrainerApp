@@ -28,6 +28,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { SynonymsBadge } from "@/components/SynonymsBadge";
 import { Lexeme360, Lexeme360Sheet } from "@/components/Lexeme360";
+import { HighlightedExample } from "@/components/HighlightedExample";
 import { TrainingFormsList } from "@/components/training/TrainingFormsList";
 import type { TrainingFormItem } from "@/components/training/types";
 import {
@@ -43,6 +44,7 @@ import { useServerRating } from "@/services/serverStars";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlassOverlay } from "@/components/ui/glass/GlassOverlay";
 import { CompoundWordText } from "@/components/CompoundWordText";
+import { categoryLabel } from "@/services/categoryLabels";
 import { ReadingWordActions } from "@/components/ReadingWordActions";
 // D10 28.10.2026 (agreed): recent analyses (up to 20, on this device)
 import { AnalysisHistory } from "@/components/AnalysisHistory";
@@ -1303,10 +1305,10 @@ export default function ReadingScreen() {
             <Text style={[s.sectionTitle,{color:T.textPrimary,fontSize:F.base+3}]}>{tr("word_preview_title")}</Text>
             <Text style={[s.modalWord,{color:isIrregularMorphology(previewWord)?T.danger:T.textPrimary,fontSize:F.word}]}>{previewWord.word}</Text>
             <Text style={[s.modalTrans,{color:T.accent,fontSize:F.translation}]}>{bothTranslations(previewWord,lang)}</Text>
-            <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewWord.type||previewWord.category||""}{previewWord.gender?` · ${previewWord.gender}`:""}</Text>
+            <Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{categoryLabel(previewWord.type||previewWord.category||"",previewWord,lang as any)}{previewWord.gender?` · ${previewWord.gender}`:""}</Text>
             {previewWord.previewSource?<Text style={[s.modalCat,{color:T.textMuted,fontSize:F.meta}]}>{previewSourceLabel(previewWord,lang)}</Text>:null}
             <View style={s.formsBox}>{getFormLabels(previewWord).map(({label,value})=>(<View key={label} style={s.formRow}><Text style={[s.formLabel,{color:T.textMuted}]}>{label}</Text><Text style={[s.formVal,{color:T.textPrimary}]}>{value}</Text></View>))}</View>
-            {previewWord.example?(<View style={[s.exBox,{backgroundColor:T.cardInner}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text>{previewWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example_translation_uk}</Text>:null}</View>):null}
+            {previewWord.example?(<View style={[s.exBox,{backgroundColor:T.cardInner}]}><HighlightedExample textStyle={[s.exText,{color:T.textSecondary}]} text={previewWord.example} phrase={previewWord.lemma||previewWord.word||""} evidence={previewWord.example_evidence}/>{previewWord.example_translation_uk?<HighlightedExample textStyle={[s.exText,{color:T.textSecondary}]} text={previewWord.example_translation_uk} phrase={previewWord.ua||previewWord.translation_ua||""} evidence={previewWord.example_evidence} language="uk"/>:null}</View>):null}
             <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}>
               <Text style={[s.addBtnText,{color:T.accent}]}>{addingGlobalWord?tr("adding"):tr("add_preview_database")}</Text>
             </Pressable>
@@ -1375,7 +1377,7 @@ export default function ReadingScreen() {
               </Pressable>
               {hasVerificationData(vs)?(<View style={s.verRow}><VerificationBadge tier={vs.verification_tier||vs.tier} sourceVerified={vs.source_verified||vs.sourceVerified} evidence={vs.verification_evidence||vs.evidence} lemma={vs.lemma||vs.word||displayCandidateText(candidate)} size="sm" lang={lang} entityId={candidate.lexeme?.id??null}/></View>):null}
               {pickCandidateMeaning(candidate,lang)?<Text style={[s.candidateMeaning,{color:T.accent,fontSize:F.base}]}>{pickCandidateMeaning(candidate,lang)}</Text>:null}
-              {candidate.example?<Text style={[s.candidateExample,{color:T.textSecondary,fontSize:F.base-1}]}>{candidate.example}</Text>:null}
+              {candidate.example?<HighlightedExample textStyle={[s.candidateExample,{color:T.textSecondary,fontSize:F.base-1}]} text={candidate.example} phrase={candidate.lemma||""}/>:null}
               {candidate.error?<Text style={[s.candidateError,{color:T.danger}]}>❌ {candidate.error}</Text>:null}
               <Pressable style={[s.previewBtn,{backgroundColor:T.card}]} onPress={()=>inspectCandidate(candidate)}>
                 <Text style={[s.previewBtnText,{color:T.accent}]}>{candidate.status==="unknown"?"🔎 Preview":tr("open_card")}</Text>
@@ -1465,7 +1467,7 @@ export default function ReadingScreen() {
               mutedColor={T.textMuted}
               fonts={F}
             />
-            {previewWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example}</Text>{previewWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.example_translation_uk}</Text>:null}</View>:null}
+            {previewWord?.example?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><HighlightedExample textStyle={[s.exText,{color:T.textSecondary}]} text={previewWord.example} phrase={previewWord.lemma||previewWord.word||""} evidence={previewWord.example_evidence}/>{previewWord.example_translation_uk?<HighlightedExample textStyle={[s.exText,{color:T.textSecondary}]} text={previewWord.example_translation_uk} phrase={previewWord.ua||previewWord.translation_ua||""} evidence={previewWord.example_evidence} language="uk"/>:null}</View>:null}
             {previewWord?.notes_ua||previewWord?.notes?<View style={[s.exBox,{backgroundColor:T.cardAlt}]}><Text style={[s.exText,{color:T.textSecondary}]}>{previewWord.notes_ua||previewWord.notes}</Text></View>:null}
             <Pressable style={[s.addBtn,{backgroundColor:T.accentBg},addingGlobalWord&&s.disabled]} disabled={addingGlobalWord} onPress={addWordToGlobalBase}><Text style={[s.addBtnText,{color:T.accent}]}>{addingGlobalWord?tr("adding"):tr("add_preview_database")}</Text></Pressable>
             <Pressable style={[s.stopBtn,{backgroundColor:T.cardAlt}]} onPress={stopSpeech}><Text style={[s.stopBtnText,{color:T.textSecondary}]}>⏹ {tr("stop_audio")}</Text></Pressable>
@@ -1484,7 +1486,7 @@ export default function ReadingScreen() {
             <CompoundWordText value={formatDisplayLemma(selectedWord?.lemma||selectedWord?.word,selectedWord)} word={selectedWord} style={[s.modalWord,{fontSize:searchCardFonts.word,lineHeight:Math.ceil(searchCardFonts.word*1.15)}]} mainColor={selectedWord?.isCompound||selectedWord?.is_compound||isIrregularMorphology(selectedWord)?T.danger:T.textPrimary} componentColor={T.textPrimary} separatorColor={T.danger} plainColor={T.textPrimary} />
             <Text style={[s.modalTrans,{color:T.accent,fontSize:searchCardFonts.translation,lineHeight:Math.ceil(searchCardFonts.translation*1.25)}]}>{bothTranslations(selectedWord,lang)}</Text>
             <View style={s.modalMetaRow}>
-              <Text style={[s.modalCat,{color:T.textMuted,fontSize:searchCardFonts.meta}]}>{selectedWord?.category||selectedWord?.type||""}</Text>
+              <Text style={[s.modalCat,{color:T.textMuted,fontSize:searchCardFonts.meta}]}>{categoryLabel(selectedWord?.category||selectedWord?.type||"",selectedWord,lang as any)}</Text>
 
               {/* ФИКС: три компактні іконки в одному ряду — синоніми, 360°,
                   верифікація (крайня права) — той самий порядок і стиль,
@@ -1526,7 +1528,7 @@ export default function ReadingScreen() {
                 ) : null}
               </View>
             </View>
-            {selectedWord?.example?<View style={[s.exBox,{backgroundColor:"transparent",overflow:"hidden",marginTop:8,padding:10}]}><GlassOverlay dark={themeName==="dark"} material="card" shape="card" radius={14} /><Text style={[s.exText,{color:T.textSecondary,fontSize:searchCardFonts.base,lineHeight:Math.ceil(searchCardFonts.base*1.35)}]}>{selectedWord.example}</Text>{selectedWord.example_translation_uk?<Text style={[s.exText,{color:T.textSecondary,fontSize:searchCardFonts.base,lineHeight:Math.ceil(searchCardFonts.base*1.35)}]}>{selectedWord.example_translation_uk}</Text>:null}</View>:null}
+            {selectedWord?.example?<View style={[s.exBox,{backgroundColor:"transparent",overflow:"hidden",marginTop:8,padding:10}]}><GlassOverlay dark={themeName==="dark"} material="card" shape="card" radius={14} /><HighlightedExample textStyle={[s.exText,{color:T.textSecondary,fontSize:searchCardFonts.base,lineHeight:Math.ceil(searchCardFonts.base*1.35)}]} text={selectedWord.example} evidence={selectedWord.example_evidence} phrase={selectedWord.lemma||selectedWord.word||""} compact={false}/>{selectedWord.example_translation_uk?<HighlightedExample textStyle={[s.exText,{color:T.textSecondary,fontSize:searchCardFonts.base,lineHeight:Math.ceil(searchCardFonts.base*1.35)}]} text={selectedWord.example_translation_uk} evidence={selectedWord.example_evidence} language="uk" phrase={selectedWord.ua||selectedWord.translation_ua||""} compact={false}/>:null}</View>:null}
             {getFormLabels(selectedWord||{}).length>0?(
               <TrainingFormsList
                 forms={getFormLabels(selectedWord||{})}

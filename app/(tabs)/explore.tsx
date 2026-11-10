@@ -1,4 +1,5 @@
 // app/(tabs)/explore.tsx
+import { categoryLabel } from '@/services/categoryLabels';
 // Training screen — Liquid Glass UI 2.0 + preserved training logic
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -270,13 +271,10 @@ export default function TrainScreen() {
     return [];
   }
 
-  function getCategoryLabel(cat: string) {
-    const map: Record<AppLanguage, Record<string, string>> = {
-      ua: { verb: 'Дієслово', noun_masculine: 'Іменник · ч.р.', noun_feminine: 'Іменник · ж.р.', noun_neuter: 'Іменник · с.р.', adjective: 'Прикметник', adverb: 'Прислівник', expression: 'Сталий вираз' },
-      en: { verb: 'Verb', noun_masculine: 'Noun · masc.', noun_feminine: 'Noun · fem.', noun_neuter: 'Noun · neuter', adjective: 'Adjective', adverb: 'Adverb', expression: 'Expression' },
-      no: { verb: 'Verb', noun_masculine: 'Subst. · hankjønn', noun_feminine: 'Subst. · hunkjønn', noun_neuter: 'Subst. · intetkjønn', adjective: 'Adjektiv', adverb: 'Adverb', expression: 'Fast uttrykk' },
-    };
-    return map[lang]?.[cat] || map.en[cat] || cat;
+  // D10 07.11.2026 (D10_expression_category_label_v1): shared labels; an
+  // expression shows its category (particle verb, idiom ...).
+  function getCategoryLabel(cat: string, word?: any) {
+    return categoryLabel(cat, word, lang as any);
   }
 
   function getModeLabel(mode: TrainingMode) {

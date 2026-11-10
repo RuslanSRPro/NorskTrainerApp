@@ -893,7 +893,7 @@ async function enqueueExpressionAiFallbackEnrichment(jobId: string, offset: numb
   const stats = await runAggregateResidue({jobId,chain:'expression_ai_fallback',items,
     identity:(item)=>item.expression_id,
     invoke:(selected)=>callWorkerJson('ai-enrichment-worker',{
-      expression_ids:selected.map((item)=>item.expression_id),dry_run:false})});
+      expression_ids:selected.map((item)=>item.expression_id),dry_run:false,audit_rewrite_ai:true}, 40000)});
 
   return buildResult(items.length, stats, count, offset, limit);
 }

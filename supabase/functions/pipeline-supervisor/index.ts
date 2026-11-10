@@ -662,6 +662,19 @@ async function updateJobStatus(
     } catch (verifierThrow) {
       console.warn('[synonym-verifier] wake threw', jobId, verifierThrow instanceof Error ? verifierThrow.message : String(verifierThrow));
     }
+    // D10 08.11.2026 (agreed, D10_expression_category_v1): expression categories. Rules run when an
+    // expression enters the catalog; what they leave goes to a queue. Wake the category worker when the
+    // queue is not empty (it answers at once and works in the background; pg_cron picks up the rest).
+    try {
+      const { data: pendingCategories, error: categoryPendingError } = await supabase.rpc('d10_expr_category_pending_v1');
+      if (categoryPendingError) console.warn('[expression-category] pending check failed', jobId, safeStringify(categoryPendingError));
+      else if (Number(pendingCategories ?? 0) > 0) {
+        const woke = await callWorker('expression-category-worker', { reason: 'after_job', job_id: jobId }, 15_000);
+        if (!woke.ok) console.warn('[expression-category] wake failed', jobId, safeStringify(woke.data));
+      }
+    } catch (categoryThrow) {
+      console.warn('[expression-category] wake threw', jobId, categoryThrow instanceof Error ? categoryThrow.message : String(categoryThrow));
+    }
   }
 
   return true;
@@ -1545,7 +1558,8 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
       const stillIncomplete = Number(result.data?.items_still_incomplete_after_heal ?? 0);
 
       if (stillIncomplete > 0) {
-        if (previousLastError === '__second_pass_incomplete__') {
+        const auditHealPass = Number(state.enrichment_offsets["__d10_audit_heal_pass"] ?? 0);
+        if (auditHealPass >= 1) {
           const report = await jobFailureReport(jobId, state.enrichment_offsets);
           state.stage = 'needs_manual_review';
           state.last_error = `still incomplete after 2 full heal passes: ${stillIncomplete} items`;
@@ -1564,6 +1578,7 @@ async function processOneStep(jobId: string): Promise<Record<string, unknown>> {
           };
         }
 
+        state.enrichment_offsets["__d10_audit_heal_pass"] = auditHealPass + 1;
         state.audit_offset = 0;
         state.last_error = '__second_pass_incomplete__';
       } else {

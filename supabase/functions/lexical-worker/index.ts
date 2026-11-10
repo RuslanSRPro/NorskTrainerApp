@@ -124,6 +124,26 @@ Deno.serve(async (req) => {
           if (itemError) throw itemError;
           check.pos = item?.pos ?? null;
         }
+        // D10 07.11.2026 (D10_naob_family_v4): a NAOB uttrykk of the head word's article
+        // (family 360 from NAOB) is answered by the NAOB check from that evidence.
+        if (check.source === 'NAOB' && check.query_type === 'expression') {
+          check.naob_registered_expression = null;
+          const { data: item, error: itemError } = await supabase
+            .from('lexeme_processing_items').select('expression_id')
+            .eq('id', check.item_id).single();
+          if (itemError) throw itemError;
+          if (item?.expression_id) {
+            const { data: registered, error: registeredError } = await supabase
+              .rpc('d10_naob_registered_expression_v1', { p_expression_id: item.expression_id, p_query: check.query });
+            if (registeredError) throw registeredError;
+            if (registered && Array.isArray(registered.slugs) && registered.slugs.length) {
+              check.naob_registered_expression = {
+                slugs: registered.slugs.map(String),
+                url: typeof registered.url === 'string' ? registered.url : null,
+              };
+            }
+          }
+        }
         if (check.source === 'Ordbokene' && check.query_type === 'expression') {
           const { data: item, error: itemError } = await supabase
             .from('lexeme_processing_items').select('expression_id')

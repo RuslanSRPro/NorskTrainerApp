@@ -1,4 +1,16 @@
 import { publicationProofs, PUBLISHED_WITHOUT_EXPLANATION } from '../_shared/ai-review-binding.ts';
+import { expressionContext, expressionEvidence, currentExpressionEvidence } from './expression-quality.ts';
+import { reviewedHighlights } from '../_shared/example-highlights.ts';
+import { reviewExpressions, generateExpressions } from './expression-ai.ts';
+import type { ReviewInput } from './pos-sense-guard.ts';
+
+async function reviewAll(inputs: ReviewInput[], accepted?: (ref: number, evidence: Record<string, unknown>) => void,
+  rejected?: (ref: number, evidence: Record<string, unknown>) => void) {
+  const expressions = inputs.filter(x => JSON.parse(x.context).basis === 'expression');
+  const words = inputs.filter(x => JSON.parse(x.context).basis !== 'expression');
+  const results = await Promise.all([reviewGenerated(words, accepted, rejected), reviewExpressions(expressions, accepted, rejected)]);
+  return new Map(results.flatMap(x => [...x]));
+}
 import { norwegianExample, createAiExampleBinding } from '../_shared/example-evidence.ts';
 import { QUALITY_VERSION, loadSelectedContext, reviewGenerated, buildEnrichmentEvidence,
   noArticleBlocker, noArticleContext, isNoArticleContext, selectedArticle,
@@ -703,6 +715,8 @@ function aiResponseSchema(batch: boolean) {
     translation_en: { type: 'ARRAY', nullable: true, maxItems: 1, items: { type: 'STRING' } },
     example_nb: { type: 'STRING', nullable: true },
     example_translation_ua: { type: 'STRING', nullable: true },
+    example_highlights_nb: { type: 'ARRAY', items: { type: 'STRING' } },
+    example_highlights_uk: { type: 'ARRAY', items: { type: 'STRING' } },
     notes_ua: { type: 'STRING', nullable: true },
   };
   if (batch) { properties.ref = { type: 'INTEGER' }; properties.lemma = { type: 'STRING' }; }
@@ -766,7 +780,8 @@ No authoritative dictionary context is available for this lemma — rely on
 your own knowledge, but stay conservative (see accuracy note above).
 `;
 
-  const prompt = `
+  const prompt = `For each requested example also return example_highlights_nb and example_highlights_uk: arrays of exact unique substrings of the respective sentences that realize the target word/expression. Include its inflected forms and pronoun slot realizations. For a discontinuous expression use separate fragments, excluding unrelated intervening words. Each fragment must start/end at word boundaries and occur exactly once. Do not highlight the whole sentence unless the target itself is the whole sentence. Return [] when no example requested. In Ukrainian also use [] if the natural translation has no overt counterpart, such as an omitted copula; never alter a correct translation merely to create a highlight.
+
 You are enriching a Norwegian learning dictionary. Accuracy matters more than
 coverage: it is better to return one confident meaning than two where the
 second is a guess or a rare/literary sense.
@@ -797,6 +812,8 @@ Return JSON:
   "translation_en": ["..."],
   "example_nb": "...",
   "example_translation_ua": "...",
+  "example_highlights_nb": ["exact target fragment in example_nb"],
+  "example_highlights_uk": ["..."],
   "notes_ua": "..."
 }
 
@@ -806,6 +823,7 @@ Rules:
 - AI fallback must return exactly ONE equivalent for each requested language. Never add a second synonym or sense. Return [] only if uncertain.
 - Preserve the exact definition: a period/phase is not a moment; a process is not a result.
 - When source context includes translation_constraints, obey them for translations AND example translation.
+For each requested example also return example_highlights_nb and example_highlights_uk: arrays of exact unique substrings of the respective sentences that realize the target word/expression. Include its inflected forms and pronoun slot realizations. For a discontinuous expression use separate fragments, excluding unrelated intervening words. Each fragment must start/end at word boundaries and occur exactly once. Do not highlight the whole sentence unless the target itself is the whole sentence. Return [] when no example requested. In Ukrainian also use [] if the natural translation has no overt counterpart, such as an omitted copula; never alter a correct translation merely to create a highlight.
 - Norwegian example: simple, correct Bokmål.
 - Notes in Ukrainian: one short practical sentence.
 - If a field is not missing, still include it as null or [].
@@ -849,6 +867,8 @@ type BatchOutputItem = {
   translation_en?: string[] | null;
   example_nb?: string | null;
   example_translation_ua?: string | null;
+  example_highlights_nb?: string[];
+  example_highlights_uk?: string[];
   notes_ua?: string | null;
 };
 
@@ -932,6 +952,8 @@ is not.
     "translation_en": ["..."],
     "example_nb": "...",
     "example_translation_ua": "...",
+  "example_highlights_nb": ["exact target fragment in example_nb"],
+  "example_highlights_uk": ["..."],
     "notes_ua": "..."
   }
 ]
@@ -941,6 +963,7 @@ Rules:
 - AI fallback must return exactly ONE equivalent for each requested language. Never add a second synonym or sense. Return [] only if uncertain.
 - Preserve the exact definition: a period/phase is not a moment; a process is not a result.
 - When source context includes translation_constraints, obey them for translations AND example translation.
+For each requested example also return example_highlights_nb and example_highlights_uk: arrays of exact unique substrings of the respective sentences that realize the target word/expression. Include its inflected forms and pronoun slot realizations. For a discontinuous expression use separate fragments, excluding unrelated intervening words. Each fragment must start/end at word boundaries and occur exactly once. Do not highlight the whole sentence unless the target itself is the whole sentence. Return [] when no example requested. In Ukrainian also use [] if the natural translation has no overt counterpart, such as an omitted copula; never alter a correct translation merely to create a highlight.
 - Norwegian example: simple, correct Bokmål.
 - Notes in Ukrainian: one short practical sentence.
 - If a field was not in that item's "missing" list, still include it as null or [].
@@ -1030,6 +1053,14 @@ function getOwnKeyColumn(candidate: EntityCandidate): 'lexeme_id' | 'expression_
   return candidate.kind === 'expression' ? 'expression_id' : 'lexeme_id';
 }
 
+async function loadExpressionContext(supabase: ReturnType<typeof createEnrichmentClient>, candidate: EntityCandidate): Promise<void> {
+  const { data, error } = await supabase.from('expression_catalog')
+    .select('id, lemma, raw_sources, verification_evidence').eq('id', candidate.id).single();
+  if (error) throw new Error(`AI_EXPRESSION_CONTEXT_READ_FAILED: ${error.message}`);
+  if (!data || data.lemma !== candidate.lemma) throw new Error('AI_EXPRESSION_IDENTITY_MISMATCH');
+  candidate.selectedContext = expressionContext({ ...data, pos: candidate.pos });
+}
+
 function buildEntityOrFilter(candidate: EntityCandidate): string {
   const ownKeyColumn = getOwnKeyColumn(candidate);
   const parts = [`${ownKeyColumn}.eq.${candidate.id}`];
@@ -1063,7 +1094,9 @@ async function writeTranslations(
   // Validate ALL row bindings before the existing delete/upsert path.
   const boundEvidence = candidate.kind === 'lexeme' ? params.list.map(value =>
     buildEnrichmentEvidence(candidate.selectedContext!, candidate.qualityReview, {
-      lexemeId: candidate.id, languageCode: params.languageCode, value })) : [];
+      lexemeId: candidate.id, languageCode: params.languageCode, value })) : params.list.map(value =>
+        expressionEvidence(candidate.selectedContext!, candidate.qualityReview, candidate.id,
+          { language_code: params.languageCode, translation: value }));
   const errors: string[] = [];
   let written = 0;
 
@@ -1092,8 +1125,8 @@ async function writeTranslations(
         translation_type: params.translationType,
         translation_rank: rank,
         source: AI_SOURCE,
-        ...(candidate.kind === 'lexeme' ? { source_pos: candidate.pos,
-          enrichment_evidence: boundEvidence[rank - 1] } : {}),
+        source_pos: candidate.pos,
+        enrichment_evidence: boundEvidence[rank - 1],
         confidence: noArticle ? 'low' : isUk ? (params.existingEnglishTranslation ? 'medium' : 'low') : 'medium',
         notes: noArticle
           ? 'AI fallback without an Ordbøkene article: from part of speech and NAOB/Lexin/Wiktionary context (low reliability, review suggested)'
@@ -1136,7 +1169,9 @@ async function writeExample(
       ? { ...buildEnrichmentEvidence(candidate.selectedContext!, candidate.qualityReview), example_basis: 'no_article' }
       : { ...buildEnrichmentEvidence(candidate.selectedContext!, candidate.qualityReview),
         example_binding: createAiExampleBinding(candidate.selectedContext!,candidate.qualityReview,
-          {lexemeId:candidate.id,exampleNb:params.exampleNb,translationUk:params.exampleTranslationUa}) } : null;
+          {lexemeId:candidate.id,exampleNb:params.exampleNb,translationUk:params.exampleTranslationUa}) }
+    : expressionEvidence(candidate.selectedContext!, candidate.qualityReview, candidate.id,
+      { example_text: params.exampleNb, translation_uk: params.exampleTranslationUa });
   await applyOwnKeyEq(
     supabase.from('entity_examples').delete().eq('source', AI_SOURCE),
     candidate,
@@ -1151,7 +1186,8 @@ async function writeExample(
       translation_uk: params.exampleTranslationUa?.trim() ?? null,
       source: AI_SOURCE,
       source_type: 'ai_example',
-      ...(candidate.kind === 'lexeme' ? { enrichment_evidence: enrichmentEvidence } : {}),
+      enrichment_evidence: { ...enrichmentEvidence,
+        example_highlights: reviewedHighlights(candidate.qualityReview, params.exampleNb, params.exampleTranslationUa) },
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'lexeme_id,expression_id,language_code,source,example_text' },
@@ -1169,6 +1205,15 @@ async function checkCandidateMissing(
   existingEnglishTranslation: string | null;
 }> {
   const readFilter = buildEntityOrFilter(candidate);
+  // D10 09.11.2026: the expression's current context decides whether an earlier "≈" result is redone
+  if (candidate.kind === 'expression' && !candidate.revalidateAi && !candidate.selectedContext) {
+    try { await loadExpressionContext(supabase, candidate); } catch { /* reported by the generation step */ }
+  }
+  // Full expression refresh is explicit in the analysis chain; completion checks do not force it.
+  if (candidate.kind === 'expression' && candidate.revalidateAi) {
+    return { missing: ['translation_ua', 'translation_en', 'example'],
+      needsReview: ['translation_ua', 'translation_en', 'example'], existingEnglishTranslation: null };
+  }
 
   const { data: allTranslations, error: translationsReadError } = await supabase
     .from('entity_translations')
@@ -1182,9 +1227,10 @@ async function checkCandidateMissing(
   // example of a lexeme WITHOUT current review evidence (left from earlier
   // iterations) does not count as present, so AI writes it again. AI rows
   // with current evidence are kept (no repeated cost). Lexin / manual rows
-  // and expressions are not affected.
-  const staleAi = (row: any) => candidate.kind === 'lexeme' &&
-    String(row?.source).toLowerCase() === AI_SOURCE && !hasCurrentAiEvidence(row?.enrichment_evidence);
+  // are not affected. Expressions now require their own content-bound review.
+  const staleAi = (row: any) => String(row?.source).toLowerCase() === AI_SOURCE &&
+    !(candidate.kind === 'expression' ? currentExpressionEvidence(row, candidate.id, candidate.selectedContext)
+      : hasCurrentAiEvidence(row?.enrichment_evidence));
   const eligibleTranslations = (allTranslations ?? []).filter((t: any) =>
     (!candidate.revalidateAi || String(t.source).toLowerCase() !== AI_SOURCE) && !staleAi(t));
   const usableTranslations = eligibleTranslations.filter(isUsableForCompleteness);
@@ -1231,6 +1277,7 @@ async function checkCandidateMissing(
   if (!hasAuthoritativeEn) needsReview.push('translation_en');
   if (!hasAuthoritativeExample) needsReview.push('example');
 
+  if (candidate.kind === 'expression' && missing.length) return { missing: ['translation_ua','translation_en','example'], needsReview, existingEnglishTranslation: null };
   return { missing, needsReview, existingEnglishTranslation };
 }
 
@@ -1243,6 +1290,7 @@ async function writeAiResult(
   ai: { translation_ua?: unknown; translation_en?: unknown; example_nb?: unknown; example_translation_ua?: unknown; notes_ua?: unknown },
 ): Promise<Record<string, unknown>> {
   if (candidate.diagnoseOnly) throw new Error('DIAGNOSTIC_MODE_WRITE_BLOCKED');
+  if (missing.includes('example')) reviewedHighlights(candidate.qualityReview, String(ai.example_nb ?? ''), typeof ai.example_translation_ua === 'string' ? ai.example_translation_ua : null);
   for (const field of ['translation_ua', 'translation_en'] as const) {
     if (missing.includes(field)) {
       const list = ai[field];
@@ -1266,9 +1314,29 @@ async function writeAiResult(
       if (check.error) throw new Error(`ENRICHMENT_EVIDENCE_SCHEMA_REQUIRED: ${check.error.message}`);
     }
   }
-  const translationType = candidate.kind === 'expression' ? 'expression_primary' : 'primary';
+  if (candidate.kind === 'expression') {
+    const translations = (['uk','en'] as const).map(language_code => {
+      const translation = (language_code === 'uk' ? ai.translation_ua : ai.translation_en) as string[];
+      return { language_code, translation: translation[0].trim(), enrichment_evidence:
+        expressionEvidence(candidate.selectedContext!, candidate.qualityReview, candidate.id,
+          { language_code, translation: translation[0].trim() }) };
+    });
+    const example_text = String(ai.example_nb ?? '').trim();
+    const translation_uk = String(ai.example_translation_ua ?? '').trim();
+    const enrichment_evidence = { ...expressionEvidence(candidate.selectedContext!, candidate.qualityReview,
+      candidate.id, {example_text,translation_uk}), example_highlights: reviewedHighlights(candidate.qualityReview,example_text,translation_uk) };
+    const { error } = await supabase.rpc('d10_publish_expression_enrichment_v2', {
+      p_expression_id: candidate.id, p_translations: translations,
+      p_example: { example_text, translation_uk, enrichment_evidence },
+    });
+    if (error) throw new Error('EXPRESSION_ATOMIC_PUBLISH_FAILED: '+error.message);
+    return {kind:candidate.kind,id:candidate.id,lexeme_id:candidate.lexemeId,lemma:candidate.lemma,
+      translations_written:2,example_written:true,quality_version:QUALITY_VERSION,
+      quality_reviewer:'gpt-6-luna',updated_expression_fields:['translation_ua','translation_en','example']};
+  }
+  const translationType = 'primary';
   const writeLexemeId = candidate.kind === 'lexeme' ? candidate.id : null;
-  const writeExpressionId = candidate.kind === 'expression' ? candidate.id : null;
+  const writeExpressionId = null;
 
   let translationsWritten = 0;
   const writeErrors: string[] = [];
@@ -1365,7 +1433,7 @@ async function writeAiResult(
   }
   if (exampleWritten) updatedFields.push('example');
 
-  const fieldsKey = candidate.kind === 'expression' ? 'updated_expression_fields' : 'updated_lexemes_fields';
+  const fieldsKey = 'updated_lexemes_fields';
 
   const mergedNeedsReview = posMismatchFields.length > 0
     ? Array.from(new Set([...needsReview, ...posMismatchFields]))
@@ -1540,6 +1608,8 @@ async function processCandidatesBatch(
         requested = await loadLexemeContextOrMark(supabase, candidate, missing);
         // D10 27.10.2026 (agreed): homograph cards -> translation constraint
         await applyHomographConstraint(supabase, candidate, requested);
+      } else {
+        await loadExpressionContext(supabase, candidate);
       }
       // D10 26.10.2026: article without an explanation, translations present:
       // only the example is missing, which AI makes here only in the Audit
@@ -1587,14 +1657,20 @@ async function processCandidatesBatch(
       pos: p.candidate.pos,
       missing: p.missing,
       existing_english_translation: p.existingEnglishTranslation,
-      authoritative_dictionary_context: p.candidate.kind === 'lexeme' ? p.candidate.selectedContext! : buildDictionaryContext(p.candidate.naobContext, p.candidate.lexinContext),
+      authoritative_dictionary_context: p.candidate.selectedContext!,
       max_variants: maxVariantsFor(p.candidate.kind),
     }));
 
     let byRef: Map<number, BatchOutputItem>;
 
     try {
-      byRef = await callGeminiBatch(batchInput);
+      if (attempt > 0 && chunk.some(p => p.candidate.kind === 'expression')) {
+        const expressions = batchInput.filter(i => chunk[i.ref].candidate.kind === 'expression')
+          .map(i => ({...i, previous_rejection: chunk[i.ref].candidate.qualityDiagnostic ?? null}));
+        const words = batchInput.filter(i => chunk[i.ref].candidate.kind !== 'expression');
+        const [a,b] = await Promise.all([generateExpressions(expressions), words.length ? callGeminiBatch(words) : Promise.resolve(new Map<number, BatchOutputItem>())]);
+        byRef = new Map([...a, ...b]);
+      } else byRef = await callGeminiBatch(batchInput);
       // D10 27.10.2026: two-gender nouns, before the review
       for (let ref = 0; ref < chunk.length; ref++) {
         const fixed = withGenderConvention(chunk[ref].candidate, chunk[ref].missing, byRef.get(ref));
@@ -1614,16 +1690,16 @@ async function processCandidatesBatch(
 
     let reviews = new Map<number, string | null>();
     try {
-      reviews = await reviewGenerated(chunk.flatMap((p, ref) =>
-        p.candidate.kind === 'lexeme' ? [{ ref, lemma: p.candidate.lemma, pos: p.candidate.pos,
+      reviews = await reviewAll(chunk.flatMap((p, ref) =>
+        [{ ref, lemma: p.candidate.lemma, pos: p.candidate.pos,
           context: p.candidate.selectedContext!, missing: p.missing, answer: byRef.get(ref),
           ...(p.missing.includes('example') && p.candidate.genderRule
-            ? { gender_alternatives: genderAlternativeLabels(p.candidate.genderRule) } : {}) }] : []),
+            ? { gender_alternatives: genderAlternativeLabels(p.candidate.genderRule) } : {}) }]),
         (ref, evidence) => { chunk[ref].candidate.qualityReview = evidence; },
         (ref, evidence) => { chunk[ref].candidate.qualityDiagnostic = evidence; });
     } catch (e) {
       for (let ref = 0; ref < chunk.length; ref++) {
-        if (chunk[ref].candidate.kind === 'lexeme') reviews.set(ref, String(e));
+        reviews.set(ref, String(e));
       }
     }
 
@@ -1671,8 +1747,8 @@ async function processCandidatesBatch(
         continue;
       }
 
-      if (p.candidate.kind === 'lexeme' && (reviews.get(idx) !== null ||
-          typeof ai.lemma !== 'string' || ai.lemma !== p.candidate.lemma)) {
+      if (reviews.get(idx) !== null ||
+          typeof ai.lemma !== 'string' || ai.lemma !== p.candidate.lemma) {
         // D10 15.10.2026 (agreed): a translation rejected by the second model
         // gets ONE more generation (in one batch with the other rejected
         // words of this chunk) before it is recorded as rejected.
@@ -1680,18 +1756,19 @@ async function processCandidatesBatch(
         if (attempt === 0 && typeof rejection === 'string' && REVIEW_RETRY_REASONS.has(rejection) &&
             typeof ai.lemma === 'string' && ai.lemma === p.candidate.lemma) {
           p.candidate.qualityReview = undefined;
-          p.candidate.qualityDiagnostic = undefined;
+          if (p.candidate.kind !== 'expression') p.candidate.qualityDiagnostic = undefined;
           retry.push(p);
           continue;
         }
         processed.push({ kind: p.candidate.kind, id: p.candidate.id, lemma: p.candidate.lemma,
           needs_review: true, needs_review_fields: p.missing,
           quality_version: QUALITY_VERSION, quality_reason: reviews.get(idx) ?? 'AI_IDENTITY_MISSING',
+          ...(p.candidate.kind === 'expression' ? {quality_detail:p.candidate.qualityDiagnostic ?? null, generation_attempts:attempt+1} : {}),
           translations_written: 0, example_written: false });
         errors.push({ id: p.candidate.id, error: reviews.get(idx) ?? 'AI_IDENTITY_MISSING' });
         // D10 15.10.2026: rejected after the retry -> the word is marked
         // "for review" (it does not stop the job; see migration 20261015150000).
-        if (typeof rejection === 'string' && REVIEW_RETRY_REASONS.has(rejection)) {
+        if (p.candidate.kind === 'lexeme' && typeof rejection === 'string' && REVIEW_RETRY_REASONS.has(rejection)) {
           const { error: markError } = await supabase.rpc('d10_record_ai_review_rejection_v1', {
             p_lexeme_id: p.candidate.id, p_reason: rejection,
             p_detail: { review: p.candidate.qualityDiagnostic ?? null, attempts: attempt + 1 },
@@ -1794,7 +1871,7 @@ async function processCandidatesBatch(
 // judged, not the request). Transport/model failures are retried by the job.
 const REVIEW_RETRY_REASONS = new Set([
   'AI_POS_SENSE_REVIEW_REJECTED', 'AI_SINGLE_TRANSLATION_REQUIRED',
-  'AI_REQUESTED_EXAMPLE_MISSING', 'AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON',
+  'AI_REQUESTED_EXAMPLE_MISSING', 'AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON', 'AI_EXAMPLE_HIGHLIGHTS_INVALID',
 ]);
 
 async function processSingleCandidate(
@@ -1852,24 +1929,33 @@ async function processSingleCandidate(
     }
   }
   await attachGenderRules(supabase, [{ candidate, missing }]);
+  if (candidate.kind === 'expression') await loadExpressionContext(supabase, candidate);
   const generated = await callGeminiSingle({
     lemma: candidate.lemma,
     display_form: candidate.displayForm ?? candidate.lemma,
     pos: candidate.pos,
     missing,
     existing_english_translation: existingEnglishTranslation,
-    authoritative_dictionary_context: candidate.kind === 'lexeme' ? candidate.selectedContext! : buildDictionaryContext(candidate.naobContext, candidate.lexinContext),
+    authoritative_dictionary_context: candidate.selectedContext!,
     max_variants: maxVariantsFor(candidate.kind),
   });
   // D10 27.10.2026: two-gender nouns, before the review
-  const ai = withGenderConvention(candidate, missing, generated) ?? generated;
+  let ai = withGenderConvention(candidate, missing, generated) ?? generated;
 
-  if (candidate.kind === 'lexeme') {
-    const decisions = await reviewGenerated([{ ref: 0, lemma: candidate.lemma, pos: candidate.pos,
+  {
+    let decisions = await reviewAll([{ ref: 0, lemma: candidate.lemma, pos: candidate.pos,
       context: candidate.selectedContext!, missing, answer: ai,
       ...(missing.includes('example') && candidate.genderRule
         ? { gender_alternatives: genderAlternativeLabels(candidate.genderRule) } : {}) }],
       (_ref, evidence) => { candidate.qualityReview = evidence; });
+    if (candidate.kind === 'expression' && decisions.get(0) !== null && REVIEW_RETRY_REASONS.has(decisions.get(0) ?? '')) {
+      candidate.qualityReview = undefined;
+      ai = (await generateExpressions([{ ref: 0, lemma: candidate.lemma, missing,
+        authoritative_dictionary_context: candidate.selectedContext }])).get(0);
+      decisions = await reviewAll([{ ref: 0, lemma: candidate.lemma, pos: candidate.pos,
+        context: candidate.selectedContext!, missing, answer: ai }],
+        (_ref, evidence) => { candidate.qualityReview = evidence; });
+    }
     if (decisions.get(0) !== null) throw new Error(decisions.get(0) ?? 'AI_POS_SENSE_REVIEW_MISSING');
     // D10 27.10.2026 (agreed): never write the same translation as another
     // homograph card; the card is marked "for review"
@@ -1973,6 +2059,7 @@ serve(async (req) => {
         for (const row of data ?? []) {
           candidates.push({
             kind: 'expression',
+            revalidateAi: auditRewriteAi,
             id: row.id,
             lexemeId: row.lexeme_id ?? null,
             lemma: row.lemma,
@@ -2049,6 +2136,7 @@ serve(async (req) => {
         if (data) {
           candidate = {
             kind: 'expression',
+            revalidateAi: auditRewriteAi,
             id: data.id,
             lexemeId: data.lexeme_id ?? null,
             lemma: data.lemma,
@@ -2143,7 +2231,8 @@ serve(async (req) => {
       for (const row of data ?? []) {
         candidates.push({
           kind: 'expression',
-          id: row.id,
+          revalidateAi: auditRewriteAi,
+            id: row.id,
           lexemeId: row.lexeme_id ?? null,
           lemma: row.lemma,
           displayForm: row.lemma,

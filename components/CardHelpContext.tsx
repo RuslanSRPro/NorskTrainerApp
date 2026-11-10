@@ -3,6 +3,7 @@ import { Text,View } from 'react-native';
 import { supabase } from '@/services/supabase';
 
 type HelpContext={analysis?:{started_at:string;kind:string}|null;
+  expression_source?:'NAOB'|'Ordbøkene'|null;
   alternatives?:Array<{uk?:string;en?:string;definition_nb:string;article_id:number;sense_path?:string}>};
 export function CardHelpContext({entityId,lang,enabled,styles}:{
   entityId?:string|null;lang:string;enabled:boolean;styles:any;
@@ -29,5 +30,9 @@ export function CardHelpContext({entityId,lang,enabled,styles}:{
         :failed?tr('Не вдалося завантажити','Could not load','Kunne ikke laste'):tr('Немає збереженої дати','No recorded date','Ingen lagret dato')}
         {value?.analysis?.kind==='synonym_candidate'?tr(' · фоновий аналіз',' · background analysis',' · bakgrunnsanalyse'):''}</Text>
     </View>
+    {value?.expression_source ? <View style={styles.definitionBox}>
+      <Text style={styles.sectionTitle}>{tr('Джерело виразу','Expression source','Uttrykkets kilde')}</Text>
+      <Text style={styles.definitionItem}>{value.expression_source}</Text>
+    </View> : null}
   </>;
 }

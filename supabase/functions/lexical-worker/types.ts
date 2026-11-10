@@ -32,6 +32,10 @@ export type SourceCheck = {
   // search fails with a server error and no bound article is known.
   cached_search_article_ids?: string[] | null;
   cached_search_checked_at?: string | null;
+  // D10 07.11.2026 (D10_naob_family_v4): the expression is a NAOB "uttrykk" of its head
+  // word's article (catalog entry from NAOB + binding to the verb). The NAOB check then
+  // answers from this evidence: the live NAOB search finds no own article for an uttrykk.
+  naob_registered_expression?: { slugs: string[]; url: string | null } | null;
 
   attempt_count: number;
   max_attempts: number;

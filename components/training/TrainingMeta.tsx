@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { Lexeme360 } from '@/components/Lexeme360';
 import { VerificationBadge } from '@/components/VerificationBadge';
 import { HomonymsButton } from '@/components/HomonymsButton';
+import { SynonymsBadge } from '@/components/SynonymsBadge';
 import { GlassSurface } from '@/components/ui/glass/GlassSurface';
 import { AppLanguage } from '@/services/i18n';
 
@@ -13,7 +14,7 @@ type Props = {
   s: any;
   appLanguage: AppLanguage;
   taskTitle: string;
-  getCategoryLabel: (cat: string) => string;
+  getCategoryLabel: (cat: string, word?: any) => string;
   getMainWord: (w: any) => string;
   hasVerification: (w: any) => boolean;
   hasRelations: (w: any) => boolean;
@@ -40,7 +41,7 @@ export function TrainingMeta({
           contentStyle={s.tagInner}
         >
           <Text style={s.tagText}>
-            {getCategoryLabel(current.category || current.type || '')}
+            {getCategoryLabel(current.category || current.type || '', current)}
           </Text>
         </GlassSurface>
 
@@ -63,6 +64,17 @@ export function TrainingMeta({
           lexemeId={current.id}
           lemma={current.lemma || current.word}
           lang={appLanguage as any}
+        />
+
+        {/* D10 07.11.2026 (agreed): synonyms between homonyms and 360, the same
+            badge as in the search card. Hidden when the card has no synonyms;
+            hidden icons leave no gap (the row uses gap, empty badges render nothing). */}
+        <SynonymsBadge
+          synonyms={current.synonyms}
+          lemma={current.lemma || current.word}
+          size="sm"
+          lang={appLanguage as any}
+          lexemeId={current.id}
         />
 
         {hasRelations(current) ? (

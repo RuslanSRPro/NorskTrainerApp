@@ -14,11 +14,15 @@ import {
 } from 'react-native';
 
 import type {
+  EvidenceQuality,
+  SourceEvidence,
   VerificationEvidence,
   VerificationTier,
 } from '@/services/verification';
 
 import {
+  getQualityLabel,
+  normalizeEvidence,
   resolveVerification,
 } from '@/services/verification';
 
@@ -293,6 +297,171 @@ function tr(key: UiKey, lang?: AppLanguage | string | null): string {
   return UI[safeLang][key] || UI.en[key] || key;
 }
 
+const QUALITY_ICONS: Record<string, { icon: string; strong: boolean }> = {
+  registered_entry: { icon: '📖', strong: true },
+  structured_entry_match: { icon: '📖', strong: true },
+  learner_dictionary: { icon: '📚', strong: true },
+  normative_reference: { icon: '🏛', strong: true },
+  exact_expression_match: { icon: '✓', strong: false },
+  search_page_match: { icon: '🔍', strong: false },
+  usage_example_match: { icon: '💬', strong: false },
+  component_match: { icon: '🧩', strong: false },
+  ai_suggestion: { icon: '🤖', strong: false },
+};
+
+const SOURCE_LABELS: Record<SafeLanguage, Record<string, string>> = {
+  ua: {
+    NAOB: 'NAOB — Det Norske Akademis ordbok',
+    Ordbokene: 'Ordbøkene (UiB + Språkrådet)',
+    Lexin: 'Lexin — OsloMet',
+    Språkrådet: 'Språkrådet',
+    Wiktionary: 'Wiktionary',
+    Gemini: UI.ua.ai_analysis,
+    Manual: 'Manual',
+  },
+  en: {
+    NAOB: 'NAOB — Det Norske Akademis ordbok',
+    Ordbokene: 'Ordbøkene (UiB + Språkrådet)',
+    Lexin: 'Lexin — OsloMet',
+    Språkrådet: 'Språkrådet',
+    Wiktionary: 'Wiktionary',
+    Gemini: UI.en.ai_analysis,
+    Manual: 'Manual',
+  },
+  no: {
+    NAOB: 'NAOB — Det Norske Akademis ordbok',
+    Ordbokene: 'Ordbøkene (UiB + Språkrådet)',
+    Lexin: 'Lexin — OsloMet',
+    Språkrådet: 'Språkrådet',
+    Wiktionary: 'Wiktionary',
+    Gemini: UI.no.ai_analysis,
+    Manual: 'Manual',
+  },
+};
+
+function getSourceLabel(source: string, lang: SafeLanguage) {
+  return SOURCE_LABELS[lang][source] || source;
+}
+
+function sanitizeEvidenceLabel(label?: string | null): string {
+  if (!label) return '';
+
+  const value = String(label).trim();
+
+  if (!value) return '';
+
+  const debugMarkers = [
+    'HTTP',
+    'crosscheck',
+    'HTML primary',
+    'api/',
+    'Errors:',
+    'search:',
+    'lemma:',
+    'limit=',
+    'v2.',
+  ];
+
+  if (debugMarkers.some((marker) => value.includes(marker))) {
+    return '';
+  }
+
+  if (value.length > 120) {
+    return '';
+  }
+
+  return value;
+}
+
+
+function getQualityExplanation(
+  item: SourceEvidence,
+  quality: EvidenceQuality,
+  lang: SafeLanguage
+) {
+  const isRegistered = item.registered_entry === true;
+  const isWhole = item.whole_unit_match === true;
+  const isComponent = item.component_match === true;
+  const isUsage = item.usage_match === true;
+
+  if (lang === 'ua') {
+    if (isRegistered || quality === 'registered_entry') return 'Окрема словникова стаття';
+    if (quality === 'structured_entry_match') return 'Підтверджена підстаття виразу';
+    if (quality === 'learner_dictionary') return 'Запис у навчальному словнику';
+    if (quality === 'normative_reference') return 'Нормативне підтвердження';
+    if (isWhole || quality === 'exact_expression_match') return 'Знайдено як цілісну одиницю';
+    if (isUsage || quality === 'usage_example_match') return 'Знайдено у прикладах уживання';
+    if (isComponent || quality === 'component_match') return 'Компоненти підтверджені';
+    if (quality === 'search_page_match') return 'Пошукова підказка, статтю не підтверджено';
+    if (quality === 'not_found') return 'Джерело перевірено, збігу не знайдено';
+    if (quality === 'error') return 'Джерело не відповіло або сталася помилка';
+    if (quality === 'not_checked') return 'Джерело ще не перевірено';
+    if (quality === 'ai_suggestion') return 'AI-підказка, не авторитетне джерело';
+    return 'Дані джерела отримані';
+  }
+
+  if (lang === 'no') {
+    if (isRegistered || quality === 'registered_entry') return 'Egen ordbokartikkel';
+    if (quality === 'structured_entry_match') return 'Bekreftet underartikkel for uttrykket';
+    if (quality === 'learner_dictionary') return 'Oppslag i læringsordbok';
+    if (quality === 'normative_reference') return 'Normativ bekreftelse';
+    if (isWhole || quality === 'exact_expression_match') return 'Funnet som hel enhet';
+    if (isUsage || quality === 'usage_example_match') return 'Funnet i brukseksempler';
+    if (isComponent || quality === 'component_match') return 'Komponenter bekreftet';
+    if (quality === 'search_page_match') return 'Søkeforslag; artikkel ikke bekreftet';
+    if (quality === 'not_found') return 'Kilden er sjekket, men ingen treff ble funnet';
+    if (quality === 'error') return 'Kilden svarte ikke eller ga feil';
+    if (quality === 'not_checked') return 'Kilden er ikke sjekket ennå';
+    if (quality === 'ai_suggestion') return 'AI-forslag, ikke autoritativ kilde';
+    return 'Kildedata funnet';
+  }
+
+  if (isRegistered || quality === 'registered_entry') return 'Separate dictionary entry';
+  if (quality === 'structured_entry_match') return 'Verified expression subarticle';
+  if (quality === 'learner_dictionary') return 'Learner dictionary entry';
+  if (quality === 'normative_reference') return 'Normative confirmation';
+  if (isWhole || quality === 'exact_expression_match') return 'Found as a whole unit';
+  if (isUsage || quality === 'usage_example_match') return 'Found in usage examples';
+  if (isComponent || quality === 'component_match') return 'Components verified';
+  if (quality === 'search_page_match') return 'Search suggestion; article unconfirmed';
+  if (quality === 'not_found') return 'Source checked, no match found';
+  if (quality === 'error') return 'Source unavailable or returned an error';
+  if (quality === 'not_checked') return 'Source not checked yet';
+  if (quality === 'ai_suggestion') return 'AI suggestion, not authoritative';
+  return 'Source data found';
+}
+
+function getQualityStatusStyle(quality: EvidenceQuality, item: SourceEvidence) {
+  if (
+    item.registered_entry ||
+    quality === 'registered_entry' ||
+    quality === 'structured_entry_match' ||
+    quality === 'learner_dictionary' ||
+    quality === 'normative_reference'
+  ) {
+    return 'strong';
+  }
+
+  if (
+    item.whole_unit_match ||
+    item.usage_match ||
+    quality === 'exact_expression_match' ||
+    quality === 'usage_example_match'
+  ) {
+    return 'medium';
+  }
+
+  if (item.component_match || quality === 'component_match') {
+    return 'component';
+  }
+
+  if (quality === 'error' || quality === 'not_found') {
+    return 'weak';
+  }
+
+  return 'neutral';
+}
+
 function Stars({ count, color }: { count: number; color: string }) {
   return (
     <View style={styles.stars}>
@@ -309,6 +478,208 @@ function Stars({ count, color }: { count: number; color: string }) {
 }
 
 
+function getShortQualityBadgeLabel(quality: EvidenceQuality, lang: SafeLanguage) {
+  if (lang === 'ua') {
+    switch (quality) {
+      case 'registered_entry':
+      case 'structured_entry_match':
+        return 'запис';
+      case 'learner_dictionary':
+        return 'навч. словник';
+      case 'normative_reference':
+        return 'норма';
+      case 'exact_expression_match':
+        return 'ціла одиниця';
+      case 'search_page_match':
+        return 'пошук';
+      case 'usage_example_match':
+        return 'приклад';
+      case 'component_match':
+        return 'компоненти';
+      case 'ai_suggestion':
+        return 'AI';
+      case 'not_found':
+        return 'не знайдено';
+      case 'not_checked':
+        return 'не перевірено';
+      case 'error':
+        return 'помилка';
+      default:
+        return 'джерело';
+    }
+  }
+
+  if (lang === 'no') {
+    switch (quality) {
+      case 'registered_entry':
+      case 'structured_entry_match':
+        return 'oppslag';
+      case 'learner_dictionary':
+        return 'læringsordbok';
+      case 'normative_reference':
+        return 'norm';
+      case 'exact_expression_match':
+        return 'hel enhet';
+      case 'search_page_match':
+        return 'søk';
+      case 'usage_example_match':
+        return 'eksempel';
+      case 'component_match':
+        return 'komponenter';
+      case 'ai_suggestion':
+        return 'AI';
+      case 'not_found':
+        return 'ikke funnet';
+      case 'not_checked':
+        return 'ikke sjekket';
+      case 'error':
+        return 'feil';
+      default:
+        return 'kilde';
+    }
+  }
+
+  switch (quality) {
+    case 'registered_entry':
+    case 'structured_entry_match':
+      return 'entry';
+    case 'learner_dictionary':
+      return 'learner dict';
+    case 'normative_reference':
+      return 'normative';
+    case 'exact_expression_match':
+      return 'whole unit';
+    case 'search_page_match':
+      return 'search';
+    case 'usage_example_match':
+      return 'example';
+    case 'component_match':
+      return 'components';
+    case 'ai_suggestion':
+      return 'AI';
+    case 'not_found':
+      return 'not found';
+    case 'not_checked':
+      return 'not checked';
+    case 'error':
+      return 'error';
+    default:
+      return 'source';
+  }
+}
+
+function shouldShowEvidenceLabel(label?: string | null) {
+  if (!label) return false;
+
+  const value = String(label).trim();
+  if (!value) return false;
+
+  const technicalMarkers = [
+    'registered entry found',
+    'component evidence',
+    'components:',
+    'exact normative reference found',
+    'search endpoint',
+    'direct lemma endpoint',
+    'registered entry:',
+    'HTML:',
+    'API:',
+    'v2.',
+    'HTTP',
+    'crosscheck',
+    'limit=',
+    'errors:',
+    'error:',
+  ];
+
+  return !technicalMarkers.some((marker) =>
+    value.toLowerCase().includes(marker.toLowerCase())
+  );
+}
+
+function EvidenceRow({
+  source,
+  item,
+  lang,
+}: {
+  source: string;
+  item: SourceEvidence;
+  lang: SafeLanguage;
+}) {
+  const quality = (item.quality || 'not_checked') as EvidenceQuality;
+  const qi = QUALITY_ICONS[String(quality)] ?? { icon: '○', strong: false };
+  const sourceLabel = getSourceLabel(source, lang);
+  const safeEvidenceLabel = shouldShowEvidenceLabel(item.evidence_label)
+    ? sanitizeEvidenceLabel(item.evidence_label)
+    : '';
+  const explanation = getQualityExplanation(item, quality, lang);
+  const articleId = quality === 'structured_entry_match' || item.registered_entry === true
+    ? item.article_id ?? item.evidence?.article_id
+    : null;
+  const statusStyle = getQualityStatusStyle(quality, item);
+
+  return (
+    <View style={styles.evidenceRow}>
+      <View style={styles.evidenceLeft}>
+        <Text style={styles.evidenceIcon}>{qi.icon}</Text>
+
+        <View style={styles.evidenceText}>
+          <View style={styles.evidenceTopLine}>
+            <Text style={styles.evidenceSource}>{sourceLabel}</Text>
+
+            <View
+              style={[
+                styles.qualityBadge,
+                statusStyle === 'strong' && styles.qualityBadgeStrong,
+                statusStyle === 'medium' && styles.qualityBadgeMedium,
+                statusStyle === 'component' && styles.qualityBadgeComponent,
+                statusStyle === 'weak' && styles.qualityBadgeWeak,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.qualityBadgeText,
+                  statusStyle === 'strong' && styles.qualityBadgeTextStrong,
+                  statusStyle === 'medium' && styles.qualityBadgeTextMedium,
+                  statusStyle === 'component' && styles.qualityBadgeTextComponent,
+                  statusStyle === 'weak' && styles.qualityBadgeTextWeak,
+                ]}
+              >
+                {getShortQualityBadgeLabel(quality, lang)}
+              </Text>
+            </View>
+          </View>
+
+          <Text
+            style={[
+              styles.evidenceQuality,
+              qi.strong && styles.evidenceQualityStrong,
+            ]}
+          >
+            {getQualityLabel(quality, lang)}
+          </Text>
+
+          <Text style={styles.evidenceExplanation}>{explanation}</Text>
+
+          {articleId != null ? (
+            <Text style={styles.evidenceExplanation}>{`Ordbøkene BM #${String(articleId)}`}</Text>
+          ) : null}
+
+          {safeEvidenceLabel ? (
+            <Text style={styles.evidenceLabel}>{safeEvidenceLabel}</Text>
+          ) : null}
+
+          {item.error ? (
+            <Text style={styles.evidenceError} numberOfLines={2}>
+              {String(item.error)}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function VerificationBadge({
   tier,
   sourceVerified,
@@ -319,6 +690,7 @@ export function VerificationBadge({
   entityId = null,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const safeLang = normalizeLang(lang);
   const server = useServerRating(entityId);
   // loaded only once the popup is opened (the list stays as fast as before)
@@ -337,7 +709,8 @@ export function VerificationBadge({
     },
     safeLang
   );
-
+  const searchSuggestions = normalizeEvidence(evidence)
+    .filter(([, item]) => item.quality === 'search_page_match');
 
   // ФИКС: раньше badge был просто цветной точкой 10px (size='sm') почти
   // без отступов (paddingHorizontal: 0 для badgeSm) — реальная область
@@ -434,6 +807,54 @@ export function VerificationBadge({
                 <ServerRatingBlock stars={server.stars} rating={server.rating} lang={safeLang} evidence={evidence} />
               ) : null}
 
+              {/* D10 16.10.2026: with a server rating the previous evidence list stays, folded under "Details" */}
+              {server ? (
+                <TouchableOpacity onPress={() => setShowDetails((v) => !v)} style={styles.detailsToggle} activeOpacity={0.7}>
+                  <Text style={styles.detailsToggleText}>
+                    {showDetails ? DETAIL_UI[safeLang].hide : DETAIL_UI[safeLang].details} {showDetails ? '▴' : '▾'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {!server || showDetails ? (<>
+
+              {verification.foundSources.length > 0 ? (
+                <>
+                  <Text style={styles.sectionTitle}>
+                    {tr('confirmed_by', safeLang)}
+                  </Text>
+
+                  {verification.foundSources.map(([source, item]) => (
+                    <EvidenceRow
+                      key={source}
+                      source={source}
+                      item={item}
+                      lang={safeLang}
+                    />
+                  ))}
+                </>
+              ) : (
+                <Text style={styles.noEvidence}>
+                  {tr('no_evidence', safeLang)}
+                </Text>
+              )}
+
+              {searchSuggestions.map(([source, item]) => (
+                <EvidenceRow key={`suggestion-${source}`} source={source} item={item} lang={safeLang} />
+              ))}
+
+              {verification.sourceVerified ? (
+                <View style={styles.verifiedSummary}>
+                  <Text style={styles.verifiedLabel}>
+                    {tr('registered_in', safeLang)}
+                  </Text>
+
+                  <Text style={styles.verifiedValue}>
+                    {verification.sourceVerified}
+                  </Text>
+                </View>
+              ) : null}
+              </>) : null}
             </ScrollView>
 
             <TouchableOpacity

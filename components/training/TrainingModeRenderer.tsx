@@ -1,3 +1,4 @@
+import { HighlightedExample } from '@/components/HighlightedExample';
 import { Text } from 'react-native';
 
 
@@ -49,9 +50,9 @@ function AnswerExample({ current, answerVisible, isDark, s }: { current: any; an
   if (!answerVisible || !current?.example) return null;
   return (
     <TrainingInfoBlock isDark={isDark}>
-      <Text style={[s.example, { marginBottom: 0 }]}>{current.example}</Text>
+      <HighlightedExample textStyle={[s.example, { marginBottom: 0 }]} text={current.example} phrase={current.lemma||current.word||""} evidence={current.example_evidence}/>
       {current.example_translation_uk ? (
-        <Text style={[s.example, { marginTop: 4, marginBottom: 0 }]}>{current.example_translation_uk}</Text>
+        <HighlightedExample textStyle={[s.example, { marginTop: 4, marginBottom: 0 }]} text={current.example_translation_uk} phrase={current.ua||current.translation_ua||""} evidence={current.example_evidence} language="uk"/>
       ) : null}
     </TrainingInfoBlock>
   );

@@ -29,6 +29,26 @@ export async function lookupSource(
   try {
     const query = check.query;
 
+    // D10 07.11.2026 (D10_naob_family_v4): NAOB uttrykk of the head word's article.
+    if (check.source === 'NAOB' && check.naob_registered_expression?.slugs?.length) {
+      const registered = check.naob_registered_expression;
+      return normalizeSourceLookupResult({
+        source: 'NAOB',
+        checked: true,
+        found: true,
+        quality: 'registered_entry',
+        registered_entry: true,
+        whole_unit_match: true,
+        component_match: false,
+        usage_match: false,
+        urls: registered.url ? [registered.url] : [],
+        evidence_label: 'NAOB uttrykk in the head word article',
+        note: 'D10_naob_family_v4: expression registered as uttrykk of NAOB article(s) ' + registered.slugs.join(', '),
+        raw_preview: { naob_slugs: registered.slugs, naob_uttrykk: true },
+        pos_scope: posScope(null, [], null),
+      } as PosScopedLookup);
+    }
+
     const result =
       check.source === 'NAOB'
         ? await checkNAOBLive(query, query, check.pos)

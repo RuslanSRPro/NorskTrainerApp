@@ -1,3 +1,5 @@
+import { HighlightedExample } from './HighlightedExample';
+export { HighlightedExample } from './HighlightedExample';
 // components/Lexeme360Carousel.tsx
 // Norsk Trainer App — semantic carousel for Lexeme360
 // FlatList-based carousel: better horizontal gestures inside modal/scroll containers.
@@ -42,6 +44,7 @@ export type Lexeme360CarouselItem = {
   learner_value_score?: number;
   example?: string;
   example_translation_uk?: string;
+  example_evidence?: unknown;
   expressionId?: string;
   learned?: boolean;
   status?: 'ready' | 'candidate';
@@ -65,6 +68,8 @@ type Props = {
   fillAvailable?: boolean;
   pinActions?: boolean;
   compactFooter?: boolean;
+  highlightExamples?: boolean;
+  hideTitle?: boolean;
   items: Lexeme360CarouselItem[];
   lang: AppLanguage;
   onSelect?: (id: string, lemma: string) => void;
@@ -83,25 +88,41 @@ type Props = {
 
 const CARD_GAP = 12;
 
-// Fit by measured lines, keeping all text visible once the readable minimum is reached.
-function AdaptiveCardText({ children, kind, width }: {
-  children: string; kind: 'lemma' | 'translation'; width: number;
+// Measure the whole scrollable area, after fixed actions have taken their space.
+// Each step waits for its own layout; stale measurements cannot shrink it again.
+function FitCardScroll({ children }: { children: (scale: number) => React.ReactNode }) {
+  const [step, setStep] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [content, setContent] = useState({ step: -1, height: 0 });
+  useEffect(() => {
+    if (viewportHeight > 0 && content.step === step && content.height > viewportHeight + 2 && step < 8) {
+      setStep(step + 1);
+    }
+  }, [viewportHeight, content, step]);
+  return <ScrollView nestedScrollEnabled showsVerticalScrollIndicator
+    onLayout={({ nativeEvent }) => setViewportHeight(nativeEvent.layout.height)}
+    style={{ flex: 1, minHeight: 0 }}>
+    <View key={step} style={{ minHeight: viewportHeight }}
+      onLayout={({ nativeEvent }) => setContent({ step, height: nativeEvent.layout.height })}>
+      {children(1 - step * 0.04)}
+    </View>
+  </ScrollView>;
+}
+
+function AdaptiveCardText({ children, kind, scale }: {
+  children: string; kind: 'lemma' | 'translation'; scale: number;
 }) {
-  const { fontScale } = useWindowDimensions();
-  const baseSize = kind === 'lemma' ? 30 : 18;
-  const minSize = kind === 'lemma' ? 22 : 15;
-  const targetLines = kind === 'lemma' ? 2 : 3;
-  const [size, setSize] = useState(baseSize);
-  useEffect(() => { setSize(baseSize); }, [children, width, fontScale, baseSize]);
+  const baseSize = kind === 'lemma' ? (children.length > 25 ? 21 : 26) : (children.length > 70 ? 14 : 17);
+  const size = Math.max(kind === 'lemma' ? 16 : 12, baseSize * scale);
   return <Text
     style={[kind === 'lemma' ? styles.lemma : styles.translation,
       { fontSize: size, lineHeight: Math.ceil(size * (kind === 'lemma' ? 1.2 : 1.39)) }]}
-    onTextLayout={({ nativeEvent }) => {
-      if (nativeEvent.lines.length > targetLines) {
-        setSize(current => Math.max(minSize, current - 1));
-      }
-    }}
   >{children}</Text>;
+}
+
+function fittedExampleStyle(text: string, scale: number) {
+  const size = Math.max(12, (text.length > 90 ? 13 : 14) * scale);
+  return { fontSize: size, lineHeight: Math.ceil(size * 1.36) };
 }
 
 function safeT(key: string, lang: AppLanguage, fallback: string) {
@@ -318,6 +339,8 @@ export function Lexeme360Carousel({
   fillAvailable = false,
   pinActions = false,
   compactFooter = false,
+  highlightExamples = false,
+  hideTitle = false,
 }: Props) {
   const window = useWindowDimensions();
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -417,7 +440,7 @@ export function Lexeme360Carousel({
 
   return (
     <View style={[styles.wrapper, fillAvailable && { flex: 1, minHeight: 0 }, compactFooter && { marginBottom: 0 }]}>
-      <View style={styles.topRow}>
+      {!hideTitle ? <View style={styles.topRow}>
         <Text style={styles.carouselTitle}>
           {title ? title : lang === 'ua'
             ? 'Смислові звʼязки'
@@ -429,7 +452,7 @@ export function Lexeme360Carousel({
         <Text style={styles.counter}>
           {index + 1} / {visibleItems.length}
         </Text>
-      </View>
+      </View> : null}
 
       <View style={fillAvailable ? { flex: 1, minHeight: 0 } : { height: cardHeight }}
         onLayout={({ nativeEvent: { layout } }) => setViewport(current =>
@@ -550,7 +573,8 @@ export function Lexeme360Carousel({
               onPress={() => onSelect?.(item.cardId ?? item.id, displayLemma)}
             >
               <GlassOverlay material="card" shape="card" radius={24} />
-              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator contentContainerStyle={{ flexGrow: 1 }} style={{ flex: 1, minHeight: 0 }} >
+              <FitCardScroll key={JSON.stringify([item.id, cardWidth, cardHeight, window.fontScale, displayLemma, translations, item.example, item.example_translation_uk, detailsId === item.id, pinActions, item.learned, item.details, item.sourceMeaning, item.hint])}>
+              {(fitScale) => <>
               <View style={[styles.cardHeader, item.accentColor ? { flexWrap: 'wrap' } : null]}>
                 <View style={[styles.badge, visual.badge, item.accentColor ? { backgroundColor: `${item.accentColor}20` } : null]}>
                   <Text style={[styles.badgeText, visual.badgeText, item.accentColor ? { color: item.accentColor } : null]}>{`${item.labelPrefix ?? ''}${label}`}</Text>
@@ -573,11 +597,11 @@ export function Lexeme360Carousel({
                 <Text style={{fontSize:11,color:'#6B7280'}}>{item.sourceMeaningCaption}</Text>
                 <Text style={{fontSize:15,lineHeight:20,fontWeight:'700',color:'#374151'}}>{item.sourceMeaning}</Text>
               </View> : null}
-              <AdaptiveCardText kind="lemma" width={cardWidth}>{displayLemma}</AdaptiveCardText>
+              <AdaptiveCardText kind="lemma" scale={fitScale}>{displayLemma}</AdaptiveCardText>
               {item.translationCaption ? <Text style={{ fontSize: 11, color: '#6B7280' }}>{item.translationCaption}</Text> : null}
 
               {translations ? (
-                <AdaptiveCardText kind="translation" width={cardWidth}>{translations}</AdaptiveCardText>
+                <AdaptiveCardText kind="translation" scale={fitScale}>{translations}</AdaptiveCardText>
               ) : null}
 
               {item.details && detailsId === item.id && !item.accentColor ? (
@@ -586,12 +610,8 @@ export function Lexeme360Carousel({
                 </View>
               ) : item.example ? (
                 <View style={styles.exampleBox}>
-                  <Text style={styles.exampleText}>
-                    {item.example}
-                  </Text>
-                  {item.example_translation_uk ? (
-                    <Text style={styles.exampleText}>{item.example_translation_uk}</Text>
-                  ) : null}
+                  <HighlightedExample text={item.example} phrase={item.lemma} evidence={item.example_evidence} textStyle={[styles.exampleText, fittedExampleStyle(item.example, fitScale)]} />
+                  {item.example_translation_uk ? <HighlightedExample text={item.example_translation_uk} phrase={item.translation_ua || ''} evidence={item.example_evidence} language="uk" textStyle={[styles.exampleText, fittedExampleStyle(item.example_translation_uk, fitScale)]} /> : null}
                 </View>
               ) : null}
 
@@ -607,7 +627,8 @@ export function Lexeme360Carousel({
                         : 'Found in dictionary · waiting for processing')
                   : item.hint || synonymHint(item.relation_type, lang) || importanceDescription(item.importance_level, lang)}
               </Text>}
-              </ScrollView>
+              </>}
+              </FitCardScroll>
               {pinActions ? <View style={{ flexShrink: 0, marginTop: 8 }}>{actions}</View> : null}
             </Pressable>
           );
@@ -804,6 +825,14 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontStyle: 'italic',
   },
+  exampleTextCompact: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  exampleHighlight: {
+    color: '#8B4513',
+    fontWeight: '900',
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -874,7 +903,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    marginTop: 8,
+    marginTop: 4,
     flexShrink: 0,
     paddingBottom: 6,
     minHeight: 48,

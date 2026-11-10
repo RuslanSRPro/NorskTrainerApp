@@ -1,3 +1,4 @@
+import { HighlightedExample } from '@/components/HighlightedExample';
 import { Text, View } from 'react-native';
 
 import { isIrregularMorphology } from '@/services/formPresentation';
@@ -47,13 +48,11 @@ export function TrainingFlashcard({
       </Text>
 
       {current.example ? (
-        <Text style={[
+        <HighlightedExample textStyle={[
           s.example,
           compact && { fontSize: Math.max(17, fonts.base * 0.92), lineHeight: Math.max(23, fonts.base * 1.28), marginBottom: 9 },
           dense && { fontSize: Math.max(16, fonts.base * 0.86), lineHeight: Math.max(21, fonts.base * 1.18), marginBottom: 6 },
-        ]}>
-          {current.example}
-        </Text>
+        ]} text={current.example} phrase={current.lemma||current.word||""} evidence={current.example_evidence}/>
       ) : null}
 
       <View style={[s.answerArea, dense && { minHeight: 0 }]}>
@@ -67,7 +66,7 @@ export function TrainingFlashcard({
                 {translation}
               </Text>
               {current.example && current.example_translation_uk ? (
-                <Text style={[s.example, { marginTop: 8, marginBottom: 0 }]}>{current.example_translation_uk}</Text>
+                <HighlightedExample textStyle={[s.example, { marginTop: 8, marginBottom: 0 }]} text={current.example_translation_uk} phrase={current.ua||current.translation_ua||""} evidence={current.example_evidence} language="uk"/>
               ) : null}
             </TrainingInfoBlock>
 
