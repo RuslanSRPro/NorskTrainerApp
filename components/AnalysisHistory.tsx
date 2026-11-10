@@ -11,7 +11,7 @@ import { GlassOverlay } from '@/components/ui/glass/GlassOverlay';
 
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { getJobStatus } from '@/services/api';
+import { getJobProblemItems, getJobStatus } from '@/services/api';
 import { loadAnalysisHistory } from '@/services/analysisHistory';
 import type { HistoryEntry } from '@/services/analysisHistoryCore';
 
@@ -56,7 +56,25 @@ const UI = {
   example: { ua: 'приклад', en: 'example', no: 'eksempel' },
   forms: { ua: 'форми', en: 'forms', no: 'former' },
   not_found_or_not_yet_eligible: { ua: 'не знайдено для збагачення', en: 'not found for enrichment', no: 'ikke funnet for berikelse' },
+  // D10 10.11.2026 (D10_job_problems_v1): problem words of the job by reason
+  problems: { ua: 'Проблемні слова', en: 'Problem words', no: 'Problemord' },
 } as const;
+
+// D10 10.11.2026: reason codes of get_job_problem_items_v1 in the app language
+const PROBLEM_REASON: Record<string, { ua: string; en: string; no: string }> = {
+  no_translation: { ua: 'немає перекладу (укр.)', en: 'no translation (uk)', no: 'ingen oversettelse (uk)' },
+  no_translation_en: { ua: 'немає перекладу (англ.)', en: 'no translation (en)', no: 'ingen oversettelse (en)' },
+  no_example: { ua: 'немає прикладу', en: 'no example', no: 'ingen eksempel' },
+  example_no_translation: { ua: 'приклад без перекладу', en: 'example without translation', no: 'eksempel uten oversettelse' },
+  ai_rejected: { ua: 'переклад ШІ відхилено перевіркою', en: 'AI translation rejected by the review', no: 'KI-oversettelse avvist av kontrollen' },
+  ai_example_highlight: { ua: 'приклад ШІ: виділення не збігається з реченням', en: 'AI example: highlight does not match the sentence', no: 'KI-eksempel: markeringen stemmer ikke' },
+  no_unique_article: { ua: 'кілька статей або жодної — не можна вибрати значення', en: 'several articles or none - no sense can be chosen', no: 'flere artikler eller ingen - kan ikke velge betydning' },
+  not_confirmed: { ua: 'не підтверджено словником (сіра картка)', en: 'not confirmed by a dictionary (grey card)', no: 'ikke bekreftet av ordbok (grått kort)' },
+  pos_unconfirmed: { ua: 'частину мови не підтверджено', en: 'part of speech not confirmed', no: 'ordklasse ikke bekreftet' },
+  not_found: { ua: 'не знайдено в жодному джерелі', en: 'not found in any source', no: 'ikke funnet i noen kilde' },
+  enrichment_error: { ua: 'помилка кроку обробки', en: 'processing step failed', no: 'behandlingssteg feilet' },
+};
+const problemReasonText = (code: string, l: Lang) => PROBLEM_REASON[code]?.[l] ?? code;
 
 // D10 28.10.2026 (agreed): known technical stop reasons of the supervisor in
 // the app language; anything else is shown as it is.
@@ -80,7 +98,9 @@ type JobView = { state: 'done' | 'done_review' | 'stopped' | 'running' | 'error'
   incomplete: Array<{ lemma: string; missing: string[]; heal_error: string | null }>;
   stopReason: string | null;
   childJobs: Array<{ id: string; created_at: string; reused: boolean }>;
-  synonymPending: number };
+  synonymPending: number;
+  // D10 10.11.2026: problem words by reason (empty while the job runs or if the read fails)
+  problems: Array<{ reason: string; words: string[] }> };
 
 async function readJob(jobId: string): Promise<JobView> {
   try {
@@ -102,10 +122,25 @@ async function readJob(jobId: string): Promise<JobView> {
         reused: c.relationship === 'reused_prior' ||
           Date.parse(String(c.created_at)) < Date.parse(String(r?.job?.created_at)) })) : [];
     const synonymPending = Number(r?.synonym_candidates_without_job ?? 0) || 0;
+    let problems: JobView['problems'] = [];
+    if (state !== 'running') {
+      try {
+        const rows = await getJobProblemItems(jobId);
+        const byReason = new Map<string, Set<string>>();
+        for (const row of rows) {
+          const set = byReason.get(row.reason) ?? new Set<string>();
+          set.add(row.detail && row.reason === 'enrichment_error' ? `${row.lemma} (${row.detail})` : row.lemma);
+          byReason.set(row.reason, set);
+        }
+        problems = [...byReason].map(([reason, words]) => ({ reason, words: [...words] }));
+      } catch (e) {
+        console.warn('[analysis history] problem words failed', e instanceof Error ? e.message : String(e));
+      }
+    }
     return { state, total: Number.isFinite(total) ? total : null, review,
-      incomplete: state === 'done' ? [] : incomplete, stopReason, childJobs, synonymPending };
+      incomplete: state === 'done' ? [] : incomplete, stopReason, childJobs, synonymPending, problems };
   } catch {
-    return { state: 'error', total: null, review: [], incomplete: [], stopReason: null, childJobs: [], synonymPending: 0 };
+    return { state: 'error', total: null, review: [], incomplete: [], stopReason: null, childJobs: [], synonymPending: 0, problems: [] };
   }
 }
 
@@ -189,6 +224,16 @@ export function AnalysisHistory({ lang, theme: T, reasonText, posText, iconOnly 
                 </View>
               ) : view.stopReason ? (
                 <Text style={[st.small, { color: T.textSecondary, marginTop: 6 }]}>{UI.stop_reason[l]}: {stopReasonText(view.stopReason, l)}</Text>
+              ) : null}
+              {view.problems.length ? (
+                <View style={{ marginTop: 6 }}>
+                  <Text style={[st.label, { color: T.textMuted }]}>⚠️ {UI.problems[l]}: {view.problems.reduce((n, g) => n + g.words.length, 0)}</Text>
+                  {view.problems.map((group) => (
+                    <Text key={`${jobId}-p-${group.reason}`} style={[st.small, { color: T.textSecondary }]}>
+                      {problemReasonText(group.reason, l)} ({group.words.length}): {group.words.join(', ')}
+                    </Text>
+                  ))}
+                </View>
               ) : null}
               {view.synonymPending > 0 ? (
                 <Text style={[st.small, { color: T.textMuted, marginTop: 4 }]}>{UI.syn_pending[l]}: {view.synonymPending}</Text>

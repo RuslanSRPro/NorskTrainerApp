@@ -1820,6 +1820,16 @@ export async function getJobStatus(
   return invokeJobStatus(jobId);
 }
 
+// D10 10.11.2026 (D10_job_problems_v1): problem words of a job with the reason
+// (no translation, no example, AI rejected, not confirmed by a dictionary ...).
+export async function getJobProblemItems(jobId: string): Promise<Array<{
+  lemma: string; kind: string; reason: string; detail: string | null; lexeme_id: string | null;
+}>> {
+  const { data, error } = await supabase.rpc('get_job_problem_items_v1', { p_job_id: jobId });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as any[];
+}
+
 // D10 25.10.2026 (agreed, point 4): learning cards without a translation or
 // without an example (reading mode, "problem words"). legacy = old records
 // with an unknown part of speech (they go to the database audit).

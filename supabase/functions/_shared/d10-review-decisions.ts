@@ -13,6 +13,9 @@ export const GATE_REVIEW_CODES: ReadonlySet<string> = new Set([
   'CONFIRMED_ARTICLE_POS_CONFLICT',
   'NO_CONFIRMED_WHOLE_UNIT_REGISTRATION', // not found as a whole word / expression
   'unknown_pos_requires_review',
+  // D10 10.11.2026 (D10_job_problems_v1): a family expression the dictionaries did not verify stays a grey
+  // candidate - a decision about that expression, not a failure of the job (gå / ta jobs ended "needs review").
+  'FAMILY_EXPRESSION_NOT_VERIFIED',
 ]);
 
 // Enrichment: the card exists but a step cannot fill it. The first five are
@@ -26,6 +29,9 @@ export const ENRICHMENT_REVIEW_CODES: readonly string[] = [
   'pos_mismatch_filtered',
   'SELECTED_BM_ARTICLE_REQUIRED',         // no unique article of the POS for AI
   'SELECTED_ARTICLE_DEFINITION_MISSING',  // the article has no explanation
+  // D10 10.11.2026 (D10_job_problems_v1): the AI example was generated twice and both times its highlighted
+  // words did not match the sentence - a decision about one word (no example), not a failure of the job.
+  'AI_EXAMPLE_HIGHLIGHTS_INVALID',
 ];
 
 export const ENRICHMENT_REVIEW_PATTERN = new RegExp(ENRICHMENT_REVIEW_CODES.join('|'));
