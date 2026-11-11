@@ -2,13 +2,15 @@ import { publicationProofs, PUBLISHED_WITHOUT_EXPLANATION } from '../_shared/ai-
 import { expressionContext, expressionEvidence, currentExpressionEvidence } from './expression-quality.ts';
 import { reviewedHighlights } from '../_shared/example-highlights.ts';
 import { reviewExpressions, generateExpressions } from './expression-ai.ts';
+// D10 10.11.2026 (agreed): the retry of a WORD goes to OpenAI (generation + review), as expressions
+import { generateWordsOpenAI } from './openai-json.ts';
 import type { ReviewInput } from './pos-sense-guard.ts';
 
 async function reviewAll(inputs: ReviewInput[], accepted?: (ref: number, evidence: Record<string, unknown>) => void,
-  rejected?: (ref: number, evidence: Record<string, unknown>) => void) {
+  rejected?: (ref: number, evidence: Record<string, unknown>) => void, wordProvider: 'gemini' | 'openai' = 'gemini') {
   const expressions = inputs.filter(x => JSON.parse(x.context).basis === 'expression');
   const words = inputs.filter(x => JSON.parse(x.context).basis !== 'expression');
-  const results = await Promise.all([reviewGenerated(words, accepted, rejected), reviewExpressions(expressions, accepted, rejected)]);
+  const results = await Promise.all([reviewGenerated(words, accepted, rejected, wordProvider), reviewExpressions(expressions, accepted, rejected)]);
   return new Map(results.flatMap(x => [...x]));
 }
 import { norwegianExample, createAiExampleBinding } from '../_shared/example-evidence.ts';
@@ -350,7 +352,8 @@ async function loadLexemeContext(
     if (naob?.definition) {
       const naobBlocker = noArticleBlocker(candidate.verificationEvidence, candidate.pos, null, false);
       if (naobBlocker) throw new Error(`${message}; NAOB-bound path: ${naobBlocker}`);
-      const requestedNaob = missing.filter((field) => field === 'translation_ua' || field === 'translation_en');
+      // D10 11.11.2026 (agreed): every "≈" card gets translation + example (+ its translation), low reliability
+      const requestedNaob = missing.filter((field) => field === 'translation_ua' || field === 'translation_en' || field === 'example');
       if (!requestedNaob.length) throw new Error(`${message}; NAOB-bound path: NO_ARTICLE_NOTHING_TO_TRANSLATE`);
       candidate.selectedContext = noArticleContext(candidate.lemma, candidate.pos, {
         NAOB: `NAOB ${naob.slug} (${candidate.lemma}, ${candidate.pos}): ${naob.definition}`,
@@ -368,7 +371,8 @@ async function loadLexemeContext(
     const blocker = noArticleBlocker(candidate.verificationEvidence, candidate.pos,
       candidate.homographKey ?? null, hasSibling);
     if (blocker) throw new Error(`${message}; no-article path: ${blocker}`);
-    const requested = missing.filter((field) => field === 'translation_ua' || field === 'translation_en');
+    // D10 11.11.2026 (agreed): every "≈" card gets translation + example (+ its translation), low reliability
+    const requested = missing.filter((field) => field === 'translation_ua' || field === 'translation_en' || field === 'example');
     if (!requested.length) throw new Error(`${message}; no-article path: NO_ARTICLE_NOTHING_TO_TRANSLATE`);
     try {
       // D10 07.11.2026 (agreed, D10_lexin_ru_fallback_v1): + the Russian Lexin
@@ -415,8 +419,9 @@ async function definitionMissingContext(
   // written again together with the translation, in the same meaning (one
   // NAOB article, see below), marked like the translation ("≈", low
   // reliability). Outside the Audit: translations only, as before.
+  // D10 11.11.2026 (agreed): the example is made on every run now, not only in the Audit (one rule for all "≈")
   const requested = missing.filter((field) => field === 'translation_ua' || field === 'translation_en' ||
-    (field === 'example' && candidate.revalidateAi === true));
+    field === 'example');
   if (!requested.length) return [];
   const subArticles = (() => {
     const m = message.match(/sub_articles=(\[.*\])/);
@@ -579,7 +584,8 @@ export function noArticleFieldScope(missing: string[], evidence: unknown, pos: s
     // no unique article id: the no-article rule decides below
   }
   if (noArticleBlocker(evidence, pos, homographKey, hasSibling)) return missing;
-  return missing.filter((field) => field === 'translation_ua' || field === 'translation_en');
+  // D10 11.11.2026 (agreed): translation + example for every "≈" word (notes stay out)
+  return missing.filter((field) => field === 'translation_ua' || field === 'translation_en' || field === 'example');
 }
 
 async function scopeMissingForNoArticle(
@@ -1062,6 +1068,8 @@ type EntityCandidate = {
   homographSiblings?: SiblingCard[];
   qualityReview?: Record<string, unknown>;
   qualityDiagnostic?: Record<string, unknown>;
+  // D10 10.11.2026: reason of the first review rejection of a word, kept for its retry
+  retryReason?: string;
   diagnoseOnly?: boolean;
 };
 
@@ -1074,7 +1082,24 @@ async function loadExpressionContext(supabase: ReturnType<typeof createEnrichmen
     .select('id, lemma, raw_sources, verification_evidence').eq('id', candidate.id).single();
   if (error) throw new Error(`AI_EXPRESSION_CONTEXT_READ_FAILED: ${error.message}`);
   if (!data || data.lemma !== candidate.lemma) throw new Error('AI_EXPRESSION_IDENTITY_MISMATCH');
-  candidate.selectedContext = expressionContext({ ...data, pos: candidate.pos });
+  // D10 11.11.2026 (agreed): words NAOB names this expression a synonym of (synonym_candidate_queue: root word,
+  // NAOB gloss of the root's sense) - the support for "≈" when the expression has no definition of its own
+  let naobSynonymRoots: Array<{ lemma: string; pos: string | null; gloss: string | null }> = [];
+  const likeLemma = String(data.lemma).replace(/[\\%_]/g, (c) => '\\' + c);
+  const { data: syn, error: synError } = await supabase.from('synonym_candidate_queue')
+    .select('source_entity_id, naob_gloss, stage1_status')
+    .eq('target_kind', 'expression').eq('source_entity_type', 'lexeme').ilike('target_text', likeLemma)
+    .neq('stage1_status', 'rejected').limit(10);
+  if (synError) throw new Error(`AI_EXPRESSION_SYNONYM_READ_FAILED: ${synError.message}`);
+  const rootIds = [...new Set((syn ?? []).map((r: any) => String(r.source_entity_id)).filter(Boolean))];
+  if (rootIds.length) {
+    const { data: roots, error: rootError } = await supabase.from('lexemes').select('id, lemma, pos').in('id', rootIds);
+    if (rootError) throw new Error(`AI_EXPRESSION_SYNONYM_READ_FAILED: ${rootError.message}`);
+    naobSynonymRoots = (roots ?? []).map((r: any) => ({ lemma: String(r.lemma), pos: r.pos ?? null,
+      gloss: ((syn ?? []).find((x: any) => String(x.source_entity_id) === String(r.id))?.naob_gloss ?? null) }))
+      .sort((a, b) => (a.lemma + (a.pos ?? '')).localeCompare(b.lemma + (b.pos ?? '')));
+  }
+  candidate.selectedContext = expressionContext({ ...data, pos: candidate.pos, naob_synonym_roots: naobSynonymRoots });
 }
 
 function buildEntityOrFilter(candidate: EntityCandidate): string {
@@ -1677,7 +1702,8 @@ async function processCandidatesBatch(
       max_variants: maxVariantsFor(p.candidate.kind),
       // D10 10.11.2026 (agreed): the retry of a WORD also gets the review's reason (hete II: twice
       // «називатися» for 'varme opp', the retry was blind). Expressions get it below as before.
-      ...(attempt > 0 && p.candidate.qualityDiagnostic ? { previous_rejection: rejectionReason(p.candidate.qualityDiagnostic) } : {}),
+      ...(attempt > 0 && (p.candidate.retryReason || p.candidate.qualityDiagnostic)
+        ? { previous_rejection: p.candidate.retryReason ?? rejectionReason(p.candidate.qualityDiagnostic) } : {}),
     }));
 
     let byRef: Map<number, BatchOutputItem>;
@@ -1687,8 +1713,11 @@ async function processCandidatesBatch(
         const expressions = batchInput.filter(i => chunk[i.ref].candidate.kind === 'expression')
           .map(i => ({...i, previous_rejection: chunk[i.ref].candidate.qualityDiagnostic ?? null}));
         const words = batchInput.filter(i => chunk[i.ref].candidate.kind !== 'expression');
-        const [a,b] = await Promise.all([generateExpressions(expressions), words.length ? callGeminiBatch(words) : Promise.resolve(new Map<number, BatchOutputItem>())]);
+        const [a,b] = await Promise.all([generateExpressions(expressions), words.length ? generateWordsOpenAI(words) : Promise.resolve(new Map<number, BatchOutputItem>())]);
         byRef = new Map([...a, ...b]);
+      } else if (attempt > 0) {
+        // D10 10.11.2026 (agreed): retry of words only -> OpenAI
+        byRef = await generateWordsOpenAI(batchInput);
       } else byRef = await callGeminiBatch(batchInput);
       // D10 27.10.2026: two-gender nouns, before the review
       for (let ref = 0; ref < chunk.length; ref++) {
@@ -1715,7 +1744,8 @@ async function processCandidatesBatch(
           ...(p.missing.includes('example') && p.candidate.genderRule
             ? { gender_alternatives: genderAlternativeLabels(p.candidate.genderRule) } : {}) }]),
         (ref, evidence) => { chunk[ref].candidate.qualityReview = evidence; },
-        (ref, evidence) => { chunk[ref].candidate.qualityDiagnostic = evidence; });
+        (ref, evidence) => { chunk[ref].candidate.qualityDiagnostic = evidence; },
+        attempt > 0 ? 'openai' : 'gemini');
     } catch (e) {
       for (let ref = 0; ref < chunk.length; ref++) {
         reviews.set(ref, String(e));
@@ -1772,9 +1802,27 @@ async function processCandidatesBatch(
         // gets ONE more generation (in one batch with the other rejected
         // words of this chunk) before it is recorded as rejected.
         const rejection = reviews.get(idx);
+        // D10 11.11.2026 (agreed after 442): the retry failed ONLY on the example (missing / highlights) ->
+        // one more pass for the translations alone, so a good translation is not lost with a bad example.
+        // The word keeps "no example" in the problem list. Words only (expressions write all fields together).
+        if (attempt === 1 && typeof rejection === 'string' && EXAMPLE_ONLY_REASONS.has(rejection) &&
+            p.candidate.kind === 'lexeme' && p.missing.includes('example') &&
+            p.missing.some((f) => f === 'translation_ua' || f === 'translation_en') &&
+            typeof ai.lemma === 'string' && ai.lemma === p.candidate.lemma) {
+          p.missing = p.missing.filter((f) => f === 'translation_ua' || f === 'translation_en');
+          p.candidate.qualityReview = undefined;
+          p.candidate.retryReason = 'Only the translation is requested now; the example was not usable.';
+          p.candidate.qualityDiagnostic = undefined;
+          retry.push(p);
+          continue;
+        }
         if (attempt === 0 && typeof rejection === 'string' && REVIEW_RETRY_REASONS.has(rejection) &&
             typeof ai.lemma === 'string' && ai.lemma === p.candidate.lemma) {
           p.candidate.qualityReview = undefined;
+          // D10 10.11.2026: keep the reason for the retry prompt before the diagnostic is cleared
+          if (p.candidate.kind !== 'expression' && p.candidate.qualityDiagnostic) {
+            p.candidate.retryReason = rejectionReason(p.candidate.qualityDiagnostic);
+          }
           if (p.candidate.kind !== 'expression') p.candidate.qualityDiagnostic = undefined;
           retry.push(p);
           continue;
@@ -1892,6 +1940,9 @@ const REVIEW_RETRY_REASONS = new Set([
   'AI_POS_SENSE_REVIEW_REJECTED', 'AI_SINGLE_TRANSLATION_REQUIRED',
   'AI_REQUESTED_EXAMPLE_MISSING', 'AI_SOURCE_PERIOD_CHANGED_TO_NEW_MOON', 'AI_EXAMPLE_HIGHLIGHTS_INVALID',
 ]);
+
+// D10 11.11.2026: rejections caused only by the example (translation-only pass after the retry)
+const EXAMPLE_ONLY_REASONS = new Set(['AI_REQUESTED_EXAMPLE_MISSING', 'AI_EXAMPLE_HIGHLIGHTS_INVALID']);
 
 async function processSingleCandidate(
   supabase: ReturnType<typeof createEnrichmentClient>,

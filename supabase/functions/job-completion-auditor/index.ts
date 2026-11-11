@@ -1,3 +1,4 @@
+import { ENRICHMENT_REVIEW_PATTERN } from '../_shared/d10-review-decisions.ts';
 import { buildAuditReport, evaluateAuditCompletion, type ReviewItem } from "../_shared/completion-contract/v1/audit-report.ts";
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -729,6 +730,19 @@ serve(async (req) => {
         if (healOutcome) {
           entry.healed = healOutcome.healed;
           entry.heal_error = healOutcome.heal_error;
+          // D10 11.11.2026 (agreed after 445): an EXPRESSION whose heal ended with a review decision
+          // (AI rejected, no own definition, example highlights ...) and that misses only translations /
+          // example is a decision about that expression, not an incomplete job (same rule as the review
+          // marks of words). It stays in the problem list; the job is no longer "needs manual review".
+          if (w.kind === 'expression' && healOutcome.healed === false &&
+              ENRICHMENT_REVIEW_PATTERN.test(String(healOutcome.heal_error ?? '')) &&
+              w.missingFields.length > 0 &&
+              w.missingFields.every((f) => f === 'translation_ua' || f === 'translation_en' || f === 'example')) {
+            entry.complete = true;
+            entry.missing = undefined;
+            entry.healed = undefined;
+            reviewMarkedIds.push(w.id);
+          }
         }
       } else if (!w.isComplete && w.onlyMissingIsForms) {
         entry.heal_error =

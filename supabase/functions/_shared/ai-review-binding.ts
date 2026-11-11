@@ -1,5 +1,7 @@
 export const AI_BINDING_VERSION = 'd10_ai_review_binding_v1';
 export const AI_QUALITY_VERSION = 'd10_ai_pos_sense_v3';
+// D10 11.11.2026 (agreed): a word's retry is reviewed by OpenAI (gpt-6-luna), the first attempt by Gemini.
+export const AI_REVIEW_PROVIDERS: unknown[] = ['gemini', 'openai'];
 const nonempty = (v: unknown): v is string => typeof v === 'string' && !!v.trim();
 const norm = (v: unknown) => typeof v === 'string' ? v.trim().toLowerCase() : '';
 
@@ -11,7 +13,7 @@ export function createTranslationBinding(context: string, review: any,
   const values = proposal?.answer?.[field];
   if (source?.basis === NO_ARTICLE_BASIS) return createNoArticleTranslationBinding(source, review, identity);
   if (review?.version !== AI_QUALITY_VERSION || review?.status !== 'accepted' ||
-      review?.provider !== 'gemini' || !nonempty(review.model) || !nonempty(review.reason) ||
+      !AI_REVIEW_PROVIDERS.includes(review?.provider) || !nonempty(review.model) || !nonempty(review.reason) ||
       !nonempty(review.reviewed_at) || !Number.isFinite(Date.parse(review.reviewed_at)) ||
       JSON.stringify(proposal?.context) !== JSON.stringify(source) ||
       !Array.isArray(proposal?.missing) || !proposal.missing.includes(field) ||
@@ -40,7 +42,7 @@ export function boundAiReviewReason(entity: {entity_id: string; lemma: string; p
   const b = e.content_binding, r = e.review, s = e.source;
   if (e.version !== AI_QUALITY_VERSION || e.status !== 'ai_reviewed' || e.source_verified !== false ||
       b.version !== AI_BINDING_VERSION || b.kind !== 'translation' ||
-      r?.version !== AI_QUALITY_VERSION || r?.status !== 'accepted' || r?.provider !== 'gemini' ||
+      r?.version !== AI_QUALITY_VERSION || r?.status !== 'accepted' || !AI_REVIEW_PROVIDERS.includes(r?.provider) ||
       !nonempty(r.model) || !nonempty(r.reason) || !nonempty(r.reviewed_at) || !Number.isFinite(Date.parse(r.reviewed_at)))
     return 'AI_REVIEW_BINDING_INVALID';
   if (translation.provider !== 'ai_fallback' || !translation.canonical ||
@@ -140,7 +142,7 @@ function createNoArticleTranslationBinding(source: any, review: any,
   const field = identity.languageCode === 'uk' ? 'translation_ua' : 'translation_en';
   const values = proposal?.answer?.[field];
   if (review?.version !== AI_QUALITY_VERSION || review?.status !== 'accepted' ||
-      review?.provider !== 'gemini' || !nonempty(review.model) || !nonempty(review.reason) ||
+      !AI_REVIEW_PROVIDERS.includes(review?.provider) || !nonempty(review.model) || !nonempty(review.reason) ||
       !nonempty(review.reviewed_at) || !Number.isFinite(Date.parse(review.reviewed_at)) ||
       JSON.stringify(proposal?.context) !== JSON.stringify(source) ||
       !Array.isArray(proposal?.missing) || !proposal.missing.includes(field) ||
@@ -166,7 +168,7 @@ function noArticleReviewReason(entity: {entity_id: string; lemma: string; pos: s
   const b = e.content_binding, r = e.review, s = e.source;
   if (e.version !== AI_QUALITY_VERSION || e.source_verified !== false ||
       b?.version !== AI_NO_ARTICLE_BINDING_VERSION || b.kind !== 'translation' ||
-      r?.version !== AI_QUALITY_VERSION || r?.status !== 'accepted' || r?.provider !== 'gemini' ||
+      r?.version !== AI_QUALITY_VERSION || r?.status !== 'accepted' || !AI_REVIEW_PROVIDERS.includes(r?.provider) ||
       !nonempty(r.model) || !nonempty(r.reason) || !nonempty(r.reviewed_at) || !Number.isFinite(Date.parse(r.reviewed_at)))
     return 'AI_REVIEW_BINDING_INVALID';
   if (translation.provider !== 'ai_fallback' || !translation.canonical ||

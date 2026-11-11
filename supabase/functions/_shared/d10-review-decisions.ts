@@ -32,6 +32,9 @@ export const ENRICHMENT_REVIEW_CODES: readonly string[] = [
   // D10 10.11.2026 (D10_job_problems_v1): the AI example was generated twice and both times its highlighted
   // words did not match the sentence - a decision about one word (no example), not a failure of the job.
   'AI_EXAMPLE_HIGHLIGHTS_INVALID',
+  // D10 11.11.2026 (agreed after 442): an expression no dictionary confirmed as a whole unit and without an own
+  // explanation is not translated by AI (rule of 09.11) - a decision about that expression, not a job failure.
+  'AI_EXPRESSION_OWN_DEFINITION_REQUIRED',
 ];
 
 export const ENRICHMENT_REVIEW_PATTERN = new RegExp(ENRICHMENT_REVIEW_CODES.join('|'));

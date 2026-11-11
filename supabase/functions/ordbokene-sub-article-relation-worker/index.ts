@@ -439,9 +439,11 @@ serve(async (req) => {
     }
 
     return jsonResponse({
-      ok: skippedCandidates.length === 0,
+      // D10 11.11.2026 (agreed after 442): a candidate pointing to a deleted expression is skipped and
+      // reported, it no longer fails the chain (bruke, finger, kald, leve after the collocation delete).
+      ok: true,
       stage: skippedCandidates.length ? 'candidate_identity_review' : undefined,
-      error: skippedCandidates.length ? 'EXPRESSION_CATALOG_ID_MISSING' : undefined,
+      warning: skippedCandidates.length ? 'EXPRESSION_CATALOG_ID_MISSING' : undefined,
       retryable: false,
       dry_run: dryRun,
       parent_article_id: parentArticleId,
@@ -458,7 +460,7 @@ serve(async (req) => {
       ).length,
       upserted: results.filter((r) => r.action === 'upserted_relation').length,
       results,
-    }, skippedCandidates.length ? 409 : 200);
+    }, 200);
   } catch (err) {
     return jsonResponse(
       {

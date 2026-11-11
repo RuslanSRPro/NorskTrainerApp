@@ -1,3 +1,4 @@
+import { openAiJson, jsonObject, OPENAI_WORD_MODEL } from './openai-json.ts';
 import { createTranslationBinding, PUBLISHED_WITHOUT_EXPLANATION, type PublicationProof } from '../_shared/ai-review-binding.ts';
 import { proposalHighlights } from '../_shared/example-highlights.ts';
 export const QUALITY_VERSION = 'd10_ai_pos_sense_v3';
@@ -287,6 +288,8 @@ export const REVIEW_POLICY_VERSION = 'd10_review_source_example_v1';
 export async function reviewGenerated(inputs: ReviewInput[],
   onAccepted?: (ref: number, evidence: Record<string, unknown>) => void,
   onRejected?: (ref: number, evidence: Record<string, unknown>) => void,
+  // D10 10.11.2026 (agreed): the retry of a word is reviewed by OpenAI (as expressions)
+  provider: 'gemini' | 'openai' = 'gemini',
 ): Promise<Map<number, string | null>> {
   if (!inputs.length) return new Map();
   for (const input of inputs) {
@@ -376,37 +379,46 @@ per input, preserving ref, lemma and pos exactly. A decision is an AI review, no
 Write reason as one short English sentence. Do not quote or reproduce input wording.
 Apostrophes do not need escaping in JSON. Return schema-conforming JSON only.
 ${noArticleNote}${withoutExplanationNote}${genderNote}${JSON.stringify(eligible)}`;
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST', signal: AbortSignal.timeout(30000),
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0, responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'ARRAY', items: { type: 'OBJECT',
-            properties: {
-              ref: { type: 'INTEGER' }, lemma: { type: 'STRING' },
-              pos: { type: 'STRING' }, supported: { type: 'BOOLEAN' },
-              reason: { type: 'STRING', description: 'One short English explanation; do not quote input text.' },
-            }, required: ['ref', 'lemma', 'pos', 'supported', 'reason'],
-          },
-        },
-      } }),
-  });
-  if (!res.ok) throw new Error(`AI_POS_SENSE_REVIEW_HTTP_${res.status}`);
-  const data = await res.json();
-  const candidate = data?.candidates?.[0];
-  if (candidate?.finishReason !== 'STOP') {
-    throw new Error(`AI_REVIEW_INCOMPLETE: ${candidate?.finishReason ?? 'missing_candidate'}`);
-  }
-  const text = candidate?.content?.parts?.filter((x: any) => x.thought !== true)
-    .map((x: any) => x.text ?? '').join('') ?? '';
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim());
-  } catch (e) {
-    // Never repair malformed verdicts, strip unknown escapes, or turn them
-    // into acceptance. Preserve the fail-closed write gate.
-    throw new Error(`AI_REVIEW_JSON_INVALID: ${e instanceof Error ? e.message : String(e)}`);
+  let reviewModel = model;
+  if (provider === 'openai') {
+    reviewModel = OPENAI_WORD_MODEL;
+    const result = await openAiJson(prompt, jsonObject({ items: { type: 'array', items: jsonObject({
+      ref: { type: 'integer' }, lemma: { type: 'string' }, pos: { type: 'string' },
+      supported: { type: 'boolean' }, reason: { type: 'string' } }) } }), 'word_review');
+    parsed = result?.items;
+  } else {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST', signal: AbortSignal.timeout(30000),
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'ARRAY', items: { type: 'OBJECT',
+              properties: {
+                ref: { type: 'INTEGER' }, lemma: { type: 'STRING' },
+                pos: { type: 'STRING' }, supported: { type: 'BOOLEAN' },
+                reason: { type: 'STRING', description: 'One short English explanation; do not quote input text.' },
+              }, required: ['ref', 'lemma', 'pos', 'supported', 'reason'],
+            },
+          },
+        } }),
+    });
+    if (!res.ok) throw new Error(`AI_POS_SENSE_REVIEW_HTTP_${res.status}`);
+    const data = await res.json();
+    const candidate = data?.candidates?.[0];
+    if (candidate?.finishReason !== 'STOP') {
+      throw new Error(`AI_REVIEW_INCOMPLETE: ${candidate?.finishReason ?? 'missing_candidate'}`);
+    }
+    const text = candidate?.content?.parts?.filter((x: any) => x.thought !== true)
+      .map((x: any) => x.text ?? '').join('') ?? '';
+    try {
+      parsed = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim());
+    } catch (e) {
+      // Never repair malformed verdicts, strip unknown escapes, or turn them
+      // into acceptance. Preserve the fail-closed write gate.
+      throw new Error(`AI_REVIEW_JSON_INVALID: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
   if (!Array.isArray(parsed)) throw new Error('AI_REVIEW_SCHEMA_INVALID: expected verdict array');
   const decisions = reviewDecisions(inputs, parsed);
@@ -416,14 +428,14 @@ ${noArticleNote}${withoutExplanationNote}${genderNote}${JSON.stringify(eligible)
       const matches = parsed.filter((x: any) => x?.ref === input.ref);
       const row = matches.length === 1 ? matches[0] : null;
       onRejected?.(input.ref, { status: 'rejected', stage: 'model_review',
-        model, policy_version: REVIEW_POLICY_VERSION, reason: typeof row?.reason === 'string' ? row.reason.slice(0, 800) : 'missing_or_duplicate_verdict',
+        model: reviewModel, policy_version: REVIEW_POLICY_VERSION, reason: typeof row?.reason === 'string' ? row.reason.slice(0, 800) : 'missing_or_duplicate_verdict',
         identity_matches: row?.lemma === input.lemma && row?.pos === input.pos,
         supported: typeof row?.supported === 'boolean' ? row.supported : null });
     }
     if (decisions.get(input.ref) === null) {
       const row = parsed.find((x: any) => x.ref === input.ref);
       onAccepted?.(input.ref, { version: QUALITY_VERSION, status: 'accepted',
-        provider: 'gemini', model, policy_version: REVIEW_POLICY_VERSION, reason: row.reason, reviewed_at: new Date().toISOString(),
+        provider, model: reviewModel, policy_version: REVIEW_POLICY_VERSION, reason: row.reason, reviewed_at: new Date().toISOString(),
         approved_proposal: {context: JSON.parse(input.context), missing: [...input.missing],
           answer: JSON.parse(JSON.stringify(input.answer))} });
     }

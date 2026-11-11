@@ -46,10 +46,25 @@ export function expressionContext(row: any): string {
     if (naob?.status === 'done' && naob?.whole_unit_match === true) {
       confirmed.push({ provider: 'NAOB' });
     }
+    // D10 11.11.2026 (agreed): NAOB names this expression as a SYNONYM of a word (gi beskjed <- meddele).
+    // That link is the support for "≈": the meaning is the root word's meaning. Verification is unchanged.
+    const roots = (Array.isArray(row.naob_synonym_roots) ? row.naob_synonym_roots : [])
+      .filter((r: any) => typeof r?.lemma === 'string' && r.lemma.trim());
+    const rootConstraints: string[] = [];
+    if (!confirmed.length && roots.length) {
+      for (const r of roots) {
+        confirmed.push({ provider: 'NAOB', relation: 'synonym', root_lemma: r.lemma, root_pos: r.pos ?? null,
+          root_gloss: typeof r.gloss === 'string' && r.gloss.trim() ? r.gloss.trim().slice(0, 300) : null });
+      }
+      rootConstraints.push('NAOB lists this expression as a synonym of ' +
+        roots.map((r: any) => `«${r.lemma}»${r.pos ? ` (${r.pos})` : ''}` +
+          (typeof r.gloss === 'string' && r.gloss.trim() ? ` [NAOB: ${r.gloss.trim().slice(0, 200)}]` : '')).join(', ') +
+        ': translate it in that meaning only.');
+    }
     if (!confirmed.length) throw new Error('AI_EXPRESSION_OWN_DEFINITION_REQUIRED');
     return JSON.stringify({ basis: 'expression', expression_id: row.id, lemma: row.lemma,
       pos: row.pos ?? 'expression', definitions: [], examples: [], sources: confirmed, no_definition: true,
-      translation_constraints: [NO_DEFINITION_CONSTRAINT,
+      translation_constraints: [NO_DEFINITION_CONSTRAINT, ...rootConstraints,
         'Translate the whole expression, not its individual words.',
         'The example and its Ukrainian translation must illustrate the same sense as the equivalent.'] });
   }

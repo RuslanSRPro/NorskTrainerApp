@@ -36,7 +36,7 @@ export function lexinExampleEvidence(identity: {lexemeId:string|null;expressionI
 }
 export function createAiExampleBinding(context:string,review:any,identity:{lexemeId:string;exampleNb:string;translationUk:string|null}) {
   const source=JSON.parse(context),proposal=review?.approved_proposal;
-  if(review?.version!=='d10_ai_pos_sense_v3'||review?.status!=='accepted'||review?.provider!=='gemini'||
+  if(review?.version!=='d10_ai_pos_sense_v3'||review?.status!=='accepted'||!['gemini','openai'].includes(review?.provider)||
     !linguisticText(review.model)||!linguisticText(review.reason)||!Number.isFinite(Date.parse(review.reviewed_at))||
     JSON.stringify(proposal?.context)!==JSON.stringify(source)||!Array.isArray(proposal?.missing)||!proposal.missing.includes('example')||
     !linguisticText(identity.exampleNb)||!linguisticText(identity.translationUk)||
