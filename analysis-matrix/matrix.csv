@@ -1,0 +1,32 @@
+id,stage,kind,name,location,reads,writes,journal_or_cache,audit_rewrite,load,rules,last_change,confidence,notes
+M001,01,edge,analyze-text,functions/analyze-text,request,lexeme_processing_jobs; lexeme_processing_items; lexeme_source_checks,analysis_skip_config_v1 (text only),yes (new job); sources may come from caches,per run,D5,,check-code,
+M002,01,edge,lexical-worker + verification adapters,functions/lexical-worker; functions/verification/adapters,lexeme_source_checks (pending),lexeme_source_checks (evidence pos_match/found_pos/pos_basis),source_lookup_cache?,check-code,per check,D1,,verified-part,evidence shape verified
+M003,02,sql,expand_multi_pos_occurrences_for_job,migrations 20261013200000 + 20261111120000 (patch),items; source_checks,items (clones); source_checks (pending),,yes (per job),per tick,D1 D5,2026-11-11 C-1111-06,verified,
+M004,03,sql,promote_verification_results_for_job,live (check migrations),items; source_checks,lexemes; items,,check-code,~600ms avg max 7.8s (11.11),D1,,check-code,
+M005,04,sql,d10_promote_gray_pos_clones_v1,migrations 20261020100000 + patches 20261024100000 20261110180000 20261110190000,items; source_checks; lexemes,lexemes (new grey only); items; lexeme_semantic_enrichment,,existing card never changed,per tick,D1 D2,2026-11-10 C-1110-09,verified,
+M006,05,sql,d10_family_dictionary_roots_page_v2,migrations 20261107170000 (verify live),items; source_checks; lexeme360_expression_roots_v1; runs journals,—,d10_family_dictionary_runs_v1; d10_family_naob_runs_v1,NO: root with done/failed is never selected again,per tick,,,verified-text,second homograph card likely not selected (two articles) — query 464
+M007,05,edge,ordbokene-lexeme-pipeline-worker,functions/ordbokene-lexeme-pipeline-worker,ord.uib.no; ordbokene_article_cache,expression_catalog; lexeme360_expression_roots_v1,ordbokene_article_cache,check-code,per root,,,check-code,
+M008,05,edge,ordbokene-sub-article-relation-worker,functions/ordbokene-sub-article-relation-worker,ordbokene_expression_candidates; expression_catalog,authoritative_semantic_relations; root bindings,,check-code,per root,,2026-11-11 C-1111-05,verified-part,missing catalog id skipped not fatal
+M009,06,edge,naob-family-expressions-worker,functions/naob-family-expressions-worker,naob.no; naob_article_cache; lexemes; lexeme_form_display_v2,naob_article_cache; naob_expression_glosses (via extractor),naob_extraction_log_v1 (24h),NO: cached pages/glosses not refreshed,per root (gå 62 min before C-1110-04),D14,2026-11-11 C-1111-12 (not committed),verified,
+M010,06,sql,d10_naob_family_bind_v1,migrations 20261110120000 (bind_speed),naob_expression_glosses; expression_catalog (root_lemma),expression_catalog; lexeme360_expression_roots_v1,,NO: bindings only added (ON CONFLICT DO UPDATE),per root,D14,2026-11-10,verified,matches existing expressions by root_lemma not by card
+M011,06,table,naob_expression_glosses,public,—,—,cache,NO: stale numbering (hete),—,,,verified,FK from synonym_candidate_queue.gloss_id RESTRICT
+M012,06,table,private.d10_family_naob_runs_v1,private,—,—,journal,NO: done = never again,—,,,verified,
+M013,07,ts,runHomographStep / decideHomographs,functions/_shared/d10-homograph-cards.ts,ord.uib.no articles; candidates,decisions; bindings; injected items,decisions permanent,NO: decisions never revisited,per tick (fetch 8s),D6,,verified,fetch/record errors not in job report
+M014,07,sql,d10_homograph_candidates_for_job_v1,live (differs from 20261015090100),items; bindings; source_checks; decisions,—,,—,per tick,D6,,verified-live,filter promoted OR status=done
+M015,07,sql,d10_record_homograph_decision_v1,migrations 20261015090100 (+20261025100000?),lexemes; bindings,lexemes (R9 card); bindings; decisions,,—,per decision,D6,,verified-text,
+M016,08,edge,pipeline-supervisor,functions/pipeline-supervisor,job state,chain states,,check-code,cron 1 min,,2026-11-11 deploy,check-code,
+M017,08,edge,job-enrichment-batch-worker,functions/job-enrichment-batch-worker,chain states,d10_job_enrichment_item_state_v1,,check-code,per chain page,D12,,check-code,
+M018,09,edge,ai-enrichment-worker,functions/ai-enrichment-worker,lexemes; entity_translations; entity_examples; synonym_candidate_queue,entity_translations; entity_examples; d10_ai_review_rejections_v1,review marks,AI rows without current proof are rewritten; marked words see M020,per candidate,D8 D9 D10 D11,2026-11-11,verified,
+M019,09,sql,bind_reviewed_ai_translation_v1 / bind_reviewed_ai_example_v1,live (patched 20261111090000),evidence,binding proof,,—,per write,D10,2026-11-11 C-1111-02,verified,
+M020,10,edge,job-completion-auditor,functions/job-completion-auditor,items; d10_ai_review_marked_v1; check results,jobs.summary.completion_audit,,heals incomplete (2 passes),per job,D12,2026-11-11 C-1111-07,verified-part,
+M021,10,ts,d10-review-decisions,functions/_shared/d10-review-decisions.ts,—,—,,—,—,D12,2026-11-11 C-1111-04,verified,used by 6 functions — redeploy all on change
+M022,11,sql,d10_synonym_bm_tick_v1,live,—,—,,check-code,cron 5 min; up to 118 s,D13,,check-code,
+M023,11,table,synonym_candidate_queue,public,—,—,,—,—,D9 D13,,verified,source of NAOB-synonym support for ≈
+M024,12,sql,get_lexeme360_ready_expressions_v2,live only,lexeme360_roots_for_lexeme_v2; lexeme360_expression_roots_v1; expression_catalog,—,,reflects bindings,app,,,verified-live,
+M025,12,sql,private.lexeme360_roots_for_lexeme_v2,live only,lexeme360_expression_roots_v1; expression_catalog,—,,—,app,,,verified-live,
+M026,13,sql,get_job_problem_items_v1,migrations 20261110160000,items; chain states; canonical RPCs,—,,—,per history open,,2026-11-10,verified,
+M027,13,sql,d10_problem_cards_v4 / count_v3,migrations 20261111140000,private.d10_problem_cards_cache_v1,—,cache,cache refreshed by cron steps,< 1 s,,2026-11-11 C-1111-09,verified,
+M028,13,sql,private.d10_problem_cards_refresh_step_v1,migrations 20261111140000,lexemes; items; canonical translations,cache; cursor,cursor,full cycle over base + recent first,cron 5 min / 150,,2026-11-11,verified,
+M029,14,sql,get_stranded_expression_candidates,live only,authoritative_semantic_relations; expression_catalog,—,,—,~27k s total before index,W9,2026-11-11 C-1111-10,verified,
+M030,14,sql,claim_next_semantic_audit / claim_next_expression_semantic_audit,live only,*_semantic_enrichment; lexeme_processing_items,*_semantic_enrichment,,—,before index 0.5 s per poll,W9,2026-11-11 C-1111-10,verified,
+M031,—,rule,Audit = full rewrite,RULES D4,—,—,—,NOT met: see M006 M009 M010 M011 M012 M013 M020,—,D4,,verified,main open item

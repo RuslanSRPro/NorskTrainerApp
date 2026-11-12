@@ -102,6 +102,42 @@ async function logExtraction(supabase: ReturnType<typeof createClient>, kind: st
   if (error) throw new Error(`EXTRACTION_LOG_SAVE_FAILED:${error.message}`);
 }
 
+// D10 11.11.2026: NAOB articles of a homograph card, chosen by the card's own forms. null = no homograph group.
+async function selectHomographSlugs(supabase: ReturnType<typeof createClient>, lexemeId: string, lemma: string,
+  slugs: string[]): Promise<{ slugs: string[]; detail: Record<string, unknown> } | null> {
+  const { data: card, error: cardError } = await supabase.from('lexemes').select('pos').eq('id', lexemeId).single();
+  if (cardError) throw new Error(`HOMOGRAPH_CARD_READ_FAILED:${cardError.message}`);
+  const { data: siblings, error: sibError } = await supabase.from('lexemes').select('id')
+    .eq('lemma', lemma).eq('pos', card?.pos ?? 'verb').neq('id', lexemeId);
+  if (sibError) throw new Error(`HOMOGRAPH_SIBLINGS_READ_FAILED:${sibError.message}`);
+  if (!(siblings ?? []).length) return null;
+  const ids = [lexemeId, ...(siblings ?? []).map((r: { id: string }) => r.id)];
+  const { data: forms, error: formsError } = await supabase.from('lexeme_form_display_v2')
+    .select('lexeme_id, primary_values, alternative_values').in('lexeme_id', ids).eq('dictionary_code', 'bm');
+  if (formsError) throw new Error(`HOMOGRAPH_FORMS_READ_FAILED:${formsError.message}`);
+  const formsOf = (id: string) => new Set((forms ?? []).filter((f: any) => f.lexeme_id === id)
+    .flatMap((f: any) => [...(f.primary_values ?? []), ...(f.alternative_values ?? [])])
+    .map((v: unknown) => String(v ?? '').trim().toLowerCase()).filter(Boolean));
+  const own = formsOf(lexemeId);
+  const siblingForms = new Set(ids.slice(1).flatMap((id) => [...formsOf(id)]));
+  const ownOnly = [...own].filter((v) => !siblingForms.has(v));
+  const siblingOnly = [...siblingForms].filter((v) => !own.has(v));
+  const kept: string[] = [];
+  const checked: Record<string, unknown>[] = [];
+  for (const slug of slugs) {
+    const html = await articleHtml(supabase, slug);
+    const articleForms = new Set((html ? parseNaobArticle(html).forms : [])
+      .flatMap((f) => [...f.primary_values, ...f.alternative_values])
+      .map((v) => String(v ?? '').trim().toLowerCase()).filter(Boolean));
+    const ownHit = ownOnly.filter((v) => articleForms.has(v));
+    const siblingHit = siblingOnly.filter((v) => articleForms.has(v));
+    const keep = ownHit.length > 0 && siblingHit.length === 0;
+    if (keep) kept.push(slug);
+    checked.push({ slug, keep, own_forms_hit: ownHit, sibling_forms_hit: siblingHit });
+  }
+  return { slugs: kept, detail: { own_only_forms: ownOnly, sibling_only_forms: siblingOnly, checked } };
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method !== 'POST') return json({ ok: false, error: 'Use POST' }, 405);
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -143,6 +179,18 @@ Deno.serve(async (request: Request) => {
     if (!slugs.length) {
       return json({ ok: true, status: 'no_naob_verb_article', slugs: [],
         search_entries: listing.entries.slice(0, 10) });
+    }
+
+    // D10 11.11.2026 (agreed after 460): a verb with homograph cards (hete "be called" / hete II "heat") took the
+    // expressions of ALL NAOB verb articles of the headword, so "hete opp" landed on "be called". Now only the NAOB
+    // articles whose forms match THIS card's own forms (forms the sibling cards do not have) are used; no match ->
+    // no NAOB family for this card (its Ordbøkene sub-article family, exact by article, is unchanged).
+    const homograph = await selectHomographSlugs(supabase, lexemeId, lemma, slugs);
+    if (homograph) {
+      slugs = homograph.slugs;
+      if (!slugs.length) {
+        return json({ ok: true, status: 'homograph_no_naob_match', slugs: [], homograph: homograph.detail });
+      }
     }
 
     // 2 + 3. cache + expressions of every article (not again within 24 h: the passes of one job)

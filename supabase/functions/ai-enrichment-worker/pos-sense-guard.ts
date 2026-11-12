@@ -62,6 +62,9 @@ export function articleContext(article: any, id: string, lemma: string, pos: str
   };
   const definitions: string[] = [];
   const examples: string[] = [];
+  // D10 11.11.2026 (si noun: "jf. ti" became the definition "ti" and AI translated "ten"): an explanation that is
+  // ONLY a reference to another article is a "see also" headword, never a meaning of this word.
+  const seeAlso: string[] = [];
   // D10 27.10.2026: names of the sub-articles (bare -> "bare seg"); used only
   // when the article itself has no explanation (source cascade, variant B)
   const subArticles: string[] = [];
@@ -78,6 +81,13 @@ export function articleContext(article: any, id: string, lemma: string, pos: str
     }
     if (!x || typeof x !== 'object') return;
     if (x.type_ === 'explanation') {
+      if (typeof x.content === 'string' && x.content.trim() === '$' && Array.isArray(x.items) &&
+          x.items.length === 1 && x.items[0]?.type_ === 'article_ref') {
+        for (const l of (x.items[0].lemmas ?? [])) {
+          if (typeof l?.lemma === 'string' && l.lemma.trim()) seeAlso.push(l.lemma.trim());
+        }
+        return;
+      }
       const text = render(x);
       if (text) definitions.push(text);
       return;
@@ -98,11 +108,19 @@ export function articleContext(article: any, id: string, lemma: string, pos: str
       ? `SELECTED_ARTICLE_DEFINITION_MISSING; sub_articles=${JSON.stringify(subs)}`
       : 'SELECTED_ARTICLE_DEFINITION_MISSING');
   }
+  const constraints = definitions.some(x => /tid da månen vokser/i.test(x))
+    ? ['Translate the period of the waxing/growing moon, not the instant of new moon. Use an explicit phase/period translation.']
+    : [];
+  const refs = [...new Set(seeAlso)];
+  if (refs.length) {
+    constraints.push('see_also lists headwords the dictionary only refers to ("jf."). They are NOT meanings of this ' +
+      'word, may be homonyms with unrelated meanings, and must never be translated as this word.');
+  }
+  // see_also is added only when present, so every other context stays exactly as before
   return JSON.stringify({ dictionary: 'bm', article_id: id, lemma, pos,
     definitions: [...new Set(definitions)], examples: [...new Set(examples)],
-    translation_constraints: definitions.some(x => /tid da månen vokser/i.test(x))
-      ? ['Translate the period of the waxing/growing moon, not the instant of new moon. Use an explicit phase/period translation.']
-      : [] });
+    ...(refs.length ? { see_also: refs } : {}),
+    translation_constraints: constraints });
 }
 
 // D10 15.10.2026 (agreed with the user, rule R12): a word WITHOUT its own
